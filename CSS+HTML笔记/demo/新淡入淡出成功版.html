@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+
+        function clickbuttonout() {
+            var sp = document.getElementById("spbb");
+            fadeout(sp, 50, 0)
+        }
+
+        function clickbuttonin() {
+            var sp = document.getElementById("spbb");
+            fadein(sp, 50, 100)
+        }
+        
+        function fadein(element, speed, opacity) {
+            var sty = window.getComputedStyle(element, null)
+            var timer = setInterval(() => {
+                if (sty.opacity * 100 == opacity) {
+                    clearInterval(timer);
+                } else {
+                    setopacity(element, sty.opacity * 100 + 5)
+                }
+            }, speed)
+        }
+
+        function fadeout(element, speed, opacity, timer) {
+            var sty = window.getComputedStyle(element, null)
+            var timer = setInterval(() => {
+                if (sty.opacity * 100 == opacity) {
+                    clearInterval(timer);
+                } else {
+                    setopacity(element, sty.opacity * 100 - 5)
+                }
+            }, speed)
+        }
+
+        function setopacity(element, opacity) {
+            element.style.opacity = opacity / 100;
+        }
+
+    </script>
+</head>
+
+<body>
+
+    <div id="aaa">
+        <span id="spbb">aaaa</span>
+    </div>
+    <button id="ccc" onclick="clickbuttonout()">淡出</button>
+    <button id="ddd" onclick="clickbuttonin()">淡入</button>
+</body>
+
+</html>
