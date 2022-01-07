@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<script>
+    window.onload = function () {
+        function selectNum() {
+            var select = document.getElementById("select")
+            var option = select.options
+            alert(option.length)
+            for (i = 0; i < option.length; i++)
+                if (option[i].value === "南靖")
+                    option[i].selected = true
+
+        }
+    }
+</script>
+
+<style>
+    .submit {
+        margin-right: 20px;
+    }
+
+    table th {
+
+        text-align: center;
+    }
+</style>
+
+<body>
+    <div class="top">
+        <form action="">
+            <table>
+                <thead>
+                    <th colspan="2">New Number</th>
+                    <th></th>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="id">ID</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="password">Password</td>
+                        <td><input type="password" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="re-password">Re-Password</td>
+                        <td><input type="password" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="First">First Name</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="Last">Last Name</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="Adress">Adress</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="City">City</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="State">State</td>
+                        <td><select name="" id="">
+                                <option value="">水星</option>
+                                <option value="">火星</option>
+                                <option value="">地球</option>
+                                <option value="">金星</option>
+                            </select></td>
+                    </tr>
+                    <tr>
+                        <td class="Country">Country</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="Eamail">Email Adress</td>
+                        <td><input type="email" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td class="Select">Select Interest</td>
+                        <td class="big"><input type="radio" name="one" id=""><span>Technology</span>
+                            <input type="radio" name="one" id=""><span>Enterprise</span>
+                            <input type="radio" name="one" id=""><span>Research</span>
+                            <input type="radio" name="one" id=""><span>Government</span>
+                            <input type="radio" name="one" id=""><span>People</span>
+                            <input type="radio" name="one" id=""><span>Life Style</span>
+                            <input type="radio" name="one" id=""><span>Opinio</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="Question">Question</td>
+                        <td><select name="select" id="select">
+                                <option value="1">安全问题1</option>
+                                <option value="2" selected>安全问题2</option>
+                                <option value="南靖">南靖</option>
+                                <option value="4">安全问题4</option>
+                            </select></td>
+                    </tr>
+                    <tr>
+                        <td class="Answer">Answer</td>
+                        <td><input type="text" name="" id=""></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><input class="submit" type="submit" value="提交信息"><input class="reset" type="button"
+                                value="重置表单"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input type="button" value="按钮" id="only" onclick="selectNum()">
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+            <hr style="background-color: red;border: none;height: 2px;opacity: .1;width: 50%" />
+        </form>
+    </div>
+</body>
+
+</html>
