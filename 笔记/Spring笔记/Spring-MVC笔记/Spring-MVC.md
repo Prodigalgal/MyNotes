@@ -2136,8 +2136,6 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 ```
 
-
-
 # 问题
 
 ## Spring环境下使用Spring-MVC

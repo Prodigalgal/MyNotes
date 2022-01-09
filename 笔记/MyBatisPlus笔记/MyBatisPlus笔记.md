@@ -2349,3 +2349,8 @@ outagedetectioninterval=2
 - 批量操作打印重复的问题请使用MybatisPlusLogFactory (3.2.1新增）
 - 该插件有性能损耗，不建议生产环境使用。
 
+# 问题
+
+## 1、忽略表中不存在的字段
+
+使用@TableFiled(exit = false)忽略
