@@ -388,6 +388,12 @@ public class DeptController_Consumer{
 }
 ```
 
+# 组件替换
+
+![image-20220115231140387](images/image-20220115231140387.png) 
+
+![image-20220115231148661](images/image-20220115231148661.png)
+
 # 扩展
 
 ## RestTemplate

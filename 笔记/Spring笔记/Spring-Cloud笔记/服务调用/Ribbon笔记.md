@@ -1,6 +1,6 @@
 # Ribbon简介
 
-作用：LB（负载均衡）
+作用：LB（负载均衡），**客户端负载均衡**的工具。
 
 >集中式LB
 >
@@ -18,6 +18,8 @@
 ## 修改consumer-80工程
 
 修改microservicecloud-consumer-dept-80工程
+
+## 1、引入依赖POM
 
 修改pom.xml文件，**引入Ribbon与Eureka依赖spring-cloud-starter-ribbon/eureka**
 
@@ -71,6 +73,8 @@
 </project>
 ```
 
+## 2、注册进Eurake
+
 修改application.yml  ,追加eureka的服务注册地址，注册到eureka
 
 ```yml
@@ -85,6 +89,8 @@ eureka:
       			   http://eureka7002.com:7002/eureka/,
       			   http://eureka7003.com:7003/eureka/
 ```
+
+## 3、添加新注解
 
 对ConfigBean添加新注解@LoadBalanced，获得RestTemplate 时加入Ribbon的配置
 
@@ -129,6 +135,8 @@ public class DeptConsumer80_App
   }
 }
 ```
+
+## 4、修改调用方Controller
 
 修改DeptController_Consumer客户端访问类，使用**服务名称调用服务** 
 
@@ -181,7 +189,7 @@ public class DeptController_Consumer
 
 ## 总结
 
-Ribbon和Eureka整合进Consumer模块后，可以直接调用服务而**不用再关心地址和端口号**
+Ribbon和Eureka整合进模块后，可以直接调用服务而**不用再关心地址和端口号**
 
 # Ribbon负载均衡
 
@@ -307,9 +315,20 @@ public class Consumer_Dept_80 {
 
 这个自定义配置类不能放在@ComponentScan所扫描的当前包下以及子包下，否则我们自定义的这个配置类就会被所有的Ribbon客户端所共享，也就是说我们达不到特殊化定制的目的了。
 
+# Ribbon VS Nginx
 
+Nginx是服务器负载均衡，客户端所有请求都会交给nginx，然后由nginx实现转发请求。即负载均衡是由服务端实现的。
 
+ Ribbon本地负载均衡，在调用微服务接口时候，会在注册中心上获取注册信息服务列表之后缓存到JVM本地，从而在本地实现RPC远程服务调用技术。
 
+# 扩展
 
+## 集中式LB
 
+即在服务的消费方和提供方之间使用独立的LB设施(可以是硬件，如F5, 也可以是软件，如nginx), 由该设施负责把访问请求通过某种策略转发至服务的提供方；
 
+## 进程内LB
+
+将LB逻辑集成到消费方，消费方从服务注册中心获知有哪些地址可用，然后自己再从这些地址中选择出一个合适的服务器。
+
+Ribbon就属于进程内LB，它只是一个类库，集成于消费方进程，消费方通过它来获取到服务提供方的地址。

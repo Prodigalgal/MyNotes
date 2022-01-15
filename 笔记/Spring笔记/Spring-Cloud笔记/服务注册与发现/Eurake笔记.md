@@ -2,7 +2,9 @@
 
 Eureka是Netflix的一个子模块，也是核心模块之一。Eureka是一个基于REST的服务，用于定位服务，以实现云端中间层服务发现和故障转移。
 
-服务注册与发现对于微服务架构来说是非常重要的，有了服务发现与注册，只需要使用服务的标识符，就可以访问到服务，而不需要修改服务调用的配置文件了。功能类似于dubbo的注册中心，比如Zookeeper。
+服务注册与发现对于微服务架构来说是非常重要的，有了服务发现与注册，只需要使用服务的标识符，就可以访问到服务，而不需要修改服务调用的配置文件了。
+
+功能类似于dubbo的注册中心，比如Zookeeper。
 
 # Eurake基本架构
 
@@ -26,21 +28,27 @@ Eureka包含**两个组件**：**Eureka Server** 和 **Eureka Client**
 
 **Service Consumer **服务消费方从Eureka获取注册服务列表，从而能够消费服务。
 
-# 构建步骤
+# 构建Server端步骤
 
-## 1、新建Eurake模块
+## 1、新建EurakeServer端模块
 
 ## 2、引入依赖-POM
 
 ```xml
-<!--eureka-server服务端 -->
+<!--eureka-server服务端 -->以前的老版本（当前使用2018）
 <dependency>
     <groupId>org.springframework.cloud</groupId>
     <artifactId>spring-cloud-starter-eureka-server</artifactId>
 </dependency>
+
+现在新版本（当前使用2020.2）
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+</dependency>
 ```
 
-特别注意是server端
+**特别注意是server端**
 
 ## 3、修改配置文件-YML
 
@@ -79,30 +87,41 @@ public class EurekaServer7001_App {
 http://localhost:7001/
 ```
 
-## 6、将Provider模块注册进入
+# 将Client端模块注册进入
 
 ### 	6.1、引入依赖-POM
 
-provider模块引入的eurake模块代表client，不是引入eurake-server模块
+Client端模块引入的eurake-client，不是引入eurake-server模块
 
 ```xml
-   <!-- 将微服务provider侧注册进eureka -->
-   <dependency>
-     <groupId>org.springframework.cloud</groupId>
-     <artifactId>spring-cloud-starter-eureka</artifactId>
-   </dependency>
-   <dependency>
-     <groupId>org.springframework.cloud</groupId>
-     <artifactId>spring-cloud-starter-config</artifactId>
-   </dependency>
+<!-- 将微服务provider侧注册进eureka -->以前老版本，别再使用
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-eureka</artifactId>
+</dependency>
+
+现在新版本,当前使用
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-config</artifactId>
+</dependency>
 ```
 
 ### 	6.2、修改配置文件-YML
 
 ```yml
 eureka:
-  client: #客户端注册进eureka服务列表内
-    service-url: 
+  client:
+    #表示是否将自己注册进EurekaServer默认为true。
+    register-with-eureka: true
+    #是否从EurekaServer抓取已有的注册信息，默认为true。单节点无所谓，集群必须设置为true才能配合ribbon使用负载均衡
+    fetchRegistry: true
+    service-url:
       defaultZone: http://localhost:7001/eureka
 ```
 
@@ -120,38 +139,45 @@ public class DeptProvider8001_App {
 }
 ```
 
-## 7、完善服务信息
+# 完善服务信息
 
 ### 	7.1、主机名称:服务名称
 
-修改Provider模块的配置文件-YML
+修改Client端的配置文件-YML
 
 ```yml
 eureka:
-  client: #客户端注册进eureka服务列表内
-    service-url: 
+  client:
+    #表示是否将自己注册进EurekaServer默认为true。
+    register-with-eureka: true
+    #是否从EurekaServer抓取已有的注册信息，默认为true。单节点无所谓，集群必须设置为true才能配合ribbon使用负载均衡
+    fetchRegistry: true
+    service-url:
       defaultZone: http://localhost:7001/eureka
   instance:
-    instance-id: microservicecloud-dept8001 #即Status下显示的名z
+    instance-id: microservicecloud-dept8001 #即Status下显示的名字
     
 spring:
    application:
     name: microservicecloud-dept #即Application名
 ```
 
+![image-20220115181515166](images/image-20220115181515166.png) 
+
+![image-20220115181543937](images/image-20220115181543937.png) 
+
+![image-20220115181902974](images/image-20220115181902974.png) 
+
 ### 	7.2、访问信息有IP提示
 
-修改Provider模块的配置文件-YML
+修改Client端的配置文件-YML
 
 ```yml
-eureka:
-  client: #客户端注册进eureka服务列表内
-    service-url: 
-      defaultZone: http://localhost:7001/eureka
   instance:
-    instance-id: microservicecloud-dept8001   #自定义服务名称信息
     prefer-ip-address: true     #访问路径可以显示IP地址
 ```
+
+![image-20220115181940053](images/image-20220115181940053.png) 
 
 ### 	7.3、微服务info内容详细信息
 
@@ -190,7 +216,7 @@ eureka:
 </build>
 ```
 
-修改Provider模块的配置文件-YML
+修改Client端模块的配置文件-YML
 
 ```yml
 info:
@@ -206,13 +232,35 @@ info:
 
 Eureka通过“自我保护模式”来解决这个问题——当EurekaServer节点在短时间内丢失过多客户端时（可能发生了网络分区故障），那么这个节点就会进入自我保护模式。一旦进入该模式，EurekaServer就会保护服务注册表中的信息，不再删除服务注册表中的数据（也就是不会注销任何微服务）。当网络故障恢复后，也即当它收到的心跳数重新恢复到阈值以上时，该EurekaServer节点会自动退出自我保护模式。
 
+```text
+如果在Eureka Server的首页看到以下这段提示，则说明Eureka进入了保护模式：
+EMERGENCY! EUREKA MAY BE INCORRECTLY CLAIMING INSTANCES ARE UP WHEN THEY'RE NOT. 
+RENEWALS ARE LESSER THAN THRESHOLD AND HENCE THE INSTANCES ARE NOT BEING EXPIRED JUST TO BE SAFE 
+```
+
+![image-20220115182708847](images/image-20220115182708847.png) 
+
 它的设计哲学就是宁可保留错误的服务注册信息，也不盲目注销任何可能健康的服务实例。
 
-**tip**：在Spring Cloud中，可以使用eureka.server.enable-self-preservation = false 禁用自我保护模式。
+**tip**：
+
+- 在Spring Cloud中，可以使用eureka.server.enable-self-preservation = false 禁用Server端的自我保护模式。
+
+- Client端
+
+- ```yml
+  #心跳检测与续约时间
+  #开发时设置小些，保证服务关闭后注册中心能即使剔除服务
+    instance:
+    #Eureka客户端向服务端发送心跳的时间间隔，单位为秒(默认是30秒)
+      lease-renewal-interval-in-seconds: 1
+    #Eureka服务端在收到最后一次心跳后等待时间上限，单位为秒(默认是90秒)，超时将剔除服务
+      lease-expiration-duration-in-seconds: 2
+  ```
 
 # Eurake集群配置
 
-## 1、创建多个Eurake模块
+## 1、创建多个EurakeServer端模块
 
 ## 2、修改本机host文件
 
@@ -243,7 +291,7 @@ eureka:
       defaultZone: http://eureka7002.com:7002/eureka/,http://eureka7003.com:7003/eureka/
 ```
 
-## 4、Provider模块修改配置文件-YML
+## 4、Client端模块修改配置文件-YML
 
 ```yml
 server:
@@ -258,6 +306,71 @@ eureka:
     instance-id: microservicecloud-dept8001   # 自定义服务名称信息，即Status下显示的名字
     prefer-ip-address: true     # 访问路径可以显示IP地址
 ```
+
+# Eurake服务发现
+
+对于注册进eureka里面的微服务，可以通过服务发现来获得该服务的信息。
+
+```java
+@GetMapping(value = "/payment/discovery")
+public Object discovery() {
+    // 获取所有已注册的服务
+    List<String> services = discoveryClient.getServices();
+    for (String element : services) {
+        System.out.println(element);
+    }
+
+    // 获取所有ApplicationName为xxx的服务
+    List<ServiceInstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
+    for (ServiceInstance element : instances) {
+        System.out.println(element.getServiceId() 
+                           + "\t" + element.getHost() 
+                           + "\t" + element.getPort() 
+                           + "\t"+ element.getUri());
+    }
+    return this.discoveryClient;
+}
+```
+
+## 1、添加注解
+
+主启动类添加注解@EnableDiscoveryClient //服务发现
+
+访问 http://localhost:8001/payment/discovery
+
+# 测试
+
+先启动Server端
+
+在启动Client端
+
+最后启动消费
+
+注意url不要写死，使用服务名去调用
+
+```java
+//public static final String PAYMENT_SRV = "http://localhost:8001";
+ 
+// 通过在eureka上注册过的微服务名称调用
+public static final String PAYMENT_SRV = "http://CLOUD-PAYMENT-SERVICE";
+```
+
+使用@LoadBalance实现RestTemplate的负载均衡
+
+```java
+@Configuration
+public class ApplicationContextBean{
+    @Bean
+    @LoadBalanced //使用@LoadBalanced注解赋予RestTemplate负载均衡的能力
+    public RestTemplate getRestTemplate(){
+        return new RestTemplate();
+    }
+}
+```
+
+Ribbon和Eureka整合后Consumer可以直接调用服务而不用再关心地址和端口号，且该服务还有负载均衡功能了。
+
+
 
 # Eurake VS Zookeeper
 
