@@ -539,3 +539,47 @@ API网关为微服务架构中的服务提供了统一的访问入口，客户�
 API网关的定义类似于设计模式中的门面模式，它相当于整个微服务架构中的门面，所有客户端的访问都通过它来进行路由及过滤。
 
 它实现了请求路由、负载均衡、校验过滤、服务容错、服务聚合等功能。
+
+## Zuul1.x模型
+
+Springcloud中所集成的Zuul版本，采用的是Tomcat容器，使用的是传统的Servlet IO处理模型。
+
+根据Servlet的生命周期，servlet由servlet container进行生命周期管理。container启动时构造servlet对象并调用servlet init()进行初始化，container运行时接受请求，并为每个请求分配一个线程（一般从线程池中获取空闲线程）然后调用service()。container关闭时调用servlet destory()销毁servlet。
+
+![image-20220116150031036](images/image-20220116150031036.png) 
+
+上述模式的缺点：
+servlet是一个简单的网络IO模型，当请求进入servlet container时，servlet container就会为其绑定一个线程，在并发不高的场景下这种模型是适用的。但是一旦高并发(比如抽风用jemeter压)，线程数量就会上涨，而线程资源代价是昂贵的（线文切换，内存消耗大）严重影响请求的处理时间。在一些简单业务场景下，不希望为每个request分配一个线程，只需要1个或几个线程就能应对极大并发的请求，这种业务场景下servlet模型没有优势
+
+所以Zuul 1.X是基于servlet之上的一个阻塞式处理模型，即spring实现了处理所有request请求有一个servlet（DispatcherServlet）并由该servlet阻塞式处理处理。所以Springcloud Zuul无法摆脱servlet模型的弊端。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
