@@ -276,23 +276,23 @@ public ColorFactoryBean colorFactoryBean(){
   - **byName**：通过属性名注入
   - **byType**：通过属性类型注入
 
-![image-20210907180633589](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180633589.png)
+![image-20210907180633589](images\Spring-Framework.assets\image-20210907180633589.png)
 
-![image-20210907180637140](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180637140.png)
+![image-20210907180637140](images\Spring-Framework.assets\image-20210907180637140.png)
 
 #### 7、管理外部属性文件
 
 1、引入context名称空间
 
-![image-20210907180729733](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180729733.png)
+![image-20210907180729733](images\Spring-Framework.assets\image-20210907180729733.png)
 
 2、引入外部文件
 
-![image-20210907180733986](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180733986.png)
+![image-20210907180733986](images\Spring-Framework.assets\image-20210907180733986.png)
 
 3、创建bean，配置连接池
 
-![image-20210907180738173](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180738173.png)
+![image-20210907180738173](images\Spring-Framework.assets\image-20210907180738173.png)
 
 # AOP介绍
 
@@ -774,7 +774,7 @@ public DataSourceTransactionManager getDSTM(Datasource dataSource){
 
 **使用方法**：
 
-可以注释在构造器，参数，方法，成员变量。都是从容器中获取参数组件的值。
+可以注释在**构造器**，**参数**，**方法**，**成员变量**。都是从容器中获取参数组件的值。
 
 1. [标注在方法位置]：（@Bean 方法参数），参数从容器中获取，默认不写@Autowired效果是一样的，都能自动装配。
 2. [标在构造器上]：如果组件只有一个有参构造器，这个有参构造器的@Autowired可以省略，参数位置的组件还是可以自动从容器中获取。
