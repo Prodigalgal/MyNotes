@@ -1,0 +1,24 @@
+//限制文件大小之后上传较大文件服务器无响应的处理方案
+在server.xml的第一个Connector标签中添加属性maxSwallowSize="-1"
+//使用该方式谷歌、IE浏览器好使，火狐不好使
+	fileName = URLEncoder.encode(fileName, "UTF-8");
+//但是火狐使用Base64编码，得需要调用如下代码：
+        fileName = "=?utf-8?b?"+new BASE64Encoder().encode(fileName.getBytes())+"?=";
+//设置响应头
+response.setHeader("Content-Disposition", "attachment; filename="+fileName);
+
+
+
+//设置浏览器响应体文件类型
+String mimeType = request.getServletContext().getMimeType(fileName);
+response.setContentType(mimeType);
+//解决文件名中文乱码问题
+String header = request.getHeader("User-Agent");
+if(header != null && header.contains("Firefox")) {
+	fileName = "=?utf-8?B?"+new BASE64Encoder().encode(fileName.getBytes("utf-8"))+"?=";
+}else {
+	fileName = URLEncoder.encode(fileName, "UTF-8");
+}
+//设置浏览器响应体内容格式，为附件格式。(告诉浏览器，文件为附件，别打开，下载。)
+response.setHeader("Content-Disposition", "attachment; filename="+fileName);
+		
