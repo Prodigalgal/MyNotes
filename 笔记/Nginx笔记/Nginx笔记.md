@@ -39,12 +39,14 @@ Nginx 不仅可以做反向代理，实现负载均衡。还能用作正向代�
 一键安装依赖
 
 ```shell
-yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
+yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel keepalived
 ```
 
 下载Nginx，然后解压缩，进入根目录，执行 `./configure`
 
 再执行`make && make install`
+
+安装后的默认目录在 `/usr/local/nginx` 
 
 查看开放的端口号`firewall-cmd --list -all`
 
@@ -58,7 +60,11 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 
 ## 启动命令
 
-可以将Nginx命令软连接到/usr/local/nginx/sbin 目录下的nginx
+可以将Nginx命令软连接到 /usr/local/nginx/sbin 目录下的nginx
+
+```shell
+ln -s /usr/local/nginx/sbin/nginx /usr/bin/nginx
+```
 
 执行nginx即可启动
 
@@ -66,11 +72,33 @@ yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel
 
 ## 关闭命令
 
-`./nginx -s stop`
+```shell
+./nginx -s stop
+```
 
 ## 重载命令
 
-`./nginx -s reload`
+```shell
+./nginx -s reload
+```
+
+## 检查配置文件
+
+```shell
+./nginx -t
+```
+
+## 检查运行
+
+通过检查Nginx程序的监听状态，或者在浏览器中访问此Web服务，默认页面将显示“Welcome to nginx!”
+
+```shell
+netstat -antp | grep nginx
+# 结果
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      54386/nginx: master 
+```
+
+
 
 # Nginx配置文件
 
@@ -250,7 +278,7 @@ location [= | ~ | ~* | ^~] uri {
 
 **ps**：如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识。
 
-# Nginx配置实例
+# Nginx单机配置实例
 
 ## 配置实例一
 
@@ -367,11 +395,64 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
    }
    ```
 
+# Nginx集群配置实例
+
+## 1、原理
+
+在Nginx集群中Nginx扮演的角色是：分发器。
+
+  任务：接受请求、分发请求、响应请求。
+
+  功能模块：
+    1、ngx_http_upstream_module：基于应用层（七层）分发模块
+
+    2、ngx_stream_core_module：基于传输层（四层）分发模块（1.9开始提供该功能）
+
+<img src="images/image-20220125105224742.png" alt="image-20220125105224742" style="zoom:50%;" />
+
+Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的。
+
+  虚拟主机：负责接受和响应请求。
+
+  反向代理：带领用户去数据服务器拿数据。
+
+  upstream：告诉nginx去哪个数据服务器拿数据。
+
+## 2、keepalived与heartbeat/corosync
+
+2.1、Heartbeat、Corosync、Keepalived这三个集群组件我们到底选哪个好呢？
+
+首先要说明的是，Heartbeat、Corosync是属于同一类型，Keepalived与Heartbeat、Corosync，根本不是同一类型的。
+
+Keepalived使用的**vrrp**协议方式，虚拟路由冗余协议 (Virtual Router Redundancy Protocol，简称VRRP)。
+
+Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
+
+简单的说就是，Keepalived的目的是模拟路由器的高可用，Heartbeat或Corosync的目的是实现Service的高可用。所以一般Keepalived是实现前端高可用，常用的前端高可用的组合有，就是我们常见的LVS+Keepalived、Nginx+Keepalived、HAproxy+Keepalived。而Heartbeat或Corosync是实现服务的高可用，常见的组合有Heartbeat v3(Corosync)+Pacemaker+NFS+Httpd 实现Web服务器的高可用、Heartbeat v3(Corosync)+Pacemaker+NFS+MySQL 实现MySQL服务器的高可用。
+
+总结一下，Keepalived中实现轻量级的高可用，一般用于前端高可用，且不需要共享存储，一般常用于两个节点的高可用。而Heartbeat(或Corosync)一般用于服务的高可用，且需要共享存储，一般用于多节点的高可用。
+
+2.2、那heartbaet与corosync又应该选择哪个好？
+
+一般用corosync，因为corosync的运行机制更优于heartbeat，就连从heartbeat分离出来的pacemaker都说在以后的开发当中更倾向于corosync，所以现在corosync+pacemaker是最佳组合。
+
+## 3、双机高可用方法
+
+双机高可用一般是通过虚拟IP（飘移IP）方法来实现的，基于Linux/Unix的IP别名技术。
+
+双机高可用方法目前分为两种：
+
+1、双机**主从**模式：即前端使用两台服务器，一台主服务器和一台热备服务器，正常情况下，主服务器绑定一个公网虚拟IP，提供负载均衡服务，热备服务器处于空闲状态。当主服务器发生故障时，热备服务器接管主服务器的公网虚拟IP，提供负载均衡服务。但是热备服务器在主机器不出现故障的时候，永远处于浪费状态，对于服务器不多的网站，该方案不经济实惠。
+
+2、双机**主主**模式：即前端使用两台负载均衡服务器，互为主备，且都处于活动状态，同时各自绑定一个公网虚拟IP，提供负载均衡服务；当其中一台发生故障时，另一台接管发生故障服务器的公网虚拟IP（这时由非故障机器一台负担所有的请求）。这种方案，经济实惠，非常适合于当前架构环境。
+
 ## 配置主从集群
+
+需要安装Keepalived
 
 ![image-20220110103528112](images/image-20220110103528112.png) 
 
-1. 配置keepalived配置文件
+1. 配置keepalived配置文件 /etc/keepalived/keepalived.conf
 
    ```text
    global_defs { 
@@ -393,20 +474,22 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
    }
    
    vrrp_instance VI_1 { 
-    	state BACKUP # 备份服务器上将 MASTER 改为 BACKUP 
-   	interface ens33 //网卡 
+    	state MASTER # 备份服务器上将 MASTER 改为 BACKUP xxxxxx主备不同处xxxxxx
+   	interface ens33 # 网卡 
     	virtual_router_id 51 # 主、备机的 virtual_router_id 必须相同 
-    	priority 100 # 主、备机取不同的优先级，主机值较大，备份机值较小 
+    	priority 100 # 主、备机取不同的优先级，主机值较大，备份机值较小 xxxxxx主备不同处xxxxxx
     	advert_int 1 
     	authentication { 
     		auth_type PASS 
     		auth_pass 1111 
     	} 
     	virtual_ipaddress { 
-    		192.168.17.50 // VRRP H 虚拟地址 
+    		168.138.50.119 # VRRP H 虚拟地址 
     	} 
    }
    ```
+
+   在 /usr/local/src 添加检测脚本：nginx_check.sh
 
    ```sh
    #!/bin/bash 
@@ -464,11 +547,10 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
     	access_log /var/log/nginx/access.log main;
     	}
    }
-   
    ```
-
    
-
+   
+   
 4. 配置LB节点
 
    修改Nginx配置文件

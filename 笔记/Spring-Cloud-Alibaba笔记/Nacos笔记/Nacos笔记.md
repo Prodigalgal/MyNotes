@@ -484,7 +484,7 @@ derby到mysql切换配置步骤：
 
 3. 启动Nacos，可以看到是个全新的空记录界面，以前是记录进derby。
 
-### 5.3、Linux下配置集群
+### 5.3、Linux环境配置集群
 
 准备：1个Nginx+3个nacos注册中心+1个mysql
 
@@ -506,9 +506,9 @@ application.properties 文件打开后的最后面，配置如下内容：
 spring.datasource.platform=mysql
  
 db.num=1
-db.url.0=jdbc:mysql://127.0.0.1:3306/nacos_config?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true
-db.user=root
-db.password=123456
+db.url.0=jdbc:mysql://数据库IP:3306/nacos_config?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true
+db.user=数据库账号
+db.password=数据库密码
 ```
 
 #### 5.3.4、修改集群配置cluster.conf
@@ -519,7 +519,15 @@ db.password=123456
 
 修改cluster.conf，增加
 
-![image-20220124160231126](images/image-20220124160231126.png) 
+填入NacosServer的IP
+
+```text
+#it is ip
+#example
+192.168.16.101:8847
+192.168.16.102
+192.168.16.103
+```
 
 这个IP不能写127.0.0.1，必须是Linux命令 hostname -i 能够识别的IP
 

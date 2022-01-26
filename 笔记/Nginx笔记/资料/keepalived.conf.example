@@ -1,0 +1,75 @@
+global_defs { 
+ 	notification_email { 
+ 		acassen@firewall.loc 
+ 		failover@firewall.loc 
+ 		sysadmin@firewall.loc 
+	} 
+ 	notification_email_from Alexandre.Cassen@firewall.loc 
+ 	smtp_server 192.168.17.129 
+ 	smtp_connect_timeout 30 
+ 	router_id LVS_DEVEL 
+} 
+ 
+vrrp_script chk_http_port { 
+ 	script "/usr/local/src/nginx_check.sh" 
+ 	interval 2 #（检测脚本执行的间隔） 
+ 	weight 2 
+}
+
+vrrp_instance VI_1 { 
+ 	state BACKUP # 备份服务器上将 MASTER 改为 BACKUP xxxxxx主备不同处xxxxxx
+	interface ens33 # 网卡 
+ 	virtual_router_id 51 # 主、备机的 virtual_router_id 必须相同 
+ 	priority 100 # 主、备机取不同的优先级，主机值较大，备份机值较小 xxxxxx主备不同处xxxxxx
+ 	advert_int 1 
+ 	authentication { 
+ 		auth_type PASS 
+ 		auth_pass 1111 
+ 	} 
+ 	virtual_ipaddress { 
+ 		168.138.50.119 # VRRP H 虚拟地址 
+ 	} 
+}
+
+#######################################################################################################################################
+! Configuration File for keepalived     #全局定义
+  
+global_defs {
+	notification_email {     #指定keepalived在发生事件时(比如切换)发送通知邮件的邮箱
+	xxxx@xxxx.com   #设置报警邮件地址，可以设置多个，每行一个。 需开启本机的sendmail服务
+	xxxx@xxxx.com
+}
+  
+	notification_email_from xxxx@xxxx.com   #keepalived在发生诸如切换操作时需要发送email通知地址
+	smtp_server 127.0.0.1      #指定发送email的smtp服务器
+	smtp_connect_timeout 30    #设置连接smtp server的超时时间
+	router_id master-node     #运行keepalived的机器的一个标识，通常可设为hostname。故障发生时，发邮件时显示在邮件主题中的信息。
+}
+  
+vrrp_script chk_http_port {      #检测nginx服务是否在运行。有很多方式，比如进程，用脚本检测等等
+    script "/opt/chk_nginx.sh"   #这里通过脚本监测
+    interval 2                   #脚本执行间隔，每2s检测一次
+    weight -5                    #脚本结果导致的优先级变更，检测失败（脚本返回非0）则优先级 -5
+    fall 2                    #检测连续2次失败才算确定是真失败。会用weight减少优先级（1-255之间）
+    rise 1                    #检测1次成功就算成功。但不修改优先级
+}
+  
+vrrp_instance VI_1 {    #keepalived在同一virtual_router_id中priority（0-255）最大的会成为master，也就是接管VIP，当priority最大的主机发生故障后次priority将会接管
+    state MASTER    #指定keepalived的角色，MASTER表示此主机是主服务器，BACKUP表示此主机是备用服务器。注意这里的state指定instance(Initial)的初始状态，就是说在配置好后，这台服务器的初始状态就是这里指定的，但这里指定的不算，还是得要通过竞选通过优先级来确定。如果这里设置为MASTER，但如若他的优先级不及另外一台，那么这台在发送通告时，会发送自己的优先级，另外一台发现优先级不如自己的高，那么他会就回抢占为MASTER
+    interface em1          #指定HA监测网络的接口。实例绑定的网卡，因为在配置虚拟IP的时候必须是在已有的网卡上添加的
+    mcast_src_ip 103.110.98.14  # 发送多播数据包时的源IP地址，这里注意了，这里实际上就是在哪个地址上发送VRRP通告，这个非常重要，一定要选择稳定的网卡端口来发送，这里相当于heartbeat的心跳端口，如果没有设置那么就用默认的绑定的网卡的IP，也就是interface指定的IP地址
+    virtual_router_id 51         #虚拟路由标识，这个标识是一个数字，同一个vrrp实例使用唯一的标识。即同一vrrp_instance下，MASTER和BACKUP必须是一致的
+    priority 101                 #定义优先级，数字越大，优先级越高，在同一个vrrp_instance下，MASTER的优先级必须大于BACKUP的优先级
+    advert_int 1                 #设定MASTER与BACKUP负载均衡器之间同步检查的时间间隔，单位是秒
+    authentication {             #设置验证类型和密码。主从必须一样
+        auth_type PASS           #设置vrrp验证类型，主要有PASS和AH两种
+        auth_pass 1111           #设置vrrp验证密码，在同一个vrrp_instance下，MASTER与BACKUP必须使用相同的密码才能正常通信
+    }
+    virtual_ipaddress {          #VRRP HA 虚拟地址 如果有多个VIP，继续换行填写
+        103.110.98.20
+    }
+ 
+	track_script {                      #执行监控的服务。注意这个设置不能紧挨着写在vrrp_script配置块的后面（实验中碰过的坑），否则nginx监控失效！！
+	   chk_http_port                    #引用VRRP脚本，即在 vrrp_script 部分指定的名字。定期运行它们来改变优先级，并最终引发主备切换。
+	}
+}

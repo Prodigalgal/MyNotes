@@ -1,0 +1,41 @@
+Location区段匹配示例
+
+location = / {  //精确匹配，优先级最高
+　　# 只匹配 / 的查询.
+　　[ configuration A ]
+}
+location / {  //普通匹配，优先级低
+　　# 匹配任何以 / 开始的查询，但是正则表达式与一些较长的字符串将被首先匹配。
+　　[ configuration B ]
+}
+location ^~ /images/ {  //反正则，优先于正则匹配
+　　# 匹配任何以 /images/ 开始的查询并且停止搜索，不检查正则表达式。
+　　[ configuration C ]
+}
+location ~* \.(gif|jpg|jpeg)$ {   //  ~*正则匹配，不区分大小写，优先级高于普通匹配
+　　# 匹配任何以gif, jpg, or jpeg结尾的文件，但是所有 /images/ 目录的请求将在Configuration C中处
+　　理。
+　　[ configuration D ]
+} 
+各请求的处理如下例：
+http://192.168.140.110:9000/
+http://192.168.140.110:9000/documents/document.html
+http://192.168.140.110:9000/images/1.gif
+http://192.168.140.110:9000/documents/1.jpg
+
+
+
+
+
+
+
+
+
+
+
+
+
+■/ → configuration A
+■/documents/document.html → configuration B
+■/images/1.gif → configuration C
+■/documents/1.jpg → configuration D
