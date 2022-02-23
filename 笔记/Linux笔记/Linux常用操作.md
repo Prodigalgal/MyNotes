@@ -472,61 +472,6 @@ bash <(curl -s -L https://git.io/v2ray.sh)
 
 # 使用Nginx进行域名映射
 
-首先安装Nginx
-
-下载Nginx
-
-```shell
-wget http://nginx.org/download/nginx-1.14.2.tar.gz
-```
-
-安装依赖
-
-```shell
-yum -y install gcc zlib zlib-devel pcre-devel openssl openssl-devel
-```
-
-解压缩Nginx
-
-```shell
-tar -zxvf linux-nginx-1.12.2.tar.gz
-cd nginx-1.12.2/
-```
-
-执行配置
-
-```shell
-./configure
-```
-
-编译安装(默认安装在/usr/local/nginx)
-
-```shell
-make
-make install
-```
-
-关闭iptables规则
-
-```shell
-iptables -F && iptables -t nat -F
-```
-
-启动Nginx
-
-```shell
-/usr/local/nginx/sbin/nginx
-```
-
-Nginx常用命令
-
-测试配置文件：`${Nginx}/sbin/nginx -t`
- 启动命令：`${Nginx}/sbin/nginx`
- 停止命令：`${Nginx}/sbin/nginx -s stop/quit`
- 重启命令：`${Nginx}/sbin/nginx -s reload`
- 查看进程命令：`ps -ef | grep nginx`
- 平滑重启：`kill -HUP [Nginx主进程号(即ps命令查到的PID)]`
-
 给Nginx的主配置文件的http节点下的server节点的内容。Nginx.conf
 
 ```properties
@@ -565,4 +510,10 @@ server {
 ```
 
 nohup java -jar /root/work/EatWhatSpecial-0.0.1.jar &
+
+
+
+```shell
+docker run -itd --name=t -p 8888:8080 -v /data/tomcat/webapps:/usr/local/tomcat/webapps tomcat:9.0
+```
 

@@ -821,9 +821,90 @@ worker_connections *  worker_processes/ 4
 
 ![image-20220109220400182](images/image-20220109220400182.png) 
 
+# 扩展
 
+## 1、Nginx+CertBot添加证书
 
+### 1、安装EPEL
 
+```shell
+yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+```
+
+### 2、安装Snaped
+
+```shell
+yum install snapd
+```
+
+#### 2.1、配置Snaped
+
+```bash
+systemctl enable --now snapd.socket
+```
+
+```bash
+ln -s /var/lib/snapd/snap /snap
+```
+
+```
+snap install core
+```
+
+### 3、安装CertBot
+
+删除任何其他方式安装的Cerbot
+
+```shell
+yum remove certbot
+```
+
+使用snap安装
+
+```shell
+snap install --classic certbot
+```
+
+```
+ln -s /snap/bin/certbot /usr/bin/certbot
+```
+
+### 4、配置CertBot
+
+#### 4.1、安装单域名证书
+
+##### 4.1.1、自动配置Nginx
+
+```shell
+# 若nginx未安装在默认路径(/etc/nginx or /usr/local/etc/nginx)下需自己指定nginx路径，到conf目录
+certbot --nginx --nginx-server-root=/usr/local/nginx/conf
+```
+
+#### 4.2、安装泛域名证书
+
+##### 4.2.1、自动配置版Nginx
+
+```shell
+certbot --preferred-challenges dns --nginx -d *.xxx.com --server https://acme-v02.api.letsencrypt.org/directory
+```
+
+似乎设置了 --preferred-challenges dns DNS挑战，则需要4.2.2与4.2.3
+
+##### 4.2.2、查看验证信息
+
+##### 4.2.3、DNS添加验证解析
+
+添加完成后，返回shell界面回车
+
+### 5、自动配置
+
+```shell
+echo "0 0,12 * * * root python -c 'import random; import time; time.sleep(random.random() * 3600)' && certbot renew -q" | sudo tee -a /etc/crontab > /dev/null
+```
+
+```shell
+SLEEPTIME=$(awk 'BEGIN{srand(); print int(rand()*(3600+1))}'); echo "0 0,12 * * * root sleep $SLEEPTIME && certbot renew -q" | sudo tee -a /etc/crontab > /dev/null
+```
 
 
 
