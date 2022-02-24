@@ -1914,11 +1914,11 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
 
 Spring MVC提供处理异常的方式主要分为两种：
 
-- 实现HandlerExceptionResolver方式
+- 实现HandlerExceptionResolver方式（不推荐使用它）
 - @ExceptionHandler注解方式。注解方式也有两种用法：
 
 1. 使用在Controller内部
-2. 配置@ControllerAdvice一起使用实现全局处理
+2. 配置@ControllerAdvice一起使用实现全局处理（推荐）
 
 本次仅讲解HandlerExceptionResolver
 
@@ -2135,6 +2135,8 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 }
 
 ```
+
+
 
 # 问题
 

@@ -679,7 +679,7 @@ docker exec -it 容器ID redis-cli
 docker run -p 6379:6379 --name redis01 \
 -v /data/redis/redis01/data:/data \
 -v /data/redis/redis01/conf/redis.conf:/etc/redis/redis.conf \
--itd redis redis-server /etc/redis/redis.conf/redis.conf
+-itd --privileged=true redis redis-server /etc/redis/redis.conf/redis.conf
 ```
 
 redis指定配置文件启动时一定要指定到具体文件，不能是父级文件夹，否者虽然不会加载失败，但是配置文件会失效
@@ -709,6 +709,95 @@ docker run -itd -p 5672:5672 \
 -e RABBITMQ_DEFAULT_PASS=mnnuwolong \
 rabbitmq:management
 ```
+
+# Docker容器数据卷
+
+## 1、数据卷
+
+类似Redis里面的rdb和aof文件，将docker容器内的数据保存进宿主机的磁盘中。
+
+示例：运行一个带有容器卷存储功能的容器实例
+
+```bash
+docker run -it --privileged=true -v 宿主机绝对路径目录:容器内目录 镜像名
+```
+
+## 2、作用
+
+### 2.1、需求
+
+将应用与运行的环境打包镜像，run后形成容器实例运行 ，但是希望数据是持久化的。
+
+Docker容器产生的数据，如果不备份，那么当容器实例删除后，容器内的数据自然也就没有了。
+
+为了能保存数据在docker中我们使用卷。
+
+### 2.2、特点
+
+1. 数据卷可在**容器之间**共享或重用数据
+2. **容器卷**中的更改可以直接**实时生效** 
+3. 数据卷中的更改不会包含在镜像的更新中
+4. 数据卷的生命周期**一直持续到没有容器使用它为止** 
+
+## 3、示例
+
+### 3.1、宿主与容器之间
+
+直接命令添加
+
+```bash
+docker run -it --privileged=true -v 宿主机绝对路径目录:容器内目录  镜像名
+```
+
+查看是否添加成功
+
+```bash
+docker inspect 容器ID
+```
+
+![image-20220224210533714](images/image-20220224210533714.png) 
+
+docker容器stop，主机修改，docker容器重启看数据同步。
+
+## 4、读写规则映射添加
+
+### 4.1、读写(默认)
+
+```bash
+docker run -it --privileged=true -v 宿主机绝对路径目录:容器内目录:rw 镜像名
+```
+
+默认就是rw
+
+### 4.2、只读
+
+容器实例内部被限制，只能读取不能写。
+
+```bash
+docker run -it --privileged=true -v 宿主机绝对路径目录:容器内目录:ro 镜像名
+```
+
+容器实例内部被限制，只能读取不能写。
+
+ro = read only
+
+此时如果宿主机写入内容，可以同步给容器内，容器可以读取到。
+
+## 5、卷的继承和共享
+
+首先创建容器A1与宿主机进行映射
+
+```bash
+docker run -it  --privileged=true -v 宿主机文件绝对路径:容器文件绝对路径 --name A1 镜像名
+```
+
+容器B1继承容器A1的卷规则
+
+```bash
+docker run -it  --privileged=true --volumes-from A1  --name B1 镜像名
+```
+
+
 
 # 扩展
 
