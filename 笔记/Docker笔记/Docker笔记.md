@@ -500,19 +500,21 @@ chkconfig tomcat on
 
 ## 2、安装MySQL
 
-### 2.1、拉取最新的MySQL
+### 2.1、单机版MySQL
+
+#### 2.1.1、拉取最新的MySQL
 
 ```shell
 docker pull mysql:latest
 ```
 
-### 2.2、查看是否已经安装了镜像
+#### 2.1.2、查看是否已经安装了镜像
 
 ```shell
 docker images
 ```
 
-### 2.3、运行容器
+#### 2.1.3、运行容器
 
 **tip**：
 
@@ -540,25 +542,25 @@ docker images
 docker run -itd --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=fuckharkadmin -e MYSQL_ROOT_HOST=% mysql #镜像名
 ```
 
-### 2.4、查看容器运行情况
+#### 2.1.4、查看容器运行情况
 
 ```shell
 docker ps
 ```
 
-### 2.5、进入容器
+#### 2.1.5、进入容器
 
 ```shell
 docker exec -it 容器名/id bash
 ```
 
-### 2.6、登陆mysql
+#### 2.1.6、登陆mysql
 
 ```
 ALTER USER 'root'@'localhost' IDENTIFIED BY 'admin';
 ```
 
-### 2.7、为mysql添加一个支持远程登陆的账户
+#### 2.1.7、添加一个支持远程登陆的账户
 
 ```mysql
 CREATE USER 'wolong'@'%' IDENTIFIED WITH mysql_native_password BY 'mnnuwolong';
@@ -566,7 +568,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'wolong'@'%';
 flush privileges;
 ```
 
-### 完善的启动命令
+#### 完善的启动命令
 
 ```shell
 docker run -p 3306:3306 --name mysql01 \
@@ -578,6 +580,161 @@ docker run -p 3306:3306 --name mysql01 \
 -e MYSQL_ROOT_HOST=% \
 -itd mysql
 ```
+
+### 2.2、主从复制版
+
+#### 2.2.1、新建Master与Slave
+
+```bash
+docker run -p 3307:3306 --name mysql-master \
+-v /data/mysql/mysql-master/log:/var/log/mysql \
+-v /data/mysql/mysql-master/data:/var/lib/mysql \
+-v /data/mysql/mysql-master/conf:/etc/mysql \
+-v /data/mysql/mysql-master/mysql-files:/var/lib/mysql-files \
+-e MYSQL_ROOT_PASSWORD=fuckharkadmin \
+-e MYSQL_ROOT_HOST=% \
+-itd mysql
+
+docker run -p 3308:3306 --name mysql-slave \
+-v /data/mysql/mysql-slave/log:/var/log/mysql \
+-v /data/mysql/mysql-slave/data:/var/lib/mysql \
+-v /data/mysql/mysql-slave/conf:/etc/mysql \
+-v /data/mysql/mysql-slave/mysql-files:/var/lib/mysql-files \
+-e MYSQL_ROOT_PASSWORD=fuckharkadmin \
+-e MYSQL_ROOT_HOST=% \
+-itd mysql
+```
+
+#### 2.2.2、修改master与slave的cnf文件
+
+进入/data/mysql/mysql-master/conf目录下新建my.cnf
+
+```text
+[mysqld]
+## 设置server_id，同一局域网中需要唯一
+server_id=101 
+## 指定不需要同步的数据库名称
+binlog-ignore-db=mysql  
+## 开启二进制日志功能
+log-bin=mall-mysql-bin  
+## 设置二进制日志使用内存大小（事务）
+binlog_cache_size=1M  
+## 设置使用的二进制日志格式（mixed,statement,row）
+binlog_format=mixed  
+## 二进制日志过期清理时间。默认值为0，表示不自动清理。
+expire_logs_days=7  
+## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。
+## 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致
+slave_skip_errors=1062
+```
+
+修改完后重启master
+
+进入/data/mysql/mysql-slave/conf目录下新建my.cnf
+
+```text
+[mysqld]
+## 设置server_id，同一局域网中需要唯一
+server_id=102
+## 指定不需要同步的数据库名称
+binlog-ignore-db=mysql  
+## 开启二进制日志功能，以备Slave作为其它数据库实例的Master时使用
+log-bin=mall-mysql-slave1-bin
+## 设置二进制日志使用内存大小（事务）
+binlog_cache_size=1M  
+## 设置使用的二进制日志格式（mixed,statement,row）
+binlog_format=mixed  
+## 二进制日志过期清理时间。默认值为0，表示不自动清理。
+expire_logs_days=7  
+## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。
+## 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致
+slave_skip_errors=1062  
+## relay_log配置中继日志
+relay_log=mall-mysql-relay-bin  
+## log_slave_updates表示slave将复制事件写进自己的二进制日志
+log_slave_updates=1  
+## slave设置为只读（具有super权限的用户除外）
+read_only=1
+```
+
+修改完后重启slave
+
+#### 2.2.3、进入master容器
+
+master容器实例内创建数据同步用户
+
+```mysql
+CREATE USER 'slave'@'%' IDENTIFIED BY 'fuckharkadmin';
+```
+
+```mysql
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'slave'@'%';
+```
+
+在主数据库中查看主从同步状态
+
+获取需要的数据
+
+```mysql
+show master status;
+
+binlog.000002
+711
+```
+
+#### 2.2.4、slave中配置主从复制
+
+```mysql
+change master to master_host='宿主机ip', master_user='给从库用的账号', master_password='该账号的密码', master_port=主机的端口, master_log_file='mall-mysql-bin.000001', master_log_pos=617, master_connect_retry=30;
+```
+
+```text
+change master to master_host='138.2.46.254', master_user='slave', master_password='fuckharkadmin', master_port=3307, master_log_file='mall-mysql-bin.000001', master_log_pos=1049, master_connect_retry=30;
+```
+
+指令说明：
+
+```text
+master_host：主数据库的IP地址；
+master_port：主数据库的运行端口；
+master_user：在主数据库创建的用于同步数据的用户账号；
+master_password：在主数据库创建的用于同步数据的用户密码；
+master_connect_retry：连接失败重试的时间间隔，单位为秒。
+=========需要从主库获取的============
+master_log_file：指定从数据库要复制数据的日志文件，通过查看主数据的状态，获取File参数；
+master_log_pos：指定从数据库从哪个位置开始复制数据，通过查看主数据的状态，获取Position参数；
+```
+
+在从数据库中查看主从同步状态
+
+```mysql
+show slave status\G
+```
+
+<img src="images/image-20220225164904566.png" alt="image-20220225164904566" style="zoom:80%;" />
+
+#### 2.2.5、slave中开启主从同步
+
+```mysql
+# 开始主从复制
+start slave;
+# 停止主从复制
+stop slave;
+# 重置主从复制
+reset slave;
+```
+
+```mysql
+show slave status\G
+```
+
+![image-20220225170526508](images/image-20220225170526508.png)
+
+如果Slave_IO_Running = yes、Slave_SQL_Running = yes则成功
+
+#### 2.2.6、测试
+
+主库插入数据，从库读取到
 
 ## 3、安装Redis
 
