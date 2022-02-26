@@ -375,6 +375,41 @@ docker默认不允许http方式推送镜像，通过配置选项来取消这个�
 docker push 符合规范的镜像名
 ```
 
+## 4、虚悬镜像
+
+### 4.1、简介
+
+仓库名、标签都是<none\>的镜像，俗称dangling image
+
+### 4.2、创建虚悬镜像
+
+```dockerfile
+from ubuntu
+CMD echo 'action is success'
+```
+
+```bash
+docker build .
+```
+
+<img src="images/image-20220226112009728.png" alt="image-20220226112009728" style="zoom:80%;" />
+
+### 4.3、查看
+
+```bash
+docker image ls -f dangling=true
+```
+
+<img src="images/image-20220226112049595.png" alt="image-20220226112049595" style="zoom:80%;" />
+
+### 4.4、删除
+
+虚悬镜像已经失去存在价值，可以删除
+
+```bash
+docker image prune
+```
+
 # Docker部署常用软件
 
 ## 1、安装Tomcat
@@ -738,13 +773,15 @@ show slave status\G
 
 ## 3、安装Redis
 
-### 3.1、首先拉取redis镜像
+### 3.1、单机版
+
+#### 3.1、首先拉取redis镜像
 
 ```shell
 docker pull redis
 ```
 
-### 3.2、修改redis.conf配置文件
+#### 3.2、修改redis.conf配置文件
 
 ```text
 bind 127.0.0.1 			#注释掉这部分，使redis可以外部访问
@@ -754,7 +791,7 @@ appendonly yes 			#redis持久化，默认是no，（可选）
 tcp-keepalive 300 		#防止出现远程主机强迫关闭了一个现有的连接的错误 默认是300
 ```
 
-### 3.3、启动redis
+#### 3.3、启动redis
 
 不挂载文件
 
@@ -818,7 +855,7 @@ docker: Error response from daemon: driver failed programming external connectiv
 systemctl restart docker
 ```
 
-### 3.4、进入Redis
+#### 3.4、进入Redis
 
 ```shell
 docker exec -it 容器ID bash
@@ -830,7 +867,7 @@ auth admin #验证密码
 docker exec -it 容器ID redis-cli
 ```
 
-### 完善的启动命令
+#### 完善的启动命令
 
 ```shell
 docker run -p 6379:6379 --name redis01 \
@@ -840,6 +877,264 @@ docker run -p 6379:6379 --name redis01 \
 ```
 
 redis指定配置文件启动时一定要指定到具体文件，不能是父级文件夹，否者虽然不会加载失败，但是配置文件会失效
+
+### 3.2、集群版
+
+#### 3.2.1、启动六台Redis容器
+
+三主三从，启动六个redis容器
+
+```bash
+docker run -d --name redis-node-1 --net host --privileged=true \
+-v /data/redis/share/redis-node-1:/data redis \
+--cluster-enabled yes --appendonly yes --port 6381
+
+docker run -d --name redis-node-2 --net host --privileged=true \
+-v /data/redis/share/redis-node-2:/data redis \
+--cluster-enabled yes --appendonly yes --port 6382
+ 
+docker run -d --name redis-node-3 --net host --privileged=true \
+-v /data/redis/share/redis-node-3:/data redis \
+--cluster-enabled yes --appendonly yes --port 6383
+ 
+docker run -d --name redis-node-4 --net host --privileged=true \
+-v /data/redis/share/redis-node-4:/data redis \
+--cluster-enabled yes --appendonly yes --port 6384
+ 
+docker run -d --name redis-node-5 --net host --privileged=true \
+-v /data/redis/share/redis-node-5:/data redis \
+--cluster-enabled yes --appendonly yes --port 6385
+ 
+docker run -d --name redis-node-6 --net host --privileged=true \
+-v /data/redis/share/redis-node-6:/data redis \
+--cluster-enabled yes --appendonly yes --port 6386
+```
+
+```text
+--net host 				使用宿主机的IP和端口，默认
+--cluster-enabled yes 	开启redis集群
+--appendonly yes		开启持久化
+--port 6386				redis端口号
+```
+
+#### 3.2.2、为6台机器构建集群关系
+
+进入redis-node-1
+
+```bash
+docker exec -it redis-node-1 /bin/bash
+```
+
+```bash
+redis-cli --cluster create node1的ip:port node2的ip:port node3的ip:port node4的ip:port node5的ip:port node6的ip:port --cluster-replicas 1
+```
+
+```bash
+redis-cli --cluster create 138.2.46.254:6381 138.2.46.254:6382 138.2.46.254:6383 138.2.46.254:6384 138.2.46.254:6385 138.2.46.254:6386 --cluster-replicas 1
+```
+
+<img src="images/image-20220225230121206.png" alt="image-20220225230121206" style="zoom:80%;" />
+
+<img src="images/image-20220225230142254.png" alt="image-20220225230142254" style="zoom:80%;" />
+
+搞定
+
+#### 3.2.3、进入node1查看集群状态
+
+```bash
+redis-cli -p 6381
+```
+
+```bash
+cluster info
+```
+
+<img src="images/image-20220225230341974.png" alt="image-20220225230341974" style="zoom:80%;" />
+
+```bash
+cluster nodes
+```
+
+<img src="images/image-20220225230447293.png" alt="image-20220225230447293" style="zoom:80%;" />
+
+#### 3.2.4、数据读写存储
+
+对6381新增两个key
+
+![image-20220225230651410](images/image-20220225230651410.png)
+
+出现错误，因为当前hash算法计算出来k1应该存在node3，可是当前登陆的是在node1，超出了槽范围，12706即为槽号
+
+连接6381时添加 -c 参数优化路由
+
+```bash
+redis-cli -p 6381 # 单机模式连接
+```
+
+```bash
+redis-cli -p 6381 -c # 集群模式连接
+```
+
+![image-20220225231451958](images/image-20220225231451958.png)
+
+置入key，重定向到hash算法计算出来的槽号所对应的master节点
+
+查看集群信息
+
+```bash
+redis-cli --cluster check 138.2.46.254:6381
+```
+
+<img src="images/image-20220225231701984.png" alt="image-20220225231701984" style="zoom:80%;" />
+
+#### 3.2.5、容错迁移
+
+##### 3.2.5.1、测试master宕机
+
+先停止node1，进入node2查看集群信息
+
+可以看到node1已被node6顶替
+
+<img src="images/image-20220225232100571.png" alt="image-20220225232100571" style="zoom:80%;" />
+
+##### 3.2.5.2、还原之前的3主3从
+
+启动node1，查看集群状态
+
+node1上线后作为slave节点
+
+![image-20220225232326954](images/image-20220225232326954.png)
+
+重启node6，进入node1查看集群状态
+
+ndoe1夺回master，node6变回slave
+
+<img src="images/image-20220225232728002.png" alt="image-20220225232728002" style="zoom:80%;" />
+
+查看集群状态
+
+<img src="images/image-20220225233113999.png" alt="image-20220225233113999" style="zoom:80%;" />
+
+#### 3.2.6、扩容
+
+##### 3.2.6.1、新增俩个节点
+
+```bash
+docker run -d --name redis-node-7 --net host --privileged=true \
+-v /data/redis/share/redis-node-7:/data redis \
+--cluster-enabled yes --appendonly yes --port 6387
+
+docker run -d --name redis-node-8 --net host --privileged=true \
+-v /data/redis/share/redis-node-8:/data redis \
+--cluster-enabled yes --appendonly yes --port 6388
+```
+
+##### 3.2.6.2、新增一个master节点
+
+进入node7容器，将新增的node7节点(空槽号)作为master节点加入原集群
+
+```bash
+redis-cli --cluster add-node 自己实际IP地址:6387 自己实际IP地址:6381
+```
+
+node7就是将要作为master新增节点，node1就是原来集群节点里面的领路人
+
+```bash
+redis-cli --cluster add-node 138.2.46.254:6387 138.2.46.254:6381
+```
+
+<img src="images/image-20220225234410149.png" alt="image-20220225234410149" style="zoom:80%;" />
+
+检查集群状态，此时node7空槽
+
+<img src="images/image-20220225234813749.png" alt="image-20220225234813749" style="zoom:80%;" />
+
+##### 3.2.6.3、重新分配槽号
+
+给node7分配槽号
+
+```bash
+redis-cli --cluster reshard IP地址:端口号
+redis-cli --cluster reshard 138.2.46.254:6381
+```
+
+<img src="images/image-20220225235326668.png" alt="image-20220225235326668" style="zoom:80%;" />
+
+为什么6387是3个新的区间，以前的还是连续？
+
+重新分配成本太高，所以前3家各自匀出来一部分，从node1/node2/node3三个旧节点分别匀出1364个坑位给新节点node7
+
+<img src="images/image-20220225235436194.png" alt="image-20220225235436194" style="zoom:80%;" />
+
+##### 3.2.6.4、添加node8作为slave
+
+```bash
+redis-cli --cluster add-node ip:新slave端口 ip:master端口 --cluster-slave --cluster-master-id master节点ID
+```
+
+```bash
+redis-cli --cluster add-node 138.2.46.254:6388 138.2.46.254:6387 --cluster-slave --cluster-master-id 545c6964b11f682de2afa928950e6761dad23a6b
+```
+
+<img src="images/image-20220225235849453.png" alt="image-20220225235849453" style="zoom:80%;" />
+
+查看集群状态
+
+<img src="images/image-20220225235740740.png" alt="image-20220225235740740" style="zoom:80%;" />
+
+#### 3.2.7、缩容
+
+目的：node7和node8下线
+
+##### 3.2.7.1、删除slave节点
+
+先查看集群状态，获取node8的ID
+
+<img src="images/image-20220226000129298.png" alt="image-20220226000129298" style="zoom:80%;" />
+
+删除node8
+
+```bash
+redis-cli --cluster del-node ip:从机node8端口 从机node8节点ID
+```
+
+```bash
+redis-cli --cluster del-node 138.2.46.254:6388 7a3163b3c5c527c21c89b40013c55fa6636a5ade
+```
+
+<img src="images/image-20220226000313749.png" alt="image-20220226000313749" style="zoom:80%;" />
+
+查看集群状态
+
+<img src="images/image-20220226000345089.png" alt="image-20220226000345089" style="zoom:80%;" />
+
+##### 3.2.7.2、清空master槽号
+
+将node7的槽号清空，重新分配，本例将清出来的槽号都给node1
+
+```bash
+redis-cli --cluster reshard 138.2.46.254:6381
+```
+
+<img src="images/image-20220226000610472.png" alt="image-20220226000610472" style="zoom:80%;" />
+
+由node1接收node7的槽
+
+![image-20220226000707192](images/image-20220226000707192.png)
+
+填入要清空的节点的槽，输入done结束
+
+![image-20220226000837319](images/image-20220226000837319.png)
+
+检查集群状态，4096个槽位都指给node1，它变成了8192个槽位，相当于全部都给node1了
+
+<img src="images/image-20220226001057668.png" alt="image-20220226001057668" style="zoom:80%;" />
+
+删除node7
+
+```bash
+redis-cli --cluster del-node ip:端口 6387节点ID
+```
 
 ## 4、安装MariaDB
 
@@ -953,6 +1248,112 @@ docker run -it  --privileged=true -v 宿主机文件绝对路径:容器文件绝
 ```bash
 docker run -it  --privileged=true --volumes-from A1  --name B1 镜像名
 ```
+
+# DockerFile
+
+## 1、简介
+
+Dockerfile是用来构建Docker镜像的文本文件，是由一条条构建镜像所需的指令和参数构成的脚本。
+
+Dockerfile定义了进程需要的一切东西，Dockerfile涉及的内容包括执行代码或者是文件、环境变量、依赖包、运行时环境、动态链接库、操作系统的发行版、服务进程和内核进程(当应用进程需要和系统服务和内核进程打交道，这时需要考虑如何设计namespace的权限控制)等等。
+
+<img src="images/image-20220226103930507.png" alt="image-20220226103930507" style="zoom:80%;" />
+
+Dockerfile、Docker镜像与Docker容器分别代表软件的三个不同阶段：
+
+*  Dockerfile是软件的原材料
+*  Docker镜像是软件的交付品
+*  Docker容器则可以认为是软件镜像的运行态，也即依照镜像运行的容器实例
+
+## 2、基本规则
+
+1. 每条**保留字指令**都必须为**大写字母**且后面要跟随**至少一个参数**。
+2. 指令按照从上到下，顺序执行。
+3. #表示注释。
+4. 每条指令都会创建一个**新的镜像层**并对镜像进行提交。
+
+## 3、执行流程
+
+1. docker从基础镜像运行一个容器
+2. 执行一条指令并对容器作出修改
+3. 执行类似docker commit的操作提交一个新的镜像层
+4. docker再基于刚提交的镜像运行一个新容器
+5. 执行dockerfile中的下一条指令直到所有指令都执行完成
+
+## 4、保留字指令
+
+| 保留字指令 | 作用                                                         |
+| ---------- | ------------------------------------------------------------ |
+| FROM       | 基础镜像，当前新镜像是基于哪个镜像的，指定一个已经存在的镜像作为模板，第一条必须是FROM |
+| MAINTAINER | 镜像维护者的姓名和邮箱地址                                   |
+| RUN        | 容器构建时需要运行的命令，RUN是在docker **build**时运行 <br/>RUN指令有两种格式：<br/>shell格式：RUN yum -y install vim <br/>![image-20220226104802939](images/image-20220226104802939.png)<br/>exec格式：<br/>![image-20220226104825362](images/image-20220226104825362.png) |
+| EXPOSE     | 当前容器对外暴露出的端口                                     |
+| WORKDIR    | 指定在创建容器后，终端默认登陆的进来工作目录，一个落脚点     |
+| USER       | 指定该镜像以什么样的用户去执行，如果都不指定，默认是root     |
+| ENV        | 用来在构建镜像过程中设置环境变量                             |
+| ADD        | 将宿主机目录下的文件拷贝进镜像且会自动处理URL和解压tar压缩包 |
+| COPY       | 类似ADD，拷贝文件和目录到镜像中。<br/>将从构建上下文目录中 <源路径> 的文件/目录复制到新的一层的镜像内的 <目标路径> 位置。<br/>COPY ["src", "dest"]  ===》COPY src dest <br/><src源路径>：源文件或者源目录 <br/><dest目标路径>：容器内的指定路径，该路径不用事先建好，路径不存在的话，会自动创建。 |
+| VOLUME     | 容器数据卷，用于数据保存和持久化工作                         |
+| CMD        | 指定容器启动后的要干的事情 <br/><img src="images/image-20220226105506821.png" alt="image-20220226105506821" style="zoom:80%;" /> <br/>Dockerfile 中可以有多个 CMD 指令，但只有**最后一个生效**，**CMD 会被 docker run 之后的参数替换** <br/>CMD是在docker run时运行，RUN是在docker build时运行 |
+| ENTRYPOINT | 也是用来指定一个容器启动时要运行的命令<br/>类似于 CMD 指令，但是**ENTRYPOINT不会被docker run后面的命令覆盖**，而且这些命令行参数会被当作参数送给 ENTRYPOINT 指令指定的程序 <br/>格式：<br/>![image-20220226105922096](images/image-20220226105922096.png)<br/>ENTRYPOINT可以和CMD一起用，一般是**变参**才会使用 CMD ，当指定了ENTRYPOINT后，CMD的含义就发生了变化，不再是直接运行其命令而是将CMD的内容作为参数传递给ENTRYPOINT指令，他两个组合会变成 CMD 给 ENTRYPOINT 传参。<img src="images/image-20220226110157277.png" alt="image-20220226110157277" style="zoom:50%;" /><br/>优点：在执行docker run的时候可以指定 ENTRYPOINT 运行所需的参数。<br/>如果 Dockerfile 中如果存在多个 ENTRYPOINT 指令，**仅最后一个生效**。 |
+
+ENTRYPOINT例子：
+
+假设已通过 Dockerfile 构建了 nginx:test 镜像：
+
+<img src="images/image-20220226110327030.png" alt="image-20220226110327030" style="zoom:80%;" />
+
+| 是否传参   | 按照dockerfile编写执行         | 传参运行                                      |
+| ---------- | ------------------------------ | --------------------------------------------- |
+| Docker命令 | docker run  nginx:test         | docker run  nginx:test -c /etc/nginx/new.conf |
+| 实际命令   | nginx -c /etc/nginx/nginx.conf | nginx -c /etc/nginx/new.conf                  |
+
+## 5、实例
+
+### 5.1、自定义Centos2JDK
+
+#### 5.1.2、编写DockerFile
+
+ADD 是**相对路径**，把.gz文件添加到容器中，安装包必须要和Dockerfile文件在同一位置。
+
+```dockerfile
+FROM centos
+MAINTAINER xxx<xxx@xxx.com>
+ 
+ENV MYPATH /usr/local
+WORKDIR $MYPATH
+ 
+#安装vim编辑器
+RUN yum -y install vim
+#安装ifconfig命令查看网络IP
+RUN yum -y install net-tools
+#安装java8及lib库
+RUN yum -y install glibc.i686
+RUN mkdir /usr/local/java
+#ADD 是相对路径jar,把jdk-8u171-linux-x64.tar.gz添加到容器中,安装包必须要和Dockerfile文件在同一位置
+ADD jdk-8u171-linux-x64.tar.gz /usr/local/java/
+#配置java环境变量
+ENV JAVA_HOME /usr/local/java/jdk1.8.0_171
+ENV JRE_HOME $JAVA_HOME/jre
+ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib:$CLASSPATH
+ENV PATH $JAVA_HOME/bin:$PATH
+ 
+EXPOSE 80
+ 
+CMD echo $MYPATH
+CMD echo "success--------------ok"
+CMD /bin/bash
+```
+
+#### 5.1.3、构建镜像
+
+build指令最后有一个“ . ”切记
+
+```bash
+docker build -t 新镜像名字:TAG .
+```
+
+
 
 
 
