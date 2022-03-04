@@ -247,7 +247,7 @@ String类型是**二进制安全的**，意味着Redis的string可以包含任�
 
 | 命令                                          | 功能                                                         |
 | --------------------------------------------- | ------------------------------------------------------------ |
-| set  <key\><value\>                           | 添加键值对<br>附加参数：<br>      NX：当数据库中key不存在时，可以将key-value添加数据库 <br>      XX：当数据库中key存在时，可以将key-value添加数据库，与NX参数互斥 <br/>      EX：key的超时秒数 PX：key的超时毫秒数，与EX互斥<br/>      PX：key的超时毫秒数，与EX互斥 |
+| set  <key\><value\>                           | 添加键值对<br>附加参数：<br>      NX：当数据库中key不存在时，可以将key-value添加数据库 <br>      XX：当数据库中key存在时，可以将key-value添加数据库，与NX参数互斥 <br/>      EX：key的超时秒数 PX：key的超时毫秒数，与EX互斥 |
 | setnx <key\><value\>                          | 只有在 key 不存在时，设置 key 的值                           |
 | setex <key\><过期时间><value\>                | 设置键值的同时，设置过期时间，单位秒。                       |
 | mset <key1\><value1\><key2\><value2\> .....   | 同时设置一个或多个 key-value对                               |
@@ -1642,6 +1642,12 @@ CLUSTER GETKEYSINSLOT <slot> <count>
 
 ![image-20220303210101393](images/image-20220303210101393.png)
 
+查询所有键值
+
+```bash
+redis-cli -c --cluster call 192.168.168.161:7001 keys \*
+```
+
 ## 6、故障恢复
 
 6.1、如果主节点下线？从节点能否自动升为主节点？
@@ -1672,6 +1678,255 @@ public class JedisClusterTest {
     }
 }
 ```
+
+# Redis分布式锁
+
+## 1、原理
+
+跨JVM的互斥机制来控制共享资源的访问
+
+![image-20220304164143759](images/image-20220304164143759.png)
+
+1. 多个客户端同时获取锁（setnx）
+2. 获取成功，执行业务逻辑{从db获取数据，放入缓存}，执行完成释放锁（del）
+3. 其他客户端等待重试
+
+## 2、代码实现
+
+### 2.1配置集群连接
+
+配置RedisTemplate集群连接
+
+```java
+@EnableCaching
+@Configuration
+public class RedisConfig extends CachingConfigurerSupport {
+
+    @Bean
+    public RedisClusterConfiguration clusterConfig(RedisProperties redisProperties) {
+        List<String> nodes = redisProperties.getCluster().getNodes();
+        RedisClusterConfiguration clusterConfig = new RedisClusterConfiguration(nodes);
+        clusterConfig.setMaxRedirects(10);
+        return clusterConfig;
+    }
+
+    @Bean
+    public JedisPoolConfig poolConfig() {
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(200);
+        poolConfig.setMaxIdle(32);
+        poolConfig.setMaxWait(Duration.ofMillis(100));
+        poolConfig.setBlockWhenExhausted(true);
+        poolConfig.setTestOnBorrow(true);
+        return poolConfig;
+    }
+
+
+    @Bean
+    public JedisConnectionFactory redisConnectionFactory(RedisClusterConfiguration clusterConfig, JedisPoolConfig poolConfig) {
+        return new JedisConnectionFactory(clusterConfig, poolConfig);
+    }
+
+    @Bean
+    public Jackson2JsonRedisSerializer jackson2JsonRedisSerializer(ObjectMapper objectMapper) {
+        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+        jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
+        return jackson2JsonRedisSerializer;
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        //解决查询缓存转换异常的问题
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        objectMapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        return objectMapper;
+    }
+
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(JedisConnectionFactory factory, Jackson2JsonRedisSerializer redisSerializer) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+        //key序列化方式
+        template.setKeySerializer(new StringRedisSerializer());
+        //value序列化
+        template.setValueSerializer(redisSerializer);
+        //value hashmap序列化
+        template.setHashValueSerializer(redisSerializer);
+        return template;
+    }
+
+    @Bean
+    public CacheManager cacheManager(JedisConnectionFactory factory, Jackson2JsonRedisSerializer redisSerializer) {
+        // 配置序列化（解决乱码的问题）,过期时间600秒
+        RedisCacheConfiguration config = RedisCacheConfiguration
+                .defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(600))
+                .serializeKeysWith(
+                        RedisSerializationContext
+                                .SerializationPair
+                                .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(
+                        RedisSerializationContext
+                                .SerializationPair
+                                .fromSerializer(redisSerializer))
+                .disableCachingNullValues();
+        RedisCacheManager cacheManager = RedisCacheManager
+                .builder(factory)
+                .cacheDefaults(config)
+                .build();
+        return cacheManager;
+    }
+}
+```
+
+### 2.2、第一版基础版代码
+
+```java
+@Autowired
+RedisTemplate<String, Object> redisTemplate;
+
+@GetMapping("testLock")
+public void testLock() {
+    System.out.println("进入testLock");
+    //1获取锁，setnx
+    Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", "111");
+    //2获取锁成功、查询num的值
+    if(Boolean.TRUE.equals(lock)) {
+        System.out.println("开始testLock");
+        Object value = redisTemplate.opsForValue().get("num");
+        //2.1判断num为空return
+        if(ObjectUtils.isEmpty(value)) {
+            redisTemplate.delete("lock");
+            return;
+        }
+        //2.2有值就转成int
+        int num = (int) value;
+        // Integer.parseInt((String) value);
+        //2.3把redis的num加1
+        redisTemplate.opsForValue().set("num", ++num);
+        //2.4释放锁，del
+        redisTemplate.delete("lock");
+        System.out.println("结束testLock");
+    } else {
+        //3获取锁失败、每隔0.1秒再获取
+        try {
+            Thread.sleep(100);
+            testLock();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+**问题**：setnx刚好获取到锁，业务逻辑出现异常，导致锁无法释放。
+
+**解决**：设置过期时间，自动释放锁。
+
+### 2.3、第二版设置锁的过期时间
+
+设置过期时间有两种方式：
+
+1. 首先想到通过**expire**设置过期时间（缺乏原子性：如果在setnx和expire之间出现异常，锁也无法释放）
+
+2. 在set时指定过期时间（**推荐**）
+
+![image-20220304195332118](images/image-20220304195332118.png)
+
+```java
+Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", "111", 3, TimeUnit.SECONDS);
+```
+
+**问题**：可能会释放其他服务器的锁。
+
+场景：如果业务逻辑的执行时间是7s。执行流程如下
+
+1. index1业务逻辑没执行完，3秒后锁被自动释放。
+
+2. index2获取到锁，执行业务逻辑，3秒后锁被自动释放。
+
+3. index3获取到锁，执行业务逻辑
+
+4. index1业务逻辑执行完成，开始调用del释放锁，这时释放的是index3的锁，导致index3的业务只执行1s就被别人释放。
+5. 最终等于没锁的情况。
+
+**解决**：setnx获取锁时，设置一个指定的唯一值（例如：uuid）释放前获取这个值，判断是否自己的锁
+
+### 2.4、第三版UUID防误删
+
+![image-20220304200359346](images/image-20220304200359346.png)
+
+```java
+String uuid = UUID.randomUUID().toString();
+Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", uuid, 3, TimeUnit.SECONDS);
+
+String delLock = (String) redisTemplate.opsForValue().get("lock");
+if(Objects.equals(delLock, uuid)) {
+    redisTemplate.delete("lock");
+    System.out.println("结束testLock");
+}
+```
+
+**问题**：删除操作缺乏原子性。
+
+场景：
+
+1. index1执行删除时，查询到的lock值确实和uuid相等
+
+```java
+uuid=v1
+
+set(lock,uuid)；                
+```
+
+2. index1执行删除前，lock刚好过期时间已到，被redis自动释放，在redis中没有了lock，没有了锁。
+
+3. index2获取了lock，index2线程获取到了cpu的资源，开始执行方法
+
+```java
+uuid=v2
+
+set(lock,uuid)；
+```
+
+4. index1执行删除，此时会把index2的lock删除，index1因为已经在方法中了，所以不需要重新上锁。index1有执行的权限，因为index1已经比较完成了，这个时候，开始执行删除的index2的锁。
+
+**解决**：使用lua脚本保证原子性
+
+### 2.5、第四版LUA脚本保证删除的原子性
+
+```java
+String script = "if redis.call('get', KEYS[1]) == ARGV[1] " +
+                "then return redis.call('del', KEYS[1]) " +
+                "else return 0 end";
+
+// 使用redis执行lua执行
+DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+redisScript.setScriptText(script);
+// 设置一下返回值类型 为Long
+// 因为删除判断的时候，返回的0,给其封装为数据类型。如果不封装那么默认返回String类型，
+// 那么返回字符串与0会有发生错误。
+redisScript.setResultType(Long.class);
+// 第一个要是script 脚本 ，第二个需要判断的key，第三个就是key所对应的值。
+redisTemplate.execute(redisScript, List.of("lock"), uuid);
+```
+
+![image-20220304203611618](images/image-20220304203611618.png)
+
+```text
+List.of("lock") 对应 KEYS[1]
+UUID 对应 ARGV[1]
+```
+
+## 3、分布式锁实现条件
+
+为了确保分布式锁可用，我们至少要确保锁的实现同时**满足以下四个条件**：
+
+- 互斥性。在任意时刻，只有一个客户端能持有锁。
+- 不会发生死锁。即使有一个客户端在持有锁的期间崩溃而没有主动解锁，也能保证后续其他客户端能加锁。
+- 解铃还须系铃人。加锁和解锁必须是同一个客户端，客户端自己不能把别人加的锁给解了。
+- 加锁和解锁必须具有原子性。
 
 # 相关知识
 
