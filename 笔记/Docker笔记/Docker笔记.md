@@ -911,7 +911,7 @@ docker run -d --name redis-node-6 --net host --privileged=true \
 ```
 
 ```text
---net host 				使用宿主机的IP和端口，默认
+--net host 				使用宿主机的IP和端口，默认，rediscluster模式在docker中仅仅支持host模式
 --cluster-enabled yes 	开启redis集群
 --appendonly yes		开启持久化
 --port 6386				redis端口号
@@ -1353,9 +1353,496 @@ build指令最后有一个“ . ”切记
 docker build -t 新镜像名字:TAG .
 ```
 
+### 5.2、Docker微服务实例
+
+#### 5.2.1、微服务
+
+新建一个微服务模块，并打包成jar
+
+#### 5.2.2、发布到docker
+
+通过dockerfile，发布到到docker
+
+```dockerfile
+# 基础镜像使用java
+FROM openjdk:11
+# 作者
+MAINTAINER ppz
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp
+VOLUME /tmp
+# 将jar包添加到容器中并更名为ppz.jar
+ADD RedisCloud-0.0.1-SNAPSHOT.jar ppz.jar
+# 运行jar包
+RUN bash -c 'touch /ppz.jar'
+ENTRYPOINT ["java","-jar","/ppz.jar"]
+#暴露8081端口作为微服务
+EXPOSE 8081
+```
+
+#### 5.2.3、构建镜像
+
+```bash
+docker build -t ppz:1.6 .
+```
+
+运行容器测试即可
+
+# Docker网络
+
+## 1、概述
+
+docker启动后，会产生一个名为docker0的虚拟网桥
+
+![image-20220306192151042](images/image-20220306192151042.png)
+
+docker网络自带的默认三种网络模式
+
+![image-20220306192024957](images/image-20220306192024957.png)
+
+容器间的互联和通信以及端口映射
+
+容器IP变动时候可以通过服务名直接网络通信而不受到影响。
+
+docker容器内部的ip是有可能会发生改变的。
+
+## 2、基本命令
+
+![image-20220306192333960](images/image-20220306192333960.png)
+
+| 命令                                | 功能           |
+| ----------------------------------- | -------------- |
+| docker network ls                   | 查看网络       |
+| docker network inspect  XXX网络名字 | 查看网络源数据 |
+| docker network rm XXX网络名字       | 删除网络       |
+
+## 3、网络模式
+
+| 模式          | 介绍                                                         |
+| ------------- | ------------------------------------------------------------ |
+| bridge模式    | 使用--network  bridge指定，为每一个容器分配IP，默认使用docker0，默认为该模式 |
+| host模式      | 使用--network host指定，容器不会虚拟出自己的IP端口，而是使用宿主机的 |
+| none模式      | 使用--network none指定，容器有自己独立的netword namespace，但并没有对其进行任何设置 |
+| container模式 | 使用--network container:NAME或者容器ID指定，容器不会新建自己的网卡和IP，而是和一个指定的容器共用 |
+
+### 3.1、bridge
+
+Docker 服务默认会创建一个 docker0 网桥（其上有一个 docker0 内部接口），该桥接网络的名称为docker0，它在内核层连通了其他的物理或虚拟网卡，这就将所有容器和本地主机都放到同一个物理网络。Docker 默认指定了 docker0 接口 的 IP 地址和子网掩码，让主机和容器之间可以通过网桥相互通信。
+
+```bash
+# 查看 bridge 网络的详细信息，并通过 grep 获取名称项
+docker network inspect bridge | grep name
+```
+
+![image-20220306215934836](images/image-20220306215934836.png)
+
+1. Docker使用Linux桥接，在宿主机虚拟一个**Docker容器网桥**(docker0)，Docker启动一个容器时会根据Docker网桥的**网段**分配给容器一个IP地址，称为**Container-IP**，同时Docker网桥是每个容器的**默认网关**。因为在同一宿主机内的容器都接入同一个网桥，这样容器之间就能够通过容器的Container-IP直接通信。
+2. docker run 的时候，没有指定network的话默认使用的网桥模式就是bridge，使用的就是docker0。在宿主机ifconfig，就可以看到docker0和自己create的network(后面讲)eth0，eth1，eth2……代表网卡一，网卡二，网卡三……，lo代表127.0.0.1，即localhost，inet addr用来表示网卡的IP地址
+3. 网桥docker0创建**一对**对等虚拟设备接口一个叫**veth**，另一个叫**eth0**，成对匹配。
+   1. 整个宿主机的网桥模式都是docker0，类似一个交换机有一堆接口，每个接口叫veth，在本地主机和容器内分别创建一个虚拟接口，并让他们彼此联通（这样一对接口叫veth pair）
+   2. 每个容器实例内部也有一块网卡，每个接口叫eth0
+   3. docker0上面的每个veth匹配某个容器实例内部的eth0，两两配对，一一匹配。veth <-----> eth0
+
+通过上述，将宿主机上的所有容器都连接到这个内部网络上，两个容器在同一个网络下,会从这个网关下各自拿到分配的ip，此时两个容器的网络是互通的。
+
+![image-20220306222811236](images/image-20220306222811236.png)
+
+### 3.2、host
+
+直接使用宿主机的 IP 地址与外界进行通信，不再需要额外进行NAT 转换，好处是外部主机与容器可以直接通信。
+
+容器将不会获得一个独立的Network Namespace， 而是和宿主机共用一个Network Namespace。
+
+容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口。
+
+![image-20220306224416803](images/image-20220306224416803.png)
+
+docker启动时指定--network=host或-net=host，如果还指定了-p映射端口，那这个时候就会有此警告，并且通过-p设置的参数将不会起到任何作用，端口号会以主机端口号为主，重复时则递增。
+
+### 3.3、none
+
+在none模式下，并不为Docker容器进行任何网络配置。 这个Docker容器没有网卡、IP、路由等信息，只有一个lo，需要我们自己为Docker容器添加网卡、配置IP等。
+
+### 3.4、contain
+
+新建的容器和已经存在的一个容器共享一个网络ip配置而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP、端口范围等。同样，两个容器除了网络方面，其他的如文件系统、进程列表等还是隔离的。
+
+![image-20220307092937221](images/image-20220307092937221.png)
+
+### 3.5、自定义网络
+
+在之前，容器内ping另一容器的ip地址是可通的，但是ping容器名是不通的
+
+自定义桥接网络,自定义网络默认使用的是桥接网络bridge，首先需要先自定义网络
+
+```bash
+docker network creat xxxx
+```
+
+之后创建容器时，使用自定义网络模式，容器之间不论ip还是容器名都可以ping通
+
+## 4、总结
+
+从其架构和运行流程来看，Docker 是一个 **C/S** 模式的架构，后端是一个松耦合架构，众多模块各司其职。 
+
+Docker 运行的基本流程为：
+
+1. 用户是使用 Docker **Client** 与 Docker **Daemon** 建立通信，并发送请求给后者。
+2. Docker Daemon 作为 Docker 架构中的主体部分，首先提供 Docker **Server** 的功能使其可以接受 Docker Client 的请求。
+3. Docker **Engine** 执行 Docker 内部的一系列工作，每一项工作都是以一个 **Job** 的形式的存在。
+4. Job 的运行过程中，当需要容器镜像时，则从 Docker Registry 中下载镜像，并通过镜像管理驱动 **Graph driver** 将下载镜像以Graph的形式存储。
+5. 当需要为 Docker 创建网络环境时，通过网络管理驱动 **Network driver** 创建并配置 Docker 容器网络环境。
+6. 当需要限制 Docker 容器运行资源或执行用户指令等操作时，则通过 **Exec driver** 来完成。
+7. **Libcontainer**是一项独立的容器管理包，Network driver以及Exec driver都是通过Libcontainer来实现具体对容器进行的操作。
+
+![image-20220307095410542](images/image-20220307095410542.png)
+
+# DockerCompose容器编排
+
+## 1、简介
+
+Compose 是 Docker 公司推出的一个工具软件，可以管理多个 Docker 容器组成一个应用，解决了容器与容器之间如何管理编排的问题。
+
+Compose允许用户通过定义一个单独的 YAML 格式的配置文件docker-compose.yml，来定义一组相关联的应用容器为一个项目(project)，写好多个容器之间的调用关系。然后，只要一个命令，就能同时启动/关闭这些容器，实现对Docker容器集群的快速编排
+
+可以很容易地用一个配置文件定义一个多容器的应用，然后使用一条指令安装这个应用的所有依赖，完成构建。
+
+### 1.1、核心概念
+
+yml文件，服务（service），工程（project）
+
+服务：一个个应用容器实例，比如订单微服务、mysql容器。
+
+工程：由一组关联的应用容器组成的一个完整业务单元，在 docker-compose.yml 文件中定义。
+
+不用Compose的问题：启动一个工程需要多个run命令启动多个容器，容器启停会导致ip变化，映射规则可能出现问题
+
+### 1.2、基本属性
+
+```yml
+version : '3'       #Compose文件版本支持特定的Docker版本
+services:           #本工程的服务配置列表
+ 
+  swapping:         #spring boot的服务名，服务名自定义
+    container_name: swapping-compose   
+                    #本spring boot服务之后启动的容器实例的名字，如果指定，按照这个命名容器，如果未指定，容器命名规则是
+                    #【[compose文件所在目录]_[服务名]_1】，例如【swappingdockercompose_swapping_1】
+　　　　　　　　　　　　#如果多启动，也就是docker-compose scale swapping=3 mysql=2的话，就不需要指定容器名称，
+　　　　　　　　　　　　#否则会报错 容器名重复存在的问题
+    build:          #基于Dockerfile文件构建镜像时使用的属性
+      context: .    #代表当前目录，也可以指定绝对路径[/path/test/Dockerfile]或相对路径[../test/Dockerfile]
+      				#尽量放在当前目录，便于管理
+      dockerfile: Dockerfile-swapping    #指定Dockerfile文件名。如果context指定了文件名，这里就不用本属性了
+    ports:                      #映射端口属性
+      - "9666:9666"             #建议使用字符串格式，指定宿主机端口映射到本容器的端口
+    dns:  						# 配置 dns 服务器，可以是一个值或列表
+      - 8.8.8.8
+      - 9.9.9.9
+    dns_search:					#配置 DNS 搜索域，可以是一个值或列表
+      - dc1.example.com
+      - dc2.example.com
+    environment:				#环境变量配置，可以用数组或字典两种方式
+      - RACK_ENV=development
+      - SHOW=ture
+    env_file:  					#从文件中获取环境变量，可以指定一个文件路径或路径列表
+    							#其优先级低于 environment 指定的环境变量
+      - ./common.env
+    expose:						#暴露端口，只将端口暴露给连接的服务，而不暴露给主机
+      - "3000"
+      - "8000"
+    volumes:                    #挂载属性
+      - /xxxx/xxxx:/vol/development      #挂载路径在compose配置文件中只能指定容器内的目录
+      									 #可以使用:ro对容器内目录设置只读，来保护宿主机的文件系统
+    depends_on:        			#本服务启动，需要依赖哪些别的服务  例如这里；mysql服务就会先于swapping服务启动。
+      - mysql
+    links:                      #与depends_on相对应，上面控制启动顺序，这个控制容器连接问题。
+      - "mysql:m"           	#值可以是- mysql[- 服务名]，也可以是- "mysql:m"[- "服务名:别名"]
+      							#避免ip导致的容器重启动态改变的无法连接情况
+      							#进入swapping-compose容器后，可以ping m通过
+    external_links:				#和links一样，只不过是连接到外部容器，外部容器和此容器需要在同一个docker网络中
+      - redis-external
+    restart: always             #是否随docker服务启动重启
+    networks:                   #加入指定网络
+      - my-network              #自定义的网络名
+    network_mode: "bridge"		#设置网络模式，设置这个就不需要networks
+	#network_mode: "host"
+	#network_mode: "none"
+	#network_mode: "service:[service name]"
+	#network_mode: "container:[container name/id]"
+    environment:                #environment 和 Dockerfile 中的 ENV 指令一样会把变量一直保存在镜像、容器中
+    							#类似 docker run -e 的效果。设置容器的环境变量
+      - TZ=Asia/Shanghai        #这里设置容器的时区为亚洲上海，也就解决了容器通过compose编排启动的时区问题！！！！
+      							#解决了容器的时区问题！！！
+ 
+  mysql:                            #服务名叫mysql，自定义
+    container_name: mysql-compose   #容器名
+    image: mysql:5.7                #虽然没有使用build，但使用了image，指定基于mysql:5.7镜像为基础镜像来构建镜像。
+    								#【使用build基于Dockerfile文件构建，Dockerfile文件中也有FROM基于基础镜像】
+    ports:
+      - "33061:3306"
+    command: [                        #使用 command 可以覆盖容器启动后默认执行的命令
+            '--character-set-server=utf8mb4',           #设置数据库表的数据集
+            '--collation-server=utf8mb4_unicode_ci',    #设置数据库表的数据集
+            '--default-time-zone=+8:00'                 #设置mysql数据库的 时区问题！！！！ 
+            											#而不是设置容器的时区问题！！！！
+    ]
+    environment:           
+      MYSQL_DATABASE: wolong                             #设置初始的数据库名
+      MYSQL_ROOT_PASSWORD: fuckharkadmin                 #设置root连接密码
+      MYSQL_ROOT_HOST: '%'
+    restart: always
+    networks:
+      - my-network
+networks:                        #关于compose中的networks的详细使用
+  my-network:                    #自定义的网络，会在第一次构建时候创建自定义网络，默认是bridge
+```
+
+## 2、安装Compose
+
+为全部用户安装docker-compose
+
+```bash
+curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+```
+
+赋予权限给可执行的二进制文件
+
+```bash
+chmod +x /usr/local/bin/docker-compose
+```
+
+测试
+
+```bash
+docker compose version
+```
+
+卸载直接删除改文件夹即可
+
+## 3、使用步骤
+
+编写Dockerfile定义各个微服务应用并构建出对应的镜像文件。
+
+- 微服务通过容器服务名进行连接访问，例如 jdbc:mysql://**mysql**:3306
+
+使用 docker-compose.yml 定义一个完整业务单元，安排好整体应用中的各个容器服务。
+
+最后，执行docker-compose up命令 来启动并运行整个应用程序，完成一键部署上线。
+
+## 4、常用命令
+
+Compose常用命令
 
 
+| 命令                 | 功能                                 |
+| --------------------| ------------------------------------ |
+|docker-compose exec yml里面的服务id  | 进入容器实例内部，docker-compose exec docker-compose.yml文件中写的服务id /bin/bash |
+|docker-compose ps               | 展示当前docker-compose编排过的运行的所有容器 |
+|docker-compose top               | 展示当前docker-compose编排过的容器进程 |
+|docker-compose logs  yml里面的服务id | 查看容器输出日志 |
+|docker-compose config   | 检查配置 |
+|docker-compose config -q | 检查配置，有问题才有输出 |
+|docker-compose restart  | 重启服务 |
+|docker-compose start    | 启动服务 |
+|docker-compose stop     | 停止服务 |
+| docker-compose -h    | 查看帮助                             |
+| docker-compose up    | 启动所有docker-compose服务           |
+| docker-compose up -d | 启动所有docker-compose服务并后台运行 |
+| docker-compose down  | 停止并删除容器、网络、卷、镜像。     |
 
+## 5、例子
+
+### 5.1、部署RedisCluster
+
+```yml
+version: "3"
+ 
+services:
+  redis01:
+    image: redis:latest
+    container_name: redis01
+    volumes:
+      - /data/redis/redis01/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis01/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6381
+    privileged: true
+  
+  redis02:
+    image: redis:latest
+    container_name: redis02
+    volumes:
+      - /data/redis/redis02/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis02/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6382
+    privileged: true
+    
+  redis03:
+    image: redis:latest
+    container_name: redis03
+    volumes:
+      - /data/redis/redis03/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis03/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6383
+    privileged: true
+    
+  redis04:
+    image: redis:latest
+    container_name: redis04
+    volumes:
+      - /data/redis/redis04/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis04/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6384
+    privileged: true
+    
+  redis05:
+    image: redis:latest
+    container_name: redis05
+    volumes:
+      - /data/redis/redis05/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis05/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6385
+    privileged: true
+    
+  redis06:
+    image: redis:latest
+    container_name: redis06
+    volumes:
+      - /data/redis/redis06/conf/redis.conf:/etc/redis/redis.conf
+      - /data/redis/redis06/data:/data
+    network_mode: "host"
+    command: redis-server /etc/redis/redis.conf --cluster-enabled yes --appendonly yes --port 6386
+    privileged: true
+```
+
+执行docker compose up -d后，进入容器中进行主从分配
+
+# Docker可视化工具
+
+## 1、简介
+
+Portainer 是一款轻量级的应用，它提供了图形化界面，用于方便地管理Docker环境，包括单机环境和集群环境。
+
+## 2、安装
+
+```bash
+docker volume create portainer_data
+
+docker run -d -p 8000:8000 -p 9000:9000 -p 9443:9443 --name portainer \
+    --restart=always \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v portainer_data:/data \
+    portainer/portainer-ce:latest
+```
+
+安装完登陆9000端口，第一次的登陆需要设置密码
+
+# Docker监控
+
+## 1、简介
+
+docker stats统计结果只能是当前宿主机的全部容器，数据资料是实时的，没有地方存储、没有健康指标过线预警等功能
+
+引入监控三剑客cAdvisor+influxDB+Grafana
+
+![image-20220307202644191](images/image-20220307202644191.png)
+
+![image-20220307202725620](images/image-20220307202725620.png)
+
+![image-20220307202731529](images/image-20220307202731529.png)
+
+![image-20220307202736856](images/image-20220307202736856.png)
+
+## 2、构建
+
+使用docker-compose.yml一次性构建完毕
+
+```yml
+version: '3.1'
+ 
+volumes:
+  grafana_data: {}
+ 
+services:
+ influxdb:
+  image: tutum/influxdb:0.9
+  restart: always
+  environment:
+    - PRE_CREATE_DB=cadvisor
+  ports:
+    - "8083:8083"
+    - "8086:8086"
+  volumes:
+    - ./data/influxdb:/data
+ 
+ cadvisor:
+  image: google/cadvisor
+  links:
+    - influxdb:influxsrv
+  command: -storage_driver=influxdb -storage_driver_db=cadvisor -storage_driver_host=influxsrv:8086
+  restart: always
+  ports:
+    - "8080:8080"
+  volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+ 
+ grafana:
+  user: "104"
+  image: grafana/grafana
+  user: "104"
+  restart: always
+  links:
+    - influxdb:influxsrv
+  ports:
+    - "3000:3000"
+  volumes:
+    - grafana_data:/var/lib/grafana
+  environment:
+    - HTTP_USER=admin
+    - HTTP_PASS=admin
+    - INFLUXDB_HOST=influxsrv
+    - INFLUXDB_PORT=8086
+    - INFLUXDB_NAME=cadvisor
+    - INFLUXDB_USER=root
+    - INFLUXDB_PASS=root
+```
+
+## 3、测试
+
+浏览cAdvisor**收集**服务
+http://ip:8080/
+
+浏览inFluxdb**存储**服务
+http://ip:8083/
+
+浏览Grafana**展现**服务
+http://ip:3000
+
+Grafanad的默认账号密码为admin/admin，第一次登陆需要修改密码
+
+对Grafanad进行配置
+
+1. 配置数据源，选择inFluxdb
+
+   <img src="images/image-20220307203642402.png" alt="image-20220307203642402" style="zoom:50%;" /><img src="images/image-20220307203703782.png" alt="image-20220307203703782" style="zoom:50%;" />
+
+   - 配置细节
+
+   <img src="images/image-20220307203839491.png" alt="image-20220307203839491" style="zoom: 50%;" /><img src="images/image-20220307204059054.png" alt="image-20220307204059054" style="zoom: 50%;" />
+
+2. 配置面板：从左至右，从上至下
+
+<img src="images/image-20220307204335478.png" alt="image-20220307204335478" style="zoom:50%;" /><img src="images/image-20220307204353982.png" alt="image-20220307204353982" style="zoom:50%;" />
+
+<img src="images/image-20220307204441861.png" alt="image-20220307204441861" style="zoom:50%;" /><img src="images/image-20220307204629677.png" alt="image-20220307204629677" style="zoom:50%;" />
+
+<img src="images/image-20220307204757685.png" alt="image-20220307204757685" style="zoom:50%;" />
 
 # 扩展
 
