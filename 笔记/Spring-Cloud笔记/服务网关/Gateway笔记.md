@@ -41,7 +41,7 @@ Handler 再通过指定的过滤器链来将请求发送到我们实际的服务
 Filter在“pre”类型的过滤器可以做参数校验、权限校验、流量监控、日志输出、协议转换等，
 在“post”类型的过滤器中可以做响应内容、响应头的修改，日志的输出，流量监控等有着非常重要的作用。
 
-核心逻辑：路由转发 + 执行过滤器链
+**核心逻辑**：路由转发 + 执行过滤器链
 
 # Gateway构建
 
@@ -113,8 +113,7 @@ http://localhost:9527/payment/get/31
 
 ```java
 @Configuration
-public class GateWayConfig
-{
+public class GateWayConfig{
     /**
      * 配置了一个id为route-name的路由规则，
      * 当访问地址 http://localhost:9527/guonei时会自动转发到地址：http://news.baidu.com/guonei
@@ -162,13 +161,13 @@ spring:
           enabled: true #开启从注册中心动态创建路由的功能，利用微服务名进行路由
       routes:
         - id: payment_routh #payment_route    #路由的ID，没有固定规则但要求唯一，建议配合服务名
-          # uri: http://localhost:8001          #匹配后提供服务的路由地址
+          # uri: http://localhost:8001          
           uri: lb://cloud-payment-service #匹配后提供服务的路由地址
           predicates:
             - Path=/payment/get/**         # 断言，路径相匹配的进行路由
 
         - id: payment_routh2 #payment_route    #路由的ID，没有固定规则但要求唯一，建议配合服务名
-          # uri: http://localhost:8001          #匹配后提供服务的路由地址
+          # uri: http://localhost:8001          
           uri: lb://cloud-payment-service #匹配后提供服务的路由地址
           predicates:
             - Path=/payment/lb/**         # 断言，路径相匹配的进行路由
