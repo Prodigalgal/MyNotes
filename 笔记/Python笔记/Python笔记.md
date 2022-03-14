@@ -2,15 +2,811 @@
 
 ## 1.1、对象
 
-Python是一门强类型的语言，对象一旦创建类型便不能修改
+Python是一门强类型的语言，对象一旦创建类型便不能修改。
 
-类型转换不是改变对象本身的类型，而是根据当前对象的值创建一个新对象
+类型转换不是改变对象本身的类型，而是根据当前对象的值创建一个新对象。
 
-如果有其他变量也指向了该对象，则修改也会在其他的变量中体现
+如果有其他变量也指向了该对象，则修改也会在其他的变量中体现，
+
+~~~text
+- 对象是内存中专门用来存储数据的一块区域。
+- 对象中可以存放各种数据（比如：数字、布尔值、代码）
+- 对象由三部分组成：
+  1.对象的标识（id）
+  2.对象的类型（type）
+  3.对象的值（value）
+~~~
 
 ![图3](images/图3.png)
 
-### 1.1.1、比较对象
+### 1.1.1、类(class) 
+
+#### 1.1.1.1、类的概念
+
+类就是对象的图纸，也称对象是类的实例（instance）。
+
+类就是一个用来创建对象的对象，类是type类型的对象，定义类实际上就是定义了一个type类型的对象
+
+> 像 int() float() bool() str() list() dict() .... 这些都是类。
+
+我们自定义的类都需要使用大写字母开头，使用大驼峰命名法（帕斯卡命名法）来对类命名。
+
+#### 1.1.1.2、类的基本结构
+
+~~~python
+class 类名([父类]) :
+
+    公共的属性... 
+
+    # 对象的初始化方法
+    def __init__(self,...):
+        ...
+
+    # 其他的方法    
+    def method_1(self,...):
+        ...
+
+    def method_2(self,...):
+        ...
+
+    ...  
+~~~
+
+#### 1.1.1.3、类的定义
+
+在类的代码块中，我们可以定义变量和函数：
+
+- 变量会成为该类实例的公共属性，所有的该类实例都可以通过 对象**.**属性名 的形式访问，但是修改只能由类对象去修改。
+- 函数会成为该类实例的公共方法，所有该类实例都可以通过 对象**.**方法名() 的形式调用方法。
+
+注意：方法调用时，第一个参数由解析器自动传递，所以定义方法时，至少要定义一个形参！ 
+
+~~~python
+class Person :
+    name = 'swk'
+    
+    def say_hello(self) :
+        # 方法每次被调用时，解析器都会自动传递第一个实参
+        # 第一个参数，就是调用方法的对象本身，
+        # 在方法中不能直接访问类中的属性
+        print('你好！我是 %s' %self.name)
+~~~
+
+![image-20220314154303513](images/image-20220314154303513.png)
+
+
+
+1、实例为什么能访问到类中的属性和方法：
+
+- 类中定义的属性和方法都是公共的，任何该类实例都可以访问
+
+2、属性和方法查找的流程：
+
+- 当我们调用一个对象的属性时，解析器会先在当前对象中寻找是否含有该属性，如果有，则直接返回当前对象的属性值
+- 如果没有，则去当前对象的类中去寻找，如果有则返回类的属性值
+- 如果类中依然没有，则报错
+
+3、类对象和实例对象中都可以保存属性（方法）：
+
+- 如果这个属性（方法）是所有的实例共享的，则应该将其保存到类中
+- 如果这个属性（方法）是某个实例独有，则应该保存到实例对象中 
+- 一般情况下，属性保存到实例对象中，而方法需要保存到类中 
+
+
+
+#### 1.1.1.4、使用类创建对象流程
+
+~~~python
+class Person():
+    pass
+
+
+p1 = Person()的运行流程
+    1.创建一个变量
+    2.在内存中创建一个新对象
+    3.__init__(self)方法执行
+    4.将对象的id赋值给变量
+
+# isinstance()用来检查一个对象是否是一个类的实例
+result = isinstance(p1, Person)
+
+# 通过Person这个类创建的对象都是一个空对象
+# 也就是对象中实际上什么都没有
+# 可以向对象中添加变量，对象中的变量称为属性
+# 语法：对象.属性名 = 属性值
+p1.name = '孙悟空'
+~~~
+
+![图1](images/图1.png)
+
+#### 1.1.1.5、总结
+
+~~~python
+# 定义一个类
+class A(object):
+
+    # 类属性
+    # 实例属性
+    # 类方法
+    # 实例方法
+    # 静态方法
+
+    # 类属性，直接在类中定义的属性是类属性
+    # 类属性可以通过类或类的实例访问到
+    # 但是类属性只能通过类对象来修改，无法通过实例对象修改
+    count = 0
+
+    def __init__(self):
+        # 实例属性，通过实例对象添加的属性属于实例属性
+        # 实例属性只能通过实例对象来访问和修改，类对象无法访问修改
+        self.name = '孙悟空'
+
+    # 实例方法
+    #   在类中定义，以self为第一个参数的方法都是实例方法
+    #   实例方法在调用时，Python会将调用对象作为self传入  
+    #   实例方法可以通过实例和类去调用
+    #       当通过实例调用时，会自动将当前调用对象作为self传入
+    #       当通过类调用时，不会自动传递self，此时我们必须手动传递self
+    def test(self):
+        print('这是test方法~~~ ' , self)    
+
+    # 类方法    
+    # 在类内部使用 @classmethod 来修饰的方法属于类方法
+    # 类方法的第一个参数是cls，也会被自动传递，cls就是当前的类对象
+    #   类方法和实例方法的区别，实例方法的第一个参数是self，而类方法的第一个参数是cls
+    #   类方法可以通过类去调用，也可以通过实例调用，没有区别
+    @classmethod
+    def test_2(cls):
+        print('这是test_2方法，他是一个类方法~~~ ',cls)
+        print(cls.count)
+
+    # 静态方法
+    # 在类中使用 @staticmethod 来修饰的方法属于静态方法  
+    # 静态方法不需要指定任何的默认参数，静态方法可以通过类和实例去调用  
+    # 静态方法，基本上是一个和当前类无关的方法，它只是一个保存到当前类中的函数
+    # 静态方法一般都是一些工具方法，和当前类无关
+    @staticmethod
+    def test_3():
+        print('test_3执行了~~~')
+        
+    # del是一个特殊方法，它会在对象被垃圾回收前调用
+    def __del__(self):
+        print('A()对象被删除了~~~',self)
+
+
+a = A()
+# 实例属性，通过实例对象添加的属性属于实例属性
+# a.count = 10
+# A.count = 100
+# print('A ,',A.count) 
+# print('a ,',a.count) 
+# print('A ,',A.name) 
+# print('a ,',a.name)  
+
+a = A()
+print(a.x, id(a.x))
+a.x = 20
+print(a.x, id(a.x))
+
+10 1912166875664
+20 1912166875984
+
+# a.test() 等价于 A.test(a)
+
+# A.test_2() 等价于 a.test_2()
+
+A.test_3()
+a.test_3()
+
+
+
+~~~
+
+
+
+### 1.1.2、对象初始化
+
+在类中可以定义一些特殊方法（魔术方法），特殊方法都是以 **\__** 开头，**\_\_ **结尾的方法
+
+**注意**：特殊方法不需要我们自己调用，也不要尝试去调用特殊方法。特殊方法将会在特殊的时刻自动调用。
+
+~~~python
+class Person :
+    # init会在对象创建以后立刻执行
+    # init可以用来向新创建的对象中初始化属性
+    # 调用类创建对象时，类后边的所有参数都会依次传递到init()中
+    def __init__(self,name):
+        # 通过self向新建的对象中初始化属性
+        self.name = name
+
+    def say_hello(self):
+        print('大家好，我是%s'%self.name)
+        
+p1 = Person('孙悟空')
+~~~
+
+### 1.1.3、封装
+
+#### 1.1.3.1、封装基本概念
+
+封装指的是隐藏对象中一些不希望被外部所访问到的属性或方法。
+
+使用封装，会增加了类的定义的复杂程度，但是它也确保了数据的安全性
+
+1、如何隐藏一个对象中的属性？
+
+- 将对象的属性名，修改为一个外部不知道的名字
+
+2、如何获取（修改）对象中的属性？
+
+- 需要提供一个getter和setter方法使外部可以访问到属性
+- getter 获取对象中的指定属性（get_属性名）
+  - 可以在读取属性的同时做一些其他的处理
+- setter 用来设置对象的指定属性（set_属性名）
+  - 使用setter方法设置属性，可以增加数据的验证，确保数据的值是正确的
+
+3、优点：
+
+- 隐藏了属性名，使调用者无法随意的修改对象中的属性
+- 增加了getter和setter方法，很好的控制的属性是否是只读的
+  - 如果希望属性是只读的，则可以直接去掉setter方法
+  - 如果希望属性不能被外部访问，则可以直接去掉getter方法
+
+~~~python
+class Dog:
+    '''
+        表示狗的类
+    '''
+    def __init__(self , name , age):
+        self.hidden_name = name
+        self.hidden_age = age
+
+    def say_hello(self):
+        print('大家好，我是 %s' %self.hidden_name) 
+
+    def get_name(self):
+        '''
+            get_name()用来获取对象的name属性
+        '''    
+        return self.hidden_name
+
+    def set_name(self , name):
+        self.hidden_name = name
+
+    def get_age(self):
+        return self.hidden_age
+
+    def set_age(self , age):
+        if age > 0 :
+            self.hidden_age = age    
+
+
+d = Dog('旺财',8)
+d.say_hello()
+
+# 调用setter来修改name属性 
+d.set_name('小黑')
+d.set_age(-10)
+
+d.say_hello()
+print(d.get_age())
+~~~
+
+#### 1.1.3.2、隐藏属性
+
+可以为对象的属性使用双下划线开头进行隐藏，__xxx
+
+双下划线开头的属性，是对象的隐藏属性，隐藏属性只能在类的内部访问，无法通过对象访问。
+
+其实隐藏属性只不过是Python自动为属性改了一个名字，实际上是将名字修改为了，_\_类名\_\_属性名 比如 \_\_name -> \_\_Person__name
+
+
+
+但是，使用__开头的属性，实际上依然可以在外部访问，所以这种方式我们一般不用
+
+一般情况下，使用_开头的属性都是私有属性，没有特殊需要不要修改私有属性
+
+~~~python
+ class Person:
+    def __init__(self,name):
+        self.__name = name
+
+    def get_name(self):
+        return self.__name
+
+    def set_name(self , name):
+        self.__name = name        
+
+p = Person('孙悟空')
+
+# print(p.__name) __开头的属性是隐藏属性，无法通过对象访问
+# p.__name = '猪八戒' # 无效赋值
+# print(p._Person__name)
+# p._Person__name = '猪八戒' # 有效赋值
+
+print(p.get_name())
+
+class Person:
+    def __init__(self,name):
+        self._name = name
+
+    def get_name(self):
+        return self._name
+
+    def set_name(self , name):
+        self._name = name   
+
+p = Person('孙悟空')
+
+print(p._name)
+~~~
+
+#### 1.1.3.3、property装饰器
+
+property装饰器，用来将一个get方法，转换为对象的属性
+
+添加为property装饰器以后，我们就可以像调用属性一样使用get方法
+
+使用property装饰的方法，必须和属性名是一样的
+
+~~~python
+class Person:
+    def __init__(self,name,age):
+        self._name = name
+        self._age = age
+
+    @property    
+    def name(self):
+        return self._name
+
+    # setter方法的装饰器：@属性名.setter
+    @name.setter    
+    def name(self , name):
+        self._name = name        
+
+    @property
+    def age(self):
+        return self._age
+
+    @age.setter    
+    def age(self , age):
+        self._age = age   
+
+p = Person('猪八戒',18)
+
+p.name = '孙悟空'
+p.age = 28
+
+print(p.name,p.age)
+~~~
+
+### 1.1.4、继承
+
+#### 1.1.4.1、基本概念
+
+子类从父类中来继承它的属性和方法。
+
+在创建类时，如果省略了父类，则默认父类为object。
+
+父类中的所有方法都会被子类继承，包括特殊方法，也可以重写特殊方法。
+
+
+
+~~~python
+class Animal:
+    def __init__(self,name):
+        self._name = name
+        
+    def run(self):
+        print('动物会跑~~~')
+
+    def sleep(self):
+        print('动物睡觉~~~')
+                   
+class Dog(Animal):
+    def __init__(self,name,age):
+        # super() 可以用来获取当前类的父类，
+        # 并且通过super()返回对象调用父类方法时，不需要传递self
+        super().__init__(name)
+        self._age = age
+    
+    def bark(self):
+        print('汪汪汪~~~') 
+
+    def run(self):
+        print('狗跑~~~~')    
+
+class Hashiqi(Dog):
+    def fan_sha(self):
+        print('我是一只傻傻的哈士奇')  
+        
+# issubclass() 检查一个类是否是另一个类的子类
+# print(issubclass(Animal , Dog))
+~~~
+
+#### 1.1.4.2、重写
+
+当我们调用一个对象的方法时，会优先去当前对象中寻找是否具有该方法，如果有则直接调用
+
+如果没有，则去当前对象的父类中寻找，如果父类中有则直接调用父类中的方法
+
+如果没有，则去父类的父类中寻找，以此类推，直到找到object，如果依然没有找到，则报错
+
+~~~python
+ class A(object):
+    def test(self):
+        print('AAA')
+
+class B(A):
+    def test(self):
+        print('BBB')
+
+class C(B):
+    def test(self):
+        print('CCC')   
+
+c = C()
+c.test()
+~~~
+
+#### 1.1.4.3、多重继承
+
+在Python中是支持多重继承的，也就是我们可以为一个类同时指定多个父类。
+
+可以在类名的()后边添加多个类，来实现多重继承，此会使子类同时拥有多个父类，并且会获取到所有父类中的方法。
+
+1、对于父类中的同名方法：
+
+- 如果多个父类中有同名的方法，则会现在第一个父类中寻找，然后找第二个，然后找第三个。。。
+- 前边父类的方法会覆盖后边父类的方法
+
+
+
+~~~python
+class A(object):
+    def test(self):
+        print('AAA')
+
+class B(object):
+    def test(self):
+        print('B中的test()方法~~')
+
+    def test2(self):
+        print('BBB') 
+        
+
+class C(A,B):
+    pass
+
+# 类名.__bases__ 这个属性可以用来获取当前类的所有父类    
+# print(B.__bases__) (<class 'object'>,)
+# print(C.__bases__) # (<class '__main__.A'>, <class '__main__.B'>)
+
+c = C()
+c.test()
+~~~
+
+#### 1.1.4.4、多态
+
+~~~python
+# 定义两个类
+class A:
+    def __init__(self,name):
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+        
+    @name.setter
+    def name(self,name):
+        self._name = name   
+
+class B:
+    def __init__(self,name):
+        self._name = name
+
+    def __len__(self):
+        return 10
+
+    @property
+    def name(self):
+        return self._name
+        
+    @name.setter
+    def name(self,name):
+        self._name = name   
+
+class C:
+    pass
+
+
+a = A('孙悟空')
+b = B('猪八戒')
+c = C()
+
+# 定义一个函数
+# 对于say_hello()这个函数来说，只要对象中含有name属性，它就可以作为参数传递
+# 这个函数并不会考虑对象的类型，只要有name属性即可
+def say_hello(obj):
+    print('你好 %s'%obj.name)
+
+# 在say_hello_2中做一个类型检查，也就是只有obj是A类型的对象时，才可以正常使用，
+# 其他类型的对象都无法使用该函数，这个函数就违反了多态
+# 违反了多态的函数，只适用于一种类型的对象，无法处理其他类型对象，这样导致函数的适应性非常的差
+# 注意，向isinstance()这种函数，在开发中一般是不会使用的！
+def say_hello_2(obj):
+    # 做类型检查
+    if isinstance(obj , A):
+        print('你好 %s'%obj.name)    
+        
+say_hello(b)    
+say_hello_2(b)
+
+# len()
+# 之所以一个对象能通过len()来获取长度，是因为对象中具有一个特殊方法__len__
+# 换句话说，只要对象中具有__len__特殊方法，就可以通过len()来获取它的长度
+print(len(b))
+print(len(c))
+~~~
+
+
+
+### 1.1.5、特殊方法
+
+特殊方法都是使用__开头和结尾的
+
+~~~python
+# 定义一个Person类
+class Person(object):
+    """人类"""
+    def __init__(self, name , age):
+        self.name = name
+        self.age = age
+
+    # __str__()这个特殊方法会在尝试将对象转换为字符串的时候调用
+    # 它的作用可以用来指定对象转换为字符串的结果  （print函数）  
+    def __str__(self):
+        return 'Person [name=%s , age=%d]' %(self.name,self.age)        
+
+    # __repr__()这个特殊方法会在对当前对象使用repr()函数时调用
+    # 它的作用是指定对象在 ‘交互模式’中直接输出的效果    
+    def __repr__(self):
+        return 'Hello'        
+
+    # object.__add__(self, other)
+    # object.__sub__(self, other)
+    # object.__mul__(self, other)
+    # object.__matmul__(self, other)
+    # object.__truediv__(self, other)
+    # object.__floordiv__(self, other)
+    # object.__mod__(self, other)
+    # object.__divmod__(self, other)
+    # object.__pow__(self, other[, modulo])
+    # object.__lshift__(self, other)
+    # object.__rshift__(self, other)
+    # object.__and__(self, other)
+    # object.__xor__(self, other)
+    # object.__or__(self, other)
+
+    # object.__lt__(self, other) 小于 <
+    # object.__le__(self, other) 小于等于 <=
+    # object.__eq__(self, other) 等于 ==
+    # object.__ne__(self, other) 不等于 !=
+    # object.__gt__(self, other) 大于 >
+    # object.__ge__(self, other) 大于等于 >= 
+    
+    # __len__()获取对象的长度
+
+    # object.__bool__(self)
+    # 可以通过bool来指定对象转换为布尔值的情况
+    def __bool__(self):
+        return self.age > 17
+
+    # __gt__会在对象做大于比较的时候调用，该方法的返回值将会作为比较的结果
+    # 他需要两个参数，一个self表示当前对象，other表示和当前对象比较的对象
+    # self > other
+    def __gt__(self , other):
+        return self.age > other.age
+
+
+# 创建两个Person类的实例        
+p1 = Person('孙悟空',18)
+p2 = Person('猪八戒',28)
+
+# 打印p1
+# 当我们打印一个对象时，实际上打印的是对象的中特殊方法 __str__()的返回值
+# print(p1) # <__main__.Person object at 0x04E95090>
+# print(p2)
+
+# print(repr(p1))
+
+# print(p1 > p2)
+# print(p2 > p1)
+
+# print(bool(p1))
+
+# if p1 :
+#     print(p1.name,'已经成年了')
+# else :
+#     print(p1.name,'还未成年了')
+~~~
+
+### 1.1.6、模块（module）
+
+#### 1.1.6.1、基本概念
+
+模块化，模块化指将一个完整的程序分解为一个一个小的模块，通过将模块组合，来搭建出一个完整的程序。
+
+- 不采用模块化，统一将所有的代码编写到一个文件中
+- 采用模块化，将程序分别编写到多个文件中
+
+在Python中一个py文件就是一个模块，要想创建模块，实际上就是创建一个python文件。
+
+注意：模块名要符号标识符的规范
+
+m.py
+
+~~~python
+# 可以在模块中定义变量，在模块中定义的变量，在引入模块后，就可以直接使用了
+a = 10
+b = 20
+
+# 添加了_的变量，只能在模块内部访问，在通过import * 引入时，不会引入_开头的变量
+_c = 30
+
+# 可以在模块中定义函数，同样可以通过模块访问到
+def test():
+    print('test')
+
+def test2():
+    print('test2')
+
+# 也可以定义类    
+class Person:
+    def __init__(self):
+        self.name = '孙悟空'
+        
+
+# 编写测试代码，这部分代码，只要当当前文件作为主模块的时候才需要执行
+# 而当模块被其他模块引入时，不需要执行时，此时我们就必须要检查当前模块是否是主模块  
+if __name__ == '__main__':
+    test()
+    test2()
+    p = Person()
+    print(p.name)
+~~~
+
+引入模块
+
+~~~python
+import m
+
+# 访问模块中的变量：模块名.变量名
+print(m.a , m.b)
+p = m.Person()
+m.test2()
+print(m.__name__)
+print(__name__)
+~~~
+
+#### 1.1.6.2、引入外部模块
+
+- import 模块名 （模块名，就是python文件的名字，注意不要py）
+- import 模块名 as 模块别名
+
+~~~python
+from m as m1
+~~~
+
+- 也可以只引入模块中的部分内容
+
+~~~python
+from m import Person
+from m import test
+from m import Person,test
+from m import * # 引入到模块中所有内容，一般不会使用
+p1 = Person()
+print(p1)
+test()
+test2()
+
+~~~
+
+- 也可以为引入的变量使用别名
+
+~~~python
+# 语法：from 模块名 import 变量 as 别名
+from m import test2 as new_test2
+~~~
+
+**注意**：
+
+- 可以引入同一个模块多次，但是模块的实例只会创建一个。
+- import可以在程序的任意位置调用，但是一般情况下，import语句都会统一写在程序的开头
+- 在每一个模块内部都有一个 \__name\_\_ 属性，通过这个属性可以获取到模块的名字
+- \__name\_\_ 属性值为  \_\_main__ 的模块是主模块，一个程序中只会有一个主模块，主模块就是我们直接通过 python 执行的模块
+
+#### 1.1.6.3、包（Package）
+
+包也是一个模块，当模块中代码过多时，或者一个模块需要被分解为多个模块时，这时就需要使用到包。
+
+普通的模块就是一个py文件，而包是一个**文件夹**
+
+包中必须要一个一个 \__init__.py 这个文件，这个文件中**可以**包含有包中的主要内容
+
+~~~python
+from hello import a , b
+
+print(a.c)
+print(b.d)
+
+# __pycache__ 是模块的缓存文件
+# py代码在执行前，需要被解析器先转换为机器码，然后再执行
+# 所以我们在使用模块（包）时，也需要将模块的代码先转换为机器码然后再交由计算机执行
+# 而为了提高程序运行的性能，python会在编译过一次以后，将代码保存到一个缓存文件中
+# 这样在下次加载这个模块（包）时，就可以不再重新编译而是直接加载缓存中编译好的代码即可
+~~~
+
+#### 1.1.6.4、标准库
+
+为了实现开箱即用的思想，Python提供了一个模块的标准库，在这个标准库中，有很多很强大的模块可以直接使用，并且标准库会随Python的安装一同安装。
+
+- **sys** 模块，它里面提供了一些变量和函数，可以获取到Python解析器的信息，或者通过函数来操作Python解析器。
+- **pprint** 模块它给我们提供了一个方法 pprint() 该方法可以用来对打印的数据做简单的格式化
+- **os** 模块让我们可以对操作系统进行访问
+
+~~~python
+import sys
+import pprint
+
+# 获取执行代码时，命令行中所包含的参数
+# 该属性是一个列表，列表中保存了当前命令的所有参数
+sys.argv
+print(sys.argv)
+
+# 获取当前程序中引入的所有模块
+# modules是一个字典，字典的key是模块的名字，字典的value是模块对象
+sys.modules
+pprint.pprint(sys.modules)
+
+
+# 他是一个列表，列表中保存的是模块的搜索路径
+# ['C:\\Users\\lilichao\\Desktop\\resource\\course\\lesson_06\\code',
+# 'C:\\dev\\python\\python36\\python36.zip',
+# 'C:\\dev\\python\\python36\\DLLs',
+# 'C:\\dev\\python\\python36\\lib',
+# 'C:\\dev\\python\\python36',
+# 'C:\\dev\\python\\python36\\lib\\site-packages']
+sys.path
+pprint.pprint(sys.path)
+
+
+# 表示当前Python运行的平台
+sys.platform
+print(sys.platform)
+
+
+# 函数用来退出程序
+sys.exit()
+sys.exit('程序出现异常，结束！')
+print('hello')
+
+import os
+
+
+# 通过这个属性可以获取到系统的环境变量
+os.environ
+pprint.pprint(os.environ['path'])
+
+
+# 可以用来执行操作系统的shell
+os.system()
+os.system('dir')
+os.system('notepad')
+~~~
+
+### 比较对象
 
 **== !=  is is not**
 
