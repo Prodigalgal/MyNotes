@@ -234,7 +234,7 @@ show variables like 'character_%';
 source d:\mysqldb.sql
 ```
 
-# 2、MySQL之SELECT
+# 2、MySQL之基础查询
 
 ## 2.1、基本SELECT
 
@@ -750,21 +750,507 @@ LIMIT(PageNo - 1)*PageSize,PageSize;
 
 **优点**：约束返回结果的数量可以减小网络传输的压力，还可以提升查询效率。例如只需要一条记录，使用LIMIT 1 查询到一条即可返回
 
+# 3、MySQL之多表查询
+
+## 3.1、多表查询前提
+
+多表查询，也称为关联查询，指两个或更多个表一起完成查询操作。 
+
+前提条件：
+
+- 这些一起查询的表之间是有关系的（一对一、一对多），它们之间一定是有关联字段，这个关联字段可能建立了外键，也可能没有建立外键。
+
+## 3.2、错误案例引入
+
+<img src="images/image-20220314210832123.png" alt="image-20220314210832123" style="zoom:70%;" />
+
+~~~sql
+#案例：查询员工的姓名及其部门名称
+SELECT last_name, department_name
+FROM employees, departments;
+
+2889 rows in set (0.01 sec)
+~~~
+
+分析错误情况：
+
+~~~sql
+SELECT COUNT(employee_id) FROM employees;
+#输出107行
+SELECT COUNT(department_id)FROM departments;
+#输出27行
+
+SELECT 107*27 FROM dual;
+~~~
+
+此种错误称为：笛卡尔积错误
+
+笛卡尔乘积是一个数学运算。假设有两个集合 X 和 Y，那么 X 和 Y 的笛卡尔积就是 X 和 Y 的所有可能组合。
+
+也就是第一个对象来自于 X，第二个对象来自于 Y 的所有可能。组合的个数即为两个集合中元素个数的乘积数。
+
+SQL92中，笛卡尔积也称为 **交叉连接** ，英文是 **CROSS** **JOIN** 。在 SQL99 中也是使用 CROSS JOIN 表示交叉连接。它的作用就是可以把任意表进行连接，即使这两张表不相关。在MySQL中如下情况会出现笛卡尔积：
+
+~~~sql
+#查询员工姓名和所在部门名称
+SELECT last_name,department_name FROM employees,departments;
+SELECT last_name,department_name FROM employees CROSS JOIN departments;
+SELECT last_name,department_name FROM employees INNER JOIN departments;
+SELECT last_name,department_name FROM employees JOIN departments;
+~~~
+
+笛卡尔积的错误会在下面条件下产生： 
+
+- 省略多个表的连接条件（或关联条件） 
+
+- 连接条件（或关联条件）无效 
+
+- 所有表中的所有行互相连接 
+
+为了避免笛卡尔积， 可以在 WHERE 加入有效的连接条件。 加入连接条件后，查询语法：
+
+在表中有相同列时，在列名之前加上表名前缀。
+
+~~~sql
+SELECT table1.column, table2.column
+FROM table1, table2
+WHERE table1.column1 = table2.column2; #连接条件
+~~~
+
+## 3.3、多表查询分类
+
+### 3.3.1、等值连接
+
+<img src="images/image-20220314211728065.png" alt="image-20220314211728065" style="zoom:60%;" />
+
+~~~sql
+SELECT e.employee_id, e.last_name,
+	   e.department_id, e.department_id,
+	   d.location_id
+FROM employees e, departments d
+WHERE e.department_id = d.department_id;
+~~~
+
+- 多个表中有相同列时，必须在列名之前加上表名前缀。
+- 在不同表中具有相同列名的列可以用 表名 加以区分。
+- 使用别名可以简化查询。 
+- 列名前使用表名前缀可以提高查询效率。
+
+> 需要注意的是，如果我们使用了表的别名，在查询字段中、过滤条件中就只能使用别名进行代替， 不能使用原有的表名，否则就会报错。
+
+~~~sql
+SELECT e.employee_id,e.last_name,d.department_name,l.city,e.department_id,l.location_id
+FROM employees e,departments d,locations l
+WHERE e.`department_id` = d.`department_id`
+	AND d.`location_id` = l.`location_id`;
+~~~
+
+- 多个连接条件与 AND 操作符
+- 连接 n个表,至少需要n-1个连接条件。比如，连接三个表，至少需要两个连接条件。
+
+### 3.3.2、非等值连接
+
+<img src="images/image-20220314213815654.png" alt="image-20220314213815654" style="zoom:70%;" />
+
+~~~sql
+SELECT e.last_name,e.salary,j.grade_level
+FROM employees e,job_grades j
+#where e.salary between j.lowest_sal and j.highest_sal;
+WHERE e.salary >= j.lowest_sal AND e.salary <= j.highest_sal;
+~~~
+
+<img src="images/image-20220314213958479.png" alt="image-20220314213958479" style="zoom:70%;" />
+
+### 3.3.3、自连接
+
+<img src="images/image-20220314214750192.png" alt="image-20220314214750192" style="zoom:70%;" />
+
+~~~sql
+SELECT CONCAT(worker.last_name ,' works for ', manager.last_name)
+FROM employees worker, employees manager
+WHERE worker.manager_id = manager.employee_id 
+~~~
+
+- 当table1和table2本质上是同一张表，只是用取别名的方式虚拟成两张表以代表不同的意义。然后两个表再进行内连接，外连接等查询。
+
+### 3.3.4、内连接 与 外连接
+
+- 除了查询满足条件的记录以外，外连接还可以查询某一方不满足条件的记录。
+- **内连接**：合并具有同一列的两个以上的表的行， 结果集中不包含一个表与另一个表不匹配的行。 
+- **外连接**：两个表在连接过程中除了返回满足连接条件的行以外还返回左（或右）表中不满足条件的行 ，这种连接称为左（或右） 外连接。没有匹配的行时, 结果表中相应的列为空(NULL)。 
+  - 如果是左外连接，则连接条件中左边的表也称为 主表 ，右边的表称为 从表 。 
+  - 如果是右外连接，则连接条件中右边的表也称为 主表 ，左边的表称为 从表 。
+
+#### 3.3.4.1、SQL92版
+
+在 SQL92 中采用（**+**）**代表从表所在的位置**。即左或右外连接中，(+) 表示哪个是从表。
+
+**注意**：
+
+- Oracle 对 SQL92 支持较好，而 MySQL 则不支持 SQL92 的外连接。
+- 而且在 SQL92 中，只有左外连接和右外连接，没有满（或全）外连接。
+
+~~~sql
+#左外连接
+SELECT last_name,department_name
+FROM employees ,departments
+WHERE employees.department_id = departments.department_id(+);
+
+#右外连接
+SELECT last_name,department_name
+FROM employees ,departments
+WHERE employees.department_id(+) = departments.department_id;
+~~~
+
+#### 3.3.4.2、SQL99版
+
+使用 **JOIN ON** 子句连接
+
+~~~sql
+SELECT table1.column, table2.column,table3.column
+FROM table1
+JOIN table2 ON (table1 和 table2 的连接条件)
+JOIN table3 ON (table2 和 table3 的连接条件)
+
+~~~
+
+逻辑类似于for循环
+
+~~~java
+for t1 in table1:
+	for t2 in table2:
+		if condition1:
+			for t3 in table3:
+				if condition2:
+					output t1 + t2 + t3
+~~~
+
+**注意**：
+
+- 可以使用 ON 子句指定额外的连接条件，这个连接条件是与其它条件分开的
+- 关键字 JOIN、INNER JOIN、CROSS JOIN 的含义是一样的，都表示内连接
+
+#### 3.3.4.3、INNER JOIN
+
+~~~sql
+SELECT 字段列表
+FROM A表 INNER JOIN B表
+ON 关联条件
+WHERE 等其他子句;
+~~~
+
+#### 3.3.4.4、OUTER JOIN
+
+**左外连接(LEFT OUTER JOIN)** 
+
+~~~sql
+#实现查询结果是A为主
+SELECT 字段列表
+FROM A表 LEFT JOIN B表
+ON 关联条件
+WHERE 等其他子句;
+~~~
+
+**右外连接(RIGHT OUTER JOIN)**
+
+~~~sql
+#实现查询结果是B为主
+SELECT 字段列表
+FROM A表 RIGHT JOIN B表
+ON 关联条件
+WHERE 等其他子句;
+~~~
+
+**满外连接(FULL OUTER JOIN)**
+
+- 满外连接的结果 = 左右表匹配的数据 + 左表没有匹配到的数据 + 右表没有匹配到的数据。 
+- SQL99是支持满外连接的。使用FULL JOIN 或 FULL OUTER JOIN来实现。 
+- 需要注意的是，MySQL不支持FULL JOIN，但是可以用 LEFT JOIN UNION RIGHT join代替。
+
+### 3.3.5、UNION
+
+**合并查询结果** 利用UNION关键字，可以给出多条SELECT语句，并将它们的结果组合成单个结果集。
+
+合并时，两个表对应的列数和数据类型必须相同，并且相互对应。各个SELECT语句之间使用UNION或UNION ALL关键字分隔。
+
+~~~sql
+SELECT column,... FROM table1
+UNION [ALL]
+SELECT column,... FROM table2
+~~~
+
+- **UNION** 操作符返回两个查询的结果集的并集，去除重复记录。
+- **UNION ALL** 操作符返回两个查询的结果集的并集。对于两个结果集的重复部分，不去重。
+
+**注意**：执行UNION ALL语句时所需要的资源比UNION语句少。如果明确知道合并数据后的结果数据不存在重复数据，或者不需要去除重复的数据，则尽量使用UNION ALL语句，以提高数据查询的效率。
+
+### 3.3.6、七种连接总结
+
+![image-20220315095149755](images/image-20220315095149755.png)
+
+~~~sql
+#中图：内连接 A∩B
+SELECT employee_id,last_name,department_name
+FROM employees e JOIN departments d
+ON e.`department_id` = d.`department_id`;
+
+#左上图：左外连接
+SELECT employee_id,last_name,department_name
+FROM employees e LEFT JOIN departments d
+ON e.`department_id` = d.`department_id`;
+
+#右上图：右外连接
+SELECT employee_id,last_name,department_name
+FROM employees e RIGHT JOIN departments d
+ON e.`department_id` = d.`department_id`;
+
+#左中图：A - A∩B
+SELECT employee_id,last_name,department_name
+FROM employees e LEFT JOIN departments d
+ON e.`department_id` = d.`department_id`
+#中间重合部份大家都不是null，现在要从表null
+WHERE d.`department_id` IS NULL
+
+#右中图：B-A∩B
+SELECT employee_id,last_name,department_name
+FROM employees e RIGHT JOIN departments d
+ON e.`department_id` = d.`department_id`
+WHERE e.`department_id` IS NULL
+
+#左下图：满外连接
+# 左中图 + 右上图 A∪B
+SELECT employee_id,last_name,department_name
+FROM employees e LEFT JOIN departments d
+ON e.`department_id` = d.`department_id`
+WHERE d.`department_id` IS NULL
+UNION ALL #没有去重操作，效率高
+SELECT employee_id,last_name,department_name
+FROM employees e RIGHT JOIN departments d
+ON e.`department_id` = d.`department_id`;
+
+#右下图
+#左中图 + 右中图 A ∪B- A∩B 或者 (A - A∩B) ∪ （B - A∩B）
+SELECT employee_id,last_name,department_name
+FROM employees e LEFT JOIN departments d
+ON e.`department_id` = d.`department_id`
+WHERE d.`department_id` IS NULL
+UNION ALL
+SELECT employee_id,last_name,department_name
+FROM employees e RIGHT JOIN departments d
+ON e.`department_id` = d.`department_id`
+WHERE e.`department_id` IS NULL
+~~~
+
+### 3.3.7、SQL99新特性
+
+#### 3.3.7.1、NATURAL JOIN
+
+在SQL92标准中：
+
+~~~sql
+SELECT employee_id,last_name,department_name
+FROM employees e JOIN departments d
+ON e.`department_id` = d.`department_id`
+AND e.`manager_id` = d.`manager_id`;
+~~~
+
+在 SQL99 中你可以写成：
+
+~~~sql
+SELECT employee_id,last_name,department_name
+FROM employees e NATURAL JOIN departments d;
+~~~
+
+NATURAL JOIN 用来表示自然连接，理解为 SQL92 中的等值连接。会自动查询两张连接表中所有相同的字段 ，然后进行 等值 连接 。
+
+#### 3.3.7.2、USING
+
+SQL99还支持使用 USING 指定数据表里的 **同名字段** 进行等值连接。但是只能配合JOIN一起使用。比如：
+
+~~~sql
+SELECT employee_id,last_name,department_name
+FROM employees e JOIN departments d
+USING (department_id);
+~~~
+
+与自然连接 NATURAL JOIN 不同的是，USING 指定了具体的相同的字段名称，你需要在 USING 的括号 () 中填入要指定的同名字段。
+
+同时使用 JOIN...USING 可以简化 JOIN ON 的等值连接。
+
+它与下面的 SQL 查询结果是相同的：
+
+~~~sql
+SELECT employee_id,last_name,department_name
+FROM employees e ,departments d
+WHERE e.department_id = d.department_id;
+~~~
+
+~~~sql
+#把关联字段写在using()中，只能和JOIN一起使用
+#而且两个表中的关联字段必须名称相同，而且只能表示=
+#查询员工姓名与基本工资
+SELECT last_name,job_title
+FROM employees INNER JOIN jobs USING(job_id);
+~~~
+
+~~~sql
+SELECT last_name,job_title,department_name 
+FROM employees INNER JOIN departments INNER JOIN jobs 
+ON employees.department_id = departments.department_id 
+AND employees.job_id = jobs.job_id;
+~~~
+
+# 4、MySQL之单行函数
+
+## 4.1、基本概念
+
+- 操作数据对象 
+- 接受参数返回一个结果 
+- 只对一行进行变换 
+- 每行返回一个结果 
+- 可以嵌套 
+- 参数可以是一列或一个值
+
+## 4.2、数值函数
+
+### 4.2.1、基本函数
+
+|函数  	   	 	   	   | 用法     					|
+| ---- | ---- |
+|FLOOR(x)  		 		| 返回小于或等于某个值的最大整数	 |
+|ABS(x)   			 	| 返回x的绝对值     			   |
+|LEAST(e1,e2,e3…)		|返回列表中的最小值 |
+|SIGN(X)   				| 返回X的符号。正数返回1，负数返回-1，0返回0     |
+|GREATEST(e1,e2,e3…)  	|返回列表中的最大值  |
+|PI()   				|  返回圆周率的值    |
+|MOD(x,y)  				| 返回X除以Y后的余数 |
+|CEIL(x)，CEILING(x)     |  返回大于或等于某个值的最小整数    |
+|RAND()  				| 返回0~1的随机值 |
+| RAND(x)   			|返回0~1的随机值，其中x的值用作种子值，相同的X值会产生相同的随机数|
+|ROUND(x)  				| 返回一个对x的值进行四舍五入后，最接近于X的整数 |
+|ROUND(x,y)    			 |  返回一个对x的值进行四舍五入后最接近X的值，并保留到小数点后面Y位|
+|TRUNCATE(x,y)  		| 返回数字x截断为y位小数的结果 |
+|SQRT(x)    			|  返回x的平方根。当X的值为负数时，返回NULL     |
+
+~~~sql
+SELECT
+ABS(-123),ABS(32),SIGN(-23),SIGN(43),PI(),CEIL(32.32),CEILING(-43.23),FLOOR(32.32),
+FLOOR(-43.23),MOD(12,5)
+FROM DUAL;
+~~~
+
+![image-20220315105257798](images/image-20220315105257798.png)
+
+~~~sql
+SELECT RAND(),RAND(),RAND(10),RAND(10),RAND(-1),RAND(-1)
+FROM DUAL;
+~~~
+
+![image-20220315105320409](images/image-20220315105320409.png)
+
+~~~sql
+SELECT
+ROUND(12.33),ROUND(12.343,2),ROUND(12.324,-1),TRUNCATE(12.66,1),TRUNCATE(12.66,-1)
+FROM DUAL;
+~~~
+
+![image-20220315105345243](images/image-20220315105345243.png)
+
+### 4.2.2、角度弧度互换函数
+
+| 函数       | 用法                                  |
+| ---------- | ------------------------------------- |
+| RADIANS(x) | 将角度转化为弧度，其中，参数x为角度值 |
+| DEGREES(x) | 将弧度转化为角度，其中，参数x为弧度值 |
+
+~~~sql
+SELECT RADIANS(30),RADIANS(60),RADIANS(90),DEGREES(2*PI()),DEGREES(RADIANS(90))
+FROM DUAL;
+~~~
+
+![image-20220315105500917](images/image-20220315105500917.png)
+
+### 4.2.3、三角函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|SIN(x)|返回x的正弦值，其中，参数x为弧度值|
+|ASIN(x) |返回x的反正弦值，即获取正弦为x的值。如果x的值不在-1到1之间，则返回NULL|
+|COS(x) |返回x的余弦值，其中，参数x为弧度值|
+|ACOS(x) |返回x的反余弦值，即获取余弦为x的值。如果x的值不在-1到1之间，则返回NULL|
+|TAN(x) |返回x的正切值，其中，参数x为弧度值|
+|ATAN(x) |返回x的反正切值，即返回正切值为x的值|
+|ATAN2(m,n) |返回两个参数的反正切值|
+|COT(x) |返回x的余切值，其中，X为弧度值|
+
+ATAN2(M,N)函数返回两个参数的反正切值。 与ATAN(X)函数相比，ATAN2(M,N)需要两个参数，例如有两个 点point(x1,y1)和point(x2,y2)，使用ATAN(X)函数计算反正切值为ATAN((y2-y1)/(x2-x1))，使用ATAN2(M,N)计 算反正切值则为ATAN2(y2-y1,x2-x1)。
+
+由使用方式可以看出，当x2-x1等于0时，ATAN(X)函数会报错，而 ATAN2(M,N)函数则仍然可以计算。
+
+~~~sql
+SELECT
+SIN(RADIANS(30)),DEGREES(ASIN(1)),TAN(RADIANS(45)),DEGREES(ATAN(1)),DEGREES(ATAN2(1,1))
+FROM DUAL;
+~~~
+
+![image-20220315105917013](images/image-20220315105917013.png)
+
+### 4.2.4、指数对数函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|POW(x,y)，POWER(X,Y) |返回x的y次方|
+|EXP(X) |返回e的X次方，其中e是一个常数，2.718281828459045|
+|LN(X)，LOG(X) |返回以e为底的X的对数，当X <= 0 时，返回的结果为NULL|
+|LOG10(X) |返回以10为底的X的对数，当X <= 0 时，返回的结果为NULL|
+|LOG2(X) |返回以2为底的X的对数，当X <= 0 时，返回NULL|
+
+~~~sql
+SELECT POW(2,5),POWER(2,4),EXP(2),LN(10),LOG10(10),LOG2(4)
+FROM DUAL;
+~~~
+
+![image-20220315110105804](images/image-20220315110105804.png)
+
+### 4.2.5、进制转换函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|BIN(x) |返回x的二进制编码|
+|HEX(x) |返回x的十六进制编码|
+|OCT(x) |返回x的八进制编码|
+|CONV(x,f1,f2) |返回f1进制数变成f2进制数|
+
+~~~sql
+SELECT BIN(10),HEX(10),OCT(10),CONV(10,2,8)
+FROM DUAL;
+~~~
+
+![image-20220315110247137](images/image-20220315110247137.png)
 
 
-# 3、MySQL之DDL、DML、DCL
 
-# 4、MySQL其他对象
 
-# 5、MySQL新特性
 
-# 6、MySQL架构
 
-# 7、MySQL索引调优
 
-# 8、MySQL事务
 
-# 9、MySQL日志与备份
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 扩展
 
