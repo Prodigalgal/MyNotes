@@ -1131,6 +1131,7 @@ AND employees.job_id = jobs.job_id;
 |ROUND(x,y)    			 |  返回一个对x的值进行四舍五入后最接近X的值，并保留到小数点后面Y位|
 |TRUNCATE(x,y)  		| 返回数字x截断为y位小数的结果 |
 |SQRT(x)    			|  返回x的平方根。当X的值为负数时，返回NULL     |
+|FORMAT(value,n) | 返回对数字value进行格式化后的结果数据。n表示 四舍五入 后保留到小数点后n位 |
 
 ~~~sql
 SELECT
@@ -1220,6 +1221,7 @@ FROM DUAL;
 |HEX(x) |返回x的十六进制编码|
 |OCT(x) |返回x的八进制编码|
 |CONV(x,f1,f2) |返回f1进制数变成f2进制数|
+|CONV(value,from,to) |将value的值进行不同进制之间的转换|
 
 ~~~sql
 SELECT BIN(10),HEX(10),OCT(10),CONV(10,2,8)
@@ -1228,17 +1230,275 @@ FROM DUAL;
 
 ![image-20220315110247137](images/image-20220315110247137.png)
 
+## 4.3、字符串函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|      |      |
+|      |      |
+|      |      |
+|ASCII(S) |返回字符串S中的第一个字符的ASCII码值|
+|CHAR_LENGTH(s) |返回字符串s的字符数。作用与CHARACTER_LENGTH(s)相同|
+|LENGTH(s)| 返回字符串s的字节数，和字符集有关|
+|CONCAT(s1,s2,......,sn) |连接s1,s2,......,sn为一个字符串|
+|CONCAT_WS(x,s1,s2,......,sn)|同CONCAT(s1,s2,...)函数，但是每个字符串之间要加上x|
+|INSERT(str, idx, len,replacestr)|将字符串str从第idx位置开始，len个字符长的子串替换为字符串replacestr|
+|REPLACE(str, a, b) |用字符串b替换字符串str中所有出现的字符串a|
+|UPPER(s) 或 UCASE(s) |将字符串s的所有字母转成大写字母|
+|LOWER(s) 或LCASE(s) |将字符串s的所有字母转成小写字母|
+|LEFT(str,n) |返回字符串str最左边的n个字符|
+|RIGHT(str,n) |返回字符串str最右边的n个字符|
+|LPAD(str, len, pad) |用字符串pad对str最左边进行填充，直到str的长度为len个字符|
+|RPAD(str ,len, pad) |用字符串pad对str最右边进行填充，直到str的长度为len个字符|
+|LTRIM(s) |去掉字符串s左侧的空格|
+|RTRIM(s) |去掉字符串s右侧的空格|
+|TRIM(s) |去掉字符串s开始与结尾的空格|
+|TRIM(s1 FROM s) |去掉字符串s开始与结尾的s1|
+|TRIM(LEADING s1 FROM s)|去掉字符串s开始处的s1|
+|TRIM(TRAILING s1 FROM s)|去掉字符串s结尾处的s1|
+|REPEAT(str, n) |返回str重复n次的结果|
+|SPACE(n) |返回n个空格|
+|STRCMP(s1,s2) |比较字符串s1,s2的ASCII码值的大小|
+|SUBSTR(s,index,len)|返回从字符串s的index位置其len个字符，作用与SUBSTRING(s,n,len)、MID(s,n,len)相同|
+|LOCATE(substr,str)|返回字符串substr在字符串str中首次出现的位置，作用于POSITION(substrIN str)、INSTR(str,substr)相同。未找到，返回0|
+|ELT(m,s1,s2,…,sn)|返回指定位置的字符串，如果m=1，则返回s1，如果m=2，则返回s2，如果m=n，则返回sn|
+|FIELD(s,s1,s2,…,sn) |返回字符串s在字符串列表中第一次出现的位置|
+|FIND_IN_SET(s1,s2)|返回字符串s1在字符串s2中出现的位置。其中，字符串s2是一个以逗号分隔的字符串|
+|REVERSE(s) |返回s反转后的字符串|
+|NULLIF(value1,value2)|比较两个字符串，如果value1与value2相等，则返回NULL，否则返回value1|
+
+**注意**：MySQL中，字符串的位置是从1开始的。
+
+## 4.4、日期时间函数
+
+### 4.4.1、获取日期时间函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|CURDATE() ，CURRENT_DATE()|返回当前日期，只包含年、月、日|
+|CURTIME() ， CURRENT_TIME()|返回当前时间，只包含时、分、秒|
+|NOW() / SYSDATE() / CURRENT_TIMESTAMP() / LOCALTIME() /LOCALTIMESTAMP()|返回当前系统日期和时间|
+|UTC_DATE()|返回UTC（世界标准时间）日期|
+|UTC_TIME()|返回UTC（世界标准时间）时间|
+
+~~~sql
+SELECT
+CURDATE(),CURTIME(),NOW(),SYSDATE()+0,UTC_DATE(),UTC_DATE()+0,UTC_TIME(),UTC_TIME()+0
+FROM DUAL;
+~~~
+
+![image-20220316092544555](images/image-20220316092544555.png)
+
+### 4.4.2、日期转换函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|UNIX_TIMESTAMP()|以UNIX时间戳的形式返回当前时间。SELECT UNIX_TIMESTAMP() ->1634348884|
+|UNIX_TIMESTAMP(date) |将时间date以UNIX时间戳的形式返回。|
+|FROM_UNIXTIME(timestamp)| 将UNIX时间戳的时间转换为普通格式的时间|
+
+### 4.4.3、获取月份、星期、星期数、天数等函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|YEAR(date) / MONTH(date) / DAY(date)| 返回具体的日期值|
+|HOUR(time) / MINUTE(time) /SECOND(time)|返回具体的时间值|
+|MONTHNAME(date) |返回月份：January，...|
+|DAYNAME(date) |返回星期几：MONDAY，TUESDAY.....SUNDAY|
+|WEEKDAY(date) |返回周几，注意，周1是0，周2是1，。。。周日是6|
+|QUARTER(date) |返回日期对应的季度，范围为1～4|
+|WEEK(date) ， WEEKOFYEAR(date) |返回一年中的第几周|
+|DAYOFYEAR(date) |返回日期是一年中的第几天|
+|DAYOFMONTH(date) |返回日期位于所在月份的第几天|
+|DAYOFWEEK(date)|返回周几，注意：周日是1，周一是2，。。。周六是7|
+
+### 4.4.4、截取日期函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|EXTRACT(type FROM date) |返回指定日期中特定的部分，type指定返回的值|
+
+![image-20220316093823869](images/image-20220316093823869.png)
+
+### 4.4.5、时间转换的函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|TIME_TO_SEC(time)|将 time 转化为秒并返回结果值。转化的公式为： 小时*3600+分钟*60+秒|
+|SEC_TO_TIME(seconds) |将 seconds 描述转化为包含小时、分钟和秒的时间|
+
+### 4.4.6、计算日期差的函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|DATE_ADD(datetime, INTERVAL expr type)，ADDDATE(date,INTERVAL expr type)|返回与给定日期时间相差INTERVAL时间段的日期时间|
+|DATE_SUB(date,INTERVAL expr type)，SUBDATE(date,INTERVAL expr type)|返回与date相差INTERVAL时间间隔的日期|
+
+![image-20220316094141946](images/image-20220316094141946.png)
+
+| 函数 | 用法 |
+| ---- | ---- |
+|ADDTIME(time1,time2)|返回time1加上time2的时间。当time2为一个数字时，代表的是秒 ，可以为负数|
+|SUBTIME(time1,time2)|返回time1减去time2后的时间。当time2为一个数字时，代表的是 秒 ，可以为负数|
+|DATEDIFF(date1,date2)| 返回date1 - date2的日期间隔天数|
+|TIMEDIFF(time1, time2) |返回time1 - time2的时间间隔|
+|FROM_DAYS(N) |返回从0000年1月1日起，N天以后的日期|
+|TO_DAYS(date) |返回日期date距离0000年1月1日的天数|
+|LAST_DAY(date) |返回date所在月份的最后一天的日期|
+|MAKEDATE(year,n) |针对给定年份与所在年份中的天数返回一个日期|
+|MAKETIME(hour,minute,second) |将给定的小时、分钟和秒组合成时间并返回|
+|PERIOD_ADD(time,n) |返回time加上n后的时间|
+
+### 4.4.7、日期格式化与解析
+
+| 函数 | 用法 |
+| ---- | ---- |
+|DATE_FORMAT(date,fmt) |按照字符串fmt格式化日期date值|
+|TIME_FORMAT(time,fmt) |按照字符串fmt格式化时间time值|
+|GET_FORMAT(date_type,format_type) |返回日期字符串的显示格式|
+|STR_TO_DATE(str, fmt) |按照字符串fmt对str进行解析，解析为一个日期|
+
+上述 **非GET_FORMAT** 函数中**fmt**参数常用的格式符：
+
+![image-20220316094501433](images/image-20220316094501433.png)
+
+GET_FORMAT函数中date_type和format_type参数取值如下：
+
+![image-20220316094601080](images/image-20220316094601080.png)
+
+## 4.5、流程控制函数
+
+流程处理函数可以根据不同的条件，执行不同的处理流程，可以在SQL语句中实现不同的条件选择。 
+MySQL中的流程处理函数主要包括**IF()**、**IFNULL()**和**CASE()**函数。
+
+| 函数 | 用法 |
+| ---- | ---- |
+|IF(value,value1,value2)|如果value的值为TRUE，返回value1，否则返回value2|
+|IFNULL(value1, value2)|如果value1不为NULL，返回value1，否则返回value2|
+|CASE WHEN 条件1 THEN 结果1 WHEN 条件2 THEN 结果2.... [ELSE resultn] END|相当于Java的if...else if...else...|
+|CASE expr WHEN 常量值1 THEN 值1 WHEN 常量值1 THEN 值1 .... [ELSE 值n] END|相当于Java的switch...case...|
+
+## 4.6、加密解密函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|PASSWORD(str)|返回字符串str的加密版本，41位长的字符串。加密结果 不可逆 ，常用于用户的密码加密|
+|MD5(str)|返回字符串str的md5加密后的值，也是一种加密方式。若参数为NULL，则会返回NULL|
+|SHA(str)|从原明文密码str计算并返回加密后的密码字符串，当参数为NULL时，返回NULL。 SHA加密算法比MD5更加安全 。|
+|ENCODE(value,password_seed) |返回使用password_seed作为加密密码加密value|
+|DECODE(value,password_seed) |返回使用password_seed作为加密密码解密value|
+
+## 4.7、信息函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|VERSION()|返回当前MySQL的版本号|
+|CONNECTION_ID() |返回当前MySQL服务器的连接数|
+|DATABASE()，SCHEMA() |返回MySQL命令行当前所在的数据库|
+|USER()，CURRENT_USER()、SYSTEM_USER()，SESSION_USER()|返回当前连接MySQL的用户名，返回结果格式为“主机名@用户名”|
+|CHARSET(value) |返回字符串value自变量的字符集|
+|COLLATION(value) |返回字符串value的比较规则|
+
+## 4.8、其他函数
+
+| 函数 | 用法 |
+| ---- | ---- |
+|INET_ATON(ipvalue) |将以点分隔的IP地址转化为一个数字|
+|INET_NTOA(value) |将数字形式的IP地址转化为以点分隔的IP地址|
+|BENCHMARK(n,expr)|将表达式expr重复执行n次。用于测试MySQL处理expr表达式所耗费的时间|
+|CONVERT(value USING char_code)|将value所使用的字符编码修改为char_code|
+
+# 5、MySQL之聚合
+
+聚合函数作用于一组数据，并对一组数据返回一个值。
+
+聚合函数不能嵌套调用。比如不能出现类似“AVG(SUM(字段名称))”形式的调用。
+
+我更喜欢叫分组函数。
+
+## 5.1、基本聚合函数
+
+非法使用聚合函数：不能在 WHERE 子句中使用聚合函数。如下：
+
+~~~sql
+SELECT department_id, AVG(salary)
+FROM employees
+WHERE AVG(salary) > 8000
+GROUP BY department_id;
+~~~
 
 
 
+### 5.1、AVG、SUM函数 
 
+可以对**数值型**数据使用 AVG 和 SUM 函数。
 
+### 5.2、MIN、MAX函数 
 
+可以对**任意数据类型**的数据使用 MIN 和 MAX 函数
 
+### 5.3、COUNT 函数
 
+- COUNT(*) 返回表中记录总数，适用于**任意数据类型**。
+- COUNT(列名) 返回 列名 不为空的记录总数。
 
+## 5.2、GROUP BY
 
+可以使用GROUP BY子句将表中的数据分成若干组
 
+- 在SELECT列表中所有未包含在组函数中的列都应该包含在 GROUP BY子句中
+
+~~~sql
+SELECT department_id, AVG(salary)
+FROM employees
+GROUP BY department_id ;
+~~~
+
+- 包含在 GROUP BY 子句中的列不必包含在SELECT 列表中
+
+~~~sql
+SELECT AVG(salary)
+FROM employees
+GROUP BY department_id ;
+~~~
+
+<img src="images/image-20220316120017542.png" alt="image-20220316120017542" style="zoom:67%;" />
+
+- 使用多个列进行分组
+
+~~~sql
+SELECT department_id dept_id, job_id, SUM(salary)
+FROM employees
+GROUP BY department_id, job_id ;
+~~~
+
+<img src="images/image-20220316120003069.png" alt="image-20220316120003069" style="zoom:67%;" />
+
+- 可以使用 **WITH ROLLUP**，查询每条分组后记录的条数
+- 当使用ROLLUP时，不能同时使用ORDER BY子句进行结果排序，即**ROLLUP和ORDER BY是互相排斥的**。
+
+~~~sql
+SELECT department_id,AVG(salary)
+FROM employees
+WHERE department_id > 80
+GROUP BY department_id WITH ROLLUP;
+~~~
+
+## 5.3、HAVING
+
+过滤分组：HAVING子句 
+
+1. 行已经被分组。 
+2. 使用了聚合函数。 
+3. 满足 HAVING 子句中条件的分组将被显示。
+4. HAVING 不能单独使用，必须要跟 GROUP BY 一起使用。
+
+~~~sql
+SELECT department_id, MAX(salary)
+FROM employees
+GROUP BY department_id
+HAVING MAX(salary)>10000;
+~~~
 
 
 
@@ -1259,6 +1519,87 @@ FROM DUAL;
 ![image-20220314100349871](images/image-20220314100349871.png)
 
 ![image-20220314103248300](images/image-20220314103248300.png)
+
+## SELECT执行过程
+
+### 查询的结构
+
+~~~sql
+#方式1：
+SELECT ...,....,...
+FROM ...,...,....
+WHERE 多表的连接条件
+AND/OR 不包含组函数的过滤条件
+GROUP BY ...,...
+HAVING 包含组函数的过滤条件
+ORDER BY ... ASC/DESC
+LIMIT ...,...
+
+#方式2：
+SELECT ...,....,...
+FROM ... JOIN ...
+ON 多表的连接条件
+JOIN ...
+ON ...
+WHERE 不包含组函数的过滤条件
+AND/OR 不包含组函数的过滤条件
+GROUP BY ...,...
+HAVING 包含组函数的过滤条件
+ORDER BY ... ASC/DESC
+LIMIT ...,...
+
+#其中：
+#（1）from：从哪些表中筛选
+#（2）on：关联多表查询时，去除笛卡尔积
+#（3）where：从表中筛选的条件
+#（4）group by：分组依据
+#（5）having：在统计结果中再次筛选
+#（6）order by：排序
+#（7）limit：分页
+~~~
+
+###  SELECT执行顺序
+
+ 关键字的顺序是不能颠倒的：
+
+~~~sql
+SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT...
+~~~
+
+SELECT 语句的执行顺序（在 MySQL 和 Oracle 中，SELECT 执行顺序基本相同）：
+
+~~~sql
+FROM -> WHERE -> GROUP BY -> HAVING -> SELECT 的字段 -> DISTINCT -> ORDER BY -> LIMIT
+~~~
+
+~~~sql
+SELECT DISTINCT player_id, player_name, count(*) as num # 顺序 5
+FROM player JOIN team ON player.team_id = team.team_id # 顺序 1
+WHERE height > 1.80 # 顺序 2
+GROUP BY player.team_id # 顺序 3
+HAVING num > 2 # 顺序 4
+ORDER BY num DESC # 顺序 6
+LIMIT 2 # 顺序 7
+~~~
+
+在 SELECT 语句执行这些步骤的时候，每个步骤都会产生一个 **虚拟表** ，然后将这个虚拟表传入 下一个步 骤中作为输入。需要注意的是，这些步骤隐含在 SQL 的执行过程中，对于用户来说是不可见的。
+
+## SQL的执行原理
+
+1. SELECT 是先执行 **FROM** 这一步的。
+   1. 在这个阶段，如果是**多张表联查**，还会经历下面的几个步骤： 
+      1. 首先先通过 **CROSS JOIN** 求笛卡尔积，相当于得到虚拟表 vt（virtual table）1-1。 
+      2. 通过 **ON** 进行筛选，在虚拟表 vt 1-1 的基础上进行筛选，得到虚拟表 vt 1-2。
+      3. **添加外部行**。如果我们使用的是左连接、右链接或者全连接，就会涉及到外部行，也就是在虚拟表 vt 1-2 的基础上增加外部行，得到虚拟表 vt 1-3。 当然如果我们操作的是两张以上的表，还会重复上面的步骤，直到所有表都被处理完为止。这个过程得到是我们的原始数据。 
+2. 当我们拿到了查询数据表的原始数据，也就是最终的虚拟表 vt1 ，就可以在此基础上再进行 **WHERE** 阶段 。在这个阶段中，会根据 vt1 表的结果进行筛选过滤，得到虚拟表 vt2 。
+3. 然后进入第三步和第四步，也就是 **GROUP** 和 **HAVING** 阶段 。在这个阶段中，实际上是在虚拟表 vt2 的基础上进行分组和分组过滤，得到中间的虚拟表 vt3 和 vt4 。
+4. 当我们完成了条件筛选部分之后，就可以筛选表中提取的字段，也就是进入到 **SELECT** 和 **DISTINCT** 阶段 。
+   1. 首先在 **SELECT** 阶段会提取想要的字段
+   2. 然后在 **DISTINCT** 阶段过滤掉重复的行，分别得到中间的虚拟表 vt5-1 和 vt5-2 。
+5. 当我们提取了想要的字段数据之后，就可以按照指定的字段进行排序，也就是 **ORDER BY** 阶段 ，得到 虚拟表 vt6 。
+6. 最后在 vt6 的基础上，取出指定行的记录，也就是 **LIMIT** 阶段 ，得到最终的结果，对应的是虚拟表 vt7 。
+
+
 
 
 
@@ -1337,4 +1678,33 @@ alter table 表名 charset utf8;
 alter table 表名 modify name varchar(20) charset utf8; 
 alter database k charset utf8; 
 ```
+
+## count(*)，count(1)，count(列名)谁好? 
+
+对于MyISAM引擎的表是没有区别的，这种引擎内部有一计数器在维护着行数。 
+
+Innodb引擎的表用count(*)，count(1)直接读行数，复杂度是O(n)，因为innodb真的要去数一遍。但好于具体的count(列名)。
+
+## 能不能使用count(列名)替换count(\*)? 
+
+不要使用 count(列名)来替代 count(\*) ， count(\*) 是 SQL92 定义的标准统计行数的语法，跟数据库无关，跟 NULL 和非 NULL 无关。 
+
+说明：count(*)会统计值为 NULL 的行，而 count(列名)不会统计此列为 NULL 值的行。
+
+## WHERE和HAVING的对比
+
+区别1：
+
+- WHERE 可以直接使用表中的字段作为筛选条件，但不能使用分组中的计算函数作为筛选条件。
+- HAVING 必须要与 GROUP BY 配合使用，可以把分组计算的函数和分组字段作为筛选条件。 
+
+这决定了，在需要对数据进行分组统计的时候，HAVING 可以完成 WHERE 不能完成的任务。这是因为， 在查询语法结构中，WHERE 在 GROUP BY 之前，所以无法对分组结果进行筛选。HAVING 在 GROUP BY 之 后，可以使用分组字段和分组中的计算函数，对分组的结果集进行筛选，这个功能是 WHERE 无法完成 的。另外，WHERE排除的记录不再包括在分组中。 
+
+区别2：
+
+- 如果需要通过连接从关联表中获取需要的数据，WHERE 是先筛选后连接，而 HAVING 是先连接后筛选。 
+
+这一点，就决定了在关联查询中，WHERE 比 HAVING 更高效。因为 WHERE 可以先筛选，用一个筛选后的较小数据集和关联表进行连接，这样占用的资源比较少，执行效率也比较高。HAVING 则需要先把结果集准备好，也就是用未被筛选的数据集进行关联，然后对这个大的数据集进行筛选，这样占用的资源就比较多，执行效率也较低。
+
+
 

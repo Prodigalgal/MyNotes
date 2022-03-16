@@ -2273,13 +2273,1051 @@ os.rename('aa.txt','bb.txt')
 os.rename('bb.txt','xxx/bb.txt')
 ~~~
 
+## 1.8、PyMySQL
+
+~~~python
+pip install pymysql
+pymysql.connect(host,port,user,password,db,charset)
+conn.cursor()
+cursor.execute()
+~~~
 
 
 
+# 2、Python爬虫
+
+## 2.1、urllib库
+
+### 2.1.1、基本使用
+
+~~~python
+urllib.request.urlopen() 模拟浏览器向服务器发送请求
+
+response 服务器返回的数据
+response 的数据类型是 HttpResponse
+	字节‐‐>字符串 解码decode
+	字符串‐‐>字节 编码encode
+    
+read() 			字节形式读取二进制 扩展：rede(5)返回前几个字节
+readline() 		读取一行
+readlines() 	一行一行读取 直至结束
+getcode() 		获取状态码
+geturl() 		获取url
+getheaders() 	获取headers
+
+# urllib.request.urlretrieve(url_page,'filename')
+urllib.request.urlretrieve(url= url,filename='lisa')
+# 可以用于 下载网页、下载图片、下载视频
+~~~
+
+~~~python
+# 使用urllib来获取百度首页的源码
+import urllib.request
+
+
+# (1)定义一个url  就是你要访问的地址
+url = 'http://www.baidu.com'
+
+# (2)模拟浏览器向服务器发送请求 response响应
+response = urllib.request.urlopen(url)
+
+# （3）获取响应中的页面的源码  content 内容的意思
+# read方法  返回的是字节形式的二进制数据
+# 我们要将二进制的数据转换为字符串
+# 二进制 --》字符串  解码  decode('编码的格式')
+content = response.read().decode('utf-8')
+
+# （4）打印数据
+print(content)
+~~~
 
 
 
+### 2.1.2、请求对象的定制
 
+UA介绍：User Agent中文名为用户代理，简称 UA，它是一个特殊字符串头，使得服务器能够识别客户使用的操作系统 及版本、CPU 类型、浏览器及版本。浏览器内核、浏览器渲染引擎、浏览器语言、浏览器插件等 
+
+请求对象的定制为了解决反爬的第一种手段
+
+~~~python
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/92.0.4515.159 Safari/537.36 '
+}
+
+# 因为urlopen方法中不能存储字典 所以headers不能传递进去
+# 请求对象的定制
+request = urllib.request.Request(url=url, headers=headers)
+
+response = urllib.request.urlopen(request)
+content = response.read().decode('utf8')
+print(content)
+~~~
+
+
+
+### 2.1.3、Get请求的quote与urlencode方法
+
+~~~python
+# 需求 获取 https://www.baidu.com/s?wd=周杰伦的网页源码
+#获取https://www.baidu.com/s?wd=%E5%91%A8%E6%9D%B0%E4%BC%A6&sex=%E7%94%B7的网页源码
+url = 'https://www.baidu.com/s?wd='
+
+# 请求对象的定制为了解决反爬的第一种手段
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+}
+
+# 单个参数时
+# 将周杰伦三个字变成unicode编码的格式
+# 我们需要依赖于urllib.parse
+name = urllib.parse.quote('周杰伦')
+url = url + name
+
+# 多个参数时
+# urlencode应用场景：多个参数的时候
+base_url = 'https://www.baidu.com/s?'
+data = {
+    'wd':'周杰伦',
+    'sex':'男',
+    'location':'中国台湾省'
+}
+new_data = urllib.parse.urlencode(data)
+url = base_url + new_data
+
+# 请求对象的定制
+request = urllib.request.Request(url=url,headers=headers)
+# 模拟浏览器向服务器发送请求
+response = urllib.request.urlopen(request)
+# 获取响应的内容
+content = response.read().decode('utf-8')
+# 打印数据
+print(content)
+~~~
+
+### 2.1.4、POST请求
+
+- post请求的参数必须要进行编码，并且编码之后 必须调用encode方法
+- post的请求的参数是不会拼接在url的后面的，而是需要放在请求对象定制的参数中
+
+~~~python
+url = 'https://fanyi.baidu.com/sug'
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+}
+data = {
+    'kw':'spider'
+}
+
+data = urllib.parse.urlencode(data).encode('utf-8')
+request = urllib.request.Request(url=url,data=data,headers=headers)
+
+response = urllib.request.urlopen(request)
+content = response.read().decode('utf-8')
+
+# 字符串--》json对象
+obj = json.loads(content)
+print(obj)
+~~~
+
+### 2.1.5、handler处理器
+
+- urllib.request.urlopen(url) 不能定制请求头 
+- urllib.request.Request(url,headers,data) 可以定制请求头 
+- Handler 定制更高级的请求头（随着业务逻辑的复杂 请求对象的定制已经满足不了需求（动态cookie和代理 不能使用请求对象的定制）
+
+~~~python
+request = urllib.request.Request(url = url,headers = headers)
+
+# （1）获取hanlder对象
+handler = urllib.request.HTTPHandler()
+
+# （2）获取opener对象
+opener = urllib.request.build_opener(handler)
+
+# (3) 调用open方法
+response = opener.open(request)
+
+content = response.read().decode('utf-8')
+print(content)
+~~~
+
+### 2.1.6、代理
+
+~~~python
+# 请求对象的定制
+request = urllib.request.Request(url = url,headers= headers)
+
+proxies = {
+    'http':'118.24.219.151:16817'
+}
+handler = urllib.request.ProxyHandler(proxies = proxies)
+
+opener = urllib.request.build_opener(handler)
+response = opener.open(request)
+
+# 获取响应的信息
+content = response.read().decode('utf-8')
+~~~
+
+设置代理池
+
+~~~python
+proxies_pool = [
+    {'http':'118.24.219.151:16817'},
+    {'http':'118.24.219.151:16817'},
+]
+proxies = random.choice(proxies_pool)
+
+request = urllib.request.Request(url = url,headers=headers)
+
+handler = urllib.request.ProxyHandler(proxies=proxies)
+opener = urllib.request.build_opener(handler)
+response = opener.open(request)
+content = response.read().decode('utf-8')
+~~~
+
+## 2.2、Xpath
+
+### 2.2.1、基本语法
+
+~~~python
+xpath基本语法：
+1.路径查询
+    //：查找所有子孙节点，不考虑层级关系
+    / ：找直接子节点
+    
+2.谓词查询
+    //div[@id]
+    //div[@id="maincontent"]
+    
+3.属性查询
+    //@class	
+    
+4.模糊查询
+    //div[contains(@id, "he")]
+    //div[starts‐with(@id, "he")]
+    
+5.内容查询
+    //div/h1/text()
+    
+6.逻辑运算
+    //div[@id="head" and @class="s_down"]
+    //title | //price
+~~~
+
+
+
+### 2.2.2、基本使用
+
+解析
+
+~~~python
+# xpath解析
+# （1）本地文件	etree.parse
+tree = etree.parse('070_尚硅谷_爬虫_解析_xpath的基本使用.html')
+#tree.xpath('xpath路径')
+
+# （2）服务器响应的数据 
+etree.HTML(response.read().decode('utf-8'))
+~~~
+
+查找元素
+
+~~~python
+# 查找ul下面的li
+li_list = tree.xpath('//body/ul/li')
+
+# 查找所有有id的属性的li标签
+# text()获取标签中的内容
+li_list = tree.xpath('//ul/li[@id]/text()')
+
+# 找到id为l1的li标签  注意引号的问题
+li_list = tree.xpath('//ul/li[@id="l1"]/text()')
+
+# 查找到id为l1的li标签的class的属性值
+li = tree.xpath('//ul/li[@id="l1"]/@class')
+
+# 查询id中包含l的li标签
+li_list = tree.xpath('//ul/li[contains(@id,"l")]/text()')
+
+# 查询id的值以l开头的li标签
+li_list = tree.xpath('//ul/li[starts-with(@id,"c")]/text()')
+
+#查询id为l1并且class为c1的
+li_list = tree.xpath('//ul/li[@id="l1" and @class="c1"]/text()')
+
+#查询id为l1或class为c1的
+li_list = tree.xpath('//ul/li[@id="l1"]/text() | //ul/li[@id="l2"]/text()')
+
+# 判断列表的长度
+print(li_list)
+print(len(li_list))
+~~~
+
+## 2.3、JSONPath
+
+~~~python
+obj = json.load(open('jsonpath_test.json','r',encoding='utf-8'))
+
+# 书店所有书的作者
+author_list = jsonpath.jsonpath(obj,'$.store.book[*].author')
+print(author_list)
+
+# 所有的作者
+author_list = jsonpath.jsonpath(obj,'$..author')
+print(author_list)
+
+# store下面的所有的元素
+tag_list = jsonpath.jsonpath(obj,'$.store.*')
+print(tag_list)
+
+# store里面所有东西的price
+price_list = jsonpath.jsonpath(obj,'$.store..price')
+print(price_list)
+
+# 第三个书
+book = jsonpath.jsonpath(obj,'$..book[2]')
+print(book)
+
+# 最后一本书
+book = jsonpath.jsonpath(obj,'$..book[(@.length-1)]')
+print(book)
+
+# 	前面的两本书
+book_list = jsonpath.jsonpath(obj,'$..book[0,1]')
+book_list = jsonpath.jsonpath(obj,'$..book[:2]')
+print(book_list)
+
+# 条件过滤需要在（）的前面添加一个？
+# 过滤出所有的包含isbn的书。
+book_list = jsonpath.jsonpath(obj,'$..book[?(@.isbn)]')
+print(book_list)
+
+
+# 哪本书超过了10块钱
+book_list = jsonpath.jsonpath(obj,'$..book[?(@.price>10)]')
+print(book_list)
+~~~
+
+## 2.4、BeautifulSoup
+
+~~~python
+# 通过解析本地文件 来将bs4的基础语法进行讲解
+# 默认打开的文件的编码格式是gbk 所以在打开文件的时候需要指定编码
+soup = BeautifulSoup(open('bs.html',encoding='utf-8'),'lxml')
+
+# 根据标签名查找节点
+# 找到的是第一个符合条件的数据
+print(soup.a)
+# 获取标签的属性和属性值
+print(soup.a.attrs)
+
+# bs4的一些函数
+# （1）find
+# 返回的是第一个符合条件的数据
+print(soup.find('a'))
+
+# 根据title的值来找到对应的标签对象
+print(soup.find('a',title="a2"))
+
+# 根据class的值来找到对应的标签对象  注意的是class需要添加下划线
+print(soup.find('a',class_="a1"))
+
+
+# （2）find_all  返回的是一个列表 并且返回了所有的a标签
+print(soup.find_all('a'))
+
+# 如果想获取的是多个标签的数据 那么需要在find_all的参数中添加的是列表的数据
+print(soup.find_all(['a','span']))
+
+# limit的作用是查找前几个数据
+print(soup.find_all('li',limit=2))
+
+
+# （3）select（推荐）
+# select方法返回的是一个列表  并且会返回多个数据
+print(soup.select('a'))
+
+# 可以通过.代表class  我们把这种操作叫做类选择器
+print(soup.select('.a1'))
+
+# 属性选择器---通过属性来寻找对应的标签
+print(soup.select('#l1'))
+
+# 查找到li标签中有id的标签
+print(soup.select('li[id]'))
+
+# 查找到li标签中id为l2的标签
+print(soup.select('li[id="l2"]'))
+
+
+# 层级选择器
+# 后代选择器
+# 找到的是div下面的li
+print(soup.select('div li'))
+
+# 子代选择器
+# 某标签的第一级子标签
+# 注意：很多的计算机编程语言中 如果不加空格不会输出内容  但是在bs4中 不会报错 会显示内容
+print(soup.select('div > ul > li'))
+
+
+# 找到a标签和li标签的所有的对象
+print(soup.select('a,li'))
+
+# 节点信息
+# 获取节点内容
+obj = soup.select('#d1')[0]
+
+# 如果标签对象中 只有内容 那么string和get_text()都可以使用
+# 如果标签对象中 除了内容还有标签 那么string就获取不到数据 而get_text()是可以获取数据
+# 我们一般情况下  推荐使用get_text()
+print(obj.string)
+print(obj.get_text())
+
+# 节点的属性
+obj = soup.select('#p1')[0]
+# name是标签的名字
+print(obj.name)
+# 将属性值组合为一个字典返回
+print(obj.attrs)
+
+# 获取节点的属性
+obj = soup.select('#p1')[0]
+print(obj.attrs.get('class'))
+print(obj.get('class'))
+print(obj['class'])
+~~~
+
+## 2.5、Selenium
+
+### 2.5.1、基本使用
+
+模拟浏览器功能，自动执行网页中的js代码，实现动态加载
+
+#### 2.5.1.1、安装
+
+~~~python
+安装selenium
+（1）操作谷歌浏览器驱动下载地址
+	http://chromedriver.storage.googleapis.com/index.html
+（2）谷歌驱动和谷歌浏览器版本之间的映射表
+	http://blog.csdn.net/huilan_same/article/details/51896672
+（3）查看谷歌浏览器版本
+	谷歌浏览器右上角‐‐>帮助‐‐>关于
+（4）pip install selenium
+~~~
+
+#### 2.5.1.2、使用步骤
+
+~~~python
+（1）导入：from selenium import webdriver
+（2）创建谷歌浏览器操作对象：
+	path = 谷歌浏览器驱动文件路径
+	browser = webdriver.Chrome(path)
+（3）访问网址
+	url = 要访问的网址
+	browser.get(url)
+~~~
+
+#### 2.5.1.3、元素定位
+
+自动化要做的就是模拟鼠标和键盘来操作来操作这些元素，点击、输入等等。操作这些元素前首先要找到它们，WebDriver提供很多定位元素的方法。
+
+~~~python
+1.find_element_by_id
+	eg:button = browser.find_element_by_id('su')
+        
+2.find_elements_by_name
+	eg:name = browser.find_element_by_name('wd')
+        
+3.find_elements_by_xpath
+	eg:xpath1 = browser.find_elements_by_xpath('//input[@id="su"]')
+        
+4.find_elements_by_tag_name
+	eg:names = browser.find_elements_by_tag_name('input')
+        
+5.find_elements_by_css_selector
+	eg:my_input = browser.find_elements_by_css_selector('#kw')[0]
+        
+6.find_elements_by_link_text
+	eg:browser.find_element_by_link_text("新闻")
+~~~
+
+#### 2.5.1.4、访问元素信息
+
+~~~python
+获取元素属性
+	.get_attribute('class')
+获取元素文本
+	.text
+获取标签名
+	.tag_name
+~~~
+
+#### 2.5.1.5、交互
+
+~~~python
+点击：	click()
+输入：	send_keys()
+后退操作： browser.back()
+前进操作：	browser.forword()
+模拟JS滚动：	js='document.documentElement.scrollTop=100000'
+		   browser.execute_script(js) 执行js代码
+获取网页代码：	page_source
+退出：	browser.quit()
+~~~
+
+### 2.5.2、Phantomjs
+
+- 是一个无界面的浏览器
+- 支持页面元素查找，js的执行等 
+- 由于不进行css和gui渲染，运行效率要比真实的浏览器要快很多
+
+如何使用Phantomjs？ 
+
+（1）获取PhantomJS.exe文件路径path 
+
+（2）browser = webdriver.PhantomJS(path) 
+
+（3）browser.get(url) 
+
+扩展：保存屏幕快照:browser.save_screenshot('baidu.png')
+
+### 2.5.3、Chrome handless
+
+Chrome-headless 模式， Google 针对 Chrome 浏览器 59版 新增加的一种模式，可以让你不打开UI界面的情况下 使用 Chrome 浏览器，所以运行效果与 Chrome 保持完美一致。
+
+系统要求： 
+
+Unix\Linux 系统需要 chrome >= 59 
+
+Windows 系统需要 chrome >= 60 
+
+Python3.6 Selenium==3.4.* ChromeDriver==2.31
+
+配置：
+
+~~~python
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
+path = r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe'
+
+chrome_options = Options()
+chrome_options.add_argument('‐‐headless')
+chrome_options.add_argument('‐‐disable‐gpu')
+chrome_options.binary_location = path
+
+browser = webdriver.Chrome(chrome_options=chrome_options)
+browser.get('http://www.baidu.com/')
+
+# 配置封装
+def share_browser():
+	#初始化
+    path = r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe'
+    
+	chrome_options = Options()
+	chrome_options.add_argument('‐‐headless')
+	chrome_options.add_argument('‐‐disable‐gpu')
+	#浏览器的安装路径 打开文件位置
+	#这个路径是你谷歌浏览器的路径
+	chrome_options.binary_location = path
+	browser = webdriver.Chrome(chrome_options=chrome_options)
+	return browser
+
+#封装调用
+browser = share_browser()
+browser.get('http://www.baidu.com/')
+browser.save_screenshot('handless1.png')
+~~~
+
+## 2.6、Requests
+
+### 2.6.1、基本属性以及类型
+
+| 属性          | 类型               |
+| ------------- | ------------------ |
+| r.text        | 获取网站源码       |
+| r.encoding    | 访问或定制编码方式 |
+| r.url         | 获取请求的url      |
+| r.content     | 响应的字节类型     |
+| r.status_code | 响应的状态码       |
+| r.headers     | 响应的头信息       |
+
+### 2.6.2、GET请求
+
+requests.get()
+
+定制参数：
+
+- 参数使用params传递
+- 参数无需urlencode编码
+- 不需要请求对象的定制
+- 请求资源路径中？可加可不加
+
+~~~python
+url = 'http://www.baidu.com/s?'
+headers = {
+    'User‐Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML,like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+}
+data = {
+    'wd':'北京'
+}
+
+response = requests.get(url, params=data, headers=headers)
+~~~
+
+### 2.6.3、POST请求
+
+requests.post()
+
+~~~python
+post_url = 'http://fanyi.baidu.com/sug'
+headers={
+    'User‐Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'
+}
+data = {
+    'kw': 'eye'
+}
+
+r = requests.post(url = post_url, headers=headers, data=data)
+~~~
+
+### 2.6.4、代理
+
+在请求中设置proxies参数，参数类型是一个字典类型
+
+~~~python
+url = 'http://www.baidu.com/s?'
+headers = {
+    'user‐agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML,like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+}
+data = {
+    'wd':'ip'
+}
+proxy = {
+    'http':'219.149.59.250:9797'
+}
+
+r = requests.get(url=url,params=data,headers=headers,proxies=proxy)
+
+with open('proxy.html','w',encoding='utf‐8') as fp:
+    fp.write(r.text)
+~~~
+
+### 2.6.5、cookie定制
+
+一般情况看不到的数据也即为隐藏域，都是在页面的源码中。
+
+~~~python
+# 通过登陆  然后进入到主页面
+# 通过找登陆接口我们发现 登陆的时候需要的参数很多
+# 观察到 _VIEWSTATE __VIEWSTATEGENERATOR 的value是一个可以变化的量
+
+# 这是登陆页面的url地址
+url = 'https://so.gushiwen.cn/user/login.aspx?from=http://so.gushiwen.cn/user/collect.aspx'
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+}
+
+# 获取页面的源码
+response = requests.get(url = url,headers = headers)
+content = response.text
+
+# 解析页面源码  然后获取_VIEWSTATE   __VIEWSTATEGENERATOR
+soup = BeautifulSoup(content,'lxml')
+# 获取_VIEWSTATE
+viewstate = soup.select('#__VIEWSTATE')[0].attrs.get('value')
+# 获取__VIEWSTATEGENERATOR
+viewstategenerator = soup.select('#__VIEWSTATEGENERATOR')[0].attrs.get('value')
+
+# 获取验证码图片
+code = soup.select('#imgCode')[0].attrs.get('src')
+code_url = 'https://so.gushiwen.cn' + code
+
+# 有坑
+# import urllib.request
+# urllib.request.urlretrieve(url=code_url,filename='code.jpg')
+
+# requests里面有一个方法 session() 通过session的返回值，就能使请求变成一个对象
+session = requests.session()
+# 验证码的url的内容
+response_code = session.get(code_url)
+# 注意此时要使用二进制数据  因为我们要使用的是图片的下载
+content_code = response_code.content
+# wb的模式就是将二进制数据写入到文件
+with open('code.jpg','wb') as fp:
+    fp.write(content_code)
+
+# 获取了验证码的图片之后 下载到本地 然后观察验证码  观察之后然后在控制台输入这个验证码 就可以将这个值给 code的参数 就可以登陆
+code_name = input('请输入你的验证码')
+
+# 点击登陆
+url_post = 'https://so.gushiwen.cn/user/login.aspx?from=http%3a%2f%2fso.gushiwen.cn%2fuser%2fcollect.aspx'
+
+data_post = {
+    '__VIEWSTATE': viewstate,
+    '__VIEWSTATEGENERATOR': viewstategenerator,
+    'from': 'http://so.gushiwen.cn/user/collect.aspx',
+    'email': '595165358@qq.com',
+    'pwd': 'action',
+    'code': code_name,
+    'denglu': '登录',
+}
+
+response_post = session.post(url = url, headers = headers, data = data_post)
+content_post = response_post.text
+with open('gushiwen.html','w',encoding= ' utf-8')as fp:
+    fp.write(content_post)
+~~~
+
+## 2.7、Scrapy
+
+Scrapy是一个为了爬取网站数据，提取结构性数据而编写的应用框架。 
+
+可以应用在包括数据挖掘，信息处理或存储历史数据等一系列的程序中。
+
+### 2.7.1、安装
+
+pip install scrapy 
+
+安装过程中出错： 
+
+~~~python
+如果安装有错误！！！！
+pip install Scrapy
+building 'twisted.test.raiser' extension
+error: Microsoft Visual C++ 14.0 is required. Get it with "Microsoft Visual C++
+Build Tools": http://landinghub.visualstudio.com/visual‐cpp‐build‐tools
+~~~
+
+解决方案：
+
+~~~python
+http://www.lfd.uci.edu/~gohlke/pythonlibs/#twisted
+下载twisted对应版本的whl文件（如我的Twisted‐17.5.0‐cp36‐cp36m‐win_amd64.whl），cp后面是
+python版本，amd64代表64位，运行命令：
+pip install C:\Users\...\Twisted‐17.5.0‐cp36‐cp36m‐win_amd64.whl
+pip install Scrapy
+
+如果再报错
+	python ‐m pip install ‐‐upgrade pip
+如果再报错 
+	win32
+	解决方法：
+		pip install pypiwin32
+	再报错：使用anaconda
+		使用步骤：
+			打开anaconda
+			点击environments
+			点击not installed
+			输入scrapy
+			apply
+			在pycharm中选择anaconda的环境
+~~~
+
+### 2.7.2、Scrapy项目创建
+
+终端输入 scrapy startproject 项目名称
+
+~~~python
+# 如果出现scrapy : 无法将“scrapy”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。等
+在该命令前加上 py -m
+py -m scrapy startproject xxxxx
+~~~
+
+项目组成：
+
+~~~python
+spiders
+	__init__.py
+	自定义的爬虫文件.py ‐‐‐》由我们自己创建，是实现爬虫核心功能的文件
+    
+__init__.py
+items.py ‐‐‐》定义数据结构的地方，是一个继承自scrapy.Item的类
+middlewares.py ‐‐‐》中间件 代理
+
+~~~
+
+~~~python
+pipelines.py ‐‐‐》管道文件，里面只有一个类，用于处理下载数据的后续处理，默认是300优先级，值越小优先级越高（1‐1000）
+需要在settings开启
+~~~
+
+~~~python
+settings.py ‐‐‐》配置文件 比如：是否遵守robots协议，User‐Agent定义等
+ROBOTSTXT_OBEY = True 注释掉或者false就不遵守
+ITEM_PIPELINES = {
+   #  管道可以有很多个  那么管道是有优先级的  优先级的范围是1到1000   值越小优先级越高
+   'scrapy_dangdang_095.pipelines.ScrapyDangdang095Pipeline': 300,
+
+#    DangDangDownloadPipeline
+   'scrapy_dangdang_095.pipelines.DangDangDownloadPipeline':301
+}
+~~~
+
+创建爬虫文件：
+
+~~~python
+（1）跳转到spiders文件夹 cd 目录名字/目录名字/spiders
+（2）scrapy genspider 爬虫名字 网页的域名
+~~~
+
+爬虫文件的基本组成：
+
+~~~python
+继承scrapy.Spider类
+	name = 'baidu' ‐‐‐》 运行爬虫文件时使用的名字
+	allowed_domains = ['www.baidu.com']  ‐‐‐》 爬虫允许的域名，在爬取的时候，如果不是此域名之下的url，会被过滤掉
+	start_urls = ['http://www.baidu.com'] ‐‐‐》 声明了爬虫的起始地址，可以写多个url，一般是一个
+	parse(self, response) ‐‐‐》解析数据的回调函数
+                                response.text ‐‐‐》响应的是字符串
+                                response.body ‐‐‐》响应的是二进制文件
+                                response.xpath()‐》xpath方法的返回值类型是selector列表，并且可以selector对象可以重复调用
+                                extract() ‐‐‐》提取的是selector对象的是data
+                                extract_first() ‐‐‐》提取的是selector列表中的第一个数据
+~~~
+
+运行爬虫文件：
+
+~~~python
+scrapy crawl 爬虫名称
+注意：应在spiders文件夹内执行
+~~~
+
+一些注意事项：
+
+- 域名一般不加http前缀
+- 接口后缀为html，在填写时，追后不要加 /
+- 注意图片的懒加载
+
+### 2.7.3、Scrapy架构组成
+
+- **引擎** ‐‐‐》自动运行，无需关注，会自动组织所有的请求对象，分发给下载器
+- **下载器** ‐‐‐》从引擎处获取到请求对象后，请求数据
+- **spiders** ‐‐‐》Spider类定义了如何爬取某个(或某些)网站。包括了爬取的动作(例如:是否跟进链接)以及如何从网页的内容中提取结构化数据(**爬取item**)。 换句话说，Spider就是定义爬取的动作及分析某个网页(或者是有些网页)的地方。
+- **调度器** ‐‐‐》有自己的调度规则，无需关注
+- **管道**（Item pipeline） ‐‐‐》最终处理数据的管道，会预留接口供我们处理数据，当Item在Spider中被收集之后，它将会被传递到Item Pipeline，一些组件会按照一定的顺序执行对Item的处理。 每个item pipeline组件(有时称之为“Item Pipeline”)是实现了简单方法的Python类。他们接收到Item并通过它执行一些行为，同时也决定此Item是否继续通过pipeline，或是被丢弃而不再进行处理。需要在settings中开启管道
+
+以下是item pipeline的一些典型应用： 
+
+- 清理HTML数据 
+- 验证爬取的数据(检查item包含某些字段)
+- 查重(并丢弃) 
+- 将爬取结果保存到数据库中
+
+### 2.7.4、工作原理
+
+![image-20220316175615906](images/image-20220316175615906.png)
+
+### 2.7.5、Scrapy Shell
+
+Scrapy终端，是一个交互终端，可以在未启动spider的情况下尝试及调试您的爬取代码。 其本意是用来测试提取数据的代码，不过可以将其作为正常的Python终端，在上面测试任何的Python代码。 
+
+该终端是用来测试XPath或CSS表达式，查看他们的工作方式及从爬取的网页中提取的数据。 在编写spider时，该终端提供了交互性测试表达式代码的功能，免去了每次修改后运行spider的麻烦。 
+
+前提：
+
+安装ipython 安装：pip install ipython 
+
+如果安装了 IPython ，Scrapy终端将使用 IPython (替代标准Python终端)。 IPython 终端与其他相比更为强大，提供智能的自动补全，高亮输出，及其他特性。
+
+应用：
+
+直接在终端中输入，无需进入python或者ipyton
+
+~~~python
+(1) scrapy shell www.baidu.com
+(2) scrapy shell http://www.baidu.com
+(3) scrapy shell "http://www.baidu.com"
+(4) scrapy shell "www.baidu.com"
+~~~
+
+调用进入后，可以直接使用以下方法
+
+语法：
+
+~~~python
+（1）response对象：
+        response.body
+        response.text
+        response.url
+        response.status
+（2）response的解析：
+		response.xpath() （常用）
+			使用xpath路径查询特定元素，返回一个selector列表对象
+		response.css()
+            使用css_selector查询元素，返回一个selector列表对象
+            获取内容 ：response.css('#su::text').extract_first()
+            获取属性 ：response.css('#su::attr(“value”)').extract_first()
+(3) selector对象（通过xpath方法调用返回的是seletor列表）:
+    	extract() 提取selector对象的值，如果提取不到值 那么会报错
+        		使用xpath请求到的对象是一个selector对象，需要进一步使用extract()方法拆包，转换为unicode字符串
+         extract_first() 提取seletor列表中的第一个值，如果提取不到值 会返回一个空值
+        				返回第一个解析到的值，如果列表为空，此种方法也不会报错，会返回一个空值
+        xpath()
+        css() 注意：每一个selector对象可以再次的去使用xpath或者css方法
+~~~
+
+### 2.7.6、yield
+
+1. 带有 yield 的函数不再是一个普通函数，而是一个生成器generator，可用于迭代。
+2. yield 是一个类似 return 的关键字，迭代一次遇到 yield 时就返回 yield 后面(右边)的值。重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码(下一行)开始执行。
+3. 简要理解：yield就是 return 返回一个值，并且记住这个返回的位置，下次迭代就从这个位置后(下一行)开始。
+
+~~~python
+~~~
+
+### 2.7.7、CrawlSpider
+
+1. 继承自scrapy.Spider 
+2. CrawlSpider可以定义规则，再解析html内容的时候，可以根据链接规则提取出指定的链接，然后再向这些链接发送请求所以，如果有需要跟进链接的需求，意思就是爬取了网页之后，需要提取链接再次爬取，使用CrawlSpider是非常合适的
+3. 提取链接，链接提取器，在这里就可以写规则提取指定链接
+
+~~~python
+scrapy.linkextractors.LinkExtractor()
+可选：
+    allow = (), # 正则表达式 提取符合正则的链接
+    deny = (), # (不用)正则表达式 不提取符合正则的链接
+    allow_domains = (), # （不用）允许的域名
+    deny_domains = (), # （不用）不允许的域名
+    restrict_xpaths = (), # xpath，提取符合xpath规则的链接
+    restrict_css = () # 提取符合选择器规则的链接
+    
+正则用法：links1 = LinkExtractor(allow=r'list_23_\d+\.html')
+xpath用法：links2 = LinkExtractor(restrict_xpaths=r'//div[@class="x"]')
+css用法：links3 = LinkExtractor(restrict_css='.x')
+link.extract_links(response)
+~~~
+
+**注意**：
+
+- callback只能写函数名字符串, callback='parse_item'
+- 在基本的spider中，如果重新发送请求，那里的callback写的是 callback=self.parse_item 【注‐ ‐稍后看】follow=true 是否跟进就是按照提取连接规则进行提取
+
+![image-20220316205025110](images/image-20220316205025110.png)
+
+### 2.7.8、案例
+
+#### 2.7.8.1.1、当当案例
+
+##### 2.7.8.1.1、定义数据项
+
+在Items下定义要下载的数据项
+
+~~~python
+class ScrapyDangdang095Item(scrapy.Item):
+    # 通俗的说就是你要下载的数据都有什么
+    # 图片
+    src = scrapy.Field()
+    # 名字
+    name = scrapy.Field()
+    # 价格
+    price = scrapy.Field()
+~~~
+
+##### 2.7.8.1.2、设置爬取规则
+
+在spider文件夹下定义爬取规则
+
+~~~python
+import scrapy
+from scrapy_dangdang_095.items import ScrapyDangdang095Item
+
+class DangSpider(scrapy.Spider):
+    name = 'dang'
+    # 如果是多页下载的话 那么必须要调整的是allowed_domains的范围，一般情况下只写域名
+    allowed_domains = ['category.dangdang.com']
+    start_urls = ['http://category.dangdang.com/cp01.01.02.00.00.00.html']
+    base_url = 'http://category.dangdang.com/pg'
+    page = 1
+
+    def parse(self, response):
+#       pipelines 下载数据
+#       items     定义数据结构的
+#         src = //ul[@id="component_59"]/li//img/@src
+#         alt = //ul[@id="component_59"]/li//img/@alt
+#         price = //ul[@id="component_59"]/li//p[@class="price"]/span[1]/text()
+#         所有的seletor的对象 都可以再次调用xpath方法
+        li_list = response.xpath('//ul[@id="component_59"]/li')
+
+        for li in li_list:
+            src = li.xpath('.//img/@data-original').extract_first()
+            # 第一张图片和其他的图片的标签的属性是不一样的
+            # 第一张图片的src是可以使用的  其他的图片的地址是data-original
+            if src:
+                src = src
+            else:
+                src = li.xpath('.//img/@src').extract_first()
+
+            name = li.xpath('.//img/@alt').extract_first()
+            price = li.xpath('.//p[@class="price"]/span[1]/text()').extract_first()
+
+            book = ScrapyDangdang095Item(src=src,name=name,price=price)
+
+            # 获取一个book就将book交给pipelines
+            yield book
+
+
+#       每一页的爬取的业务逻辑全都是一样的，所以我们只需要将执行的那个页的请求再次调用parse方法就可以了
+#         http://category.dangdang.com/pg2-cp01.01.02.00.00.00.html
+#         http://category.dangdang.com/pg3-cp01.01.02.00.00.00.html
+#         http://category.dangdang.com/pg4-cp01.01.02.00.00.00.html
+        if self.page < 100:
+            self.page = self.page + 1
+            url = self.base_url + str(self.page) + '-cp01.01.02.00.00.00.html'
+            
+#             怎么去调用parse方法
+#             scrapy.Request就是scrpay的get请求
+#             url就是请求地址
+#             callback是你要执行的那个函数  注意不需要加（）
+            yield scrapy.Request(url=url, callback=self.parse)
+~~~
+
+##### 2.7.8..1.3、管道下载数据
+
+~~~python
+# 如果想使用管道的话 那么就必须在settings中开启管道
+class ScrapyDangdang095Pipeline:
+    # 在爬虫文件开始的之前就执行的一个方法
+    def open_spider(self, spider):
+        self.fp = open('book.json', 'w', encoding='utf-8')
+
+    # item就是yield后面的book对象
+    def process_item(self, item, spider):
+        # 以下这种模式不推荐  因为每传递过来一个对象 那么就打开一次文件  对文件的操作过于频繁
+        # (1) write方法必须要写一个字符串 而不能是其他的对象
+        # (2) w模式 会每一个对象都打开一次文件 覆盖之前的内容
+        # with open('book.json','a',encoding='utf-8')as fp:
+        #     fp.write(str(item))
+        self.fp.write(str(item))
+        return item
+
+    # 在爬虫文件执行完之后  执行的方法
+    def close_spider(self, spider):
+        self.fp.close()
+
+import urllib.request
+
+
+# 多条管道开启
+#    (1) 定义管道类
+#   （2）在settings中开启管道
+# 'scrapy_dangdang_095.pipelines.DangDangDownloadPipeline':301
+class DangDangDownloadPipeline:
+    def process_item(self, item, spider):
+        url = 'http:' + item.get('src')
+        filename = './books/' + item.get('name') + '.jpg'
+
+        urllib.request.urlretrieve(url=url, filename=filename)
+
+        return item
+~~~
+
+#### 2.7.8.2、电影天堂案例
 
 
 

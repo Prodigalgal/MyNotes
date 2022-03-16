@@ -1,0 +1,32 @@
+{ "store": {
+    "book": [
+      { "category": "修真",
+        "author": "六道",
+        "title": "坏蛋是怎样练成的",
+        "price": 8.95
+      },
+      { "category": "修真",
+        "author": "天蚕土豆",
+        "title": "斗破苍穹",
+        "price": 12.99
+      },
+      { "category": "修真",
+        "author": "唐家三少",
+        "title": "斗罗大陆",
+        "isbn": "0-553-21311-3",
+        "price": 8.99
+      },
+      { "category": "修真",
+        "author": "南派三叔",
+        "title": "星辰变",
+        "isbn": "0-395-19395-8",
+        "price": 22.99
+      }
+    ],
+    "bicycle": {
+      "author": "老马",
+      "color": "黑色",
+      "price": 19.95
+    }
+  }
+}
