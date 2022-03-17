@@ -1500,15 +1500,294 @@ GROUP BY department_id
 HAVING MAX(salary)>10000;
 ~~~
 
+# 6、MySQL之子查询
+
+子查询指一个查询语句嵌套在另一个查询语句内部的查询。
+
+~~~sql
+#方式一：
+SELECT salary
+FROM employees
+WHERE last_name = 'Abel';
+UNION
+SELECT last_name,salary
+FROM employees
+WHERE salary > 11000;
+
+#方式二：自连接
+SELECT e2.last_name,e2.salary
+FROM employees e1,employees e2
+WHERE e1.last_name = 'Abel'
+AND e1.`salary` < e2.`salary`
+
+#方式三：子查询
+SELECT last_name,salary
+FROM employees
+WHERE salary > (
+    SELECT salary
+    FROM employees
+    WHERE last_name = 'Abel'
+);
+~~~
+
+## 6.1、基本使用
+
+- 子查询（内查询）在主查询之前一次执行完成。
+- 子查询的结果被主查询（外查询）使用 。
+- 子查询要包含在括号内
+- 将子查询放在比较条件的右侧
+- 单行操作符对应单行子查询，多行操作符对应多行子查询
+
+子查询的编写技巧（或步骤）：① 从里往外写  ② 从外往里写
+
+① 如果子查询相对较简单，建议从外往里写。一旦子查询结构较复杂，则建议从里往外写
+
+② 如果是相关子查询的话，通常都是从外往里写。
+
+## 6.2、子查询的分类
+
+- 按内查询的结果返回一条还是多条记录，将子查询分为 单行子查询 、 多行子查询 。
+- 按内查询是否被执行多次，将子查询划分为 相关(或关联)子查询 和 不相关(或非关联)子查询 。
+
+![image-20220317091428585](images/image-20220317091428585.png)
+
+### 6.2.1、单行子查询
+
+单行操作符
+
+|操作符 |含义|
+| ---- | ---- |
+|= |equal to|
+|> |greater than|
+|>= |greater than or equal to|
+|< |less than|
+|<= |less than or equal to|
+|<> |not equal to|
 
 
 
+#### 6.2.1.1、基本使用
 
+查询与141号或174号员工的manager_id和department_id相同的其他员工的employee_id， manager_id，department_id
 
+~~~sql
+# 实现方式1：不成对比较
+SELECT employee_id, manager_id, department_id
+FROM employees
+WHERE manager_id IN
+			(SELECT manager_id
+ 				FROM employees
+ 				WHERE employee_id IN (174,141))
+	AND department_id IN
+			(SELECT department_id
+ 				FROM employees
+				 WHERE employee_id IN (174,141))
+	AND employee_id NOT IN(174,141);
+~~~
 
+~~~sql
+# 实现方式2：成对比较
+SELECT employee_id, manager_id, department_id
+FROM employees
+WHERE (manager_id, department_id) IN
+					(SELECT manager_id, department_id
+ 						FROM employees
+ 						WHERE employee_id IN (141,174))
+	AND employee_id NOT IN (141,174);
+~~~
 
+#### 6.2.1.2、HAVING中的子查询
 
+- 首先执行子查询。 
+- 向主查询中的 HAVING 子句返回结果。
 
+查询最低工资大于50号部门最低工资的部门id和其最低工资
+
+~~~sql
+select department_id, min(salary)
+from employees as e
+group by e.department_id
+having min(salary) > (
+    select min(e2.salary) 
+    from employees as e2 
+    where e2.department_id = 50 
+    group by e2.department_id
+)
+~~~
+
+#### 6.2.1.3、CASE中的子查询
+
+显示员工的employee_id,last_name和location。其中，若员工department_id与location_id为1800 的department_id相同，则location为’Canada’，其余则为’USA’。
+
+~~~sql
+SELECT employee_id, last_name,
+(CASE department_id
+ 	WHEN
+ 		(SELECT department_id FROM departments WHERE location_id = 1800)
+ 	THEN 'Canada' ELSE 'USA' END) location
+FROM employees;
+~~~
+
+#### 6.2.1.4、子查询中的空值现象
+
+~~~sql
+SELECT last_name, job_id
+FROM employees
+WHERE job_id =
+		(SELECT job_id
+			FROM employees
+			WHERE last_name = 'Haas');
+# 子查询不返回任何行，返回了空值，外查询使用空值取查询了
+~~~
+
+#### 6.2.1.5、非法使用子查询
+
+~~~sql
+SELECT employee_id, last_name
+FROM employees
+WHERE salary =
+		(SELECT MIN(salary)
+			FROM employees
+			GROUP BY department_id);
+# 多行子查询使用单行比较符
+~~~
+
+### 6.2.2、多行子查询
+
+- 也称为集合比较子查询
+- 内查询返回多行
+- 使用多行比较操作符
+
+|操作符| 含义|
+| ---- | ---- |
+|IN |等于列表中的任意一个|
+|ANY |需要和单行比较操作符一起使用，和子查询返回的某一个值比较|
+|ALL |需要和单行比较操作符一起使用，和子查询返回的所有值比较|
+|SOME |实际上是ANY的别名，作用相同，一般常使用ANY|
+
+#### 6.2.2.1、基本使用
+
+查询平均工资最低的部门id
+
+~~~sql
+#方式2：
+SELECT department_id
+FROM employees
+GROUP BY department_id
+HAVING AVG(salary) <= ALL (
+    SELECT AVG(salary) avg_sal
+    FROM employees
+    GROUP BY department_id
+)
+~~~
+
+#### 6.2.2.2、空值现象
+
+~~~sql
+SELECT last_name
+FROM employees
+WHERE employee_id NOT IN (
+    SELECT manager_id
+    FROM employees
+);
+~~~
+
+### 6.2.3、相关子查询
+
+#### 6.2.3.1、基本使用
+
+如果子查询的执行依赖于外部查询，通常情况下都是因为子查询中的表用到了外部的表，并进行了条件关联，因此每执行一次外部查询，子查询都要重新计算一次，这样的子查询就称之为关联子查询 。
+
+相关子查询按照一行接一行的顺序执行，主查询的每一行都执行一次子查询。
+
+![image-20220317115535795](images/image-20220317115535795.png)
+
+若employees表中employee_id与job_history表中employee_id相同的数目不小于2，输出这些相同 id的员工的employee_id,last_name和其job_id
+
+~~~sql
+SELECT e.employee_id, last_name, e.job_id
+FROM employees e
+WHERE 2 <= (SELECT COUNT(*)
+			FROM job_history
+			WHERE employee_id = e.employee_id);
+
+~~~
+
+在 FROM 中使用子查询
+
+- 子查询是作为from的一部分，子查询要用()引起来，并且要给这个子查询取别名， 把它当成一张“临时的虚拟的表”来使用。
+
+~~~sql
+SELECT last_name,salary,e1.department_id
+FROM employees e1, (SELECT department_id,AVG(salary) dept_avg_sal FROM employees GROUP BY department_id) e2
+WHERE e1.department_id = e2.department_id
+AND e2.dept_avg_sal < e1.salary;
+~~~
+
+#### 6.2.3.2、EXISTS 与 NOT EXISTS
+
+- 关联子查询通常也会和 EXISTS 操作符一起来使用，用来检查在子查询中是否存在满足条件的行。
+- 如果在子查询中不存在满足条件的行：
+  - 条件返回 FALSE，继续在子查询中查找
+- 如果在子查询中存在满足条件的行：
+  - 不在子查询中继续查找条件，返回 TRUE
+
+- NOT EXISTS关键字表示如果不存在某种条件，则返回TRUE，否则返回FALSE。
+
+查询公司管理者的employee_id，last_name，job_id，department_id信息
+
+~~~sql
+# 方案一
+SELECT employee_id, last_name, job_id, department_id
+FROM employees e1
+WHERE EXISTS ( SELECT *
+				FROM employees e2
+				WHERE e2.manager_id = e1.employee_id);
+# 方案二
+SELECT DISTINCT e1.employee_id, e1.last_name, e1.job_id, e1.department_id
+FROM employees e1 JOIN employees e2
+WHERE e1.employee_id = e2.manager_id;
+# 方案三
+SELECT employee_id,last_name,job_id,department_id
+FROM employees
+WHERE employee_id IN (SELECT DISTINCT manager_id FROM employees);
+~~~
+
+#### 6.2.3.3、 相关更新
+
+~~~sql
+UPDATE table1 alias1
+SET column = (SELECT expression
+              FROM table2 alias2
+              WHERE alias1.column = alias2.column);
+~~~
+
+使用相关子查询依据一个表中的数据更新另一个表的数据。
+
+~~~sql
+UPDATE employees e
+SET department_name = (SELECT department_name
+                       FROM departments d
+                       WHERE e.department_id = d.department_id);
+~~~
+
+#### 6.2.3.4、相关删除
+
+~~~sql
+DELETE FROM table1 alias1
+WHERE column operator (SELECT expression
+                       FROM table2 alias2
+                       WHERE alias1.column = alias2.column);
+~~~
+
+使用相关子查询依据一个表中的数据删除另一个表的数据。
+
+~~~sql
+DELETE FROM employees e
+WHERE employee_id in(SELECT employee_id
+                     FROM emp_history
+                     WHERE employee_id = e.employee_id);
+~~~
 
 
 
@@ -1706,5 +1985,11 @@ Innodb引擎的表用count(*)，count(1)直接读行数，复杂度是O(n)，因
 
 这一点，就决定了在关联查询中，WHERE 比 HAVING 更高效。因为 WHERE 可以先筛选，用一个筛选后的较小数据集和关联表进行连接，这样占用的资源比较少，执行效率也比较高。HAVING 则需要先把结果集准备好，也就是用未被筛选的数据集进行关联，然后对这个大的数据集进行筛选，这样占用的资源就比较多，执行效率也较低。
 
+## 自连接VS子查询
 
+自连接方式好！
+
+可以使用子查询，也可以使用自连接的情况下，一般建议你使用自连接，因为在许多 DBMS 的处理过程中，对于自连接的处理速度要比子查询快得多。 
+
+可以这样理解：子查询实际上是通过未知表进行查询后的条件判断，而自连接是通过已知的自身数据表进行条件判断，因此在大部分 DBMS 中都对自连接处理进行了优化。
 

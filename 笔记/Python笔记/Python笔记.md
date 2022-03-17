@@ -3035,6 +3035,7 @@ py -m scrapy startproject xxxxx
 spiders
 	__init__.py
 	自定义的爬虫文件.py ‐‐‐》由我们自己创建，是实现爬虫核心功能的文件
+   
     
 __init__.py
 items.py ‐‐‐》定义数据结构的地方，是一个继承自scrapy.Item的类
@@ -3043,18 +3044,29 @@ middlewares.py ‐‐‐》中间件 代理
 ~~~
 
 ~~~python
-pipelines.py ‐‐‐》管道文件，里面只有一个类，用于处理下载数据的后续处理，默认是300优先级，值越小优先级越高（1‐1000）
-需要在settings开启
+pipelines.py ‐‐‐》管道文件，里面目前只有一个类，用于处理下载数据的后续处理。
+                    默认是300优先级，值越小优先级越高（1‐1000）
+                    需要在settings开启
+在每个管道类里面都有一个process_item方法，该方法最后都要将Item返回return，因为 pipeline 并非只有一个，这个处理完，可能别的 pipeline 还要接着处理
 ~~~
 
 ~~~python
-settings.py ‐‐‐》配置文件 比如：是否遵守robots协议，User‐Agent定义等
+settings.py ‐‐‐》配置文件 比如：是否遵守robots协议，User‐Agent定义，日志级别等
+# 指定日志的级别
+# LOG_LEVEL='WARNING'
+# 指定日志文件
+LOG_FILE = 'logdemo.log'
+~~~
+
+
+
+~~~python
 ROBOTSTXT_OBEY = True 注释掉或者false就不遵守
 ITEM_PIPELINES = {
-   #  管道可以有很多个  那么管道是有优先级的  优先级的范围是1到1000   值越小优先级越高
+   	# 管道可以有很多个  那么管道是有优先级的  优先级的范围是1到1000   值越小优先级越高
    'scrapy_dangdang_095.pipelines.ScrapyDangdang095Pipeline': 300,
 
-#    DangDangDownloadPipeline
+	# DangDangDownloadPipeline
    'scrapy_dangdang_095.pipelines.DangDangDownloadPipeline':301
 }
 ~~~
@@ -3168,8 +3180,7 @@ Scrapy终端，是一个交互终端，可以在未启动spider的情况下尝�
 2. yield 是一个类似 return 的关键字，迭代一次遇到 yield 时就返回 yield 后面(右边)的值。重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码(下一行)开始执行。
 3. 简要理解：yield就是 return 返回一个值，并且记住这个返回的位置，下次迭代就从这个位置后(下一行)开始。
 
-~~~python
-~~~
+
 
 ### 2.7.7、CrawlSpider
 
@@ -3199,6 +3210,39 @@ link.extract_links(response)
 - 在基本的spider中，如果重新发送请求，那里的callback写的是 callback=self.parse_item 【注‐ ‐稍后看】follow=true 是否跟进就是按照提取连接规则进行提取
 
 ![image-20220316205025110](images/image-20220316205025110.png)
+
+### 2.7.8、POST请求
+
+用Scrapy的方式先创建项目，之后再修改spider文件
+
+~~~python
+class TestpostSpider(scrapy.Spider):
+    name = 'testpost'
+    allowed_domains = ['https://fanyi.baidu.com/sug']
+    # post请求 如果没有参数 那么这个请求将没有任何意义
+    # 所以start_urls也没有用了
+    # parse方法也没有用了
+    # start_urls = ['https://fanyi.baidu.com/sug/']
+    # def parse(self, response):
+    #     pass
+
+    def start_requests(self):
+        url = 'https://fanyi.baidu.com/sug'
+
+        data = {
+            'kw': 'final'
+        }
+
+        # 发送请求
+        yield scrapy.FormRequest(url=url, formdata=data, callback=self.parse_second)
+
+    def parse_second(self,response):
+        content = response.text
+        obj = json.loads(content,encoding='utf-8')
+        print(obj)
+~~~
+
+
 
 ### 2.7.8、案例
 
@@ -3318,6 +3362,171 @@ class DangDangDownloadPipeline:
 ~~~
 
 #### 2.7.8.2、电影天堂案例
+
+##### 2.7.8.2.1、先定义数据项
+
+~~~python
+class ScrapyMovie099Item(scrapy.Item):
+    name = scrapy.Field()
+    src = scrapy.Field()
+~~~
+
+##### 2.7.8.2.2、嵌套爬取
+
+设置爬取规则，由于需要嵌套爬取，另创建一个parse方法，并用meta传输数据，最后再封装保存
+
+~~~python
+import scrapy
+
+from scrapy_movie_099.items import ScrapyMovie099Item
+
+class MvSpider(scrapy.Spider):
+    name = 'mv'
+    allowed_domains = ['www.dytt8.net']
+    start_urls = ['https://www.dytt8.net/html/gndy/china/index.html']
+
+    def parse(self, response):
+		# 要第一个的名字 和 第二页的图片
+        a_list = response.xpath('//div[@class="co_content8"]//td[2]//a[2]')
+
+        for a in a_list:
+            # 获取第一页的name 和 要点击的链接
+            name = a.xpath('./text()').extract_first()
+            href = a.xpath('./@href').extract_first()
+
+            # 第二页的地址是
+            url = 'https://www.dytt8.net' + href
+            
+            # 对第二页的链接发起访问
+            yield  scrapy.Request(url=url,callback=self.parse_second,meta={'name':name})
+
+    def parse_second(self,response):
+        # 注意 如果拿不到数据的情况下  一定检查你的xpath语法是否正确
+        src = response.xpath('//div[@id="Zoom"]//img/@src').extract_first()
+        # 接受到请求的那个meta参数的值
+        name = response.meta['name']
+
+        movie = ScrapyMovie099Item(src=src,name=name)
+
+        yield movie
+~~~
+
+管道下载数据完事
+
+#### 2.7.8.3、读书网案例
+
+使用CrawlSpider，不过依旧要先创建数据项
+
+~~~python
+class ScrapyReadbook101Item(scrapy.Item):
+    name = scrapy.Field()
+    src = scrapy.Field()
+~~~
+
+在爬虫规则里设置url提去器的规则，以及爬取数据的规则
+
+follow=true设置链接跟进
+
+~~~python
+class ReadSpider(CrawlSpider):
+    name = 'read'
+    allowed_domains = ['www.dushu.com']
+    start_urls = ['https://www.dushu.com/book/1188_1.html']
+
+    rules = (
+        Rule(LinkExtractor(allow=r'/book/1188_\d+.html'),
+             callback='parse_item',
+             follow=True),
+    )
+
+    def parse_item(self, response):
+
+        img_list = response.xpath('//div[@class="bookslist"]//img')
+
+        for img in img_list:
+            name = img.xpath('./@data-original').extract_first()
+            src = img.xpath('./@alt').extract_first()
+
+            book = ScrapyReadbook101Item(name=name,src=src)
+            yield book
+~~~
+
+在settings中开启管道的同时，设置下mysql的连接参数，并在管道处引入
+
+~~~python
+# 参数中一个端口号 一个是字符集 都要注意
+DB_HOST = '192.168.231.130'
+# 端口号是一个整数
+DB_PORT = 3306
+DB_USER = 'root'
+DB_PASSWROD = '1234'
+DB_NAME = 'spider01'
+# utf-8的杠不允许写
+DB_CHARSET = 'utf8'
+
+ITEM_PIPELINES = {
+   'scrapy_readbook_101.pipelines.ScrapyReadbook101Pipeline': 300,
+   # MysqlPipeline
+   'scrapy_readbook_101.pipelines.MysqlPipeline':301
+}
+~~~
+
+最后管道下载数据，将数据存入mysql中
+
+~~~python
+class ScrapyReadbook101Pipeline:
+
+    def open_spider(self,spider):
+        self.fp = open('book.json','w',encoding='utf-8')
+
+
+        def process_item(self, item, spider):
+            self.fp.write(str(item))
+            return item
+
+        def close_spider(self,spider):
+            self.fp.close()
+
+# 加载settings文件获取mysql的连接参数
+from scrapy.utils.project import get_project_settings
+import pymysql
+
+
+class MysqlPipeline:
+
+    def open_spider(self,spider):
+        settings = get_project_settings()
+        self.host = settings['DB_HOST']
+        self.port =settings['DB_PORT']
+        self.user =settings['DB_USER']
+        self.password =settings['DB_PASSWROD']
+        self.name =settings['DB_NAME']
+        self.charset =settings['DB_CHARSET']
+        self.connect()
+
+    def connect(self):
+        self.conn = pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            db=self.name,
+            charset=self.charset
+        )
+        self.cursor = self.conn.cursor()
+
+	def process_item(self, item, spider):
+        sql = 'insert into book(name,src) values("{}","{}")'.format(item['name'],item['src'])
+        # 执行sql语句
+        self.cursor.execute(sql)
+        # 提交
+        self.conn.commit()
+        return item
+
+    def close_spider(self,spider):
+        self.cursor.close()
+        self.conn.close()
+~~~
 
 
 
