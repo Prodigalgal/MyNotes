@@ -1789,6 +1789,209 @@ WHERE employee_id in(SELECT employee_id
                      WHERE employee_id = e.employee_id);
 ~~~
 
+# 7、MySQL之创建管理表
+
+从系统架构的层次上看，MySQL 数据库系统从大到小依次是 数据库服务器 、 数据库 、 数据表 、数据表的行与列。
+
+## 7.1、标识符命名规则
+
+- 数据库名、表名不得超过30个字符，变量名限制为29个 
+- 必须只能包含 A–Z, a–z, 0–9, _共63个字符 
+- 数据库名、表名、字段名等对象名中间不要包含空格
+- 同一个MySQL软件中，数据库不能同名，同一个库中，表不能重名，同一个表中，字段不能重名
+- 必须保证你的字段没有和保留字、数据库系统或常用方法冲突，请在SQL语句中使 用`（着重号）引起来
+- 保持字段名和类型的一致性：在命名字段并为其指定数据类型的时候一定要保证一致性，假如数据类型在一个表里是整数，那在另一个表里可就别变成字符型了。
+
+## 7.2、创建数据库
+
+~~~sql
+CREATE DATABASE 数据库名;
+
+CREATE DATABASE 数据库名 CHARACTER SET 字符集;
+
+CREATE DATABASE IF NOT EXISTS 数据库名;
+~~~
+
+**注意**：DATABASE 不能改名。一些可视化工具可以改名，它是建新库，把所有表复制到新库，再删旧库完成的。
+
+## 7.3、使用数据库
+
+~~~sql
+SHOW DATABASES; #有一个S，代表多个数据库
+
+SELECT DATABASE(); #使用的一个 mysql 中的全局函数
+
+SHOW TABLES FROM 数据库名;
+
+SHOW CREATE DATABASE 数据库名;
+或者：
+SHOW CREATE DATABASE 数据库名\G
+
+USE 数据库名;
+
+
+~~~
+
+**注意**：要操作表格和数据之前必须先说明是对哪个数据库进行操作，否则就要对所有对象加上“数据库名.”。
+
+## 7.4、删除数据库
+
+~~~sql
+DROP DATABASE 数据库名;
+
+DROP DATABASE IF EXISTS 数据库名;
+~~~
+
+## 7.5、创建表
+
+### 7.5.1、方案一
+
+**必须具备**： 
+
+- CREATE TABLE权限
+- 存储空间
+
+**必须指定**：
+
+- 表名 
+- 列名(或字段名)，数据类型，长度
+
+可选值：
+
+- 约束条件 
+- 默认值
+
+~~~sql
+CREATE TABLE [IF NOT EXISTS] 表名(
+    字段1, 数据类型 [约束条件] [默认值],
+    字段2, 数据类型 [约束条件] [默认值],
+    字段3, 数据类型 [约束条件] [默认值],
+    ……
+    [表约束条件]
+);
+~~~
+
+加上了IF NOT EXISTS关键字，则表示：如果当前数据库中不存在要创建的数据表，则创建数据表； 如果当前数据库中已经存在要创建的数据表，则忽略建表语句，不再创建数据表。
+
+**注意**：在MySQL 8.x版本中，不再推荐为INT类型指定显示长度，并在未来的版本中可能去掉这样的语法。
+
+### 7.5.2、方案二
+
+使用 AS subquery 选项，将创建表和插入数据结合起来
+
+- 指定的列和子查询中的列要一一对应 
+
+- 通过列名和默认值定义列
+
+~~~sql
+CREATE TABLE emp1 AS SELECT * FROM employees;
+
+CREATE TABLE emp2 AS SELECT * FROM employees WHERE 1=2; -- 创建的emp2是空表
+
+CREATE TABLE dept80
+AS
+SELECT employee_id, last_name, salary*12 ANNSAL, hire_date
+FROM employees
+WHERE department_id = 80;
+~~~
+
+## 7.6、查看表结构
+
+~~~sql
+MySQL支持使用 DESCRIBE/DESC 语句查看数据表结构
+也支持使用 SHOW CREATE TABLE 语句查看数据表结构。
+
+SHOW CREATE TABLE 表名\G
+~~~
+
+使用SHOW CREATE TABLE语句不仅可以查看表创建时的详细语句，还可以查看存储引擎和字符编码。
+
+## 7.7、修改表
+
+修改表指的是修改数据库中已经存在的数据表的结构。 
+
+使用 ALTER TABLE 语句可以实现： 
+
+- 向已有的表中添加列 
+- 修改现有表中的列 
+- 删除现有表中的列 
+- 重命名现有表中的列
+
+### 7.7.1、追加一个列
+
+~~~sql
+ALTER TABLE 表名 ADD 【COLUMN】 字段名 字段类型 【FIRST|AFTER 字段名】;
+~~~
+
+### 7.7.2、修改一个列
+
+可以修改列的数据类型，长度、默认值和位置 
+
+修改字段数据类型、长度、默认值、位置的语法格式如下：
+
+~~~sql
+ALTER TABLE 表名 MODIFY 【COLUMN】 字段名1 字段类型 【DEFAULT 默认值】【FIRST|AFTER 字段名2】;
+~~~
+
+- 对默认值的修改只影响今后对表的修改 
+
+- 此外，还可以通过此种方式修改列的约束。
+
+###  7.7.3、重命名一个列
+
+使用 CHANGE old_column new_column dataType子句重命名列。语法格式如下：
+
+~~~sql
+ALTER TABLE 表名 CHANGE 【column】 列名 新列名 新数据类型;
+~~~
+
+### 7.7.4、删除一个列
+
+~~~sql
+ALTER TABLE 表名 DROP 【COLUMN】字段名
+~~~
+
+### 7.7.5、重命名表
+
+~~~sql
+RENAME TABLE emp TO myemp;
+
+ALTER table dept RENAME [TO] detail_dept; -- [TO]可以省略
+~~~
+
+**注意**：必须是对象的拥有者
+
+### 7.7.6、删除表
+
+- 在MySQL中，当一张数据表没有与其他任何数据表形成关联关系时，可以将当前数据表直接删除。 
+- 数据和结构都被删除 
+- 所有正在运行的相关事务被提交 
+- 所有相关索引被删除
+
+~~~sql
+DROP TABLE [IF EXISTS] 数据表1 [, 数据表2, …, 数据表n];
+~~~
+
+IF EXISTS 的含义为：如果当前数据库中存在相应的数据表，则删除数据表。
+
+如果当前数据库中不存在相应的数据表，则忽略删除语句，不再执行删除数据表的操作。
+
+**注意**：DROP TABLE 语句不能回滚
+
+### 7.7.7、清空表
+
+TRUNCATE TABLE语句： 
+
+- 删除表中所有的数据 
+
+- 释放表的存储空间
+
+~~~sql
+TRUNCATE TABLE detail_dept;
+~~~
+
+**注意**：TRUNCATE 语句不能回滚，而使用 DELETE 语句删除数据，可以回滚
+
 
 
 # 扩展
