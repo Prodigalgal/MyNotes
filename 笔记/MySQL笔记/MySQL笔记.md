@@ -1418,7 +1418,9 @@ MySQL中的流程处理函数主要包括**IF()**、**IFNULL()**和**CASE()**函
 
 ## 5.1、基本聚合函数
 
-非法使用聚合函数：不能在 WHERE 子句中使用聚合函数。如下：
+聚合函数需要与Group
+
+非法使用聚合函数：**不能在 WHERE 子句中使用聚合函数**。如下：
 
 ~~~sql
 SELECT department_id, AVG(salary)
@@ -1444,9 +1446,11 @@ GROUP BY department_id;
 
 ## 5.2、GROUP BY
 
-可以使用GROUP BY子句将表中的数据分成若干组
+可以使用 GROUP BY 子句将表中的数据分成若干组
 
-- 在SELECT列表中所有未包含在组函数中的列都应该包含在 GROUP BY子句中
+<a name="atGroup">**注意**</a>：
+
+- **在 SELECT 列表中所有未包含在聚合函数中的列都应该包含在 GROUP BY子句中**。
 
 ~~~sql
 SELECT department_id, AVG(salary)
@@ -1454,7 +1458,7 @@ FROM employees
 GROUP BY department_id ;
 ~~~
 
-- 包含在 GROUP BY 子句中的列不必包含在SELECT 列表中
+- **包含在 GROUP BY 子句中的列不必包含在 SELECT 列表中**。
 
 ~~~sql
 SELECT AVG(salary)
@@ -1483,6 +1487,11 @@ FROM employees
 WHERE department_id > 80
 GROUP BY department_id WITH ROLLUP;
 ~~~
+
+**理解**：
+
+- GROUP  BY 字段X 将字段X的值相同的合并为一行，生成一张虚拟表T1，此虚拟表T1其余字段具有多个值，这也正应对了 <a href="#atGroup">**注意**</a> 中所要求的两点，之后通过聚合函数对多值字段进行计算返回一个值，或者直接返回被Group分组的字段。
+- 而 GROUP  BY 字段X，字段Y 也是同样的理解，生成虚拟表T1，将字段X与字段Y看作一个整体，字段单一值，其余字段多值。
 
 ## 5.3、HAVING
 
@@ -1538,11 +1547,11 @@ WHERE salary > (
 - 将子查询放在比较条件的右侧
 - 单行操作符对应单行子查询，多行操作符对应多行子查询
 
-子查询的编写技巧（或步骤）：① 从里往外写  ② 从外往里写
+子查询的编写技巧：① 从里往外写  ② 从外往里写
 
-① 如果子查询相对较简单，建议从外往里写。一旦子查询结构较复杂，则建议从里往外写
+① 如果子查询相对较**简单**，建议从**外往里写**。一旦子查询结构较**复杂**，则建议**从里往外写**。
 
-② 如果是相关子查询的话，通常都是从外往里写。
+② 如果是**相关子查询**的话，通常都是**从外往里写**。
 
 ## 6.2、子查询的分类
 
@@ -1553,7 +1562,7 @@ WHERE salary > (
 
 ### 6.2.1、单行子查询
 
-单行操作符
+#### 单行操作符
 
 |操作符 |含义|
 | ---- | ---- |
@@ -1658,6 +1667,8 @@ WHERE salary =
 - 内查询返回多行
 - 使用多行比较操作符
 
+#### 多行操作符
+
 |操作符| 含义|
 | ---- | ---- |
 |IN |等于列表中的任意一个|
@@ -1702,6 +1713,8 @@ WHERE employee_id NOT IN (
 
 ![image-20220317115535795](images/image-20220317115535795.png)
 
+##### 6.2.3.1.1、在 WHERE 中使用子查询
+
 若employees表中employee_id与job_history表中employee_id相同的数目不小于2，输出这些相同 id的员工的employee_id,last_name和其job_id
 
 ~~~sql
@@ -1713,9 +1726,9 @@ WHERE 2 <= (SELECT COUNT(*)
 
 ~~~
 
-在 FROM 中使用子查询
+##### 6.2.3.1.2、在 FROM 中使用子查询
 
-- 子查询是作为from的一部分，子查询要用()引起来，并且要给这个子查询取别名， 把它当成一张“临时的虚拟的表”来使用。
+- 子查询是作为from的一部分，子查询要用()引起来，并且要给这个子查询取别名， 把它当成一张 **临时的虚拟的表** 来使用。
 
 ~~~sql
 SELECT last_name,salary,e1.department_id
@@ -2196,3 +2209,42 @@ Innodb引擎的表用count(*)，count(1)直接读行数，复杂度是O(n)，因
 
 可以这样理解：子查询实际上是通过未知表进行查询后的条件判断，而自连接是通过已知的自身数据表进行条件判断，因此在大部分 DBMS 中都对自连接处理进行了优化。
 
+# 面试题
+
+## 1、删除除了id字段以外都相同的数据
+
+~~~sql
+create table tbl_students
+(
+    id   int         not null
+        primary key,
+    name varchar(10) null,
+    sax  varchar(10) null,
+    age  int         null
+);
+
+insert into tbl_students (id, name, sax, age)
+values ('2', '李四', '男', '21');
+insert into tbl_students (id, name, sax, age)
+values ('3', '张三', '女', '17');
+insert into tbl_students (id, name, sax, age)
+values ('4', '李四', '男', '12');
+insert into tbl_students (id, name, sax, age)
+values ('6', '凤姐', '女', '20');
+insert into tbl_students (id, name, sax, age)
+values ('5', '凤姐', '女', '20');
+insert into tbl_students (id, name, sax, age)
+values ('7', '田七', '男', '18');
+insert into tbl_students (id, name, sax, age)
+values ('1', '田七', '男', '18');
+insert into tbl_students (id, name, sax, age)
+values ('8', '张三', '男', '17');
+~~~
+
+~~~sql
+delete
+from tbl_students as ts
+where ts.id not in (select * from (select min(id) as id from tbl_students group by name, sax, age) as tsi);
+~~~
+
+思路：可以先查出其余字段相同的数据的id，用聚合函数筛出待删id返回为一个临时表，再用 not in 判断，从里往外写。
