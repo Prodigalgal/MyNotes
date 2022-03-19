@@ -579,7 +579,7 @@ service-url:
   nacos-user-service: http://nacos-payment-provider
 ~~~
 
-新建配置类ApplicationContextConfig
+新建配置类ApplicationContextConfig，加入负载均衡
 
 ~~~java
 @Configuration
@@ -594,7 +594,7 @@ public class ApplicationContextConfig {
 
 ### 添加规则
 
-新建业务类CircleBreakerController，指定兜底方法，占不配置Sentinel
+新建业务类CircleBreakerController，指定兜底方法，不配置Sentinel
 
 ~~~java
 @RestController
@@ -644,7 +644,7 @@ public class CircleBreakerController{
 
 ![image-20220318172914817](images/image-20220318172914817.png)
 
-若 blockHandler 和 fallback 都进行了配置，则被限流降级而抛出 BlockException 时只会进入 blockHandler 处理逻辑。
+若 blockHandler 和 fallback 都进行了配置，则被限流降级而抛出 BlockException 时只会进入 blockHandler 处理逻辑，若没有限流则fallback解决。
 
 ### 额外配置
 
