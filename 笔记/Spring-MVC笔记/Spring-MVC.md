@@ -1,4 +1,10 @@
-# Spring-MVC入门
+Spring-MVC.Version.2.0.0
+
+
+------
+
+
+# 1、Spring-MVC入门
 
 配置web.xml
 
@@ -38,7 +44,33 @@
 
 - 创建请求处理类：使用@Controller注解修饰类，@RequestMapping注解修饰方法
 
-# 常用注解
+## SpringMVC常用组件
+
+- DispatcherServlet：**前端控制器**，由框架提供
+
+作用：统一处理请求和响应，整个流程控制的中心，由它调用其它组件处理用户的请求
+
+- HandlerMapping：**处理器映射器**，由框架提供
+
+作用：根据请求的url、method等信息查找Handler，即控制器方法
+
+- Handler：**处理器**，需要工程师开发
+
+作用：在DispatcherServlet的控制下Handler对具体的用户请求进行处理
+
+- HandlerAdapter：**处理器适配器**，由框架提供
+
+作用：通过HandlerAdapter对处理器（控制器方法）进行执行
+
+- ViewResolver：**视图解析器**，由框架提供
+
+作用：进行视图解析，得到相应的视图，例如：ThymeleafView、InternalResourceView、RedirectView
+
+- View：**视图**
+
+作用：将模型数据通过页面展示给用户
+
+# 2、注解大全
 
 ## @Controller注解
 
@@ -60,9 +92,9 @@
 | 请求参数     | @RequestBody    | 请求参数以json格式提交               |
 | 返回参数     | @ResponseBody   | 返回 json 格式                       |
 
-注意：
+### 注意
 
-- @RestController是@Controller的子集，该注解是@Controller和@ResponseBody的集合
+- **@RestController**是@Controller的子集，该注解是@Controller和@ResponseBody的集合
 - @GetMapping、@PostMapping、@PutMapping、@DeleteMapping 是 @RequestMapping 的子集
 
 @Controller 与 @RestController应用场景：
@@ -98,7 +130,10 @@
 - **Heads**：请求头，支持简单表达式
 
 ```java
-//表明映射URL为/helloThree，请求方法必须为GET，必须要含有参数userName与age且age的值不能为18，请求头必须为指定的
+// 表明映射URL为/helloThree
+// 请求方法必须为GET
+// 必须要含有参数userName与age且age的值不能为18
+// 请求头必须为指定的
 @RequestMapping(
 
     value = "/helloThree", 
@@ -138,6 +173,8 @@
 
 1、@PathVariable注解**映射URL绑定的占位符**，通过该注解可以将URL中**占位符参数绑定**到控制器@Controller的处理方法的**入参**中，即URL中的{xxx}占位符可以通过@PathVariable（“xxx“）绑定到处理方法的入参中。
 
+**注意**：参数类型一定要对应，否则报错400，一般传入的都是String类型
+
 ```java
 @RequestMapping(value = "/helloFive/{name}/{age}")
 public String testFive(@PathVariable("name") String name,@PathVariable("age") String age)
@@ -145,7 +182,9 @@ public String testFive(@PathVariable("name") String name,@PathVariable("age") St
 
 2、只支持简单的数据类型，**只支持GET请求**，**不支持复杂的数据类型以及自定义的数据类型**。
 
-3、@PathVariable**只有一个参数**，不填写**默认绑定**到与URL占位符参数**同名的入参**中
+### 参数
+
+@PathVariable**只有一个参数**，用于指定绑定到哪个入参中，不填写**默认绑定**到与URL占位符参数**同名的入参**中
 
 ## @RequestParam注解
 
@@ -162,11 +201,24 @@ public String testFive(@PathVariable("name") String name,@PathVariable("age") St
 ### 属性
 
 - **Value**：参数名
-
 - **Required**：该请求参数是否必须？，默认为true，表示必须存在，不存在将抛出异常。
+- **defaultValue**：默认参数值，如果设置了该值，required=true将失效，自动为false，如果没有传该参数，就使用默认值。
 
 ```java
 @RequestParam(value = "age", defaultValue = "0", required = false) int age
+```
+
+如果传入的数据是一个相同的K，多个V，则可以使用数组或者List接收。
+
+```java
+@RequestParam(value = "age", defaultValue = "0", required = false) int[] age
+```
+也可以使用Map直接全部接收，但是无法接收一个K多个V的类型，其内只会保存首个KV组合，需要另外使用数组或者List接收
+```java
+// 此处did有多个值，但是map只保存了首个，需要dids数组全部接收
+public ModelAndView addPrescription(
+    @RequestParam Map<String, String> map, 
+	@RequestParam("dId") String[] dIds)   
 ```
 
 ## @RequestHeader注解
@@ -199,19 +251,57 @@ public String testFive(@PathVariable("name") String name,@PathVariable("age") St
 @CookieValue(value = "JSESSIONID") String val
 ```
 
-## @SessionAttributes注解
+## <a name="@SessionAttributes注解">@SessionAttributes注解</a> 
 
 ### 简介
 
-默认情况下Spring MVC将模型中的数据存储到request域中。当一个请求结束后，数据就失效了。如果要跨页面使用。那么需要使用到session。而@SessionAttributes注解就可以使得模型中的数据存储一份到session域中。
+默认情况下Spring MVC将模型中的数据存储到request域中，当一个请求结束后，数据就失效了。
+
+如果要跨页面使用，那么需要使用到session。而@SessionAttributes注解就可以使得模型中的数据存储一份到session域中。
+
+**注意**：
+
+- @SessionAttributes只能使用在类定义上。
+- 在**控制器**上使用该注解修饰，即可在多个请求之间共用某个模型属性的数据
 
 ### 参数
 
 - **names**：这是一个字符串数组。里面应写需要存储到session中数据的名称。
-
 - **types**：根据指定参数的类型，将模型中对应类型的参数存储到session中
-
 - **value**：其实和names是一样的。
+  - **value和type之间是并集关系**
+
+@SessionAttributes 除了可以通过属性名指定需要放到会话中的属性外，还可以通过模型属性的对象类型指定哪些模型属性需要放到会话中
+
+~~~java
+// 会将model中所有类型为 User的属性添加到会话中。
+@SessionAttributes(types=User.class)
+
+// 会将model中属性名为user1和user2的属性添加到会话中。
+@SessionAttributes(value={“user1”, “user2”}) 
+
+// 会将model中所有类型为 User和Dept的属性添加到会话中。
+@SessionAttributes(types={User.class, Dept.class}) 
+
+// 会将model中属性名为user1和user2以及类型为Dept的属性添加到会话中。
+@SessionAttributes(value={“user1”,“user2”},types={Dept.class})
+~~~
+
+~~~java
+@SessionAttributes(value={"user"})
+@Controller
+public class UserController {
+
+    @RequestMapping("/testSessionAttributes")
+    public String testSessionAttributes(Model model){
+        User user = new User("jack","123456");
+        model.addAttribute("user", user);
+        return "success";
+    }
+}
+~~~
+
+
 
 ##  @ResponseBody注解
 
@@ -224,6 +314,8 @@ public String testFive(@PathVariable("name") String name,@PathVariable("age") St
 ### 使用时机
 
 返回的数据不是页面
+
+
 
 ## @RequestBody注解
 
@@ -246,24 +338,110 @@ public String testFive(@PathVariable("name") String name,@PathVariable("age") St
 - multipart/form-data, 不能处理
 - 其他格式， 必须
 
+~~~html
+<form th:action="@{/testRequestBody}" method="post">
+    用户名：<input type="text" name="username"><br>
+    密码：<input type="password" name="password"><br>
+    <input type="submit">
+</form>
+~~~
+
+~~~java
+@RequestMapping(value = "user/login")
+@ResponseBody
+// 将ajax（datas）发出的请求写入 User 对象中
+public User login(@RequestBody User user) {   
+// 这样就不会再被解析为跳转路径，而是直接将user对象写入 HTTP 响应正文中
+    
+    return user;    
+}
+
+@RequestMapping("/testRequestBody")
+public String testRequestBody(@RequestBody String requestBody){
+    System.out.println("requestBody:"+requestBody);
+    // 输出结果：requestBody:username=admin&password=123456
+    return "success";
+}
+~~~
+
 ### 说明
 
 request的body部分的数据编码格式由header部分的Content-Type指定
 
-## @ExceptionHandler注解
+
+
+## <a name="@ExceptionHandler注解">@ExceptionHandler注解</a> 
 
 ### 简介
 
 1、统一处理某一异常类。
 
-2、属性**value**指定异常类
+2、属性**value**指定异常类。
 
-3、被该注解修饰的方法的返回值可以为ModleAndView、Modle、Map、View、String、void、@ResponseBody、HttpEntity\<T>、ResponseEntity\<T>。
+3、被该注解修饰的方法的返回值可以为：
+
+~~~text
+ModleAndView
+Modle
+Map
+View
+String
+void
+@ResponseBody
+HttpEntity<T>
+ResponseEntity<T>
+~~~
+
+### 缺点
+
+进行异常处理的方法必须与出错的方法在同一个Controller里面，这种方式最大的缺陷就是不能全局控制异常，每个类都要写一遍。
 
 ### 优先级问题
 
 - 例如发生的是NullPointerException，但声明的异常有RuntimeException、Exception，此时会根据异常的继承关系找到**继承深度最浅**的那个@ExceptionHandler注解方法，即标记了RuntimeException的方法。
-- ExceptionHandlerMethodResolver内部若找不到@ExceptionHandler注解的话，会找**@ControllerAdvice注解**中的@ExceptionHandler注解方法
+- ExceptionHandlerMethodResolver 内部若找不到 @ExceptionHandler 注解的话，会找 **@ControllerAdvice注解** 中的@ExceptionHandler注解方法，如果有@ControllerAdvice标记的类的话。
+
+~~~java
+@Controller
+public class UserController {
+    @RequestMapping("/show1")
+    public String showInfo(){
+        String str = null;
+        str.length();
+        return "index";
+    }
+    @RequestMapping("/show2")
+    public String showInfo2(){
+        int a = 10/0;
+        return "index";
+    }
+ 
+    /**
+     * java.lang.ArithmeticException
+     * 该方法需要返回一个 ModelAndView：目的是可以让我们封装异常信息以及视图的指定
+     * 参数 Exception e:会将产生异常对象注入到方法中
+     */
+    @ExceptionHandler(value={java.lang.ArithmeticException.class})
+    public ModelAndView arithmeticExceptionHandler(Exception e){
+        ModelAndView mv = new ModelAndView();
+        mv.addObject("error", e.toString());
+        mv.setViewName("error1");
+        return mv;
+    }
+ 
+    /**
+     * java.lang.NullPointerException
+     * 该方法需要返回一个 ModelAndView：目的是可以让我们封装异常信息以及视图的指定
+     * 参数 Exception e:会将产生异常对象注入到方法中
+     */
+    @ExceptionHandler(value={java.lang.NullPointerException.class})
+    @ResponseBody
+    public String nullPointerExceptionHandler(Exception e){
+        ModelAndView mv = new ModelAndView();
+        return e.toString();
+    }
+}
+~~~
 
 ## @ResponseStatus注解
 
@@ -271,9 +449,11 @@ request的body部分的数据编码格式由header部分的Content-Type指定
 
 1、两种用法：修饰**自定义异常类**，修饰**目标处理方法**。
 
+- 修饰自定义异常类，先声明一个自定义异常类，再加上该注解。
+
 2、属性**value**设置异常状态，属性**reason**设置异常描述。
 
-3、修饰自定义异常类，先声明一个自定义异常类，再加上该注解。
+- 如果设置了reason，且修饰在方法上，则目标方法返回值都不处理，直接返回reason
 
 ### 例子
 
@@ -284,9 +464,62 @@ request的body部分的数据编码格式由header部分的Content-Type指定
 public class UserNameNOT extends RuntimeException
 ```
 
-当处理器抛出上述自定义异常，若**ExceptionHandlerExceptionResolver**不解析异常，由于触发的异常UserNameNOT带有@ResponseStatus注解。因此会被**ResponseStatusExceptionResolver**解析到。最后响应预先设置的HTTP状态码与错误信息给客户端。
+当处理器抛出上述自定义异常，若**ExceptionHandlerExceptionResolver**不解析异常，由于触发的异常UserNameNOT带有@ResponseStatus注解。
 
-## @ControllerAdvice
+因此会被**ResponseStatusExceptionResolver**解析到。最后响应预先设置的HTTP状态码与错误信息给客户端。
+
+
+
+~~~java
+@RestControllerAdvice
+public class ExceptionController {
+    // 捕捉其他所有异常
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Response globalException(HttpServletRequest request, Throwable ex) {
+        return new Response(400,"1 / 0",null);
+    }
+}
+// 
+~~~
+
+![image-20220320104726668](images/image-20220320104726668.png)
+
+修饰在Contorller方法上，修改状态码，HttpStatus.CREATED 状态码为201，将原来请求状态码200改为201
+
+~~~java
+@RequestMapping(path = "/401")
+@ResponseStatus(value = HttpStatus.CREATED)
+public Response unauthorized() {
+    return new Response(401, "Unauthorized", null);
+}
+~~~
+
+
+
+**推荐用法**：
+
+先定义一个异常类，使用该注解
+
+~~~java
+@ResponseStatus(code = HttpStatus.PAYMENT_REQUIRED,reason = "this is MyException")
+public class MyException extends RuntimeException {
+    public MyException() {}
+}
+~~~
+
+在运行时抛出异常
+
+~~~java
+@GetMapping("/err2")
+public Response errorTest2(){
+    throw new MyException();
+}
+~~~
+
+
+
+## <a name="@ControllerAdvice注解">@ControllerAdvice注解</a> 
 
 ### 简介
 
@@ -303,6 +536,7 @@ public class UserNameNOT extends RuntimeException
 ```java
 @ControllerAdvice
 public class MyGlobalExceptionHandler {
+    
     @ExceptionHandler(Exception.class)
     public ModelAndView customException(Exception e) {
         ModelAndView mv = new ModelAndView();
@@ -310,6 +544,7 @@ public class MyGlobalExceptionHandler {
         mv.setViewName("myerror");
         return mv;
     }
+    
 }
 ```
 
@@ -344,7 +579,7 @@ public void addBook(@ModelAttribute("b") Book book, @ModelAttribute("a") Author 
 }
 ```
 
-@InitBinder("b") 注解表示该方法用来处理和Book和相关的参数,在方法中,给参数添加一个 b 前缀,即请求参数要有b前缀.
+@InitBinder("b") 注解表示该方法用来处理和Book和相关的参数,在方法中，给参数添加一个 b 前缀，即请求参数要有b前缀。
 
 ```java
 @InitBinder("b")
@@ -361,9 +596,781 @@ public void a(WebDataBinder binder) {
 
 ![image-20211106170820089](images/image-20211106170820089.png)
 
+## <a name="@ModelAttribute注解">@ModelAttribute注解</a> 
+
+### 简介
+
+- 在**方法的定义**上使用该注解
+  1. Spring-MVC在调用目标处理方法前，会先逐个调用在方法级上标注了该注解的方法。
+
+- 在**方法入参中**使用该注解
+  1. Spring-MVC先从**模型数据**中获取对象，之后将**请求参数绑定到对象中**，再传入形参。
+  2. 如果不存在这个对象，则会自动实例化一个新的对象，并且模型数据中的对象的属性会被请求参数覆盖。（对象是同一个，只不过数据被覆盖）。
+  3. 模型属性还会被来自 HTTP Servlet 请求参数的名称与字段名称匹配的覆盖，也就是请求参数如果和模型类中的域变量一致，则会自动将这些请求参数绑定到这个模型对象，这被称为数据绑定，从而避免了解析和转换每个请求参数和表单字段这样的代码。
 
 
-# REST
+### 用法
+
+- 写入模型数据有俩种方式：**存入implicitModel** 
+
+  1. 通过入参处使用**Model类型或者Map类型**（不推荐，会产生一个key = void 值为null的数据）在调用最终的目标处理方法前，“student”会被放入到Model或Map中，Map放入数据时，key由map决定，如果注解没有使用value或者name。
+
+    **注意**：无返回值的情况下，无论注解用不用属性，都只有一个对象产生，k为map指定
+
+    也就是说，**在没有返回值时，注解的属性无用**。
+
+    ```java
+    @ModelAttribute
+    public void getStudent(@RequestParam(value = "id", required = false) String idStr, Map<String, Object> map) {
+        .........
+        // key由map决定
+        map.put("student", student);
+    }
+    ```
+    <img src="images/image-20220320155157043.png" alt="image-20220320155157043" style="zoom:40%;" /><img src="images/image-20220320155515623.png" alt="image-20220320155515623" style="zoom:35%;" />
+
+    **注意**：如果用了map，且方法有返回值的情况下，无论用不用注解的属性，都会产生俩个对象，验证如下：
+
+    ~~~java
+    // 在Model数据中，会存在俩个对象，一个k为返回值类型首字母小写，一个k为super，v均为”哇哇哇“
+    @ModelAttribute
+    public String testString(Map<String,String> map){
+        String a = "哇哇哇";
+        map.put("super", a);
+        return a;
+    }
+    ~~~
+
+    <img src="images/image-20220320154646460.png" alt="image-20220320154646460" style="zoom:50%;" />
+
+    
+
+    ```java
+    // 在Model数据中，会存在俩个对象，一个k为ABC，一个k为super，v均为”哇哇哇“
+    @ModelAttribute("ABC")
+    public String testString(Map<String,String> map){
+        String a = "哇哇哇";
+        map.put("super", a);
+        return a;
+    }
+    ```
+
+    <img src="images/image-20220320154450441.png" alt="image-20220320154450441" style="zoom:50%;" />
+
+  2. 通过**@ModelAttribute**的value或name属性 或者 **方法返回值**，如果不用value或name属性，默认为**返回值类型首字母小写**。
+
+    **注意**：在有返回值时，指定注解的属性，则模型中只会有一个对象。
+
+    ```java
+    @ModelAttribute("student")
+    public Student getStudent(@RequestParam(value = "id", required = false) String idStr)
+        
+    等同于 ---》 model.addAttribute("student", student);
+    
+    
+    @ModelAttribute(value = "attributeName")
+    public String myModel(@RequestParam(required = false) String abc) {
+        return abc;
+        // 如果不指定，则k为string，v为abc
+    }
+    
+    @ModelAttribute
+    public void myModel(Model model) {
+        model.addAttribute("name", "zong");
+        model.addAttribute("age", 20);
+    }
+    
+    
+    // 从模型中获取数据
+    @RequestMapping(value = "/param")
+    public String param(@ModelAttribute("attributeName") String str1,
+                        @ModelAttribute("name") String str2,
+                        @ModelAttribute("age") int str3) {
+        return "param";
+    }
+    ```
+
+- 读取由该注解写入Model的数据：
+
+  - 在**方法入参前**使用该注解，并写明value或name值，Spring-MVC会自动从模型数据中获取。且只获取一个，否则似乎按照类型全部获取。
+  - 在方法入参前无该注解，key默认为POJO类名第一个字母小写。
+  - 最终目标处理方法处的实体**形参名**与注解标注**的value或name无关**，只与**类型有关**。
+  - 在implicitModel中查找key对应的对象，若存在，作为入参传入，在@ModelAttribute注解修饰过的方法中的Map存入过该key相同对象，则可以获取到。
+
+# 3、处理模型属性
+
+## 简介
+
+Spring-MVC提供了四种途径输出模型数据
+
+- **ModelAndView**
+  - 处理方法返回值类型为ModelAndView时，方法体既可通过该对象添加模型数据。
+- **Map以及Model**
+  - 入参为**org.springframework.ui.Model**、**org.springframework.ui.ModelMap** 或 **java.uti.Map** 时，处理方法返回时，Map中的数据会自动添加到模型中。
+- **@SessionAttributes**注解
+  - 将模型中的某个属性暂存到HttpSession中，以便多个请求之间可以共享这个属性，<a href="#@SessionAttributes注解">详见</a> 
+- **@ModelAttribute**注解
+  - 方法入参标注该注解后，入参的对象就会放到数据模型中，<a href="#@ModelAttribute注解">详见</a> 
+
+## ModelAndView
+
+**控制器处理方法**的**返回值**如果为ModelAndView，则既包含视图信息，也包含模型数据信息。
+
+ModelAndView有**Model**和**View**的功能
+
+- **Model**：主要用于向请求域共享数据
+- **View**：主要用于设置视图，实现页面跳转
+
+- 添加模型数据
+  - **addObject**(String attributeName, Object attributeValue)
+  - **addAllObject**(Map<String, ?> modelMap)
+
+- 设置视图
+  - **setView**(View view)
+  - **setViewName**(String viewName)
+
+## Map以及Model
+
+Spring-MVC在内部使用了一个**org.springframework.ui.Model** 接口存储模型数据。
+
+- 具体步骤
+  - Spring-MVC在调用方法前会创建一个**隐含的模型对象**作为模型数据的存储容器。
+  - 如果**方法入参**为**Map**或**Model**类型，Spring-MVC会将隐含模型的引用传递给这些入参，在方法体内，开发者可以通过这个入参对象访问到模型中的所有数据，也可以添加新的属性数据。
+
+## Model、Map、ModelMap的关系
+
+Model、Map、ModelMap类型的参数其实本质上都是 **BindingAwareModelMap** 类型的。
+
+```java
+public interface Model{}
+
+public class ModelMap extends LinkedHashMap<String, Object> {}
+
+public class ExtendedModelMap extends ModelMap implements Model {}
+
+public class BindingAwareModelMap extends ExtendedModelMap {}
+```
+
+## 域对象共享数据
+
+### Request域
+
+以下方法会直接将数据存入request域中
+
+#### 直接传入ServletAPI
+
+```java
+@RequestMapping("/testServletAPI")
+public String testServletAPI(HttpServletRequest request){
+    request.setAttribute("testScope", "hello,servletAPI");
+    return "success";
+}
+```
+
+#### 使用ModelAndView
+
+```java
+@RequestMapping("/testModelAndView")
+public ModelAndView testModelAndView(){
+    ModelAndView mav = new ModelAndView();
+    // 向请求域共享数据
+    mav.addObject("testScope", "hello,ModelAndView");
+    // 设置视图，实现页面跳转
+    mav.setViewName("success");
+    return mav;
+}
+```
+
+#### 使用Model
+
+```java
+@RequestMapping("/testModel")
+// 在入参处使用
+public String testModel(Model model){
+    model.addAttribute("testScope", "hello,Model");
+    return "success";
+}
+```
+
+#### 使用map
+
+在Controller上使用Map来共享数据，其实就是存放在Model
+
+```java
+@RequestMapping("/testMap")
+// 在入参处使用
+public String testMap(Map<String, Object> map){
+    map.put("testScope", "hello,Map");
+    return "success";
+}
+```
+
+#### 使用ModelMap
+
+```java
+@RequestMapping("/testModelMap")
+// 在入参处使用
+public String testModelMap(ModelMap modelMap){
+    modelMap.addAttribute("testScope", "hello,ModelMap");
+    return "success";
+}
+```
+
+### Session域
+
+#### 直接传入ServletAPI
+
+```java
+@RequestMapping("/testSession")
+public String testSession(HttpSession session){
+    session.setAttribute("testSessionScope", "hello,session");
+    return "success";
+}
+```
+
+### Application域
+
+#### 直接传入ServletAPI
+
+```java
+@RequestMapping("/testApplication")
+public String testApplication(HttpSession session){
+	ServletContext application = session.getServletContext();
+    application.setAttribute("testApplicationScope", "hello,application");
+    return "success";
+}
+```
+
+# 4、视图和视图解析器
+
+## 简介
+
+1. Spring-MVC根据返回值类型String、ModelAndView、View =》**ModelAndView** =》ViewResolver =》视图对象JSP/JSTL/PDF
+2. 请求处理方法执行完毕，**最终会返回一个ModelAndView对象**，返回其他类型的Spring-MVC会在内部装配成一个ModelAndView对象。
+
+3. **视图**：渲染模型数据，为了实现视图模型和具体实现技术的解耦，Spring 在 org.springframework.web.servlet 包中定义了一个高度抽象的 **View 接口**。视图对象由视图解析器负责实例化，视图无状态，所以不会有线程安全问题。
+4. **视图解析器**：在SpringWEB上下文中配置一种或多种解析策略，并指定他们之间的先后顺序。每一种映射策略对应一个具体的视图解析器实现类，将逻辑视图解析为一个具体的视图对象。所有的视图解析器都必须实现**ViewResolver接口**。
+5. 每个视图解析器都实现了**Ordered接口**并开放出一个**order属性**，可以通过order属性指定解析器的优先顺序，order越小优先级越高。Spring-MVC会按视图解析器顺序对逻辑视图名进行解析，直到成功，否则抛出ServletException异常。
+
+## 常用的视图实现类
+
+- URL资源视图：
+  - **InternalResourceView**：将JSP或其他资源封装成一个视图，是InternalResourceViewResolver默认使用的视图实现类
+  - JstlView：如果JSP文件中使用了JSTL国际化标签功能，则需要使用
+
+- 文档视图：
+  - **AbstractExcelView：Excel**文档视图的抽象类，该类基于POI构造Excel文档
+
+- JSON视图：
+  - **MappingJacksonJsonView**：将模型数据通过Jackson开源框架的ObjectMapper以JSON方式输出
+
+## 常用的视图解析器实现类
+
+- 解析为Bean的名字：
+  - **BeanNameViewResolver**：将逻辑视图名解析为一个Bean，Bean的id等于逻辑视图名
+- 解析为URL文件：
+  - **InternalResourceViewResolver**：将视图名解析为一个URL文件，一般使用该解析器将视图名映射为一个保存在WEN-INF目录下的程序文件
+
+## InternalResourceViewResolver解析器
+
+用于解析JSP
+
+```xml
+<!-- 解析 /WEB-INF/views/xxxx.jsp -->
+<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+    <property name="prefix" value="/WEB-INF/views/"/>
+    <property name="suffix" value=".jsp"/>
+</bean>
+```
+
+可以通过\<property name="viewNames" value="html*"/>指定处理规则，此规则表示，只处理html开头的视图名，如html/aa。
+
+## 转发向视图
+
+如果返回的视图名中带**forward：** 前缀
+
+SpringMVC中默认的转发视图是**InternalResourceView**
+
+SpringMVC中创建转发视图的情况：
+
+- 当控制器方法中所设置的视图名称以"forward:"为前缀时，创建InternalResourceView视图，此时的视图名称不会被SpringMVC配置文件中所配置的视图解析器解析，而是会将前缀"forward:"去掉，剩余部分作为最终路径通过转发的方式实现跳转。
+
+
+例如"forward:/"，"forward:/employee"
+
+```java
+@RequestMapping("/testForward")
+public String testForward(){
+    return "forward:/testHello";
+}
+```
+
+## 重定向视图
+
+SpringMVC中默认的重定向视图是**RedirectView**
+
+当控制器方法中所设置的视图名称以"redirect:"为前缀时，创建RedirectView视图，此时的视图名称不会被SpringMVC配置文件中所配置的视图解析器解析，而是会将前缀"redirect:"去掉，剩余部分作为最终路径通过重定向的方式实现跳转
+
+例如"redirect:/"，"redirect:/employee"
+
+```java
+@RequestMapping("/testRedirect")
+public String testRedirect(){
+    return "redirect:/testHello";
+}
+```
+
+重定向视图在解析时，会先将redirect:前缀去掉，然后会判断剩余部分是否以/开头，若是则会自动拼接上下文路径
+
+## 补充
+
+1、如果要使用JSTL的fmt标签需要在Spring-MVC的配置文件中配置国际化资源文件
+
+```xml
+<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+    <property name="basename" value="i18n"/>
+</bean>
+```
+
+2、若希望直接响应通过Spring-MVC渲染的页面，可以使用mvc：view-controller标签实现
+
+当控制器方法中，仅仅用来实现页面跳转，即只需要设置视图名称时，可以将处理器方法使用view-controller标签进行表示。
+
+```xml
+<!--
+	path：设置处理的请求地址
+	view-name：设置请求地址所对应的视图名称
+-->
+<mvc:view-controller path="/success" view-name="success"/>
+```
+
+**注意**：当SpringMVC中设置任何一个view-controller时，其他控制器中的请求映射将全部失效，此时需要在SpringMVC的核心配置文件中设置开启mvc注解驱动的标签：<mvc:annotation-driven />
+
+3、视图对象需要配置IOC容器中的一个Bean，使用**BeanNameViewResolver**作为视图解析器即可
+
+```xml
+<bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
+    <property name="order" value="10"/>
+</bean>
+```
+
+```java
+@Component(value = "helloView")
+public class HelloView implements View
+```
+
+
+
+# 5、数据处理
+
+## 1、处理静态资源
+
+1、若将 **DispatcherServlet** 请求映射配置为 **/**，则 Spring MVC 将捕获 WEB 容器的**所有请求**，包括静态资源的请求， SpringMVC 会将他们当成一个普通请求处理，因找不到对应处理器将导致错误。
+
+2、可以在 SpringMVC 的配置文件中配置 **\<mvc:default-servlet-handler/>**的方式解决静态资源的问题：
+
+- 将在 SpringMVC 上下文中定义一个 **DefaultServletHttpRequestHandler**，它会对进入 DispatcherServlet 的请求进行筛查，如果发现是没有经过映射的请求，就将该请求交由 WEB 应用服务器默认的 Servlet 处理，如果不是静态资源的请求，才由 DispatcherServlet 继续处理。
+
+- 一般 WEB 应用服务器默认的 Servlet 的名称都是 default。若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定。
+
+## 2、数据绑定流程
+
+1、Spring-MVC框架将**ServletRequest对象及目标方法的入参实例**传递给**WebDataBinderFactory**实例，创建**DataBinder**对象。
+
+2、DataBinder调用装配在Spring-MVC上下文中的**ConversionService**组件进行数据类型转换、数据格式化。将Servlet中的**请求信息填充到入参对象**中。
+
+3、调用**Validator**组件对已经绑定了请求消息的入参对象进行**数据合法性校验**，最终生成数据绑定结果**BindingData**对象。
+
+4、Spring-MVC抽取BindingResult中的**入参对象和校验错误对象**，将他们赋给**处理方法的响应入参**。
+
+5、由 **@InitBinder** 标识的方法，可以对 WebDataBinder 对象进行初始化。WebDataBinder 是 DataBinder 的子类，用于完成由表单字段到 JavaBean 属性的绑定。
+
+- @InitBinder方法不能有返回值，它必须声明为void。
+
+- @InitBinder方法的参数通常是是 WebDataBinder。
+
+```java
+@InitBinder
+public void initBinder(WebDataBinder dataBinder){
+    dataBinder.setDisallowedFields("roleset");
+}
+```
+
+![image-20210923104634810](images/image-20210923104634810.png)
+
+## 3、数据转换
+
+### 3.1、上下文中内建的转换器
+
+![image-20210923104741375](images/image-20210923104741375.png)
+
+### 3.2、自定义类型转换器
+
+1. **ConversionService** 是 Spring 类型转换体系的核心接口。
+2. 可以利用**ConversionServiceFactoryBean**在Spring 的 IOC 容器中定义一个ConversionService。Spring将自动识别出IOC容器中的ConversionService，并在Bean属性配置及Spring-MVC处理方法入参绑定等场合使用它进行数据的转换。
+3. 可通过 ConversionServiceFactoryBean 的 **converters** 属性注册自定义的类型转换器。
+
+```xml
+<mvc:annotation-driven conversion-service="conversionService" />
+<bean id="conversionService" class="org.springframework.format.support.ConversionServiceFactoryBean">
+    <property name="converters">
+        <list>
+            <bean class="xxx.xxxx.xxx.employeeC"/>
+        </list>
+    </property>
+</bean>
+需要实现Converter接口
+```
+
+### 3.3、Spring-MVC支持的转换器
+
+**Spring-MVC定义了三种类型的转换器接口，实现任意一个转换器接口**都可以作为自定义的转换器注册到ConversionServiceFactroyBean。
+
+1. **Converter**：将 S 类型对象转为 T 类型对象。
+2. **ConverterFactory**：将相同系列多个“同质”Converter 封装在一起。如果希望将一种类型的对象转换为另一种类型及其子类的对象（例如将 String 转换为 Number 及 Number 子类 （Integer、Long、Double 等）对象）可使用该转换器工厂类。
+3. **GenericConverter**：会根据源类对象及目标类对象所在的宿主类中的上下文信息进行类型转换。
+
+```xml
+<!-- <mvc:annotation-driven conversion-service="conversionService" />会将自定义的 ConversionService 注册到 Spring MVC 的上下文中 -->
+<bean id="conversionService" class="org.springframework.format.support.ConversionServiceFactoryBean">
+    <property name="converters">
+        <list>
+            <bean class="xxx.xxxx.xxx.employeeC"/>
+        </list>
+    </property>
+</bean>
+```
+
+### 3.4、HttpMessageConverter
+
+#### 3.4.1、简介
+
+报文信息转换器，将请求报文转换为Java对象，或将Java对象转换为响应报文。
+
+提供了两个注解和两个类型：@RequestBody，@ResponseBody，RequestEntity，ResponseEntity
+
+**HttpMessageConverter\<T>**是Spring 3.0 新添加的一个接口，负责将请求信息转为一个对象（类型T），将对象输出为响应信息。
+
+##### RequestEntity
+
+RequestEntity封装请求报文的一种类型，需要在控制器方法的形参中设置该类型的形参，当前请求的请求报文就会赋值给该形参，可以通过getHeaders()获取请求头信息，通过getBody()获取请求体信息。
+
+~~~java
+@RequestMapping("/testRequestEntity")
+public String testRequestEntity(RequestEntity<String> requestEntity){
+    System.out.println("requestHeader:"+requestEntity.getHeaders());
+    System.out.println("requestBody:"+requestEntity.getBody());
+    return "success";
+}
+~~~
+
+##### ResponseEntity
+
+ResponseEntity用于控制器方法的返回值类型，该控制器方法的返回值就是响应到浏览器的响应报文
+
+#### 3.4.2、接口定义的方法
+
+- **Boolean canRead(Class clazz,MediaType mediaType)**：指定转换器可以读取的对象类型，即转换器是否可将请求信息转换为 clazz 类型的对象，同时指定支持 MIME 类型(text/html,applaiction/json等) 
+- **Boolean canWrite(Class clazz,MediaType mediaType)**：指定转换器是否可将 clazz 类型的对象写到响应流中，响应流支持的媒体类型在MediaType 中定义。 
+- **List getSupportMediaTypes()**：该转换器支持的媒体类型。
+- **T read(Class clazz,HttpInputMessage inputMessage)**： 将请求信息流转换为 T 类型的对象。
+- **void write(T t,MediaType contnetType,HttpOutputMessgae outputMessage)**：将T类型的对象写到响应流中，同时指定相应的媒体类 型为 contentType。
+
+![image-20210923111942270](images/image-20210923111942270.png)
+
+#### 3.4.3、接口实现类
+
+| 实现类                               | 功能说明                                                     |
+| ------------------------------------ | ------------------------------------------------------------ |
+| StringHtpMessageConverter            | 将请求信息转换为字符串                                       |
+| FormHttpMessageConverter             | 将表单数据读取到 MultiValueMap中                             |
+| XmIAwareFormHittpMessageConverter    | 扩展于FormHitpMessageConverter,如果部分表单属性是XML数据，可用该转换器进行读取 |
+| ResourceHittpMessageConverter        | 读写org.springframework.core.io.Resource对象                 |
+| BufferedlmageHttpMessageConverter    | 读写 Bufferedllmage对象                                      |
+| ByteArrayHttpMessageConverter        | 读写二进制数据                                               |
+| SourcelittpMessageConverter          | 读写javax.xml.transform.Source类型的数据                     |
+| MarshallingHittpMessageConverter     | 通过 Spring 的org.springframework..xmL.Marshaller和Unmarshaller 读写XML消息 |
+| Jaxb2RootElemengHttpMessageConverter | 通过JAXB2读写XML消息,将请求消息转换到标注XmIRootElement和 XxmlTy直接的类中 |
+| MappingJacksonHttpMessageConverter   | 利用Jackson开源包的ObjectMapper读写JSON数据                  |
+| RssChannellHittpMessageConverter     | 能够读写RSS种子消息                                          |
+| AtomFeedHttpMessageConverter         | 和RssChannellHittpMessageConverter能够读写RSS种子消息        |
+
+#### 3.4.4、默认装配
+
+DispatcherServlet 默认装配 **RequestMappingHandlerAdapter** ，而RequestMappingHandlerAdapter 默认装配如下 **HttpMessageConverter**的实现。
+
+![image-20210923112826854](images/image-20210923112826854.png)
+
+加入 jackson.jar 包后
+
+![image-20210923112844941](images/image-20210923112844941.png)
+
+#### 3.4.5、请求信息转化并绑定到处理方法
+
+使用HttpMessageConverter\<T>将请求信息转化并绑定到处理方法的入参中、或将响应结果转为对应类型的响应信息。Spring提供了两种途径：
+
+- 使用 **@RequestBody / @ResponseBody** 对处理方法进行标注。
+
+- 使用 **HttpEntity\<T> / ResponseEntity\<T>** 作为处理方法的入参或返回值。
+
+3、当控制器处理方法使用到 @RequestBody/@ResponseBody 或 HttpEntity\<T>/ResponseEntity\<T> 时，Spring首先根据请求头或响应头的 Accept 属性选择匹配的 HttpMessageConverter, 进而根据参数类型或泛型类型的过滤得到匹配的 HttpMessageConverter, 若找不到可用的HttpMessageConverter 将报错。
+
+- **注意**：@RequestBody 和 @ResponseBody 不需要成对出现
+
+```java
+@ResponBody
+@RequestMapping("/handle15")
+//由ByteArrayHttpMessageConverter处理
+public byte[] handle15() throws IOException {
+    Resource resource = new ClassPathResource("/lighthouse.jpg");
+    byte[] fileData = FileCopyUtils.copyToByteArray(resource.getIputStream());
+    return fileData;
+}
+
+@RequestMapping(value="handle14", method=RequestMethod.POST)
+//由StringHtpMessageConverter处理
+public String handle14(@RequestBody String requestBody) {
+    System.out.println(requestBody);
+    return "success";
+}
+```
+
+![image-20210923115326343](images/image-20210923115326343.png)
+
+## 4、数据格式化
+
+### 4.1、简介
+
+1. Spring在格式化模块中定义了一个实现 **ConversionService接口** 的 **FormattiongConversionService** 实现类，该类扩展了**GenericConversionService**，因此它兼具类型转换的功能，又具有格式化的功能。
+
+2. FormattiongConversionService拥有一个**FactroyBean**工厂类 **FormattiongConversionServiceFactroyBean**，后者用于在Spring上下文构造前者。
+
+**FormattiongConversionServiceFactroyBean**内部已经注册了：
+
+1. **NumberFormatAnnotationFormatterFactory**：支持对数字类型的属性使用**@NumberFormat注解**。
+2. **JodaDateTimeFormatAnnotationFormatterFactory**：支持对日期类型的属性使用**@DateTimeFormat注解**。
+
+装配了FormattiongConversionServiceFactroyBean后，就可以在Spring-MVC入参绑定及模型数据输出时使用注解驱动。
+
+**注意**：\<mvc:annotation-driven/>默认创建的是ConversionService
+
+
+
+### 4.2、日期格式化
+
+**@DateTimeFormat注解**可对**java.util.Date**、**java.util.Calendar**、**java.long.Long** 时间类型进行标注。
+
+- **属性pattern**：类型为字符串，指定解析/格式化字段数据的模式。
+- **属性iso**：类型为DateTimeFormat.ISO，指定解析/格式化字段数据的ISO模式，包括四种：ISO.NONE（不使用，默认），ISO.DATE（yyyy-MM-dd），ISO.TIME（hh：mm：ss.SSSZ），ISO.DATE_TIME（yyyy-MM-dd hh：mm：ss：SSSZ）。
+- **属性style**：字符串类型，通过样式指定日期时间的格式，由两位字符组成，第一位表示日期的格式，第二位表示时间的格式，S：短日 期/时间格式、M：中日期/时间格式、L：长日期/时间格式、F：完整 日期/时间格式、-：忽略日期或时间格式。
+
+
+
+### 4.3、数值格式化
+
+**@NumberFormat注解**可对类似数字类型的属性进行标注，包含俩个互斥的属性
+
+- **属性Style**：类型为NumberFormat.Style。用于指定样式类型，包括三种：Style.NUMBER（正常数字类型），Style.CURRENCY（货币类型）、 Style.PERCENT（ 百分数类型）。
+- **属性pattern**：类型为 String，自定义样式， 如patter="#,###"。
+
+
+
+### 4.4、POJO对象绑定请求参数
+
+1. Spring-MVC会按照**请求参数名**和**POJO的属性名**进行自动的匹配，自动为该对象填充属性值，**支持级联属性**如xxx.a，xxx.b。
+2. 其实是调用了POJO的**无参构造**，然后使用**set方法**填充属性
+3. 使用该方法POJO无**需使用注解修饰**，POJO的级联POJO也是
+
+~~~html
+<form th:action="@{/testpojo}" method="post">
+    用户名：<input type="text" name="username"><br>
+    密码：<input type="password" name="password"><br>
+    性别：<input type="radio" name="sex" value="男">男<input type="radio" name="sex" value="女">女<br>
+    年龄：<input type="text" name="age"><br>
+    邮箱：<input type="text" name="email"><br>
+    <input type="submit">
+</form>
+~~~
+
+~~~java
+@RequestMapping("/testpojo")
+public String testPOJO(User user){
+    System.out.println(user);
+    return "success";
+}
+//最终结果-->User{id=null, username='张三', password='123', age=23, sex='男', email='123@qq.com'}
+~~~
+
+## 5、数据校验
+
+### 简介
+
+1、**JSR 303** 是 Java 为 Bean 数据合法性校验提供的标准框架，通过在Bean属性上标注注解，并通过标准的验证接口对Bean进行校验。
+
+![image-20210923110343960](images\Spring-MVC.assets\image-20210923110343960.png)
+
+2、**Hibernate Validator** 是 JSR 303 的一个参考实现，除支持所有标准的校验注解外，它还支持以下的扩展注解。
+
+![image-20210923110409811](images\Spring-MVC.assets\image-20210923110409811.png)
+
+3、Spring 在进行数据绑定时，可同时调用校验框架完成数据校验工作。在 Spring MVC 中，可直接通过注解驱动的方式进行数据校验。
+
+### LocalValidatorFactroyBean 
+
+1、Spring 的 **LocalValidatorFactroyBean** 既实现了 Spring 的 Validator 接口，也实现了 JSR 303 的 Validator 接口。只要在 Spring 容器中定义一个 LocalValidatorFactoryBean，即可将其注入到需要数据校验的 Bean 中。
+
+- Spring 本身并没有提供 JSR 303 的实现，所以必须将 JSR 303 的实现者的 jar 包放到类路径下
+- \<mvc:annotation-driven/>会**默认**装配好一个 LocalValidatorFactoryBean，通过在处理方法的入参上标注 @valid 注解即可让 Spring-MVC 在**完成数据绑定后执行数据校验**的工作。
+
+#### 注意
+
+Spring-MVC 是通过对**处理方法签名的规约来保存校验结果的**：前一个表单/命令对象的校验结果保存到随后的入参中，这个保存校验结果的入参必须是 **BindingResult 或 Errors** 类型，这两个类都位于 **org.springframework.validation** 包中。
+
+- 需校验的 Bean 对象和其绑定结果对象或错误对象时成对出现的，它**们之间不允许声明其他的入参**。
+- **Errors 接口**提供了获取错误信息的方法，如 getErrorCount() 或 getFieldErrors(String field)。
+- **BindingResult** 扩展了 Errors 接口
+
+#### 在目标方法中获取校验结果
+
+常用方法：
+
+- FieldError getFieldError(String field) 
+- List getFieldErrors() 
+- Object getFieldValue(String field) 
+- Int getErrorCount()
+
+#### 在页面上显示错误
+
+- Spring-MVC除了将校验结果保存在BindingResult 或 Errors还会将所有校验结果保存到 “隐含模型”。
+- 即使处理方法的签名中没有用于保存校验结果的入参，校验结果依旧会保存到隐含模型中。
+- 隐含模型的所有数据最终都将通过HttpServletRequest的属性列表暴露给JSP视图对象，因此可以在页面获取到错误信息。**<form:errors path=“userName”>**
+
+## 6、文件上传与下载
+
+### 文件上传
+
+文件上传要求form表单的请求方式必须为post，并且添加属性enctype="multipart/form-data"
+
+1. Spring-MVC为文件上传提供了直接支持，使用 **MultipartResolver** 实现，通过此对象可以获取文件相关信息。Spring用 **Jakarta Commons FileUpload** 技术实现了一个MultipartResolver的实现类：**CommonsMultipartResovler**。
+2. Spring-MVC上下文**默认没有装配MultipartResovler**，因此默认情况下不能处理文件的上传工作，若需使用要在上下文中配置MultipartResolver。
+
+```xml
+<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+    <property name="defaultEncoding" value="UTF-8"/>
+    <property name="maxUploadSize" value="-1"/>
+</bean>
+```
+
+~~~java
+@RequestMapping("/testUp")
+public String testUp(MultipartFile photo, HttpSession session) throws IOException {
+    //获取上传的文件的文件名
+    String fileName = photo.getOriginalFilename();
+    //处理文件重名问题
+    String hzName = fileName.substring(fileName.lastIndexOf("."));
+    fileName = UUID.randomUUID().toString() + hzName;
+    //获取服务器中photo目录的路径
+    ServletContext servletContext = session.getServletContext();
+    String photoPath = servletContext.getRealPath("photo");
+    File file = new File(photoPath);
+    if(!file.exists()){
+        file.mkdir();
+    }
+    String finalPath = photoPath + File.separator + fileName;
+    //实现上传功能
+    photo.transferTo(new File(finalPath));
+    return "success";
+}
+~~~
+
+**注意**：
+
+- Bean的ID必须为multipartResolver否则Spring找不到。
+- 属性 defaultEncoding：必须和用户JSP的pageEncoding相同。
+- 需要添加Jakarta Commons FileUpload 及 Jakarta Commons io 的类包添加到类路径下。
+
+### 文件下载
+
+使用ResponseEntity实现下载文件的功能
+
+~~~java
+@RequestMapping("/testDown")
+public ResponseEntity<byte[]> testResponseEntity(HttpSession session) throws IOException {
+    //获取ServletContext对象
+    ServletContext servletContext = session.getServletContext();
+    //获取服务器中文件的真实路径
+    String realPath = servletContext.getRealPath("/static/img/1.jpg");
+    //创建输入流
+    InputStream is = new FileInputStream(realPath);
+    //创建字节数组
+    byte[] bytes = new byte[is.available()];
+    //将流读到字节数组中
+    is.read(bytes);
+    //创建HttpHeaders对象设置响应头信息
+    MultiValueMap<String, String> headers = new HttpHeaders();
+    //设置要下载方式以及下载文件的名字
+    headers.add("Content-Disposition", "attachment;filename=1.jpg");
+    //设置响应状态码
+    HttpStatus statusCode = HttpStatus.OK;
+    //创建ResponseEntity对象
+    ResponseEntity<byte[]> responseEntity = new ResponseEntity<>(bytes, headers, statusCode);
+    //关闭输入流
+    is.close();
+    return responseEntity;
+}
+~~~
+
+
+
+# 6、拦截器
+
+## 简介
+
+Spring-MVC可以使用拦截器对请求进行拦截处理，开发者可以自定义拦截器来实现特定的功能。
+
+自定义拦截器必须实现 **HandlerInterceptor接口**，并注册到SpringMVC中，其内含三个抽象方法：
+
+- **preHandle()**：这个方法在**业务处理器处理请求之前**被调用，在该方法中对用户请求 request 进行处理。	
+  - 如果程序员决定该拦截器对请求进行拦截处理后还要调用其他的拦截器，或者是业务处理器去进行处理，则返回true。
+  - 如果程序员决定不需要再调用其他的组件去处理请求，则返回false。
+
+- **postHandle()**：这个方法在**业务处理器处理完请求后**，但是DispatcherServlet 向客户端**返回响应前**被调用，在该方法中对用户请求request进行处理。 
+- **afterCompletion()**：这个方法在 DispatcherServlet 完全处理完请求后被调用，可以在该方法中进行一些资源清理的操作。
+
+## 拦截器方法执行顺序
+
+单个拦截器：
+
+First#preHandle --> HandlerAdapter#handle --> First#postHandle --> DispatcherServlet#render --> First#afterCompletion
+
+多个拦截器：
+
+First#preHandle --> Second#preHandle --> HandlerAdapter#handle --> Second#postHandle --> First#postHandle --> DispatcherServlet#render --> Second# afterCompletion --> First#afterCompletion
+
+**注意**：如果在**preHandle**阶段任意一个拦截器返回false直接跳到最后。
+
+## 配置自定义拦截器
+
+```xml
+<mvc:interceptors>
+    <mvc:interceptor>
+        <mvc:mapping path="/拦截路径"/>
+        <bean class="拦截器类路径"/>
+    </mvc:interceptor>
+</mvc:interceptors>
+```
+
+~~~java
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+    // 路径不需要带上application.name
+    registry.addInterceptor(loginInterceptor).excludePathPatterns("/index", "/");
+}
+~~~
+
+# 7、过滤器
+
+## 请求转换
 
 1、配置**HiddenHttpMethodFilter**拦截器，支持将POST转为PUT、DELETE
 
@@ -405,314 +1412,124 @@ SpringMVC 提供了 **HiddenHttpMethodFilter** 帮助我们**将 POST 请求转�
 		String paramValue = request.getParameter(this.methodParam);
 ```
 
+## 请求参数乱码
 
+解决获取请求参数的乱码问题，可以使用SpringMVC提供的编码过滤器CharacterEncodingFilter，但是必须在web.xml中进行注册
 
-
-
-# POJO对象绑定请求参数
-
-1. Spring-MVC会按照**请求参数名**和**POJO的属性名**进行自动的匹配，自动为该对象填充属性值，**支持级联属性**如xxx.a，xxx.b。
-2. 其实是调用了POJO的**无参构造**，然后使用**set方法**填充属性
-3. 使用该方法POJO无**需使用注解修饰**，POJO的级联POJO也是
-
-# 使用Servlet API作为入参
-
-```java
-public String testServletAPI(HttpServletResponse response, HttpServletRequest request)
+```xml
+<!--配置springMVC的编码过滤器-->
+<filter>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    <init-param>
+        <param-name>encoding</param-name>
+        <param-value>UTF-8</param-value>
+    </init-param>
+    <init-param>
+        <param-name>forceResponseEncoding</param-name>
+        <param-value>true</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
 ```
 
-- 可以接受这些参数
+> 注：
+>
+> SpringMVC中处理编码的过滤器一定要配置到其他过滤器之前，否则无效
 
-```java
-1、HttpServletRequest
-2、HttpServletResponse
-3、HttpSession
-4、java.security.Principal
-5、Locale
-6、InputStream
-7、OutputStream
-8、Reader
-9、Writer
-```
-
-# 处理模型数据
+# 8、异常处理
 
 ## 简介
 
-Spring-MVC提供了四种途径输出模型数据
+1. 使用 **HandlerExceptionResolver** 处理程序的异常，包括Handler映射、数据绑定、目标处理方法执行异常。
+2. 使用 @ExceptionHandler注解，<a href="#@ExceptionHandler注解">详见</a>。
+3. 使用 @controlleradvice注解，<a href="#@controlleradvice注解">详见</a>。
 
-- **ModelAndView**
-  - 处理方法返回值类型为ModelAndView时，方法体既可通过该对象添加模型数据。
-- **Map以及Model**
-  - 入参为**org.springframework.ui.Model**、**org.springframework.ui.ModelMap** 或 **java.uti.Map** 时，处理方法返回时，Map中的数据会自动添加到模型中。
-- **@SessionAttributes**注解
-  - 将模型中的某个属性暂存到HttpSession中，以便多个请求之间可以共享这个属性
-- **@ModelAttribute**注解
-  - 方法入参标注该注解后，入参的对象就会放到数据模型中
+## HandlerExceptionResolver
 
-## ModelAndView
+默认装配的异常处理器：
 
-**控制器处理方法**的**返回值**如果为ModelAndView，则既包含视图信息，也包含模型数据信息。
+DispatcherServlet默认装配的**HandlerExceptionResolver**。
 
-ModelAndView有**Model**和**View**的功能
+- 没有使用\<mvc:annotation-driven>配置
 
-- **Model**：主要用于向请求域共享数据
-- **View**：主要用于设置视图，实现页面跳转
+![image-20210923163456940](images/image-20210923163456940.png)
 
-- 添加模型数据
-  - **addObject**(String attributeName, Object attributeValue)
-  - **addAllObject**(Map<String, ?> modelMap)
+- 使用了\<mvc:annotation-driven>配置
 
-- 设置视图
-  - **setView**(View view)
-  - **setViewName**(String viewName)
+![image-20210923163511094](images/image-20210923163511094.png)
 
-## Map以及Model
+#### 1、ExceptionHandlerExceptionResolver
 
-Spring-MVC在内部使用了一个**org.springframework.ui.Model** 接口存储模型数据。
+**作用**：主要处理Handler中使用**@ExceptionHandler注解**定义的方法。
 
-- 具体步骤
-  - Spring-MVC在调用方法前会创建一个**隐含的模型对象**作为模型数据的存储容器。
-  - 如果**方法入参**为**Map**或**Model**类型，Spring-MVC会将隐含模型的引用传递给这些入参，在方法体内，开发者可以通过这个入参对象访问到模型中的所有数据，也可以添加新的属性数据。
 
-## @SessionAttributes注解
 
-在**控制器**上使用该注解修饰，即可在多个请求之间共用某个模型属性的数据
+#### 2、ResponseStatusExceptionResolver
 
-- 使用方法
+**作用**：在异常及异常父类中找到**@ResponseStatus注解**，然后使用这个注解的属性进行处理。
 
-  - 可以通过属性名指定需要放到Session中的数据
 
-  - 可以通过模型属性的对象类型指定需要放到Session中的数据
 
-    ```java
-    @SessionAttributes(value={“user1”,“user2”},types={Dept.class})
-    ```
+#### 3、DefaultHandlerExceptionResolver
 
-    - 所有Dept类型以及属性名为user1与user2的数据放入Session中
+**作用**：对一些特殊的异常进行处理：**NoSuchRequestHandlingMethodException**、**HttpReques** **tMethodNotSupportedException**、**HttpMediaTypeNotSuppo** **rtedException**、**HttpMediaTypeNotAcceptableException** 等
 
-## @ModelAttribute注解
 
-在**方法的定义**上使用该注解，Spring-MVC在调用目标处理方法前，会先逐个调用在方法级上标注了该注解的方法。
 
-在**方法入参**中使用该注解，Spring-MVC先从模型数据中获取对象，之后将请求参数绑定到对象中，再传入形参，如果不存在这个对象，则会自动实例化一个新的对象，并且模型数据中的对象的属性会被覆盖。（对象是同一个，只不过数据被覆盖）。模型属性还覆盖了来自 HTTP Servlet 请求参数的名称与字段名称匹配的值，也就是请求参数如果和模型类中的域变量一致，则会自动将这些请求参数绑定到这个模型对象，这被称为数据绑定，从而避免了解析和转换每个请求参数和表单字段这样的代码。
+#### 4、SimpleMappingExceptionResolver
 
-- 写入模型数据有俩种方式：**存入implicitModel**
+**作用**：如果希望对所有异常进行统一处理，可以使用**SimpleMappingExceptionResolver**，它将异常类名映射为视图名，即发生异常时使用对应的视图报告异常。
 
-  - 通过入参处使用**Model类型或者Map类型**（不推荐，会产生一个key = void 值为null的数据）在调用最终的目标处理方法前，“student”会被放入到Model或Map中，Map放入数据时，key由map决定，如果注解没有使用value或者name。
+**配置**：
 
-    ```java
-    @ModelAttribute
-    public void getStudent(@RequestParam(value = "id", required = false) String idStr, Map<String, Object> map) {
-        .........
-        //key由map决定
-        map.put("student", student);
+```xml
+<bean class = "org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+    <property name="exceptionMappings">
+        <props>
+            <prop key="异常全类名">视图名</prop>
+        </props>
+    </property>
+</bean>
+```
+
+使用注解方式注册，<a href="#完全注解Spring-MVC">详见</a>。
+
+**属性**：
+
+- **defaultErrorView**：为所有异常定义默认的异常处理页面exceptionMappings未定义的使用此配置。
+- **exceptionAttribute**：定义存入的异常名默认为exception，将出现的异常信息在请求域中进行共享
+- **exceptionMappings**：定义需要处理的特殊异常，用类名全路径作为key，异常视图为值。
+
+### 5、自定义
+
+~~~java
+@Component //注意该类需要交给Spring容器管理
+public class MyExceptionResolver implements HandlerExceptionResolver {
+
+    @Override
+    public ModelAndView resolveException(HttpServletRequest req, 
+                                         HttpServletResponse resp, 
+                                         Object obj,
+                                         Exception ex) {
+        
+        System.out.println(ex.getMessage());
+        ModelAndView mv = new ModelAndView();
+        mv.setViewName("/error.jsp");
+        return mv;
+        
     }
-    //隐含模型内会似乎有俩个对象，一个是map指定key，一个是类型首字母小写
-    ```
-
-  - 通过@ModelAttribute的value或name属性以及注解需要的方法返回值，如果不用value或name属性，默认为**返回值首字母小写**。
-
-    ```java
-    @ModelAttribute("student")
-    public Student getStudent(@RequestParam(value = "id", required = false) String idStr)
-    ```
-
-    - **注意**：
-      - 如果同时指定了返回值以及@ModelAttribute的name属性，则隐含模型内会出现两个相同属性相同，key不同的对象。两个key分别为注解的name属性与返回值类型首字母小写。
-      - 在没有返回值时，注解的属性似乎无用。
-
-- 读取由该注解写入Model的数据：
-
-  - 在**方法入参前**使用该注解，并写明value或name值，Spring-MVC会自动从模型数据中获取。且只获取一个，否则似乎按照类型全部获取。
-  - 在方法入参前无该注解，key默认为POJO类名第一个字母小写。
-  - 最终目标处理方法处的实体**形参名**与注解标注**的value或name无关**，只与**类型有关**。
-  - 在implicitModel中查找key对应的对象，若存在，作为入参传入，在@ModelAttribute注解修饰过的方法中的Map存入过该key相同对象，则可以获取到。
-
-## Model、Map、ModelMap的关系
-
-Model、Map、ModelMap类型的参数其实本质上都是 **BindingAwareModelMap** 类型的。
-
-```java
-public interface Model{}
-public class ModelMap extends LinkedHashMap<String, Object> {}
-public class ExtendedModelMap extends ModelMap implements Model {}
-public class BindingAwareModelMap extends ExtendedModelMap {}
-```
-
-## 域对象共享数据
-
-以下方法会直接将数据存入request域中
-
-1、直接传入ServletAPI
-
-```java
-@RequestMapping("/testServletAPI")
-public String testServletAPI(HttpServletRequest request){
-    request.setAttribute("testScope", "hello,servletAPI");
-    return "success";
 }
-```
+~~~
 
-2、使用ModelAndView
-
-```java
-@RequestMapping("/testModelAndView")
-public ModelAndView testModelAndView(){
-    ModelAndView mav = new ModelAndView();
-    // 向请求域共享数据
-    mav.addObject("testScope", "hello,ModelAndView");
-    // 设置视图，实现页面跳转
-    mav.setViewName("success");
-    return mav;
-}
-```
-
-3、使用Model
-
-```java
-@RequestMapping("/testModel")
-// 在入参处使用
-public String testModel(Model model){
-    model.addAttribute("testScope", "hello,Model");
-    return "success";
-}
-```
-
-4、使用map
-
-在Controller上使用Map来共享数据，其实就是存放在Model
-
-```java
-@RequestMapping("/testMap")
-// 在入参处使用
-public String testMap(Map<String, Object> map){
-    map.put("testScope", "hello,Map");
-    return "success";
-}
-```
-
-5、使用ModelMap
-
-```java
-@RequestMapping("/testModelMap")
-// 在入参处使用
-public String testModelMap(ModelMap modelMap){
-    modelMap.addAttribute("testScope", "hello,ModelMap");
-    return "success";
-}
-```
-
-7、向session域共享数据
-
-直接传入ServletAPI
-
-```java
-@RequestMapping("/testSession")
-public String testSession(HttpSession session){
-    session.setAttribute("testSessionScope", "hello,session");
-    return "success";
-}
-```
-
-8、向application域共享数据
-
-直接传入ServletAPI
-
-```java
-@RequestMapping("/testApplication")
-public String testApplication(HttpSession session){
-	ServletContext application = session.getServletContext();
-    application.setAttribute("testApplicationScope", "hello,application");
-    return "success";
-}
-```
-
-# 视图和视图解析器
+# 9、表单标签
 
 ## 简介
 
-1、Spring-MVC根据返回值类型String、ModelAndView、View =》**ModelAndView** =》ViewResolver=》视图对象JSP/JSTL/PDF
-
-2、请求处理方法执行完毕，**最终会返回一个ModelAndView对象**，返回其他类型的Spring-MVC会在内部装配成一个ModelAndView对象。
-
-3、**视图**：渲染模型数据，为了实现视图模型和具体实现技术的解耦，Spring 在 org.springframework.web.servlet 包中定义了一个高度抽象的 **View 接口**。视图对象由视图解析器负责实例化，视图无状态，所以不会有线程安全问题。
-
-4、**视图解析器**：在SpringWEB上下文中配置一种或多种解析策略，并指定他们之间的先后顺序。每一种映射策略对应一个具体的视图解析器实现类，将逻辑视图解析为一个具体的视图对象。所有的视图解析器都必须实现**ViewResolver接口**。
-
-5、每个视图解析器都实现了**Ordered接口**并开放出一个**order属性**，可以通过order属性指定解析器的优先顺序，order越小优先级越高。Spring-MVC会按视图解析器顺序对逻辑视图名进行解析，直到成功，否则抛出ServletException异常。
-
-## 常用的视图实现类
-
-- URL资源视图：
-  - **InternalResourceView**：将JSP或其他资源封装成一个视图，是InternalResourceViewResolver默认使用的视图实现类
-  - JstlView：如果JSP文件中使用了JSTL国际化标签功能，则需要使用
-
-- 文档视图：
-  - **AbstractExcelView：Excel**文档视图的抽象类，该类基于POI构造Excel文档
-
-- JSON视图：
-  - **MappingJacksonJsonView**：将模型数据通过Jackson开源框架的ObjectMapper以JSON方式输出
-
-## 常用的视图解析器实现类
-
-- 解析为Bean的名字：
-  - **BeanNameViewResolver**：将逻辑视图名解析为一个Bean，Bean的id等于逻辑视图名
-- 解析为URL文件：
-  - **InternalResourceViewResolver**：将视图名解析为一个URL文件，一般使用该解析器将视图名映射为一个保存在WEN-INF目录下的程序文件
-
-## InternalResourceViewResolver解析器
-
-用于解析JSP
-
-```xml
-<!-- 解析 /WEB-INF/views/xxxx.jsp -->
-<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
-    <property name="prefix" value="/WEB-INF/views/"/>
-    <property name="suffix" value=".jsp"/>
-</bean>
-```
-
-可以通过\<property name="viewNames" value="html*"/>指定处理规则，此规则表示，只处理html开头的视图名，如html/aa。
-
-## 补充
-
-1、如果要使用JSTL的fmt标签需要在Spring-MVC的配置文件中配置国际化资源文件
-
-```xml
-<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
-    <property name="basename" value="i18n"/>
-</bean>
-```
-
-2、若希望直接响应通过Spring-MVC渲染的页面，可以使用mvc：view-controller标签实现
-
-```xml
-<mvc:view-controller path="/success" view-name="success"/>
-```
-
-3、视图对象需要配置IOC容器中的一个Bean，使用**BeanNameViewResolver**作为视图解析器即可
-
-```xml
-<bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
-    <property name="order" value="10"/>
-</bean>
-```
-
-```java
-@Component(value = "helloView")
-public class HelloView implements View
-```
-
-# 重定向
-
-如果返回的视图名中带**forward：**或者**redirect：**前缀
-
-# Spring-MVC表单标签
-
-## 简介
-
-Spring-MVC表单标签可以将模型数据中的属性和HTML表单的元素相绑定，实现快速表单回显和编辑
+Spring-MVC表单标签可以将模型数据中的属性和HTML表单的元素相绑定，实现快速表单回显和编辑。
 
 ## 标签
 
@@ -760,486 +1577,69 @@ Spring-MVC 提供了多个表单组件标签，如\<form:input>\<form:select>等
 
 - **cssErrorClass**：表单组件的数据存在错误时，采取的CSS样式
 
-# 处理静态资源
 
-1、若将 **DispatcherServlet** 请求映射配置为 **/**，则 Spring MVC 将捕获 WEB 容器的**所有请求**，包括静态资源的请求， SpringMVC 会将他们当成一个普通请求处理，因找不到对应处理器将导致错误。
 
-2、可以在 SpringMVC 的配置文件中配置 **\<mvc:default-servlet-handler/>**的方式解决静态资源的问题：
+# 10、<a name="完全注解Spring-MVC">完全注解Spring-MVC</a> 
 
-- 将在 SpringMVC 上下文中定义一个 **DefaultServletHttpRequestHandler**，它会对进入 DispatcherServlet 的请求进行筛查，如果发现是没有经过映射的请求，就将该请求交由 WEB 应用服务器默认的 Servlet 处理，如果不是静态资源的请求，才由 DispatcherServlet 继续处理。
+## 原理
 
-- 一般 WEB 应用服务器默认的 Servlet 的名称都是 default。若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定。
+1. WEB容器在启动的时候，会扫描每个jar包下的**META-INF/services/javax.servlet.ServletContainerInitializer**。
 
-# 数据绑定流程
+2. 加载这个文件指定的类**SpringServletContainerInitializer**。
 
-1、Spring-MVC框架将**ServletRequest对象及目标方法的入参实例**传递给**WebDataBinderFactory**实例，创建**DataBinder**对象。
+3. pring的应用一启动会加载感兴趣的**WebApplicationInitializer**接口的下的所有组件
 
-2、DataBinder调用装配在Spring-MVC上下文中的**ConversionService**组件进行数据类型转换、数据格式化。将Servlet中的**请求信息填充到入参对象**中。
+4. 并且为WebApplicationInitializer组件创建对象（组件不是接口，不是抽象类）
 
-3、调用**Validator**组件对已经绑定了请求消息的入参对象进行**数据合法性校验**，最终生成数据绑定结果**BindingData**对象。
+   1. **AbstractContextLoaderInitializer**：创建根容器，**createRootApplicationContext()；** **实现了WebApplicationInitializer接口**
 
-4、Spring-MVC抽取BindingResult中的**入参对象和校验错误对象**，将他们赋给**处理方法的响应入参**。
+   2. **AbstractDispatcherServletInitializer**：**继承了了AbstractContextLoaderInitializer**
 
-5、由 **@InitBinder** 标识的方法，可以对 WebDataBinder 对象进行初始化。WebDataBinder 是 DataBinder 的子类，用于完成由表单字段到 JavaBean 属性的绑定。
+      1. 创建一个web的IOC容器：**createServletApplicationContext();**
+      2. 创建了**DispatcherServlet**：**createDispatcherServlet()；** 
+      3. 将创建的DispatcherServlet添加到ServletContext中：**getServletMappings();**
 
-- @InitBinder方法不能有返回值，它必须声明为void。
+   3. **AbstractAnnotationConfigDispatcherServletInitializer**：注解方式配置的**DispatcherServlet初始化器** 
 
-- @InitBinder方法的参数通常是是 WebDataBinder。
+      **继承了AbstractDispatcherServletInitializer** 
 
-```java
-@InitBinder
-public void initBinder(WebDataBinder dataBinder){
-    dataBinder.setDisallowedFields("roleset");
-}
-```
+      1. 创建根容器：**createRootApplicationContext()；** 调用下面方法
+      2. 传入一个配置类：**getRootConfigClasses()；** 
+      3. 创建WEB的IOC容器： **createServletApplicationContext()；** 调用下面的方法 
+      4. 获取配置类：**getServletConfigClasses()；** 
 
-![image-20210923104634810](Spring-MVC笔记\images\Spring-MVC.assets\image-20210923104634810.png)
+也就是说，在Servlet3.0环境中，容器会在类路径中查找实现 **javax.servlet.ServletContainerInitializer** 接口的类，如果找到的话就用它来配置Servlet容器。
 
-# 数据转换
+Spring提供了这个接口的实现，名为 **SpringServletContainerInitializer**，这个类反过来又会查找实现 **WebApplicationInitializer** 的类并将配置的任务交给它们来完成。
 
-## Spring-MVC上下文中内建的转换器
-
-![image-20210923104741375](images\Spring-MVC.assets\image-20210923104741375.png)
-
-## 自定义类型转换器
-
-1. **ConversionService** 是 Spring 类型转换体系的核心接口。
-2. 可以利用**ConversionServiceFactoryBean**在Spring 的 IOC 容器中定义一个ConversionService。Spring将自动识别出IOC容器中的ConversionService，并在Bean属性配置及Spring-MVC处理方法入参绑定等场合使用它进行数据的转换。
-3. 可通过 ConversionServiceFactoryBean 的 **converters** 属性注册自定义的类型转换器。
-
-```xml
-<mvc:annotation-driven conversion-service="conversionService" />
-<bean id="conversionService" class="org.springframework.format.support.ConversionServiceFactoryBean">
-    <property name="converters">
-        <list>
-            <bean class="xxx.xxxx.xxx.employeeC"/>
-        </list>
-    </property>
-</bean>
-需要实现Converter接口
-```
-
-## Spring-MVC支持的转换器
-
-**Spring-MVC定义了三种类型的转换器接口，实现任意一个转换器接口**都可以作为自定义的转换器注册到ConversionServiceFactroyBean。
-
-1. **Converter**：将 S 类型对象转为 T 类型对象。
-2. **ConverterFactory**：将相同系列多个“同质”Converter 封装在一起。如果希望将一种类型的对象转换为另一种类型及其子类的对象（例如将 String 转换为 Number 及 Number 子类 （Integer、Long、Double 等）对象）可使用该转换器工厂类。
-3. **GenericConverter**：会根据源类对象及目标类对象所在的宿主类中的上下文信息进行类型转换。
-
-```xml
-<!-- <mvc:annotation-driven conversion-service="conversionService" />会将自定义的 ConversionService 注册到 Spring MVC 的上下文中 -->
-<bean id="conversionService" class="org.springframework.format.support.ConversionServiceFactoryBean">
-    <property name="converters">
-        <list>
-            <bean class="xxx.xxxx.xxx.employeeC"/>
-        </list>
-    </property>
-</bean>
-```
-
-# 数据格式化
-
-## 简介
-
-1、Spring在格式化模块中定义了一个实现**ConversionService接口**的**FormattiongConversionService**实现类，该类扩展了**GenericConversionService**，因此它兼具类型转换的功能，又具有格式化的功能。
-
-2、FormattiongConversionService拥有一个**FactroyBean**工厂类，后者用于在Spring上下文构造前者。
-
-## FormattiongConversionServiceFactroyBean
-
-**FormattiongConversionServiceFactroyBean**内部已经注册了：
-
-1. **NumberFormatAnnotationFormatterFactory**：支持对数字类型的属性使用**@NumberFormat注解**。
-2. **JodaDateTimeFormatAnnotationFormatterFactory**：支持对日期类型的属性使用**@DateTimeFormat注解**。
-
-装配了FormattiongConversionServiceFactroyBean后，就可以在Spring-MVC入参绑定及模型数据输出时使用注解驱动。
-
-**注意**：\<mvc:annotation-driven/>默认创建的是ConversionService
-
-## 日期格式化
-
-### 简介
-
-**@DateTimeFormat注解**可对**java.util.Date**、**java.util.Calendar**、**java.long.Long** 时间类型进行标注。
-
-### 属性
-
-- **属性pattern**：类型为字符串，指定解析/格式化字段数据的模式。
-- **属性iso**：类型为DateTimeFormat.ISO，指定解析/格式化字段数据的ISO模式，包括四种：ISO.NONE（不使用，默认），ISO.DATE（yyyy-MM-dd），ISO.TIME（hh：mm：ss.SSSZ），ISO.DATE_TIME（yyyy-MM-dd hh：mm：ss：SSSZ）。
-- **属性style**：字符串类型，通过样式指定日期时间的格式，由两位字符组成，第一位表示日期的格式，第二位表示时间的格式，S：短日 期/时间格式、M：中日期/时间格式、L：长日期/时间格式、F：完整 日期/时间格式、-：忽略日期或时间格式。
-
-## 数值格式化
-
-### 简介
-
-**@NumberFormat注解**可对类似数字类型的属性进行标注，包含俩个互斥的属性
-
-### 属性
-
-- **属性Style**：类型为NumberFormat.Style。用于指定样式类型，包括三种：Style.NUMBER（正常数字类型），Style.CURRENCY（货币类型）、 Style.PERCENT（ 百分数类型）。
-
-- **属性pattern**：类型为 String，自定义样式， 如patter="#,###"。
-
-# 数据校验
-
-## 简介
-
-1、**JSR 303** 是 Java 为 Bean 数据合法性校验提供的标准框架，通过在Bean属性上标注注解，并通过标准的验证接口对Bean进行校验。
-
-![image-20210923110343960](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923110343960.png)
-
-2、**Hibernate Validator** 是 JSR 303 的一个参考实现，除支持所有标准的校验注解外，它还支持以下的扩展注解。
-
-![image-20210923110409811](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923110409811.png)
-
-3、Spring 在进行数据绑定时，可同时调用校验框架完成数据校验工作。在 Spring MVC 中，可直接通过注解驱动的方式进行数据校验。
-
-## LocalValidatorFactroyBean 
-
-1、Spring 的 **LocalValidatorFactroyBean** 既实现了 Spring 的 Validator 接口，也实现了 JSR 303 的 Validator 接口。只要在 Spring 容器中定义一个 LocalValidatorFactoryBean，即可将其注入到需要数据校验的 Bean 中。
-
-- Spring 本身并没有提供 JSR 303 的实现，所以必须将 JSR 303 的实现者的 jar 包放到类路径下
-- \<mvc:annotation-driven/>会**默认**装配好一个 LocalValidatorFactoryBean，通过在处理方法的入参上标注 @valid 注解即可让 Spring-MVC 在**完成数据绑定后执行数据校验**的工作。
-
-## 注意
-
-Spring-MVC 是通过对**处理方法签名的规约来保存校验结果的**：前一个表单/命令对象的校验结果保存到随后的入参中，这个保存校验结果的入参必须是 **BindingResult 或 Errors** 类型，这两个类都位于 **org.springframework.validation** 包中。
-
-- 需校验的 Bean 对象和其绑定结果对象或错误对象时成对出现的，它**们之间不允许声明其他的入参**。
-- **Errors 接口**提供了获取错误信息的方法，如 getErrorCount() 或 getFieldErrors(String field)。
-- **BindingResult** 扩展了 Errors 接口
-
-## 在目标方法中获取校验结果
-
-常用方法：
-
-- FieldError getFieldError(String field) 
-- List getFieldErrors() 
-- Object getFieldValue(String field) 
-- Int getErrorCount()
-
-## 在页面上显示错误
-
-- Spring-MVC除了将校验结果保存在BindingResult 或 Errors还会将所有校验结果保存到 “隐含模型”。
-- 即使处理方法的签名中没有用于保存校验结果的入参，校验结果依旧会保存到隐含模型中。
-- 隐含模型的所有数据最终都将通过HttpServletRequest的属性列表暴露给JSP视图对象，因此可以在页面获取到错误信息。**<form:errors path=“userName”>**
-
-# HttpMessageConverter
-
-## 简介
-
-**HttpMessageConverter\<T>**是Spring 3.0 新添加的一个接口，负责将请求信息转为一个对象（类型T），将对象输出为响应信息。
-
-## 接口定义的方法
-
-- **Boolean canRead(Class clazz,MediaType mediaType)**：指定转换器可以读取的对象类型，即转换器是否可将请求信息转换为 clazz 类型的对象，同时指定支持 MIME 类型(text/html,applaiction/json等) 
-- **Boolean canWrite(Class clazz,MediaType mediaType)**：指定转换器是否可将 clazz 类型的对象写到响应流中，响应流支持的媒体类型在MediaType 中定义。 
-- **List getSupportMediaTypes()**：该转换器支持的媒体类型。
-- **T read(Class clazz,HttpInputMessage inputMessage)**： 将请求信息流转换为 T 类型的对象。
-- **void write(T t,MediaType contnetType,HttpOutputMessgae outputMessage)**：将T类型的对象写到响应流中，同时指定相应的媒体类 型为 contentType。
-
-![image-20210923111942270](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923111942270.png)
-
-## 接口实现类
-
-| 实现类                               | 功能说明                                                     |
-| ------------------------------------ | ------------------------------------------------------------ |
-| StringHtpMessageConverter            | 将请求信息转换为字符串                                       |
-| FormHttpMessageConverter             | 将表单数据读取到 MultiValueMap中                             |
-| XmIAwareFormHittpMessageConverter    | 扩展于FormHitpMessageConverter,如果部分表单属性是XML数据，可用该转换器进行读取 |
-| ResourceHittpMessageConverter        | 读写org.springframework.core.io.Resource对象                 |
-| BufferedlmageHttpMessageConverter    | 读写 Bufferedllmage对象                                      |
-| ByteArrayHttpMessageConverter        | 读写二进制数据                                               |
-| SourcelittpMessageConverter          | 读写javax.xml.transform.Source类型的数据                     |
-| MarshallingHittpMessageConverter     | 通过 Spring 的org.springframework..xmL.Marshaller和Unmarshaller 读写XML消息 |
-| Jaxb2RootElemengHttpMessageConverter | 通过JAXB2读写XML消息,将请求消息转换到标注XmIRootElement和 XxmlTy直接的类中 |
-| MappingJacksonHttpMessageConverter   | 利用Jackson开源包的ObjectMapper读写JSON数据                  |
-| RssChannellHittpMessageConverter     | 能够读写RSS种子消息                                          |
-| AtomFeedHttpMessageConverter         | 和RssChannellHittpMessageConverter能够读写RSS种子消息        |
-
-## HttpMessageConverter的默认装配
-
-DispatcherServlet 默认装配 **RequestMappingHandlerAdapter** ，而RequestMappingHandlerAdapter 默认装配如下 **HttpMessageConverter**的实现。
-
-![image-20210923112826854](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923112826854.png)
-
-加入 jackson.jar 包后
-
-![image-20210923112844941](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923112844941.png)
-
-## 请求信息转化并绑定到处理方法
-
-使用HttpMessageConverter\<T>将请求信息转化并绑定到处理方法的入参中、或将响应结果转为对应类型的响应信息。Spring提供了两种途径：
-
-- 使用 **@RequestBody / @ResponseBody** 对处理方法进行标注。
-
-- 使用 **HttpEntity\<T> / ResponseEntity\<T>** 作为处理方法的入参或返回值。
-
-3、当控制器处理方法使用到 @RequestBody/@ResponseBody 或 HttpEntity\<T>/ResponseEntity\<T> 时，Spring首先根据请求头或响应头的 Accept 属性选择匹配的 HttpMessageConverter, 进而根据参数类型或泛型类型的过滤得到匹配的 HttpMessageConverter, 若找不到可用的HttpMessageConverter 将报错。
-
-- **注意**：@RequestBody 和 @ResponseBody 不需要成对出现
-
-```java
-@ResponBody
-@RequestMapping("/handle15")
-//由ByteArrayHttpMessageConverter处理
-public byte[] handle15() throws IOException {
-    Resource resource = new ClassPathResource("/lighthouse.jpg");
-    byte[] fileData = FileCopyUtils.copyToByteArray(resource.getIputStream());
-    return fileData;
-}
-
-@RequestMapping(value="handle14", method=RequestMethod.POST)
-//由StringHtpMessageConverter处理
-public String handle14(@RequestBody String requestBody) {
-    System.out.println(requestBody);
-    return "success";
-}
-```
-
-![image-20210923115326343](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923115326343.png)
-
-# 文件上传
-
-1、Spring-MVC为文件上传提供了直接支持，使用**MultipartResolver**实现。Spring用**Jakarta Commons FileUpload** 技术实现了一个MultipartResolver的实现类：**CommonsMultipartResovler**。
-
-2、Spring-MVC上下文**默认没有装配MultipartResovler**，因此默认情况下不能处理文件的上传工作，若需使用要在上下文中配置MultipartResolver
-
-```xml
-<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
-    <property name="defaultEncoding" value="UTF-8"/>
-    <property name="maxUploadSize" value="-1"/>
-</bean>
-```
-
-**注意**：
-
-- Bean的ID必须为multipartResolver否则Spring找不到
-- 属性 defaultEncoding：必须和用户JSP的pageEncoding相同
-- 需要添加Jakarta Commons FileUpload 及 Jakarta Commons io 的类包添加到类路径下。
-
-# 拦截器
-
-## 简介
-
-Spring-MVC可以使用拦截器对请求进行拦截处理，开发者可以自定义拦截器来实现特定的功能，自定义拦截器必须实现**HandlerInterceptor接口**，内含三个抽象方法：
-
-- **preHandle()**：这个方法在业务处理器处理请求之前被调用，在该方法中对用户请求 request 进行处理。如果程序员决定该拦截器对请求进行拦截处理后还要调用其他的拦截器，或者是业务处理器去进行处理，则返回true；如果程序员决定不需要再调用其他的组件去处理请求，则返回false。
-- **postHandle()**：这个方法在业务处理器处理完请求后，但是DispatcherServlet 向客户端返回响应前被调用，在该方法中对用户请求request进行处理。 
-- **afterCompletion()**：这个方法在 DispatcherServlet 完全处理完请求后被调用，可以在该方法中进行一些资源清理的操作。
-
-## 拦截器方法执行顺序
-
-单个拦截器：
-
-First#preHandle --> HandlerAdapter#handle --> First#postHandle --> DispatcherServlet#render --> First#afterCompletion
-
-多个拦截器：
-
-First#preHandle --> Second#preHandle --> HandlerAdapter#handle --> Second#postHandle --> First#postHandle --> DispatcherServlet#render --> Second# afterCompletion --> First#afterCompletion
-
-## 配置自定义拦截器
-
-```xml
-<mvc:interceptors>
-    <mvc:interceptor>
-        <mvc:mapping path="/拦截路径"/>
-        <bean class="拦截器类路径"/>
-    </mvc:interceptor>
-</mvc:interceptors>
-```
-
-## 注意
-
-如果再**preHandle**阶段任意一个拦截器返回false直接跳到最后。
-
-# 异常处理
-
-## 简介
-
-Spring-MVC通过HandlerExceptionResolver处理程序的异常，包括Handler映射、数据绑定、目标处理方法执行异常。
-
-## 默认装配的异常处理器
-
-DispatcherServlet默认装配的**HandlerExceptionResolver**。
-
-- 没有使用\<mvc:annotation-driven>配置
-
-![image-20210923163456940](images\Spring-MVC.assets\image-20210923163456940.png)
-
-- 使用了\<mvc:annotation-driven>配置
-
-![image-20210923163511094](images\Spring-MVC.assets\image-20210923163511094.png)
-
-## ExceptionHandlerExceptionResolver
-
-**作用**：主要处理Handler中使用**@ExceptionHandler注解**定义的方法。
-
-## ResponseStatusExceptionResolver
-
-**作用**：在异常及异常父类中找到**@ResponseStatus注解**，然后使用这个注解的属性进行处理。
-
-## DefaultHandlerExceptionResolver
-
-**作用**：对一些特殊的异常进行处理：**NoSuchRequestHandlingMethodException**、**HttpReques** **tMethodNotSupportedException**、**HttpMediaTypeNotSuppo** **rtedException**、**HttpMediaTypeNotAcceptableException** 等
-
-## SimpleMappingExceptionResolver
-
-**作用**：如果希望对所有异常进行统一处理，可以使用**SimpleMappingExceptionResolver**，它将异常类名映射为视图名，即发生异常时使用对应的视图报告异常。
-
-**配置**：
-
-```xml
-<bean class = "org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
-    <property name="exceptionMappings">
-        <props>
-            <prop key="异常全类名 ">视图名</prop>
-        </props>
-    </property>
-</bean>
-```
-
-**属性**：
-
-- **defaultErrorView**：为所有异常定义默认的异常处理页面exceptionMappings未定义的使用此配置。
-- **exceptionAttribute**：定义存入的异常名默认为exception，将出现的异常信息在请求域中进行共享
-- **exceptionMappings**：定义需要处理的特殊异常，用类名全路径作为key，异常视图为值。
-
-# Servlet3.0
-
-## 1、新规
-
-框架必须提供**ServletContainerInitializer**的实现，在jar文件的**META-INF/services**目录中绑定一个名为**javax.servlet.ServletContainerInitializer.根据jar服务API**，它指向ServletContainerInitializer的实现类。
-
-```java
-//容器启动的时候会将@HandlesTypes指定的这个类型下面的子类（实现类，子接口等）传递过来
-//@HandlesTypes传入感兴趣的类型
-@HandlesTypes(value={HelloService.class})
-public class MyServletContainerInitializer implements ServletContainerInitializer {
-    @Override
-	public void onStartup(Set<Class<?>> arg0, ServletContext sc) throws ServletException {
-		System.out.println("感兴趣的类型：");
-		for (Class<?> claz : arg0) {
-			System.out.println(claz);
-		}
-		//注册组件ServletRegistration  
-		ServletRegistration.Dynamic servlet = sc.addServlet("userServlet", new UserServlet());
-		//配置servlet的映射信息
-		servlet.addMapping("/user");
-		//注册Listener
-		sc.addListener(UserListener.class);
-		//注册Filter  FilterRegistration
-		FilterRegistration.Dynamic filter = sc.addFilter("userFilter", UserFilter.class);
-		//配置Filter的映射信息
-		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
-	}
-}
-```
-
-实现了ServletContainerInitializer接口的应用启动的时候，会运行**onStartup(Set<Class<?>> arg0, ServletContext sc)**方法。
-
-- 参数**Set<Class<?>> arg0**：感兴趣的类型的所有子类型
-
-- 参数**ServletContext sc**：代表当前Web应用的ServletContext，一个Web应用一个ServletContext
-
-使用**ServletContext**注册三大组件（Servlet，Filter，Listener）
-
-## 2、异步
-
-使用Servlet3.0的异步模式
-
-- @WebServlet注解需要开启支持异步**asyncSupported=true**
-- 方法内开启异步模式**AsyncContext startAsync = req.startAsync();**
-- 创建一个副线程执行异步处理**startAsync.start(new Runnable() {..........})；**
-
-```java
-@WebServlet(value="/async",asyncSupported=true)
-public class HelloAsyncServlet extends HttpServlet {
-   
-   @Override
-   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-      //1、支持异步处理asyncSupported=true
-      //2、开启异步模式
-      System.out.println("主线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
-      AsyncContext startAsync = req.startAsync();
-      
-      //3、业务逻辑进行异步处理;开始异步处理
-      startAsync.start(new Runnable() {
-         @Override
-         public void run() {
-            try {
-               System.out.println("副线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
-               sayHello();
-                //异步任务完成
-               startAsync.complete();
-               //获取到异步上下文
-               AsyncContext asyncContext = req.getAsyncContext();
-               //获取响应
-               ServletResponse response = asyncContext.getResponse();
-               response.getWriter().write("hello async...");
-               System.out.println("副线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
-            } catch (Exception e) {
-            }
-         }
-      });       
-      System.out.println("主线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
-   }
-
-   public void sayHello() throws Exception{
-      System.out.println(Thread.currentThread()+" processing...");
-      Thread.sleep(3000);
-   }
-}
-```
-
-# 完全注解Spring-MVC
-
-1、WEB容器在启动的时候，会扫描每个jar包下的**META-INF/services/javax.servlet.ServletContainerInitializer**。
-
-2、加载这个文件指定的类**SpringServletContainerInitializer**。
-
-3、Spring的应用一启动会加载感兴趣的**WebApplicationInitializer**接口的下的所有组件
-
-4、并且为WebApplicationInitializer组件创建对象（组件不是接口，不是抽象类）
-
-1. **AbstractContextLoaderInitializer**：创建根容器，**createRootApplicationContext()；** **实现了WebApplicationInitializer接口**
-
-2. **AbstractDispatcherServletInitializer**：**继承了了AbstractContextLoaderInitializer**
-
-   1. 创建一个web的IOC容器：**createServletApplicationContext();**
-   2. 创建了**DispatcherServlet**：**createDispatcherServlet()；** 
-   3. 将创建的DispatcherServlet添加到ServletContext中：**getServletMappings();**
-
-3. **AbstractAnnotationConfigDispatcherServletInitializer**：注解方式配置的**DispatcherServlet初始化器** 
-
-   **继承了AbstractDispatcherServletInitializer**
-
-   1. 创建根容器：**createRootApplicationContext()；** 调用下面方法
-   2. 传入一个配置类：**getRootConfigClasses()；** 
-   3. 创建WEB的IOC容器： **createServletApplicationContext()；** 调用下面的方法 
-   4. 获取配置类：**getServletConfigClasses()；** 
-
-也就是说，在Servlet3.0环境中，容器会在类路径中查找实现javax.servlet.ServletContainerInitializer接口的类，如果找到的话就用它来配置Servlet容器。
-Spring提供了这个接口的实现，名为SpringServletContainerInitializer，这个类反过来又会查找实现WebApplicationInitializer的类并将配置的任务交给它们来完成。Spring3.2引入了一个便利的WebApplicationInitializer基础实现，名为AbstractAnnotationConfigDispatcherServletInitializer，当我们的类扩展了AbstractAnnotationConfigDispatcherServletInitializer并将其部署到Servlet3.0容器的时候，容器会自动发现它，并用它来配置Servlet上下文。
+Spring3.2引入了一个便利的WebApplicationInitializer基础实现，名为AbstractAnnotationConfigDispatcherServletInitializer，当我们的类扩展了AbstractAnnotationConfigDispatcherServletInitializer并将其部署到Servlet3.0容器的时候，容器会自动发现它，并用它来配置Servlet上下文。
 
 ```java
 public abstract class AbstractAnnotationConfigDispatcherServletInitializer extends AbstractDispatcherServletInitializer{.......}
 ```
 
+## 步骤
+
+### 1、创建初始化类
+
+代替Web.xml
+
 ```java
-//web容器启动的时候创建对象；调用方法来初始化容器以前前端控制器
-public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
-	//获取根容器的配置类，（Spring的配置文件）父容器，下文中的RootConfig
+// web容器启动的时候创建对象；调用方法来初始化容器以前前端控制器
+public class WebInit extends AbstractAnnotationConfigDispatcherServletInitializer {
+    
+	// 获取根容器的配置类，（Spring的配置文件）父容器，下文中的RootConfig
 	@Override
 	protected Class<?>[] getRootConfigClasses() {
 		return new Class<?>[]{RootConfig.class};
 	}
-	//获取web容器的配置类（SpringMVC配置文件）子容器，下文中的AppConfig
+    
+	// 获取web容器的配置类（SpringMVC配置文件）子容器，下文中的AppConfig
 	@Override
 	protected Class<?>[] getServletConfigClasses() {
 		return new Class<?>[]{AppConfig.class};
 	}
+    
 	//获取DispatcherServlet的映射信息
 	//  /：拦截所有请求（包括静态资源（xx.js,xx.png）），但是不包括*.jsp；
 	//  /*：拦截所有请求；连*.jsp页面都拦截；jsp页面是tomcat的jsp引擎解析的；
@@ -1247,51 +1647,134 @@ public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServl
 	protected String[] getServletMappings() {
 		return new String[]{"/"};
 	}
+    
+    // 添加过滤器
+    @Override
+    protected Filter[] getServletFilters() {
+        CharacterEncodingFilter encodingFilter = new CharacterEncodingFilter();
+        encodingFilter.setEncoding("UTF-8");
+        encodingFilter.setForceRequestEncoding(true);
+        HiddenHttpMethodFilter hiddenHttpMethodFilter = new HiddenHttpMethodFilter();
+        return new Filter[]{encodingFilter, hiddenHttpMethodFilter};
+    }
 }
 ```
+
+### 2、Spring配置类
+
+代替Spring配置文件
+
+~~~java
+// Spring的容器不扫描controller，父容器
+@ComponentScan(value="com.atguigu",excludeFilters={
+		@Filter(type=FilterType.ANNOTATION,classes={Controller.class})
+})
+@Configuration
+public class RootConfig {
+	// ssm整合之后，spring的配置信息写在此类中
+}
+~~~
+
+### 3、SpringMVC配置类
+
+代替SpringMVC的配置文件
 
 通过继承**WebMvcConfigurerAdapter**，实现方法来定制MVC
 
 ```java
-//SpringMVC只扫描Controller，子容器
-//useDefaultFilters=false 禁用默认的过滤规则
-@ComponentScan(value="com.atguigu",includeFilters={
-		@Filter(type=FilterType.ANNOTATION,classes={Controller.class})
-},useDefaultFilters=false)
-//开启MVC定制配置功能
+// SpringMVC只扫描Controller，子容器
+// useDefaultFilters=false 禁用默认的过滤规则
+@ComponentScan(value="com.atguigu",
+               includeFilters={@Filter(type=FilterType.ANNOTATION,classes={Controller.class})},
+               useDefaultFilters=false)
+// 开启MVC定制配置功能
 @EnableWebMvc
 @Configuration
 public class AppConfig  extends WebMvcConfigurerAdapter  {
-	//定制
-	//视图解析器
+    
+    // 使用默认的servlet处理静态资源
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+        configurer.enable();
+    }
+    
+    // 配置文件上传解析器
+    @Bean
+    public CommonsMultipartResolver multipartResolver(){
+        return new CommonsMultipartResolver();
+    }
+    
+	// 定制
+	// 视图解析器
 	@Override
 	public void configureViewResolvers(ViewResolverRegistry registry) {
 		//默认所有的页面都从 /WEB-INF/ xxx .jsp
 		//registry.jsp();
 		registry.jsp("/WEB-INF/views/", ".jsp");
 	}
-	//静态资源访问
+    
+    // 配置异常映射
+    @Override
+    public void configureHandlerExceptionResolvers(List<HandlerExceptionResolver> resolvers) {
+        SimpleMappingExceptionResolver exceptionResolver = new SimpleMappingExceptionResolver();
+        Properties prop = new Properties();
+        prop.setProperty("java.lang.ArithmeticException", "error");
+        // 设置异常映射
+        exceptionResolver.setExceptionMappings(prop);
+        // 设置共享异常信息的键
+        exceptionResolver.setExceptionAttribute("ex");
+        resolvers.add(exceptionResolver);
+    }
+    
+    //配置视图控制
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addViewController("/").setViewName("index");
+    }
+    
+	// 静态资源访问
 	@Override
 	public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
 		configurer.enable();
 	}
-	//拦截器
+    
+	// 配置拦截器
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(new MyFirstInterceptor()).addPathPatterns("/**");
 	}
-}
-```
-
-```java
-
-//Spring的容器不扫描controller，父容器
-@ComponentScan(value="com.atguigu",excludeFilters={
-		@Filter(type=FilterType.ANNOTATION,classes={Controller.class})
-})
-@Configuration
-public class RootConfig {
-
+    
+    // 配置生成模板解析器
+    @Bean
+    public ITemplateResolver templateResolver() {
+        WebApplicationContext webApplicationContext = ContextLoader.getCurrentWebApplicationContext();
+        // ServletContextTemplateResolver需要一个ServletContext作为构造参数，可通过WebApplicationContext 的方法获得
+        ServletContextTemplateResolver templateResolver = new ServletContextTemplateResolver(
+                webApplicationContext.getServletContext());
+        templateResolver.setPrefix("/WEB-INF/templates/");
+        templateResolver.setSuffix(".html");
+        templateResolver.setCharacterEncoding("UTF-8");
+        templateResolver.setTemplateMode(TemplateMode.HTML);
+        return templateResolver;
+    }
+    
+    // 生成模板引擎并为模板引擎注入模板解析器
+    @Bean
+    public SpringTemplateEngine templateEngine(ITemplateResolver templateResolver) {
+        SpringTemplateEngine templateEngine = new SpringTemplateEngine();
+        templateEngine.setTemplateResolver(templateResolver);
+        return templateEngine;
+    }
+    
+    // 生成视图解析器并为解析器注入模板引擎
+    @Bean
+    public ViewResolver viewResolver(SpringTemplateEngine templateEngine) {
+        ThymeleafViewResolver viewResolver = new ThymeleafViewResolver();
+        viewResolver.setCharacterEncoding("UTF-8");
+        viewResolver.setTemplateEngine(templateEngine);
+        return viewResolver;
+    }
+    
 }
 ```
 
@@ -1303,7 +1786,7 @@ public class RootConfig {
 
 2、配置组件（视图解析器、视图映射、静态资源映射、拦截器。。。）通过继承实现方法**extends WebMvcConfigurerAdapter** 
 
-# 异步Spring-MVC
+# 11、异步Spring-MVC
 
 ## Callable
 
@@ -1377,48 +1860,129 @@ public Callable<String> async01(){
 
 异步的拦截器:
 
-1. 原生API的**AsyncListener**
-2. SpringMVC：实现**AsyncHandlerInterceptor**
+1. 原生API的**AsyncListener** 
+2. SpringMVC：实现**AsyncHandlerInterceptor** 
 
-****
+# 12、原生Servlet
+
+## 使用Servlet API作为入参
+
+```java
+public String testServletAPI(HttpServletResponse response, HttpServletRequest request)
+```
+
+- 可以接受这些参数
+
+```java
+1、HttpServletRequest
+2、HttpServletResponse
+3、HttpSession
+4、java.security.Principal
+5、Locale
+6、InputStream
+7、OutputStream
+8、Reader
+9、Writer
+```
+
+## Servlet3.0
+
+### 1、新规
+
+框架必须提供**ServletContainerInitializer**的实现，在jar文件的**META-INF/services**目录中绑定一个名为**javax.servlet.ServletContainerInitializer.根据jar服务API**，它指向ServletContainerInitializer的实现类。
+
+```java
+//容器启动的时候会将@HandlesTypes指定的这个类型下面的子类（实现类，子接口等）传递过来
+//@HandlesTypes传入感兴趣的类型
+@HandlesTypes(value={HelloService.class})
+public class MyServletContainerInitializer implements ServletContainerInitializer {
+    @Override
+	public void onStartup(Set<Class<?>> arg0, ServletContext sc) throws ServletException {
+		System.out.println("感兴趣的类型：");
+		for (Class<?> claz : arg0) {
+			System.out.println(claz);
+		}
+		//注册组件ServletRegistration  
+		ServletRegistration.Dynamic servlet = sc.addServlet("userServlet", new UserServlet());
+		//配置servlet的映射信息
+		servlet.addMapping("/user");
+		//注册Listener
+		sc.addListener(UserListener.class);
+		//注册Filter  FilterRegistration
+		FilterRegistration.Dynamic filter = sc.addFilter("userFilter", UserFilter.class);
+		//配置Filter的映射信息
+		filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
+	}
+}
+```
+
+实现了ServletContainerInitializer接口的应用启动的时候，会运行**onStartup(Set<Class<?>> arg0, ServletContext sc)**方法。
+
+- 参数**Set<Class<?>> arg0**：感兴趣的类型的所有子类型
+
+- 参数**ServletContext sc**：代表当前Web应用的ServletContext，一个Web应用一个ServletContext
+
+使用**ServletContext**注册三大组件（Servlet，Filter，Listener）
+
+### 2、异步
+
+使用Servlet3.0的异步模式
+
+- @WebServlet注解需要开启支持异步**asyncSupported=true**
+- 方法内开启异步模式**AsyncContext startAsync = req.startAsync();**
+- 创建一个副线程执行异步处理**startAsync.start(new Runnable() {..........})；**
+
+```java
+@WebServlet(value="/async",asyncSupported=true)
+public class HelloAsyncServlet extends HttpServlet {
+   
+   @Override
+   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+      //1、支持异步处理asyncSupported=true
+      //2、开启异步模式
+      System.out.println("主线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+      AsyncContext startAsync = req.startAsync();
+      
+      //3、业务逻辑进行异步处理;开始异步处理
+      startAsync.start(new Runnable() {
+         @Override
+         public void run() {
+            try {
+               System.out.println("副线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+               sayHello();
+                //异步任务完成
+               startAsync.complete();
+               //获取到异步上下文
+               AsyncContext asyncContext = req.getAsyncContext();
+               //获取响应
+               ServletResponse response = asyncContext.getResponse();
+               response.getWriter().write("hello async...");
+               System.out.println("副线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+            } catch (Exception e) {
+            }
+         }
+      });       
+      System.out.println("主线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+   }
+
+   public void sayHello() throws Exception{
+      System.out.println(Thread.currentThread()+" processing...");
+      Thread.sleep(3000);
+   }
+}
+```
 
 # 扩展
 
 ## Spring-MVC运行流程
 
-![image-20210923165259667](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923165259667.png)
-
-### SpringMVC常用组件
-
-- DispatcherServlet：**前端控制器**，由框架提供
-
-作用：统一处理请求和响应，整个流程控制的中心，由它调用其它组件处理用户的请求
-
-- HandlerMapping：**处理器映射器**，由框架提供
-
-作用：根据请求的url、method等信息查找Handler，即控制器方法
-
-- Handler：**处理器**，需要工程师开发
-
-作用：在DispatcherServlet的控制下Handler对具体的用户请求进行处理
-
-- HandlerAdapter：**处理器适配器**，由框架提供
-
-作用：通过HandlerAdapter对处理器（控制器方法）进行执行
-
-- ViewResolver：**视图解析器**，由框架提供
-
-作用：进行视图解析，得到相应的视图，例如：ThymeleafView、InternalResourceView、RedirectView
-
-- View：**视图**
-
-作用：将模型数据通过页面展示给用户
+![image-20210923165259667](images/image-20210923165259667.png)
 
 ### DispatcherServlet初始化过程
 
 DispatcherServlet 本质上是一个 Servlet，所以天然的遵循 Servlet 的生命周期。所以宏观上是 Servlet 生命周期来进行调度。
 
-![images](C:\Users\zzp84\Desktop\Spring笔记\Spring-MVC笔记\images\Spring-MVC.assets\img005.png)
+![images](\images\Spring-MVC.assets\img005.png)
 
 ##### 1、初始化WebApplicationContext
 
@@ -1802,15 +2366,15 @@ i. 再判断是否配置了mvc:default-servlet-handler
 
 ii. 如果没配置，则控制台报映射查找不到，客户端展示404错误
 
-![image-20210709214911404](C:\Users\zzp84\Desktop\Spring笔记\Spring-MVC笔记\images\Spring-MVC.assets\img006.png)
+![image-20210709214911404](images\Spring-MVC.assets\img006.png)
 
-![image-20210709214947432](C:\Users\zzp84\Desktop\Spring笔记\Spring-MVC笔记\images\Spring-MVC.assets\img007.png)
+![image-20210709214947432](images\Spring-MVC.assets\img007.png)
 
 iii. 如果有配置，则访问目标资源（一般为静态资源，如：JS,CSS,HTML），找不到客户端也会展示404错误
 
-![image-20210709215255693](C:\Users\zzp84\Desktop\Spring笔记\Spring-MVC笔记\images\Spring-MVC.assets\img008.png)
+![image-20210709215255693](images\Spring-MVC.assets\img008.png)
 
-![image-20210709215336097](C:\Users\zzp84\Desktop\Spring笔记\Spring-MVC笔记\images\Spring-MVC.assets\img009.png)
+![image-20210709215336097](images\Spring-MVC.assets\img009.png)
 
 b) 存在则执行下面的流程
 
@@ -1861,7 +2425,7 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
   - 支持使用 @Valid 注解对 JavaBean 实例进行 JSR 303 验证
   - 支持使用 @RequestBody 和 @ResponseBody 注解
 
-![image-20210923105518249](C:\Users\zzp84\Desktop\Spring-MVC笔记\images\Spring-MVC.assets\image-20210923105518249.png)
+![image-20210923105518249](images\Spring-MVC.assets\image-20210923105518249.png)
 
 ## 隐含模型
 
@@ -1869,23 +2433,23 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
 
 - Model是一个**接口**。
 
-![image-20210923164640345](images\Spring-MVC.assets\image-20210923164640345.png)
+![image-20210923164640345](images/image-20210923164640345.png)
 
-![image-20210923164643964](images\Spring-MVC.assets\image-20210923164643964.png)
+![image-20210923164643964](images/image-20210923164643964.png)
 
 - ModelMap是一个**LinkedHashMap**实现类。
 
-![image-20210923164703156](images\Spring-MVC.assets\image-20210923164703156.png)
+![image-20210923164703156](images/image-20210923164703156.png)
 
 - ModelAndView：**有一个属性为Model**，在本身初始化后，该属性为空，当调用它增加数据模型的方法时，会自动创建一个ModelMap实例，用于保存数据。
 
 2、隐含模型对象作为模型数据的存储容器：在控制器方法中，可以将**ModelAndView**、**Model**、**ModelMap**、**Map**作为参数，在Spring-MVC运行时，会自动初始化，新建一个**BindAwareModelMap**实例。
 
-![image-20210923164852109](images\Spring-MVC.assets\image-20210923164852109.png)
+![image-20210923164852109](images/image-20210923164852109.png)
 
 3、Spring-MVC在内部使用了一个**org.springframework.ui.Model**接口存储模型
 
-![image-20210923164915345](images\Spring-MVC.assets\image-20210923164915345.png)
+![image-20210923164915345](images/image-20210923164915345.png)
 
 - 如果方法入参为**Map**或者**Model**类型，Sping-MVC会将隐含模型的引用传递给入参，之后在方法体内开发者可以通过这个入参对象访问/修改到模型中的数据。
 
@@ -2133,7 +2697,6 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
         });
     }
 }
-
 ```
 
 
@@ -2173,6 +2736,32 @@ public User getUser( ) {
 ## @ModelAttribute为什么放在返回值是空的方法上要以Map作为参数
 
 @ModelAttribute主要作用是将数据存入模型对象中，等价于model.addAttribute（“xx”，“yy”），所以如果被该注解修饰的方法的入参含有map或者model，可以void返回，因为map已经put了，如果没有map或者model，则需要返回。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

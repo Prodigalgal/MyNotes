@@ -1012,7 +1012,7 @@ public class ResourceProperties implements ResourceLoaderAware {...}
 
 ## 3、模板引擎
 
-![template-engine](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\template-engine.png)
+![template-engine](images\template-engine.png)
 
 ### 1、引入Thymeleaf
 
@@ -1080,7 +1080,7 @@ public class ThymeleafProperties {
 
 2、th：任意html属性	替换原本属性
 
-![2018-02-04_123955](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\2018-02-04_123955.png)
+![2018-02-04_123955](\images\2018-02-04_123955.png)
 
 3、表达式
 
