@@ -696,15 +696,12 @@ SpringBoot的日志启动器
 
 底层依赖关系![搜狗截图20180131220946](\images\搜狗截图20180131220946.png)
 
-#### 总结
+1. SpringBoot底层也是使用slf4j+logback的方式进行日志记录
+2. SpringBoot也把其他的日志都替换成了slf4j
 
-1、SpringBoot底层也是使用slf4j+logback的方式进行日志记录
+3. 中间替换包
 
-2、SpringBoot也把其他的日志都替换成了slf4j
-
-3、中间替换包
-
-4、引入其他框架，一定要把这个框架的默认日志依赖移除掉
+4. 引入其他框架，一定要把这个框架的默认日志依赖移除掉
 
 ```java
 @SuppressWarnings("rawtypes")
@@ -795,7 +792,7 @@ logging.pattern.file=%d{yyyy-MM-dd} === [%thread] === %-5level === %logger{50} =
 
 ### 2、指定配置
 
-给类路径下放上每个日志框架自己的配置文件即可；SpringBoot就不使用他默认配置的了
+给类路径下放上每个日志框架自己的配置文件即可，SpringBoot就不使用他默认配置的了
 
 | Logging System          | Customization                                                |
 | ----------------------- | ------------------------------------------------------------ |
@@ -898,10 +895,10 @@ xxxxProperties：配置类来封装配置文件的内容
 ```java
 @ConfigurationProperties(prefix = "spring.resources", ignoreUnknownFields = false)
 public class ResourceProperties implements ResourceLoaderAware {...}
-//可以设置和静态资源有关的参数，缓存时间等
+// 可以设置和静态资源有关的参数，缓存时间等
 ```
 
-**WebMvcAuotConfiguration：**
+在WebMvcAuotConfiguration中使用addResourceHandlers方法设置静态资源的映射规则
 
 ### 1、/webjars/** 
 
@@ -919,7 +916,7 @@ public class ResourceProperties implements ResourceLoaderAware {...}
 				return;
 			}
 			Integer cachePeriod = this.resourceProperties.getCachePeriod();
-			if (!registry.hasMappingForPattern("/webjars/**")) {//第一个规则/webjars/**
+			if (!registry.hasMappingForPattern("/webjars/**")) {// 第一个规则/webjars/**
 				customizeResourceHandlerRegistration(
 						registry.addResourceHandler("/webjars/**")
 								.addResourceLocations(
@@ -927,7 +924,7 @@ public class ResourceProperties implements ResourceLoaderAware {...}
 						.setCachePeriod(cachePeriod));
 			}
 			String staticPathPattern = this.mvcProperties.getStaticPathPattern();
-          	//静态资源文件夹映射
+          	// 静态资源文件夹映射
 			if (!registry.hasMappingForPattern(staticPathPattern)) {
 				customizeResourceHandlerRegistration(
 						registry.addResourceHandler(staticPathPattern)// 第二个规则staticPathPattern映射/**
@@ -1031,6 +1028,22 @@ public class ResourceProperties implements ResourceLoaderAware {...}
   </properties>
 ```
 
+springboot中添加spring-boot-starter-thymeleaf依赖后，springboot会自动注入
+
+- SpringResourceTemplateResolver（模板解析器）
+- SpringTemplateEngine（模板引擎）
+- ThymeleafViewResolver（thymeleaf视图解析器）等对象
+
+这样可以使用模板引擎就可以将模板解析成字符串以及生成文件等。
+
+~~~java
+//解析邮件模板并绑定变量参数  
+var context = new Context();  
+context.setVariable("user", buyer);  
+//mailContent为模板m  
+var content = templateEngine.process("mailContent", context); 
+~~~
+
 ### 2、使用Thymeleaf
 
 只需要把HTML页面放在classpath:/templates/，Thymeleaf就能自动的渲染
@@ -1046,7 +1059,7 @@ public class ThymeleafProperties {
 	public static final String DEFAULT_PREFIX = "classpath:/templates/";
 
 	public static final String DEFAULT_SUFFIX = ".html";
-  	//
+
 ```
 
 #### 准备操作
@@ -2137,7 +2150,7 @@ EmbeddedServletContainerFactory containerFactory = getEmbeddedServletContainerFa
 
 ​	**7、使用容器工厂获取嵌入式的Servlet容器**
 
-this.embeddedServletContainer = containerFactory      .getEmbeddedServletContainer(getSelfInitializer());
+this.embeddedServletContainer = containerFactory.getEmbeddedServletContainer(getSelfInitializer());
 
 ​	**8、嵌入式的Servlet容器创建对象并启动Servlet容器**
 
@@ -2568,7 +2581,7 @@ mybatis:
 
 ### 1、SpringData简介
 
-![搜狗截图20180306105412](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\搜狗截图20180306105412.png)
+![搜狗截图20180306105412](images\SpringBoot.assets\搜狗截图20180306105412.png)
 
 ### 2、整合SpringData JPA
 
@@ -2645,8 +2658,6 @@ spring:
 # 6、启动配置原理
 
 重要的事件回调机制
-
-
 
 配置在META-INF/spring.factories
 

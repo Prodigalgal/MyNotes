@@ -257,7 +257,7 @@ public ModelAndView addPrescription(
 
 默认情况下Spring MVC将模型中的数据存储到request域中，当一个请求结束后，数据就失效了。
 
-如果要跨页面使用，那么需要使用到session。而@SessionAttributes注解就可以使得模型中的数据存储一份到session域中。
+如果要跨页面使用，那么需要使用到session。而@SessionAttributes注解就可以使得**模型中的数据**存储一份到session域中。
 
 **注意**：
 
@@ -271,7 +271,9 @@ public ModelAndView addPrescription(
 - **value**：其实和names是一样的。
   - **value和type之间是并集关系**
 
-@SessionAttributes 除了可以通过属性名指定需要放到会话中的属性外，还可以通过模型属性的对象类型指定哪些模型属性需要放到会话中
+@SessionAttributes 除了可以通过属性名指定需要放到会话中的属性外
+
+还可以通过模型属性的对象类型指定哪些模型属性需要放到会话中
 
 ~~~java
 // 会将model中所有类型为 User的属性添加到会话中。
@@ -301,7 +303,7 @@ public class UserController {
 }
 ~~~
 
-
+清除数据：可以在入参处传入SessionStatus，调用其setComplete()方法清楚，此举仅会清楚注解所传入的数据。
 
 ##  @ResponseBody注解
 
@@ -1292,6 +1294,43 @@ public String testUp(MultipartFile photo, HttpSession session) throws IOExceptio
 ### 文件下载
 
 使用ResponseEntity实现下载文件的功能
+
+文件下载一个重要的点是，获取要下载的文件路径，有四种方式获取：
+
+- 直接使用项目内路径
+
+~~~java
+// 不推荐，部署后无法使用
+File file = new File("src/main/resources/resource.properties");
+~~~
+
+- 使用org.springframework.util.ResourceUtils
+
+~~~java
+// 不推荐，Linux环境无法使用
+ResourceUtils.getFile("classpath:resource.properties");
+ResourceUtils.getURL(ResourceUtils.CLASSPATH_URL_PREFIX).getPath()+"/file/img/1.jpg";
+~~~
+
+- 使用org.springframework.core.io.ClassPathResource
+
+~~~java
+ClassPathResource classPathResource = new ClassPathResource("resource.properties");
+~~~
+
+- 使用org.springframework.core.io.ResourceLoader
+
+~~~java
+@Autowired
+ResourceLoader resourceLoader;
+Resource resource = resourceLoader.getResource("classpath:resource.properties");
+~~~
+
+- 或者通过Request获取文件的真实路径
+
+~~~java
+String realPath = request.getSession().getServletContext().getRealPath("/file/img/1.jpg");
+~~~
 
 ~~~java
 @RequestMapping("/testDown")
