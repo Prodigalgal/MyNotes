@@ -46,11 +46,13 @@ public class HelloWorldSpringBoot {
 }
 ```
 
-#### 1、相关注解：
+## 3、相关注解
 
 ##### 1、**@SpringBootApplication**注解
 
-​		Spring Boot应用标注在某个类上说明这个类是SpringBoot的主配置类，SpringBoot就应该运行这个类的main方法来启动SpringBoot应用。
+Spring Boot应用标注在某个类上说明这个类是SpringBoot的主配置类
+
+SpringBoot就应该运行这个类的main方法来启动SpringBoot应用。
 
 ```java
 @Target(ElementType.TYPE)
@@ -67,15 +69,94 @@ public @interface SpringBootApplication {
 
 ##### 2、@**SpringBootConfiguration**注解
 
-​		标注在某个类上，表示这个是一个SpringBoot的配置类
+标注在某个类上，表示这个是一个SpringBoot的配置类
 
 ##### 3、@**Configuration**注解
 
-​		配置类上标注这个注解，配置类---配置文件，配置类也是容器中的一个组件@Component
+配置类上标注这个注解，配置类 = 配置文件，配置类也是容器中的一个组件@Component
+
+- **Full**模式与**Lite**模式
+  - 配置 类组件之间无依赖关系，用Lite模式，加速容器启动过程，减少判断。
+  - 配置 类组件之间有依赖关系，用Full模式，方法会被调用得到之前单实例组件。
+
+~~~java
+#############################Configuration使用示例######################################################
+/**
+ * 1、配置类里面使用@Bean标注在方法上给容器注册组件，默认也是单实例的
+ * 2、配置类本身也是组件
+ * 3、proxyBeanMethods：代理bean的方法
+ *      Full(proxyBeanMethods = true)、【保证每个@Bean方法被调用多少次返回的组件都是单实例的】
+ *      Lite(proxyBeanMethods = false)、【每个@Bean方法被调用多少次返回的组件都是新创建的】
+ *      组件依赖必须使用Full模式默认。其他默认是Lite模式
+ */
+@Configuration(proxyBeanMethods = false)
+public class MyConfig {
+
+    /**
+     * Full:外部无论对配置类中的这个组件注册方法调用多少次获取的都是之前注册容器中的单实例对象
+     * 给容器中添加组件。
+     * 以方法名作为组件的id。
+     * 返回类型就是组件类型。
+     * @return 返回的值，就是组件在容器中的实例。
+     */
+    @Bean 
+    public User user01(){
+        User zhangsan = new User("zhangsan", 18);
+        // user组件依赖了Pet组件
+        zhangsan.setPet(tomcatPet());
+        return zhangsan;
+    }
+    @Bean("tom")
+    public Pet tomcatPet(){
+        return new Pet("tomcat");
+    }
+}
+
+
+################################@Configuration测试代码如下########################################
+@SpringBootConfiguration
+@EnableAutoConfiguration
+@ComponentScan("com.xxx.boot")
+public class MainApplication {
+
+    public static void main(String[] args) {
+        // 1、返回我们IOC容器
+        ConfigurableApplicationContext run = SpringApplication.run(MainApplication.class, args);
+
+        // 2、查看容器里面的组件
+        String[] names = run.getBeanDefinitionNames();
+        for (String name : names) {
+            System.out.println(name);
+        }
+
+        // 3、从容器中获取组件
+        Pet tom01 = run.getBean("tom", Pet.class);
+        Pet tom02 = run.getBean("tom", Pet.class);
+        System.out.println("组件："+(tom01 == tom02));
+        
+        // 4、com.xxx.boot.config.MyConfig$$EnhancerBySpringCGLIB$$51f1e1ca@1654a892
+        MyConfig bean = run.getBean(MyConfig.class);
+        System.out.println(bean);
+
+        // 如果@Configuration(proxyBeanMethods = true)代理对象调用方法。
+        // SpringBoot总会检查这个组件是否在容器中有。
+        // 保持组件单实例
+        User user = bean.user01();
+        User user1 = bean.user01();
+        System.out.println(user == user1);
+
+        User user01 = run.getBean("user01", User.class);
+        Pet tom = run.getBean("tom", Pet.class);
+        System.out.println("用户的宠物："+(user01.getPet() == tom));
+    }
+}
+~~~
+
+
 
 ##### 4、@**EnableAutoConfiguration**注解
 
-​		开启自动配置功能，以前需要手动配置的，SpringBoot自动配置
+开启自动配置功能，以前需要手动配置的，SpringBoot自动配置
 
 ```java
 @AutoConfigurationPackage
@@ -85,29 +166,39 @@ public @interface EnableAutoConfiguration {
 
 ##### 5、@**AutoConfigurationPackage**
 
-​		自动配置包
+自动配置包
 
 ##### 6、@Import
 
+给容器中自动创建出组件、默认组件的名字就是全类名。
+
 **@Import（AutoConfigurationPackages.Registrar.class）**
 
-​		Spring底层注解@Import，给容器中导入一个组件，导入的组件由AutoConfigurationPackages.Registrar.class，将主配置类（@SpringBootApplication标注的类）的所在包及下面所有子包里面的所有组件扫描到Spring容器
+Spring底层注解@Import，给容器中导入一个组件，导入的组件由AutoConfigurationPackages.Registrar.class，将主配置类（@SpringBootApplication标注的类）的所在包及下面所有子包里面的所有组件扫描到Spring容器
 
 **@Import(EnableAutoConfigurationImportSelector.class)**
 
-​		给容器中导入组件。
+给容器中导入组件。
 
-​		EnableAutoConfigurationImportSelector选择导入哪些组件。将所有需要导入的组件以全类名的方式返回，这些组件就会被添加进容器中。
+EnableAutoConfigurationImportSelector选择导入哪些组件。
 
-​		会给容器中导入许多自动配置类（xxxAutoConfiguration），就是给容器中导入这个场景需要的所有组件，并配置好这些组件。
+将所有需要导入的组件以全类名的方式返回，这些组件就会被添加进容器中。
 
+~~~java
+@Import({User.class, DBHelper.class})
+@Configuration(proxyBeanMethods = false) //告诉SpringBoot这是一个配置类 == 配置文件
+public class MyConfig {}
+~~~
 
+程序启动时会给容器中导入许多自动配置类（xxxAutoConfiguration），就是给容器中导入这个场景需要的所有组件，并配置好这些组件。
 
-#### SpringFactoriesLoader.loadFactoryNames(EnableAutoConfiguration.class,classLoader)；
+~~~java
+SpringFactoriesLoader.loadFactoryNames(EnableAutoConfiguration.class,classLoader)；
+~~~
 
-​	Spring Boot在启动的时候从类路径下的META-INF/spring.factories中获取EnableAutoConfiguration指定的值，将这些值作为自动配置类导入到容器中，自动配置类就生效，帮我们进行自动配置工作
+Spring Boot在启动的时候从类路径下的META-INF/spring.factories中获取EnableAutoConfiguration指定的值，将这些值作为自动配置类导入到容器中，自动配置类就生效，帮我们进行自动配置工作
 
-​	J2EE的整体整合解决方案和自动配置都在spring-boot-autoconfigure-1.5.9.RELEASE.jar；
+J2EE的整体整合解决方案和自动配置都在spring-boot-autoconfigure-1.5.9.RELEASE.jar；
 
 # 2、配置文件
 
@@ -2655,11 +2746,26 @@ spring:
     show-sql: true
 ```
 
-# 6、启动配置原理
+# 6、自动配置原理
+
+SpringBoot所有支持的场景
+https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-starter
 
 重要的事件回调机制
 
 配置在META-INF/spring.factories
+
+~~~xml
+所有场景启动器最底层的依赖
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter</artifactId>
+    <version>2.3.4.RELEASE</version>
+    <scope>compile</scope>
+</dependency>
+~~~
+
+
 
 ## 1、**ApplicationContextInitializer**
 

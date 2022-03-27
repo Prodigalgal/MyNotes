@@ -26,15 +26,15 @@
 
 配置xml文件
 
-![image-20210907172410568](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907172410568.png)     
+![image-20210907172410568](images\Spring-Framework.assets\image-20210907172410568.png)     
 
 解析xml文件
 
-![image-20210907172430766](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907172430766.png)
+![image-20210907172430766](images\Spring-Framework.assets\image-20210907172430766.png)
 
 通过反射创建对象
 
-![image-20210907172440062](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907172440062.png)
+![image-20210907172440062](images\Spring-Framework.assets\image-20210907172440062.png)
 
 ## 2、两个重要接口
 
@@ -62,7 +62,7 @@ BeanFactory的子接口，**加载配置文件的时候会把对象创建**。
 
 - 使用bean标签
 
-![image-20210907173928598](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907173928598.png)
+![image-20210907173928598](images\Spring-Framework.assets\image-20210907173928598.png)
 
 - 往bean标签内添加对应的属性，实现对象的创建。
   - bean标签的常用属性：
@@ -76,25 +76,25 @@ DI：依赖注入
 
 ##### 1、 对应类的set方法进行注入
 
-![image-20210907174339877](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174339877.png)
+![image-20210907174339877](images\Spring-Framework.assets\image-20210907174339877.png)
 
 ##### 2、有参数的构造进行注入
 
-![image-20210907174405239](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174405239.png)
+![image-20210907174405239](images\Spring-Framework.assets\image-20210907174405239.png)
 
 ##### 3、p名称空间注入
 
 其实最后注入时使用的是set方法：
 
-![image-20210907174441655](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174441655.png)
+![image-20210907174441655](images\Spring-Framework.assets\image-20210907174441655.png)
 
-![image-20210907174448733](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174448733.png)
+![image-20210907174448733](images\Spring-Framework.assets\image-20210907174448733.png)
 
 #### 3、注入特殊属性
 
 ##### 1、 null值
 
-![image-20210907174537283](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174537283.png)
+![image-20210907174537283](images\Spring-Framework.assets\image-20210907174537283.png)
 
 ##### 2、特殊符号
 
@@ -108,13 +108,13 @@ DI：依赖注入
   - **Ref**属性：对应所要注入的外部bean的ID
   - **Name**属性：对应类里面属性名称
 
-![image-20210907174902533](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174902533.png)
+![image-20210907174902533](images\Spring-Framework.assets\image-20210907174902533.png)
 
 ##### 4、注入内部bean
 
 在property标签内部写bean标签，无需写ref属性
 
-![image-20210907174947728](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907174947728.png)
+![image-20210907174947728](images\Spring-Framework.assets\image-20210907174947728.png)
 
 #### 4、注入集合属性
 
@@ -122,53 +122,53 @@ DI：依赖注入
 
 - 在属性标签内使用**array**标签，在其内部使用**value**标签注入
 
-![image-20210907175145038](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175145038.png)
+![image-20210907175145038](images\Spring-Framework.assets\image-20210907175145038.png)
 
 ##### 2、注入List类型属性
 
 - 在属性标签内部使用**list**标签，在其内部使用**value**标签注入
 
-![image-20210907175224488](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175224488.png)
+![image-20210907175224488](images\Spring-Framework.assets\image-20210907175224488.png)
 
 ##### 3、注入map类型属性
 
 - 在属性标签内部使用**map**标签，在其内部使用**entry**标签注入
 
-![image-20210907175310816](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175310816.png)
+![image-20210907175310816](images\Spring-Framework.assets\image-20210907175310816.png)
 
 ##### 4、注入set类型属性
 
 - 在属性标签内部使用**set**标签，在其内部使用**value**标签注入
 
-![image-20210907175334565](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175334565.png)
+![image-20210907175334565](images\Spring-Framework.assets\image-20210907175334565.png)
 
 ##### 5、在集合中注入bean类型
 
 - 使用**ref**标签，使用其**bean**属性注入
 
-![image-20210907175353870](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175353870.png)
+![image-20210907175353870](images\Spring-Framework.assets\image-20210907175353870.png)
 
 ##### 6、抽取集合注入部份
 
 - 引入**util名称空间**，使用**id**属性标记，再属性标签内使用**ref**注入
 
-![image-20210907175416322](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175416322.png)
+![image-20210907175416322](images\Spring-Framework.assets\image-20210907175416322.png)
 
-![image-20210907175419985](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175419985.png)
+![image-20210907175419985](images\Spring-Framework.assets\image-20210907175419985.png)
 
 ### 2、基于注解方式实现
 
 #### 1、在xml中开启组件扫描
 
-![image-20210907181905495](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907181905495.png)
+![image-20210907181905495](images\Spring-Framework.assets\image-20210907181905495.png)
 
 #### 2、在类上面创建对象注解
 
 在类上面创建**对象注解**，注解内的**value**可以省略不写的，**默认值时类名首字母小写**。
 
-![image-20210907182037653](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907182037653.png)
+![image-20210907182037653](images\Spring-Framework.assets\image-20210907182037653.png)
 
-![image-20210907182044913](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907182044913.png)
+![image-20210907182044913](images\Spring-Framework.assets\image-20210907182044913.png)
 
 #### 3、开启组件扫描细节
 
@@ -178,11 +178,11 @@ DI：依赖注入
 
 - **context:include-filter** ，设置扫描哪些内容
 
-![image-20210907193705595](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907193705595.png)
+![image-20210907193705595](images\Spring-Framework.assets\image-20210907193705595.png)
 
 - **context:exclude-filter**： 设置哪些内容不进行扫描
 
-![image-20210907193732647](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907193732647.png)
+![image-20210907193732647](images\Spring-Framework.assets\image-20210907193732647.png)
 
 
 
@@ -194,7 +194,7 @@ DI：依赖注入
 
 在配置文件中定义的bean类型，就是返回类型
 
-![image-20210907175749602](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907175749602.png)
+![image-20210907175749602](images\Spring-Framework.assets\image-20210907175749602.png)
 
 #### 2、工厂bean
 
@@ -252,7 +252,7 @@ public ColorFactoryBean colorFactoryBean(){
 
 5、关闭容器，调用销毁bean的销毁方法，（需设置）
 
-![image-20210907180043936](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180043936.png)
+![image-20210907180043936](images\Spring-Framework.assets\image-20210907180043936.png)
 
 6、在bean标签内使用**init-method**属性设置初始化方法，使用**destroy-method**属性设置销毁方法
 
@@ -266,9 +266,9 @@ public ColorFactoryBean colorFactoryBean(){
 
 - 添加后置处理，创建类实现接口，在xml中配置
 
-![image-20210907180512222](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180512222.png)
+![image-20210907180512222](images\Spring-Framework.assets\image-20210907180512222.png)
 
-![image-20210907180516882](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907180516882.png)
+![image-20210907180516882](images\Spring-Framework.assets\image-20210907180516882.png)
 
 #### 6、Bean自动装配
 
@@ -887,23 +887,23 @@ private String nickName;
 
 **销毁**
 
-![image-20210907194104121](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907194104121.png)
+![image-20210907194104121](images\Spring-Framework.assets\image-20210907194104121.png)
 
 ### 6、@PostConstruct
 
 **初始化**
 
-![image-20210907194135269](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907194135269.png)
+![image-20210907194135269](images\Spring-Framework.assets\image-20210907194135269.png)
 
 1、创建配置类，替代XML文件
 
-![image-20210907194344574](G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907194344574.png)
+![image-20210907194344574](images\Spring-Framework.assets\image-20210907194344574.png)
 
 2、加载配置类
 
 3、使用**AnnotationConfigApplicationContext**加载
 
-<img src="G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907194417702.png" alt="image-20210907194417702" style="zoom:200%;" />
+<img src="images\Spring-Framework.assets\image-20210907194417702.png" alt="image-20210907194417702" style="zoom:200%;" />
 
 ### 7、@PropertySource
 
@@ -1045,6 +1045,8 @@ public Person person01(){}
 
 ### 6、@Conditional
 
+条件装配：满足Conditional指定的条件，则进行组件注入
+
 **相关接口**：
 
 接口**Condition**：
@@ -1057,15 +1059,15 @@ public Person person01(){}
 public class LinuxCondition implements Condition {
     @Override
     public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        //1、能获取到ioc使用的beanfactory
+        // 1、能获取到ioc使用的beanfactory
         ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-        //2、获取类加载器
+        // 2、获取类加载器
         ClassLoader classLoader = context.getClassLoader();
-        //3、获取当前环境信息
+        // 3、获取当前环境信息
         Environment environment = context.getEnvironment();
-        //4、获取到bean定义的注册类
+        // 4、获取到bean定义的注册类
         BeanDefinitionRegistry registry = context.getRegistry();
-        //可以判断容器中的bean注册情况，也可以给容器中注册bean
+        // 可以判断容器中的bean注册情况，也可以给容器中注册bean
         boolean definition = registry.containsBeanDefinition("person");
         if(property.contains("linux")){
             return true;
@@ -1082,7 +1084,7 @@ public class LinuxCondition implements Condition {
 @Configuration
 public class MainConfig2 {}
 
-//判断是否windows系统,需要实现Condition接口
+// 判断是否windows系统,需要实现Condition接口
 public class WindowsCondition implements Condition {
 
 	@Override
@@ -4055,13 +4057,13 @@ public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry, Environmen
 -  默认会去 **classPath**路径下找。classPath 路径指的就是编译后的 classes 目录。
 - “classpath:” 是可以缺省的。如果是绝对路径，就需要加上 “file:” 前缀，不可缺省。
 
-<img src="G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907173447896.png" alt="image-20210907173447896" style="zoom:150%;" />              
+<img src="images\Spring-Framework.assets\image-20210907173447896.png" alt="image-20210907173447896" style="zoom:150%;" />              
 
 2、**FileSystemXmlApplicationContext**：
 
 - 默认是去**项目的路径**下加载，可以是相对路径，也可以是绝对路径，若是绝对路径，“file:” 前缀可以缺省。
 
-<img src="G:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Framework笔记\images\Spring-Framework.assets\image-20210907173458585.png" alt="image-20210907173458585" style="zoom:150%;" />
+<img src="images\Spring-Framework.assets\image-20210907173458585.png" alt="image-20210907173458585" style="zoom:150%;" />
 
 ## 2、关于Bean标签的id属性与name属性
 

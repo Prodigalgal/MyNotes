@@ -8,14 +8,11 @@
 
 CSS全称为“层叠样式表 (Cascading Style Sheets)”，它主要是用于定义HTML元素（或内容）在浏览器内的显示样式，如文字大小、颜色、字体、边框、位置等。
 
-
-
 ## 第2章 CSS基本语法
 
 ### 2.1 基本格式
 
 - CSS样式由选择符(选择器)和声明组成，而声明又由属性和值组成，如下图所示：
-
 
 ![1556380132441](images/1556380132441.png)
 
@@ -45,8 +42,6 @@ CSS全称为“层叠样式表 (Cascading Style Sheets)”，它主要是用于�
 
 - CSS注释：**/*注释内容\*/**
 
-
-
 ### 2.3 CSS样式编写位置
 
 方式一：写在标签的style属性中：
@@ -63,10 +58,10 @@ CSS全称为“层叠样式表 (Cascading Style Sheets)”，它主要是用于�
 
 ```html
 <style type="text/css">
-	p{
-		color:blue;
+    p{
+        color:blue;
         background-color: yellow;
-	}
+    }
 </style>
 ```
 
@@ -82,15 +77,15 @@ CSS全称为“层叠样式表 (Cascading Style Sheets)”，它主要是用于�
 @charset "UTF-8";
 /* 这是css与html结合使用的第三种方式  */
 div { 
-	border: 1px solid red; 
+    border: 1px solid red; 
 } 
 span {
-	border: 1px solid green; 
+    border: 1px solid green; 
 }
 ```
 
 > 说明：**当同一个 HTML 元素被不止一个样式定义时，会使用哪个样式呢？**
->
+> 
 > 优先级按照上述讲的三种方式依次降低。内联样式（在 HTML 元素内部）拥有最高的优先权。
 
 ## 第3章 选择器的分类
@@ -103,7 +98,7 @@ span {
 
 ```css
 p {
-	color:red;
+    color:red;
 }
 ```
 
@@ -125,7 +120,7 @@ p {
 
 
 .foot {
-	color:red;
+    color:red;
 }
 ```
 
@@ -135,7 +130,7 @@ p {
 
 ```css
  #id属性值{
- 
+
  }
 ```
 
@@ -145,12 +140,9 @@ p {
 <p id=”abc”>大家好</p>
 
 #abc {
-	color:red;
+    color:red;
 }
-
 ```
-
-
 
 ### 分类4：组选择器
 
@@ -158,7 +150,7 @@ p {
 
 ```css
 选择器1，选择器2，……，选择器N{
-	color：red；
+    color：red；
 }
 ```
 
@@ -166,11 +158,9 @@ p {
 
 ```css
 #div1,.mini{
-	background-color:red;
+    background-color:red;
 }
 ```
-
-
 
 ### 分类5：派生选择器
 
@@ -189,7 +179,7 @@ p {
 ### 4.1 颜色
 
 - CSS中的颜色用RGB颜色：红色(red)、绿色(green)、蓝色(blue) ——光学三原色表示。
-
+  
   ![1557333366253](images/1557333366253.png)
 
 - RGB中每种颜色都用两位十六进制数表示，0表示没有光，F表示最强的光，并按红、绿、蓝的顺序排列，前面再加上#号。
@@ -224,7 +214,7 @@ background-color:#0F2D4C
 #### 4.5.1 字体样式
 
 | 字体颜色     | color: *#bbffaa*;      |
-| ------------ | ---------------------- |
+| -------- | ---------------------- |
 | **字体大小** | **font-size: *20px*;** |
 
 #### 4.5.2 黑色1像素实线边框
@@ -256,28 +246,25 @@ text-decoration: none;
 
 ```css
 table {
-	/*设置边框*/
-	border: 1px solid black;
-	/*将边框合并*/
-	border-collapse: collapse;
-}
-	
-td,th {
-	/*设置边框*/
-	border: 1px solid black;
+    /*设置边框*/
+    border: 1px solid black;
+    /*将边框合并*/
+    border-collapse: collapse;
 }
 
+td,th {
+    /*设置边框*/
+    border: 1px solid black;
+}
 ```
 
 #### 4.5.7 列表去除修饰
 
 ```css
 ul {
-	list-style: none;
+    list-style: none;
 }
 ```
-
-
 
 ## 第5章 CSS中的注释语句
 

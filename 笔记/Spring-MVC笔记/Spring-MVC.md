@@ -1283,13 +1283,25 @@ public String testUp(MultipartFile photo, HttpSession session) throws IOExceptio
     photo.transferTo(new File(finalPath));
     return "success";
 }
+// 多文件上传
+List<MultipartFile> files = ((MultipartHttpServletRequest) request).getFiles("file");
 ~~~
 
 **注意**：
 
 - Bean的ID必须为multipartResolver否则Spring找不到。
+
 - 属性 defaultEncoding：必须和用户JSP的pageEncoding相同。
+
 - 需要添加Jakarta Commons FileUpload 及 Jakarta Commons io 的类包添加到类路径下。
+
+- 文件如果过大，需要在yml文件中设置大小
+
+  ~~~yml
+    servlet:
+      multipart:
+        max-file-size: 1000MB
+        max-request-size: 1000MB
 
 ### 文件下载
 
