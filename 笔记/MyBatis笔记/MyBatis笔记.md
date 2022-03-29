@@ -1765,6 +1765,8 @@ MetaObject forObject = SystemMetaObject.forObject(obj);
 
 4. 可以使用更强大的PageInfo封装返回结果
 
+
+
 ## 2、批量操作
 
 1、默认的 openSession() 方法没有参数,它会创建有如下特性的：

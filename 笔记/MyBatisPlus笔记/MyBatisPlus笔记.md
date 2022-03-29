@@ -1747,6 +1747,8 @@ public GlobalConfig globalConfig() {
 
 ## 分页插件
 
+### xml配置
+
 ```xml
 <!-- spring xml 方式 -->
 <property name="plugins">
@@ -1765,6 +1767,8 @@ public GlobalConfig globalConfig() {
     <property name="optimizeJoin" value="true"/>
 </bean>
 ```
+
+### 注解配置
 
 ```java
 // Spring boot方式
@@ -1796,7 +1800,7 @@ public class MybatisPlusConfig {
 }
 ```
 
-### XML 自定义分页
+### 编写XML自定义分页
 
 - UserMapper.java 方法内容
 
@@ -1834,6 +1838,42 @@ public IPage<User> selectUserPage(Page<User> page, Integer state) {
     return userMapper.selectPageVo(page, state);
 }
 ```
+
+- 测试
+
+~~~java
+@Test
+public void textPage() {
+    // 参数一是当前页，参数二是每页个数
+    Page<User> userPage = new Page<>(1, 2);
+    IPage<User> iPage = userService.selectPageText(userPage);
+    System.out.println("总页数：" + iPage.getPages());
+    System.out.println("总记录数：" + iPage.getTotal());
+    if (iPage.getRecords().size() != 0) {
+        List<User> mpUserList1 = iPage.getRecords();
+        mpUserList1.forEach(System.out::println);
+    } else {
+        System.out.println("数据已经加载完成");
+    }
+}
+~~~
+
+### 完全使用内置方法
+
+~~~java
+// service继承
+@Service
+public class RatingsServiceImpl extends ServiceImpl<RatingsMapper, Ratings>
+    implements RatingsService{
+}
+~~~
+
+~~~java
+Page<Ratings> result = ratingsService.page(new Page<>(pageNo, 10), 
+                                           new QueryWrapper<Ratings>().eq("user_id", id));
+~~~
+
+
 
 # MyBatisPlus扩展
 

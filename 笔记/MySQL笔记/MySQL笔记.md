@@ -1802,7 +1802,7 @@ WHERE employee_id in(SELECT employee_id
                      WHERE employee_id = e.employee_id);
 ~~~
 
-# 7、MySQL之创建管理表
+# 7、MySQL之表管理
 
 从系统架构的层次上看，MySQL 数据库系统从大到小依次是 数据库服务器 、 数据库 、 数据表 、数据表的行与列。
 
@@ -2005,7 +2005,90 @@ TRUNCATE TABLE detail_dept;
 
 **注意**：TRUNCATE 语句不能回滚，而使用 DELETE 语句删除数据，可以回滚
 
+# MySQL之配置文件
 
+Mysql的优化：一般分为配置的优化、sql语句的优化、表结构的优化、索引的优化。
+
+配置的优化：一般包括系统内核优化、mysql本身配置文件的优化。
+
+## 重要的参数
+
+- **key_buffer_size**
+  - 表示索引缓存的大小。这个值越大，使用索引进行查询的速度就越快。
+- **table_cache**
+  - 表示同时打开的表的个数。这个值越大，能同时打开的表的个数就越多。这个值不是越大越好，因为同时打开的表过多会影响操作系统的性能。
+- **query_cache_size**
+  - 表示查询缓冲区的大小。使用查询缓存区可以提高查询的速度。这个方式只适用于修改操作少且经常执行相同的查询操作的情况。默认值是0。
+- **Query_cache_type**
+  - 表示查询缓存区的开启状态。0表示关闭，1表示开启。
+- **Max_connections**
+  - 表示数据库的最大连接数。这个连接数不是越大越好，因为连接会浪费内存的资源。
+- **sort_buffer_size**
+  - 排序缓存区的大小，这个值越大，排序就越快。
+- **Innodb_buffer_pool_size**
+  - 表示InnoDB类型的表和索引的最大缓存。这个值越大，查询的速度就会越快。这个值太大了就会影响操作系统的性能。
+
+## 基本设置
+
+- 选择Percona或MariaDB版本的话，强烈建议启用**thread pool**特性，可使得在高并发的情况下，性能不会发生大幅下降。此外，还有**extra_port**功能，非常实用。还有另外一个重要特色是 **QUERY_RESPONSE_TIME** 功能，也能使我们对整体的SQL响应时间分布有直观感受。
+
+- 设置**default-storage-engine**=InnoDB，也就是默认采用InnoDB引擎，强烈不建议使用MyISAM引擎了，InnoDB引擎绝对可以满足99%以上的业务场景，在高版本中已经默认InnoDB了，已经完全取代MyISAM。
+- 调整**innodb_buffer_pool_size**大小，如果是单实例且绝大多数是InnoDB引擎表的话，可考虑设置为物理内存的50% ~ 70%左右。
+- 根据实际需要设置**innodb_flush_log_at_trx_commit**、**sync_binlog**的值。如果要求数据不能丢失，那么两个都设为1。如果允许丢失一点数据，则可分别设为2和10。而如果完全不用care数据是否丢失的话（例如在slave上，反正大不了重做一次），则可都设为0。这三种设置值导第一个影响数据库性能最大，也就是可能会拖慢。
+- 设置**innodb_file_per_table** = 1，使用独立表空间。
+- 设置**innodb_data_file_path** = ibdata1:1G:autoextend，不要用默认的10M，否则在有高并发事务时，会受到不小的影响。
+- 设置**innodb_log_file_size**=256M，**innodb_log_files_in_group**=2，基本可满足90%以上的场景。
+- 设置**long_query_time** = 1，而在5.5版本以上，已经可以设置为小于1了，建议设置为0.05（50毫秒），记录那些执行较慢的SQL，用于后续的分析排查。
+- 根据业务实际需要，适当调整**max_connection**（最大连接数）、**max_connection_error**（最大错误数，建议设置为10万以上），而**open_files_limit**、**innodb_open_files**、**table_open_cache**、**table_definition_cache**这几个参数则可设为约10倍max_connection的大小。
+- 常见的误区是把**tmp_table_size**和**max_heap_table_size**设置的比较大，这2个选项是每个连接会话都会分配的，因此不要设置过大，否则容易导致OOM发生，其他的一些连接会话级选项例如：**sort_buffer_size**、**join_buffer_size**、**read_buffer_size**、**read_rnd_buffer_size**等，也需要注意不能设置过大。
+- 由于已经建议不再使用MyISAM引擎了，因此可以把**key_buffer_size**设置为32M左右，强烈建议关闭**query cache**功能。
+
+## Innodb参数
+
+- **innodb_buffer_pool_size=4G**
+  - 该参数分配内存的原则：这个参数默认分配只有8M。如果是一个专用DB服务器，那么他可以占到内存的70%-80%。
+  - 这个参数不能动态更改，所以分配需多考虑。分配过大，会使Swap占用过多，致使Mysql的查询特慢。如果你的数据比较小，那么可分配是你的数据大小＋10%左右做为这个参数的值。
+  - 例如：数据大小为50M，那么给这个值分配innodb_buffer_pool_size＝64M
+
+- **innodb_additional_mem_pool=16M**
+  - 作用：用来存放Innodb的内部目录
+  - 这个值不用分配太大，系统可以自动调。通常比较大数据设置16Ｍ够用了，如果表比较多，可以适当的增大。如果这个值自动增加，会在error log有中显示的。
+
+- **innodb_log_file_size=256M**
+  - 作用：指定日志的大小
+  - 分配原则：几个日志组设置大小加起来差不多和innodb_buffer_pool_size相等。每个日志上限大小为4G。
+  - 一般控制在几个log文件相加大小在2G以内为佳。具体情况还需要看你的事务大小，数据大小为依据。
+
+- **innodb_log_files_in_group=3**
+  - 作用：指定你有几个日志组。
+  - 分配原则：一般我们可以用2-3个日志组。默认为两个。
+
+- **innodb_log_buffer_size=3M**
+  - 作用：事务在内存中的缓冲。
+  - 分配原则：控制在2-8M。这个值不用太多的。里面的内存一般一秒钟写到磁盘一次。具体写入方式和你的事务提交方式有关，一般最大指定为3M比较合适。
+
+- **innodb_flush_logs_at_trx_commit=1**
+  - 作用：控制事务的提交方式
+  - 分配原则：这个参数只有3个值，0、1、2请确认一下自已能接受的级别。默认为1，主库请不要更改了。
+    性能更高的可以设置为0或是2，但会丢失一秒钟的事务。
+- **innodb_file_per_table=1**
+  - 作用：使每个Innodb的表，有自已独立的表空间。如删除文件后可以回收那部分空间。
+  - 分配原则：只有使用不使用。但DB还需要有一个公共的表空间。
+- **innodb_file_io_threads=4**
+  - 作用：文件读写IO数，这个参数只在Windows上起作用。在LINUX上只会等于４
+- **innodb_open_files=1024**
+  - 作用：限制Innodb能打开的表的数据。
+  - 分配原则：如果库里的表特别多的情况，请增加这个。这个值默认是300。
+- **innodb_flush_method=O_DIRECT**
+  - 作用：Innodb系统打交道的一个IO模型
+  - 分配原则：Windows不用设置。
+
+- **innodb_max_dirty_pages_pct=90**
+  - 作用：控制Innodb的脏页在缓冲中在那个百分比之下，值在范围1-100，默认为90。
+  - 另一个用处：当Innodb的内存分配过大，致使Swap占用严重时，可以适当的减小调整这个值，使达到Swap空间释放出来。
+  - 建议：这个值最大在90%，最小在15%。太大，缓存中每次更新需要致换数据页太多，太小，放的数据页太小，更新操作太慢。
+  - 动态更改需要有Super权限
+  - set global innodb_max_dirty_pages_pct=50;
 
 # 扩展
 

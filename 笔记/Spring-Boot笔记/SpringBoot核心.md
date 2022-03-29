@@ -1184,7 +1184,7 @@ public class ThymeleafProperties {
 
 2、th：任意html属性	替换原本属性
 
-![2018-02-04_123955](\images\2018-02-04_123955.png)
+![2018-02-04_123955](images\2018-02-04_123955.png)
 
 3、表达式
 
@@ -1267,6 +1267,20 @@ Special tokens:
     如果为真显示
     f
 </div>
+
+遍历list
+<tr th:each="u : ${list}">
+    <td th:text="${u.userid}"></td>
+    <td th:text="${u.username}"></td>
+    <td th:text="${u.userage}"></td>
+</tr>
+
+指定循环次数
+<ul>
+	<li th:each="index:${#numbers.sequence(1, 5)}" >
+		[(${index})]. some thing
+	</li>
+</ul>
 ```
 
 
@@ -1354,7 +1368,40 @@ xxxxxx
 <div th:replace="commons/bar::#sidebar(activeUri='emps')"></div>
 ```
 
+#### 2、简单的分页模板
 
+样式使用Bootstarp4
+
+~~~html
+<nav aria-label="Page navigation example">
+        <ul class="pagination">
+            <!-- 首页 -->
+            <li class="page-item"><a class="page-link" th:href="@{/home/1}">首页</a></li>
+            <!-- 上一页 -->
+            <li class="page-item" th:if="${page.current != 1}"><a class="page-link"
+                                                                  th:href="@{'/home/'+${page.current - 1}}"
+                                                                  th:text="上一页"></a></li>
+            <!-- 中间页 -->
+            <li class="page-item" th:each="pageNum:${#numbers.sequence(page.current, page.current+5)}">
+                <a class="page-link" th:href="@{'/home/' + ${pageNum}}"
+                   th:if="${(pageNum != page.current) && pageNum < (page.total / page.size)+1}"
+                   th:text="${pageNum}"></a>
+
+                <a class="page-link" th:href="@{'/home/' + ${pageNum}}"
+                   th:if="${(pageNum == page.current) && pageNum < (page.total / page.size)+1}"
+                   th:style="'font-weight:bold;background: #6faed9;'"
+                   th:text="${pageNum}"></a>
+            </li>
+            <!-- 下一页 -->
+            <li class="page-item" th:if="${page.current < (page.total / page.size)}"><a class="page-link"
+                                                                                              th:href="@{'/home/' + ${page.current + 1}}"
+                                                                                              th:text="下一页"></a>
+            </li>
+            <!-- 尾页 -->
+            <li class="page-item"><a class="page-link" th:href="@{'/home/' + ${(page.total / page.size)+1}}">尾页</a></li>
+        </ul>
+    </nav>
+~~~
 
 ## 4、SpringMVC自动配置
 
