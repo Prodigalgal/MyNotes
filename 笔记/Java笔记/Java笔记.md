@@ -1,5 +1,7 @@
 # JUC
 
+
+
 ## 1、基本概念
 
 JUC 就是 java.util .concurrent 工具包的简称。这是一个处理线程的工具包，JDK  1.5 开始出现的。
@@ -90,27 +92,124 @@ TERMINATED;(终结)
 
 如果没有用户线程，都是守护线程，JVM 结束
 
+### 1.7、Thread类
+
+#### 1、构造器
+
+~~~java
+// 创建新的Thread对象
+Thread()
+    
+// 创建线程并指定线程实例名
+Thread(String threadname)
+    
+// 指定创建线程的目标对象，它实现了Runnable接中的run方法
+Thread(Runnable target)
+    
+// 创建新的Thread对象
+Thread(Runnable target, String name)
+~~~
+
+**注意**：
+
+- run()方法由JVM调用，什么时候调用，执行的过程控制都有操作系统的CPU调度决定。
+- 启动线程必须调用start方法。
+- 一个线程对象只能调用一次start()方法启动，如果重复调用了，则将抛出以上的异常“IllegalThreadStateException”
+
+#### 2、常用方法
+
+~~~java
+// 启动线程，并执行对象的run()方法
+void start();
+    
+// 线程在被调度时执行的操作
+run();
+
+// 返回线程的名称
+String getName();
+
+// 设置该线程名称
+void setName(String name);
+
+// 返回当前线程。在Thread子类中就是this，通常用于主线程和Runnable实现类
+static Thread currentThread();
+
+// 线程让步
+// 暂停当前正在执行的线程，把执行机会让给优先级相同或更高的线程
+// 若队列中没有同优先级的线程，忽略此方法
+static void yield();
+
+// 当某个程序执行流中调用其他线程的 join() 方法时，调用线程将被阻塞，直到 join() 方法加入的 join 线程执行完为止
+// 低优先级的线程也可以获得执行
+join();
+
+// (指定时间:毫秒)
+// 令当前活动线程在指定时间段内放弃对CPU控制,使其他线程有机会被执行,时间到后重排队。
+// 抛出InterruptedException异常
+sleep(long millis);
+
+// 返回boolean，判断线程是否还活着    
+isAlive();
+
+// 返回线程优先值
+getPriority();
+
+// 改变线程的优先级
+setPriority(int newPriority)
+
+~~~
+
+### 1.8、线程调度
+
+![image-20220331190717200](images/image-20220331190717200.png)
+
+ Java的调度方法
+
+- 同优先级线程组成先进先出队列（先到先服务），使用时间片策略
+- 对高优先级，使用优先调度的抢占式策略
+
+线程优先级：
+
+- MAX_PRIORITY：10 
+- MIN _PRIORITY：1 
+- NORM_PRIORITY：5
+
+**注意**：
+
+- 线程创建时继承父线程的优先级
+- 低优先级只是获得调度的概率低，并非一定是在高优先级线程之后才被调用
+
+![image-20220331191258153](images/image-20220331191258153.png)
+
+![image-20220331191305466](images/image-20220331191305466.png)
+
+
+
 ## 2、Synchronized 关键字
+
+### 1、基本概念
 
 synchronized 是 Java 中的关键字，是一种同步锁。
 
 synchronized 实现同步的基础：Java 中的每一个对象都可以作为锁。
 
+每个对象都有一个锁，并且是唯一的，锁是针对对象的，所以也叫对象锁。
+
 它修饰的对象有以下几种：
 
-- 修饰一个**代码块**，被修饰的代码块称为同步语句块，其作用的范围是大括号 { } 括起来的代码，作用的对象是调用这个代码块的对象。
-- 修饰一个**方法**，被修饰的方法称为同步方法，其作用的范围是整个方法，作用的对象是调用这个方法的对象。
+- 修饰一个**代码块**，被修饰的代码块称为同步语句块，其作用的范围是大括号 { } 括起来的代码，作用的对象是该实例
+- 修饰一个**方法**，被修饰的方法称为同步方法，其作用的范围是该实例对象，作用的对象是该实例。
 
-- 修改一个**静态的方法**，其作用的范围是整个静态方法，作用的对象是这个类的所有对象。
-- 修改一个**类**，其作用的范围是 synchronized 后面括号括起来的部分，作用的对象是这个类的所有对象。
+- 修改一个**静态的方法**，其作用的范围是整个静态方法，作用的对象是这个类的所有对象。针对类，也叫类锁
+- 修改一个**类**，其作用的范围是 synchronized 后面括号括起来的部分，作用的对象是这个类的所有对象。针对类，也叫类锁
 
->对于普通同步方法，锁是当前实例对象this，被锁定后，其它的线程都不能进入到当前对象的其它的 synchronized 方法。
+>1、对于普通同步方法，锁是当前实例对象this，被锁定后，其它的线程都不能进入到当前对象的其它的 synchronized 方法。因为对象的锁唯一。只有解锁后再由JVM去分配。
 >
->对于静态同步方法，锁是当前类的 Class 对象。 
+>2、对于静态同步方法，锁是当前类的 Class 对象。 
 >
->对于同步方法块，锁是 Synchonized 括号里配置的对象
+>3、对于同步方法块，锁是 Synchonized 括号里配置的对象。
 >
->静态同步方法与非静态同步方法之间是不会有竞态条件的。
+>4、静态同步方法与非静态同步方法之间是不会有竞态条件的。
 
 **注意**：
 
@@ -119,6 +218,43 @@ synchronized 实现同步的基础：Java 中的每一个对象都可以作为�
 如果在父类中的某个方法使用了 synchronized 关键字，而在子类中覆盖了这个方法，在子类中的这个方法默认情况下并不是同步的，而必须显式地在子类的这个方法中加上 synchronized 关键字才可以。
 
 当然，还可以在子类方法中调用父类中相应的方法，这样虽然子类中的方法不是同步的，但子类调用了父类的同步方法，因此， 子类的方法也就相当于同步了。
+
+**场景**：
+
+1. 同一个对象在两个线程中分别访问该对象的两个非静态同步方法
+
+   - 会产生互斥
+
+   - 因为锁针对的是对象，当对象调用一个synchronized方法时，其他同步方法需要等待其执行结束并释放锁后才能执行。
+
+2. 不同对象在两个线程中调用同一个非静态同步方法
+
+   - 不会产生互斥
+   - 因为是两个对象，锁针对的是对象，并不是方法，所以可以并发执行，不会互斥。
+
+3. 两个线程中调用类的两个不同的静态同步方法
+
+   - 会产生互斥
+   - 类对象只有一个，可以理解为只有一把锁
+
+4. 一个对象在两个线程中分别调用一个静态同步方法和一个非静态同步方法
+
+   - 不会产生互斥
+   - 锁类型不一样，产生的不是同一个对象锁，一个是类的，一个是实例的
+
+### 2、Synchronized(){}代码块
+
+- 括号内不写或者括号内写this，效果是一样的，只是后者更精确，有时显得更高效
+
+- 括号内写非this对象
+  - 这个"非this对象"大多数是实例变量及方法的参数，可以是任意的。
+  - 锁住的不是当前实例对象，而是此非this对象，即对该非this对象进行加锁。
+  - 代码块中的程序与同步方法是异步的，不与其他锁this同步方法争抢this锁，大大提高了运行效率。
+  - 非this对象，这个对象如果是实例变量的话，指的是对象的引用，只要对象的引用不变，即使改变了对象的属性，运行结果依然是同步的。
+
+
+
+
 
 ## 3、Lock 接口
 
@@ -344,6 +480,13 @@ public class Test {
 线程间通信的模型有两种：**共享内存**和**消息传递**。
 
 以下方式都是基于这两种模型来实现的。
+
+> wait() 与 notify() 和 notifyAll(）
+>
+> 注意：
+>
+> - 这三个方法只有在synchronized方法或synchronized代码块中才能使用，否则会报java.lang.IllegalMonitorStateException异常。
+> - 因为这三个方法必须有锁对象调用，而任意对象都可以作为synchronized的同步锁，因此这三个方法只能在Object类中声明。
 
 ### 4.2、案例
 
@@ -706,21 +849,29 @@ class MyThread2 implements Callable<Integer>{
 
 ### 2、Future 接口
 
-当 call 方法完成时，结果必须存储在主线程已知的对象中，以便主线程可以知道该线程返回的结果。为此，可以使用 Future 对象。
+#### 1、基本概念
 
-将 Future 视为保存结果的对象–它可能暂时不保存结果，但将来会保存（一旦 Callable 返回）。
+当 call 方法完成时，结果必须存储在主线程已知的对象中，以便主线程可以知道该线程返回的结果，为此，可以使用 Future 对象，将 Future 视为保存结果的对象---它可能暂时不保存结果，但将来会保存（一旦 Callable 返回）。
+
+Futrue 在 Java 里面，通常用来表示一个异步任务的引用，比如将任务提交到线程池里面，然后会得到一个 Futrue，在 Future 里面有 isDone 方法来判断任务是否处理结束，还有 get 方法可以一直阻塞直到任务结束然后获取结果，但整体来说这种方式，还是同步的，因为需要客户端不断阻塞等待或者不断轮询才能知道任务是否完成。
+
+
+
+#### 2、基本使用
 
 Future 是主线程可以跟踪进度以及其他线程的结果的一种方式，并且要实现此接口，必须重写 5 种方法。
 
 ~~~java
+// 用于停止任务。
+// 如果尚未启动，它将停止任务。如果已启动，则仅在 mayInterrupt 为 true 时才会中断任务。
 public boolean cancel(boolean mayInterrupt)
-    // 用于停止任务。
-    // 如果尚未启动，它将停止任务。如果已启动，则仅在 mayInterrupt 为 true 时才会中断任务。
+    
+// 用于获取任务的结果。
+// 如果任务完成，它将立即返回结果，否则将等待任务完成，然后返回结果。阻塞
 public Object get() throws InterruptedException，ExecutionException：
-    // 用于获取任务的结果。
-    // 如果任务完成，它将立即返回结果，否则将等待任务完成，然后返回结果。
+    
+// 如果任务完成，则返回 true，否则返回 false
 public boolean isDone()
-    // 如果任务完成，则返回 true，否则返回 false
 ~~~
 
 可以看到 Callable 和 Future 做了两件事：
@@ -732,21 +883,38 @@ public boolean isDone()
 
 要创建线程，需要 Runnable。为了获得结果，需要 future。
 
+
+
+#### 3、缺点
+
+- 不支持手动完成
+  - 提交了一个任务，但是执行太慢了，并且通过其他路径已经获取到了任务结果， 现在没法把这个任务结果通知到正在执行的线程，所以必须主动取消或者一直等待它执行完成。
+- 不支持进一步的非阻塞调用
+  - 通过 Future 的 get 方法会一直阻塞到任务完成，但是想在获取任务之后执行额外的任务，因为 Future 不支持回调函数，所以无法实现这个功能。
+- 不支持链式调用
+  - 对于 Future 的执行结果，我们想继续传到下一个 Future 处理使用，从而形成 一个链式的 pipline 调用，这在 Future 中是没法实现的。
+- 不支持多个 Future 合并
+  - 有 10 个 Future 并行执行，我们想在所有的 Future 运行完毕之后， 执行某些函数，是没法通过 Future 实现的。
+- 不支持异常处理
+  - Future 的 API 没有任何的异常处理的 api，所以在异步运行时，如果出了问题是不好定位的。
+
+
+
 ### 3、FutureTask
 
-FutureTask 类型实现 Runnable 和 Future，并方便地将两种功能组合在一起。 可以通过为其构造函数提供 Callable 来创建，将 FutureTask 对象提供给 Thread 的构造函数以创建 Thread 对象，间接地使用 Callable 创建线程。
+FutureTask 类型实现 **Runnable** 和 **Future**，并方便地将两种功能组合在一起。 可以通过为其构造函数提供 **Callable** 来创建，将 FutureTask 对象提供给 Thread 的构造函数以创建 Thread 对象，间接地使用 Callable 创建线程。
 
 在主线程中需要执行比较耗时的操作时，但又不想阻塞主线程时，可以把这些作业交给 Future 对象在后台完成。
 
-FutureTask 仅在计算完成才能检索结果，如果计算尚未完成，则阻塞 get 方法，一旦计算完成，就不能再重新开始或取消计算（只计算一次）。
+FutureTask 仅在计算完成才能检索结果，如果计算尚未完成，则**阻塞 get 方法**，一旦计算完成，就不能再重新开始或取消计算（只计算一次）。
 
 ~~~java
-class MyThread implements Callable{
+class MyThread implements Callable<Long> {
     @Override
     public Long call() throws Exception {
         try {
             System.out.println(Thread.currentThread().getName() + "线程进入了call,开始准备睡觉");
-            Thread.sleep(1000);
+            Thread.sleep(5000);
             System.out.println(Thread.currentThread().getName() + "睡醒了");
         }catch (Exception e){
             e.printStackTrace();
@@ -758,17 +926,43 @@ class MyThread implements Callable{
 public static void main(String[] args) throws Exception{
 
     // callable
-    Callable callable = new MyThread();
+    Callable<Long> callable = new MyThread();
     // future-callable
-    FutureTask<Long> futureTask = new FutureTask(callable);
+    FutureTask<Long> futureTask = new FutureTask<>(callable);
     // Thread-futureTask
     new Thread(futureTask, "线程1").start();
     for (int i = 0; i < 10; i++) {
-        Long result1 = futureTask.get();
+        System.out.println("第" + i + "次");
+        // 阻塞
         // 只计算一次
+        Long result1 = futureTask.get();
         System.out.println(result1);
     }
 }
+
+
+线程1线程进入了call,开始准备睡觉 // 任务开始
+第0次    // 调用 get 进入阻塞，因为线程还未完成任务
+线程1睡醒了 // 任务完成
+1648712008121 // 得到的值都是同样的
+第1次
+1648712008121 
+第2次
+1648712008121
+第3次
+1648712008121
+第4次
+1648712008121
+第5次
+1648712008121
+第6次
+1648712008121
+第7次
+1648712008121
+第8次
+1648712008121
+第9次
+1648712008121
 ~~~
 
 
@@ -1198,6 +1392,8 @@ LinkedTransferQueue 采用一种**预占模式**，意思就是消费者线程�
 
 ## 10、ThreadPool 线程池
 
+<img src="images/image-20220331175240485.png" alt="image-20220331175240485" style="zoom: 80%;" />
+
 ### 1、基本概念
 
 一种线程使用模式。
@@ -1353,26 +1549,836 @@ public static ExecutorService newWorkStealingPool(int parallelism) {
 }
 ~~~
 
+### 5、基本工作原理
 
+![image-20220331142339187](images/image-20220331142339187.png)
+
+1. 在创建了线程池后，线程池中的线程数为零。
+2. 当调用 execute()方法添加一个请求任务时，线程池会做出如下判断：
+   1. 如果正在运行的线程数量小于 corePoolSize，那么马上创建线程运行这个任务。
+   2. 如果正在运行的线程数量大于或等于 corePoolSize，那么将这个任务放入队列。
+   3. 如果这个时候队列满了且正在运行的线程数量还小于 maximumPoolSize，那么还是要创建非核心线程立刻运行这个任务。
+   4. 如果队列满了且正在运行的线程数量大于或等于 maximumPoolSize，那么线程池会启动饱和拒绝策略来执行。
+3. 当一个线程完成任务时，它会从队列中取下一个任务来执行。
+4. 当一个线程无事可做超过一定的时间（keepAliveTime）时，线程会判断：
+   1. 如果当前运行的线程数大于 corePoolSize，那么这个线程就被停掉。
+   2. 所以线程池的所有任务完成后，它最终会收缩到 corePoolSize 的大小。
+
+### 6、注意事项
+
+创建多线程时，使用常见的三种线程池创建方式，单一、可变、定长都有一定问题，原因是 FixedThreadPool 和 SingleThreadExecutor 底层都是用 LinkedBlockingQueue 实现的，这个队列最大长度为 Integer.MAX_VALUE， 容易导致 OOM。所以实际生产一般自己通过 ThreadPoolExecutor 的 7 个参数，自定义线程池。
+
+<img src="images/image-20220331175350301.png" alt="image-20220331175350301" style="zoom:80%;" />
 
 ## 11、Fork/Join 框架
+
+### 1、基本概念
+
+Fork/Join 它可以将一个大的任务拆分成多个子任务进行并行处理，最后将子任务结果合并成最后的计算结果，并进行输出。
+
+- Fork：把一个复杂任务进行分拆，大事化小 
+- Join：把分拆任务的结果进行合并
+
+首先 Fork/Join 框架需要把大的任务分割成足够小的子任务，如果子任务比较大的话还要对子任务进行继续分割，分割的子任务分别放到**双端队列**里，然后几个启动线程分别从双端队列里获取任务执行。子任务执行完的结果都放在另外一个队列里， 启动一个线程从队列里取数据，然后合并这些数据。
+
+
+
+### 2、常用类
+
+![image-20220331143732635](images/image-20220331143732635.png)
+
+**ForkJoinTask**
+
+- 我们要使用 Fork/Join 框架，首先需要创建一个 ForkJoin 任务。 该类提供了在任务中执行 fork 和 join 的机制。通常情况下我们不需要直接集成 ForkJoinTask 类，只需要继承它的子类，Fork/Join 框架提供了两个子类：
+  - **RecursiveAction**：用于没有返回结果的任务 
+  - **RecursiveTask**：用于有返回结果的任务，继承后可以实现递归(自己调自己)调用的任务
+
+**ForkJoinPool**
+
+- ForkJoinTask 需要通过 ForkJoinPool 来执行
+
+- **实现原理**：ForkJoinPool 由 **ForkJoinTask** **数组**和 **ForkJoinWorkerThread** **数组**组成， ForkJoinTask 数组负责存放以及将任务提交给 ForkJoinPool，而 ForkJoinWorkerThread 负责执行这些任务。
+
+### 3、fork/join方法
+
+#### Fork 方法
+
+当我们调用 ForkJoinTask 的 fork 方法时，程序会把任务放在 ForkJoinWorkerThread 的 pushTask 的 workQueue 中，异步地执行这个任务，然后立即返回结果。
+
+~~~java
+public final ForkJoinTask<V> fork() {
+    Thread t;
+    if ((t = Thread.currentThread()) instanceof ForkJoinWorkerThread)
+        ((ForkJoinWorkerThread)t).workQueue.push(this);
+    else
+        ForkJoinPool.common.externalPush(this);
+    return this;
+}
+~~~
+
+而 pushTask 方法把当前任务存放在 ForkJoinTask 数组队列里。然后再调用 ForkJoinPool 的 signalWork()方法唤醒或创建一个工作线程来执行任务。代码如下：
+
+~~~java
+final void push(ForkJoinTask<?> task) {
+    ForkJoinTask<?>[] a; ForkJoinPool p;
+    int b = base, s = top, n;
+    if ((a = array) != null) { // ignore if queue removed
+        int m = a.length - 1; // fenced write for task visibility
+        U.putOrderedObject(a, ((m & s) << ASHIFT) + ABASE, task);
+        U.putOrderedInt(this, QTOP, s + 1);
+        if ((n = s - b) <= 1) {
+            if ((p = pool) != null)
+                p.signalWork(p.workQueues, this); // 执行
+        }
+        else if (n >= m)
+            growArray();
+    }
+}
+~~~
+
+####  Join 方法
+
+Join 方法的主要作用是阻塞当前线程并等待获取结果。让我们一起看看 ForkJoinTask 的 join 方法的实现，代码如下：
+
+~~~java
+public final V join() {
+    int s;
+    if ((s = doJoin() & DONE_MASK) != NORMAL)
+        reportException(s);
+    return getRawResult();
+}
+~~~
+
+它首先调用 doJoin 方法，通过 doJoin()方法得到当前任务的状态来判断返回什么结果，任务状态有 4 种：
+
+- 已完成（NORMAL），如果任务状态是已完成，则直接返回任务结果
+- 被取消（CANCELLED），如果任务状态是被取消，则直接抛出 CancellationException
+- 信号（SIGNAL）
+- 出现异常（EXCEPTIONAL），如果任务状态是抛出异常，则直接抛出对应的异常
+
+doJoin 方法的实现
+
+~~~java
+private int doJoin() {
+    int s; 
+    Thread t; 
+    ForkJoinWorkerThread wt; 
+    ForkJoinPool.WorkQueue w;
+    
+    return (s = status) < 0 ? s : 
+    ((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
+        (w = (wt = (ForkJoinWorkerThread)t).workQueue).
+        tryUnpush(this) && (s = doExec()) < 0 ? s :
+    wt.pool.awaitJoin(w, this, 0L) :
+    externalAwaitDone();
+}
+final int doExec() {
+    int s; boolean completed;
+    if ((s = status) >= 0) {
+        try {
+            completed = exec();
+        } catch (Throwable rex) {
+            return setExceptionalCompletion(rex);
+        }
+        if (completed)
+            s = setCompletion(NORMAL);
+    }
+    return s;
+}
+~~~
+
+在 doJoin()方法流程如下：
+
+1. 首先通过查看任务的状态，看任务是否已经执行完成，如果执行完成，则直接返回任务状态。
+2. 如果没有执行完，则从任务数组里取出任务并执行。 
+3. 如果任务顺利执行完成，则设置任务状态为 NORMAL，如果出现异常，则记录异常，并将任务状态设置为 EXCEPTIONAL。
+
+### 4、异常处理
+
+ForkJoinTask 在执行的时候可能会抛出异常，但是没办法在主线程里直接捕获异常。
+
+所以 ForkJoinTask 提供了 **isCompletedAbnormally**()方法来检查任务是否已经抛出异常或已经被取消了。
+
+并且可以通过 ForkJoinTask 的 **getException** 方法获取异常。
+
+getException 方法返回 **Throwable** 对象
+
+- 如果任务被取消了则返回 CancellationException。
+- 如果任务没有完成或者没有抛出异常则返回 null。
+
+### 5、案例
+
+~~~java
+public class TaskExample extends RecursiveTask<Long> {
+    private int start;
+    private int end;
+    private long sum;
+
+    public TaskExample(int start, int end){
+        this.start = start;
+        this.end = end;
+    }
+
+    @Override
+    protected Long compute() {
+        System.out.println("任务" + start + "=========" + end + "累加开始");
+        // 大于 100 个数相加切分,小于直接加
+        if(end - start <= 100){
+            for (int i = start; i <= end; i++) {
+                // 累加
+                sum += i;
+            }
+        }else {
+            // 切分为 2 块
+            int middle = start + 100;
+            // 递归调用,切分为 2 个小任务
+            TaskExample taskExample1 = new TaskExample(start, middle);
+            TaskExample taskExample2 = new TaskExample(middle + 1, end);
+            // 执行---->异步
+            taskExample1.fork();
+            taskExample2.fork();
+            // 获取执行结果---->同步阻塞
+            sum = taskExample1.join() + taskExample2.join();
+        }
+        // 加完返回
+        return sum;
+    }
+}
+
+
+public static void main(String[] args) {
+    // 定义任务
+    TaskExample taskExample = new TaskExample(1, 1000);
+    // 定义执行对象
+    ForkJoinPool forkJoinPool = new ForkJoinPool();
+    // 加入任务执行
+    ForkJoinTask<Long> result = forkJoinPool.submit(taskExample);
+    // 输出结果
+    try {
+        System.out.println(result.get());
+    } catch (Exception e) {
+        e.printStackTrace();
+    } finally {
+        forkJoinPool.shutdown();
+    }
+}
+~~~
 
 
 
 ## 12、CompletableFuture
 
+### 1、基本概念
+
+CompletableFuture 被用于异步编程，异步通常意味着非阻塞， 可以使得任务单独运行在与主线程分离的其他线程中，并且通过**回调**可以在主线程中得到异步任务的执行状态，是否完成，和是否异常等信息。 
+
+CompletableFuture 实现了 Future, CompletionStage 接口，实现了 Future 接口就可以兼容现在有线程池框架，而 CompletionStage 接口才是异步编程的接口抽象，里面定义多种异步方法。
+
+一个 CompletableFuture 就代表了一个任务。
+
+**注意**：
+
+- CompletableFuture的大部分方法都有带和不带Async后缀的，带Async代表异步方法，可以指定一个线程池，作为任务的运行环境。
+- 如果没有指定就会使用默认ForkJoinPool线程池来执行。
+- 如果机器是单核的，则默认使用ThreadPerTaskExecutor，该类是一个内部类，每次执行execute都会创建一个新线程。
+
+**注意**：
+
+CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等main线程结束，程序退出，也就会导致CompletableFuture线程中断，避免的方法可以调用get或者使用回调
+
+### 2、基本使用
+
+主线程里面创建一个 CompletableFuture，然后主线程**调用 get 方法会阻塞**，最后我们在一个子线程中使其终止。
+
+~~~java
+public static void main(String[] args) throws Exception {
+    
+    CompletableFuture<String> future = new CompletableFuture<>();
+    
+    new Thread(() -> {
+        try {
+            System.out.println(Thread.currentThread().getName() + "子线程开始干活");
+            // 子线程睡 5 秒
+            Thread.sleep(5000);
+            // 在子线程中完成主线程
+            future.complete("success");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }, "A").start();
+    
+    // 主线程调用 get 方法阻塞
+    System.out.println("主线程调用 get 方法获取结果为: " + future.get());
+    System.out.println("主线程完成,阻塞结束!!!!!!");
+}
+~~~
+
+#### runAsync
+
+没有返回值的异步任务
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    // 运行一个没有返回值的异步任务
+    CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+        try {
+            System.out.println("子线程启动干活");
+            Thread.sleep(5000);
+            System.out.println("子线程完成");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    });
+    
+    // 主线程阻塞
+    future.get();
+    System.out.println("主线程结束");
+}
+~~~
+
+#### supplyAsync
+
+有返回值的异步任务
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    // 运行一个有返回值的异步任务
+    CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("子线程开始任务");
+                Thread.sleep(5000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return "子线程完成了!";
+        });
+    
+    // 主线程阻塞
+    String s = future.get();
+    System.out.println("主线程结束, 子线程的结果为:" + s);
+    
+    // 创建线程池
+    ExecutorService executorService = Executors.newCachedThreadPool();
+    // 指定线程池运行任务
+    CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+        System.out.println("this is task with executor");
+        return "result2";
+    }, executorService);
+}
+~~~
+
+
+
+
+
+### 3、线程依赖
+
+#### thenApply
+
+当一个线程依赖另一个线程时，可以使用 **thenApply** 方法来把这两个线程**串行化**。
+
+~~~java
+private static Integer num = 10;
+
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("加 10 任务开始");
+                num += 10;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return num;
+        // 串行
+        }).thenApply(integer -> {
+        return num * num;
+    });
+    
+    Integer integer = future.get();
+    System.out.println("主线程结束, 子线程的结果为:" + integer);
+}
+~~~
+
+### 4、消费处理结果
+
+#### thenAccept
+
+**thenAccept** 消费处理结果，接收任务的处理结果，并消费处理，无返回结果。
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+
+    CompletableFuture.supplyAsync(() -> {
+        try {
+            System.out.println("加 10 任务开始");
+            num += 10;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return num;
+        // 串行
+    }).thenApply(integer -> {
+        return num * num;
+        // 消费结果
+    }).thenAccept(new Consumer<Integer>() {
+        @Override
+        public void accept(Integer integer) {
+            System.out.println("子线程全部处理完成,最后调用了 accept,结果为:" + integer);
+        }
+    });
+}
+~~~
+
+#### whenComplete
+
+当某个任务执行完成后执行的回调方法，会将执行结果或者执行期间抛出的异常传递给回调方法。
+
+如果是正常执行则异常为null，回调方法对应的CompletableFuture的result和该任务一致。
+
+如果该任务正常执行，则get方法返回执行结果，如果是执行异常，则get方法抛出异常。
+
+~~~java
+// 创建异步执行任务:
+CompletableFuture<Double> cf = CompletableFuture.supplyAsync(()->{
+    System.out.println(Thread.currentThread()+"job1 start,time->"+System.currentTimeMillis());
+    try {
+        Thread.sleep(600);
+    } catch (InterruptedException e) {
+    }
+    if(false){
+        throw new RuntimeException("test");
+    }else{
+        System.out.println(Thread.currentThread()+"job1 exit,time->"+System.currentTimeMillis());
+        return 1.2;
+    }
+});
+
+        // System.out.println("主线程睡眠");
+        // Thread.sleep(400);
+
+// cf执行完成后会将执行结果和执行过程中抛出的异常传入回调方法，如果是正常执行的则传入的异常为null
+CompletableFuture<Double> cf2=cf.whenComplete((a,b)->{
+    System.out.println(Thread.currentThread()+"job2 start,time->"+System.currentTimeMillis());
+    try {
+        Thread.sleep(600);
+    } catch (InterruptedException e) {
+    }
+    if(b!=null){
+        System.out.println("error stack trace->");
+        b.printStackTrace();
+    }else{
+        System.out.println("run succ,result->"+a);
+    }
+    System.out.println(Thread.currentThread()+"job2 exit,time->"+System.currentTimeMillis());
+});
+
+//等待子任务执行完成
+System.out.println("main thread start wait,time->"+System.currentTimeMillis());
+//如果cf是正常执行的，cf2.get的结果就是cf执行的结果
+//如果cf是执行异常，则cf2.get会抛出异常
+System.out.println("run result->"+cf2.get());
+System.out.println("main thread exit,time->"+System.currentTimeMillis());
+~~~
+
+**题外话**：
+
+当whenComplete之前如果出现了其他事情，阻塞了，例如main线程sleep，分俩种情况：
+
+- 如果上一个CompletableFuture执行完毕了，那么就使用主线程调用whenComplete方法。
+- 如果上一个CompletableFuture还没执行完毕，使用的线程还是上一个CompletableFuture的。
+
+（可以打开，上图的sleep代码测试）
+
+**注意**：此种情况在then开头的方法中，不会出现
+
+### 5、异常处理
+
+**exceptionally** 异常处理，出现异常时触发。
+
+**handle** 类似于 thenAccept/thenRun 方法，是最后一步的处理调用，但是同时可以处理异常。
+
+#### exceptionally
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> {
+        int i= 1/0;
+        System.out.println("加 10 任务开始");
+        num += 10;
+        return num;
+        // 处理异常
+    }).exceptionally(ex -> {
+        System.out.println(ex.getMessage());
+        return -1;
+    });
+    System.out.println(future.get());
+}
+~~~
+
+#### handle
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> {
+        System.out.println("加 10 任务开始");
+        num += 10;
+        return num;
+        // 最后一步
+    }).handle((i,ex) ->{
+        System.out.println("进入 handle 方法");
+        if(ex != null){
+            System.out.println("发生了异常,内容为:" + ex.getMessage());
+            return -1;
+        }else{
+            System.out.println("正常完成,内容为: " + i);
+            return i;
+        }
+    });
+    System.out.println(future.get());
+}
+
+~~~
+
+### 6、结果合并
+
+**thenCompose** 合并两个有依赖关系的 CompletableFutures 的执行结果。
+
+**thenCombine** 合并两个没有依赖关系的 CompletableFutures 任务。
+
+**allOf** 与 **anyOf** 合并多个任务的结果，
+
+#### thenCompose
+
+在某个任务执行完成后，将该任务的执行结果作为方法入参然后执行指定的方法，该方法会返回一个新的CompletableFuture实例。
+
+如果上一个CompletableFuture实例的result不为null，则返回一个基于该result的新CompletableFuture实例。
+
+如果上一个CompletableFuture实例的result为null，则执行任务时抛出异常
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    // 第一个CompletableFuture
+    // 加10
+    CompletableFuture<Integer> future0 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("加 10 任务开始");
+        num += 10;
+        return num;
+    });
+    
+    // 合并第一个CompletableFuture
+    // 再来一个CompletableFuture
+    CompletableFuture<Integer> future1 = future0.thenCompose(result -> CompletableFuture.supplyAsync(() -> {
+        return result+ 1;
+    }));
+    System.out.println(future0.get());
+    System.out.println(future1.get());
+}
+~~~
+
+#### thenCombine/thenAcceptBoth/runAfterBoth
+
+类似还有
+
+这三个方法都是将两个CompletableFuture组合起来，只有这**两个都正常执行完了才会执行某个任务**。
+
+区别在于：
+
+- thenCombine 会将两个任务的执行结果作为方法入参传递到指定方法中，且该方法有返回值。
+
+- thenAcceptBoth 同样将两个任务的执行结果作为方法入参，但是无返回值。
+- runAfterBoth 没有入参，也没有返回值。
+
+注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果。
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    // 任务一
+    CompletableFuture<Integer> job1 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("加 10 任务开始");
+        num += 10;
+        return num;
+    });
+    
+    // 任务二
+    CompletableFuture<Integer> job2 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("乘以 10 任务开始");
+        num = num * 10;
+        return num;
+    });
+    
+    // 合并两个结果
+    CompletableFuture<Object> future = job1.thenCombine(job2, 
+                                                        new BiFunction<Integer, Integer, List<Integer>>() {
+        @Override
+        public List<Integer> apply(Integer a, Integer b) {
+            List<Integer> list = new ArrayList<>();
+            list.add(a);
+            list.add(b);
+            return list;
+        }
+    });
+    System.out.println("合并结果为:" + future.get());
+    
+    CompletableFuture cf4=cf.thenAcceptBoth(cf2, (a,b)->{
+        System.out.println(Thread.currentThread()+" start job4,time->"+System.currentTimeMillis());
+        System.out.println("job4 param a->"+a+",b->"+b);
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+        }
+        System.out.println(Thread.currentThread()+" exit job4,time->"+System.currentTimeMillis());
+    });
+
+    CompletableFuture cf4=cf.runAfterBoth(cf2, ()->{
+        System.out.println(Thread.currentThread()+" start job5,time->"+System.currentTimeMillis());
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+        System.out.println("cf5 do something");
+        System.out.println(Thread.currentThread()+" exit job5,time->"+System.currentTimeMillis());
+    });
+
+}
+~~~
+
+#### applyToEither/acceptEither/runAfterEither
+
+这三个方法都是将两个CompletableFuture组合起来，只要**其中一个执行完了就会执行某个任务**。
+
+其区别在于：
+
+- applyToEither 会将已经执行完成的任务的执行结果作为方法入参，并有返回值。
+- acceptEither 同样将已经执行完成的任务的执行结果作为方法入参，但是没有返回值。
+- runAfterEither没有方法入参，也没有返回值。
+
+注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果。
+
+~~~java
+// 创建异步执行任务:
+CompletableFuture<Double> cf1 = CompletableFuture.supplyAsync(()->{
+    System.out.println(Thread.currentThread()+" start job1,time->"+System.currentTimeMillis());
+    try {
+        Thread.sleep(2000);
+    } catch (InterruptedException e) {
+    }
+    System.out.println(Thread.currentThread()+" exit job1,time->"+System.currentTimeMillis());
+    return 1.2;
+});
+
+CompletableFuture<Double> cf2 = CompletableFuture.supplyAsync(()->{
+    System.out.println(Thread.currentThread()+" start job2,time->"+System.currentTimeMillis());
+    try {
+        Thread.sleep(1500);
+    } catch (InterruptedException e) {
+    }
+    System.out.println(Thread.currentThread()+" exit job2,time->"+System.currentTimeMillis());
+    return 3.2;
+});
+
+//cf1和cf2的异步任务都执行完成后，会将其执行结果作为方法入参传递给cf3, 且有返回值
+CompletableFuture<Double> cf3=cf1.applyToEither(cf2, (result)->{
+    System.out.println(Thread.currentThread()+" start job3,time->"+System.currentTimeMillis());
+    System.out.println("job3 param result->"+result);
+    try {
+        Thread.sleep(2000);
+    } catch (InterruptedException e) {
+    }
+    System.out.println(Thread.currentThread()+" exit job3,time->"+System.currentTimeMillis());
+    return result;
+});
+
+//cf1和cf2的异步任务都执行完成后，会将其执行结果作为方法入参传递给cf4,无返回值
+CompletableFuture cf4=cf1.acceptEither(cf2,(result)->{
+    System.out.println(Thread.currentThread()+" start job4,time->"+System.currentTimeMillis());
+    System.out.println("job4 param result->"+result);
+    try {
+        Thread.sleep(1500);
+    } catch (InterruptedException e) {
+    }
+    System.out.println(Thread.currentThread()+" exit job4,time->"+System.currentTimeMillis());
+});
+
+//cf4和cf3都执行完成后，执行cf5，无入参，无返回值
+CompletableFuture cf5=cf4.runAfterEither(cf3,()->{
+    System.out.println(Thread.currentThread()+" start job5,time->"+System.currentTimeMillis());
+    try {
+        Thread.sleep(1000);
+    } catch (InterruptedException e) {
+    }
+    System.out.println("cf5 do something");
+    System.out.println(Thread.currentThread()+" exit job5,time->"+System.currentTimeMillis());
+});
+
+System.out.println("main thread start cf.get(),time->"+System.currentTimeMillis());
+//等待子任务执行完成
+System.out.println("cf run result->"+cf.get());
+System.out.println("main thread start cf5.get(),time->"+System.currentTimeMillis());
+System.out.println("cf5 run result->"+cf5.get());
+System.out.println("main thread exit,time->"+System.currentTimeMillis());
+~~~
+
+
+
+#### allOf
+
+返回的CompletableFuture是**多个任务都执行完成后才会执行**，只要有一个任务执行异常，则返回的CompletableFuture执行get方法时会抛出异常，如果都是正常执行，则get返回null。
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    
+    List<CompletableFuture> list = new ArrayList<>();
+    
+    CompletableFuture<Integer> job1 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("加 10 任务开始");
+        num += 10;
+        return num;
+    });
+    list.add(job1);
+    
+    CompletableFuture<Integer> job2 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("乘以 10 任务开始");
+        num = num * 10;
+        return num;
+    });
+    list.add(job2);
+    
+    CompletableFuture<Integer> job3 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("减以 10 任务开始");
+        num = num * 10;
+        return num;
+    });
+    list.add(job3);
+    
+    CompletableFuture<Integer> job4 = CompletableFuture.supplyAsync(() -> {
+        System.out.println("除以 10 任务开始");
+        num = num * 10;
+        return num;
+    });
+    list.add(job4);
+    
+    // 多任务合并
+    CompletableFuture<Void> cf4 = CompletableFuture.allOf(
+        list.toArray(new CompletableFuture[0])).whenComplete((a, b)->{
+        if(b != null){
+            System.out.println("error stack trace->");
+            b.printStackTrace();
+        }else{
+            System.out.println("run succ,result->"+a);
+        }
+    });
+
+    // 多任务合并
+    List<Integer> collect = list.stream()
+        .map(CompletableFuture::join)
+        .collect(Collectors.toList());
+
+    System.out.println(collect);
+    System.out.println("cf4 run result->"+cf4.get());
+}
+~~~
+
+#### anyOf
+
+返回的CompletableFuture是**多个任务只要其中一个执行完成就会执行**，其get返回的是已经执行完成的任务的执行结果，如果该任务执行异常，则抛出异常。
+
+~~~java
+public static void main(String[] args) throws Exception{
+    System.out.println("主线程开始");
+    CompletableFuture<Integer>[] futures = new CompletableFuture[4];
+    
+    CompletableFuture<Integer> job1 = CompletableFuture.supplyAsync(() -> {
+        try{
+            Thread.sleep(5000);
+            System.out.println("加 10 任务开始");
+            num += 10;
+            return num;
+        }catch (Exception e){
+            return 0;
+        }
+    });
+    futures[0] = job1;
+    
+    CompletableFuture<Integer> job2 = CompletableFuture.supplyAsync(() -> {
+        try{
+            Thread.sleep(2000);
+            System.out.println("乘以 10 任务开始");
+            num = num * 10;
+            return num;
+        }catch (Exception e){
+            return 1;
+        }
+    });
+    futures[1] = job2;
+    
+    CompletableFuture<Integer> job3 = CompletableFuture.supplyAsync(() -> {
+        try{
+            Thread.sleep(3000);
+            System.out.println("减以 10 任务开始");
+            num = num * 10;
+            return num;
+        }catch (Exception e){
+            return 2;
+        }
+    });
+    futures[2] = job3;
+    
+    CompletableFuture<Integer> job4 = CompletableFuture.supplyAsync(() -> {
+        try{
+            Thread.sleep(4000);
+            System.out.println("除以 10 任务开始");
+            num = num * 10;
+            return num;
+        }catch (Exception e){
+            return 3;
+        }
+    });
+    futures[3] = job4;
+    
+    // 多任务合并
+    CompletableFuture<Object> cf4 = CompletableFuture.anyOf(futures).whenComplete((a, b)->{
+        if(b != null){
+            System.out.println("error stack trace->");
+            b.printStackTrace();
+        }else{
+            System.out.println("run succ,result->"+a);
+        }
+    });
+    
+    CompletableFuture<Object> future = CompletableFuture.anyOf(futures);
+    System.out.println(future.get());
+    System.out.println("cf4 run result->"+cf4.get());
+}
+~~~
+
 
 
 # 问题
 
-## Integer.valueOf()和Integer.parseInt()的区别
+## 1、Integer.valueOf()和Integer.parseInt()的区别
 
 - Integer.parseInt(String s)将会返回int常量。
 - Integer.valueOf(String s)将会返回Integer类型，如果存在缓存将会返回缓存中已有的对象。
 
 Integer会缓存 -128 ~ 127 范围的整型数字
 
-## Integer i1 = 100 与 Integer i2 = 200 有何不一样
+## 2、Integer i1 = 100 与 Integer i2 = 200 有何不一样
 
 首先要知道 Integer i1 = 100 在做这样的操作时，实际就是基本数据类型与引用类型之间的拆箱和装箱操作，Integer i1 = 100是一个装箱操作，本质就是Integer i1 = Integer.valueOf(100)，源码如下：
 
@@ -1410,11 +2416,27 @@ public boolean equals(Object obj) {
 
 设计IntegerCache类来缓存-128~127是为了节省内存消耗，提高程序性能，Integer是一个经常使用到的类，并且一般创建的对象值范围都在-128~127之间，并且创建这样相似值的对象并没有太大意义，所以使用IntegerCache类，与此类似的ByteCache、ShortCache等。
 
+## 3、何为OOM
 
+OOM，全称“Out Of Memory”
 
+按照JVM规范，JAVA虚拟机在运行时会管理以下的内存区域：
 
+- 程序计数器：当前线程执行的字节码的行号指示器，线程私有
+- JAVA虚拟机栈：Java方法执行的内存模型，每个Java方法的执行对应着一个栈帧的进栈和出栈的操作。
+- 本地方法栈：类似“ JAVA虚拟机栈 ”，但是为native方法的运行提供内存环境。
+- JAVA堆：对象内存分配的地方，内存垃圾回收的主要区域，所有线程共享。可分为新生代，老生代。
+- 方法区：用于存储已经被JVM加载的类信息、常量、静态变量、即时编译器编译后的代码等数据。Hotspot中的“永久代”。
+- 运行时常量池：方法区的一部分，存储常量信息，如各种字面量、符号引用等。
+- 直接内存：并不是JVM运行时数据区的一部分， 可直接访问的内存， 比如NIO会用到这部分。
 
+按照JVM规范，除了程序计数器不会抛出OOM外，其他各个内存区域都可能会抛出OOM。
 
+## 4、wait()为什么要处于while循环中
+
+当多个线程并发访问同一个资源的时候，若消费者同时被唤醒，但是只有一个资源可用，那么如果用 if 去判断竞态条件，会导致在资源被用完后，还有线程直接去获取资源(发生越界异常等)，而while则会让每个消费者获取之前再去判断一下资源是否可用，可用则获取，不可用则继续wait。
+
+程序应该循环检测线程被唤醒的条件，并在不满住条件时通知继续等待，防止虚假唤醒。
 
 
 
