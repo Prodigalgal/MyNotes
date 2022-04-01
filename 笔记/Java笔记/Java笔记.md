@@ -1,6 +1,411 @@
+# 集合框架
+
+## 1、基本概念
+
+Java 集合可分为 **Collection** 和 **Map** 两种体系
+
+- Collection接口：单列数据，定义了存取一组对象的方法的集合
+  - List：元素有序、可重复的集合
+  - Set：元素无序、不可重复的集合
+- Map接口：双列数据，保存具有映射关系“key-value对”的集合
+
+![image-20220401091830467](images/image-20220401091830467.png)
+
+![image-20220401091919923](images/image-20220401091919923.png)
+
+## 2、Collection 接口
+
+### 1、基本概念
+
+- Collection 接口是 **List**、**Set** 和 **Queue** 接口的父接口，该接口里定义的方法既可用于操作 Set 集合，也可用于操作 List 和 Queue 集合。 
+- JDK不提供此接口的任何直接实现，而是提供更具体的子接口(如：Set和List) 实现。 
+- 在 Java5 之前，Java 集合会丢失容器中所有对象的数据类型，把所有对象都当成 Object 类型处理，从 JDK 5.0 增加了泛型以后，Java 集合可以记住容器中对象的数据类型。
+
+### 2、常用方法
+
+| 用途 | 方法 |
+| ---- | ---- |
+| 添加  | add(Object obj)、addAll(Collection coll) |
+|  获取有效元素的个数    |  int size()    |
+|   清空集合   |   void clear()   |
+|	是否是空集合	|	boolean isEmpty()	|
+|	是否包含某个元素	|	boolean contains(Object obj)：是通过元素的equals方法来判断是否是同一个对象 <br>boolean containsAll(Collection c)：也是调用元素的equals方法来比较的。拿两个集合的元素挨个比较。	|
+|	删除		|	boolean remove(Object obj) ：通过元素的equals方法判断是否是要删除的那个元素。只会删除找到的第一个元素<br>boolean removeAll(Collection coll)：取当前集合的差集	|
+|取两个集合的交集	|	boolean retainAll(Collection c)：把交集的结果存在当前集合中，不影响c	|
+|集合是否相等	|	boolean equals(Object obj)	|
+|	转成对象数组	|	Object[] toArray()	|
+|	获取集合对象的哈希值	|hashCode()	|
+|	遍历	|	iterator()：返回迭代器对象，用于集合遍历	|
+
+### 3、List 子接口
+
+#### 1、基本概念
+
+- List集合类中元素有序、且可重复，集合中的每个元素都有其对应的顺序索引。
+- List容器中的元素都对应一个整数型的序号记载其在容器中的位置，可以根据序号存取容器中的元素。
+- JDK API中List接口的实现类常用的有：ArrayList、LinkedList 和 Vector。
+
+**常用方法**：
+
+| 方法 | 用途 |
+| ---- | ---- |
+|void add(int index, Object ele) |在index位置插入ele元素 |
+|boolean addAll(int index, Collection eles) |从index位置开始将eles中 的所有元素添加进来 |
+|Object get(int index) |获取指定index位置的元素 |
+|int indexOf(Object obj) |返回obj在集合中首次出现的位置 |
+|int lastIndexOf(Object obj) |返回obj在当前集合中末次出现的位置 |
+|Object remove(int index) |移除指定index位置的元素，并返回此元素 |
+|Object set(int index, Object ele) |设置指定index位置的元素为ele |
+|List subList(int fromIndex, int toIndex) |返回从fromIndex到 toIndex 位置的子集合|
+
+#### 2、常用子类
+
+##### ArrayList
+
+ArrayList本质上是对象引用的一个**”变长”数组**。
+
+~~~java
+transient Object[] elementData;
+~~~
+
+##### LinkedList
+
+**双向链表**，内部没有声明数组，而是定义了Node类型的first和last， 用于记录首末元素。同时，定义内部类Node，作为LinkedList中保存数据的基本结构。
+
+Node除了保存数据，还定义了两个变量：prev变量记录前一个元素的位置，next变量记录下一个元素的位置
+
+新增方法
+
+~~~java
+void addFirst(Object obj)
+
+void addLast(Object obj)
+
+Object getFirst() 
+
+Object getLast() 
+
+Object removeFirst()
+
+Object removeLast()
+~~~
+
+##### Vector
+
+大多数操作与ArrayList 相同，区别之处在于Vector是线程安全的。
+
+新增方法
+
+~~~java
+void addElement(Object obj)
+    
+void insertElementAt(Object obj,int index)
+    
+void setElementAt(Object obj,int index)
+    
+void removeElement(Object obj)
+    
+void removeAllElements()
+~~~
+
+
+
+#### 特殊方法
+
+##### Arrays.asList
+
+该方法是将数组转化成List集合的方法。
+
+**注意**：
+
+- 该方法适用于对象型数据的数组（String、Integer...）
+
+- 该方法不建议使用于基本数据类型的数组（byte,short,int,long,float,double,boolean）
+
+- 该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
+
+- 不支持add()、remove()、clear()等方法
+- 方法返回的 List 集合，既不是 ArrayList 实例，也不是 Vector 实例。 
+- 其返回值是一个固定长度的 List 集合，用此方法得到的List的长度是不可改变的。
+
+**特别注意**：
+
+当向这个List添加或删除一个元素时（例如 list.add("d");）程序就会抛出异常（java.lang.UnsupportedOperationException）。
+
+先看该方法源码： 
+
+~~~java
+public static <T> List<T> asList(T... a) {return new ArrayList<>(a);}
+~~~
+
+这个ArrayList不是java.util包下的，而是java.util.Arrays.ArrayList，它是Arrays类自己定义的一个静态内部类，这个内部类没有实现add()、remove()方法，而是直接使用它的父类AbstractList的相应方法。
+
+而AbstractList中的add()和remove()是直接抛出java.lang.UnsupportedOperationException异常的。
+
+~~~java
+public void add(int index, E element) { throw new UnsupportedOperationException();}
+
+public E remove(int index) {throw new UnsupportedOperationException();}
+~~~
+
+### 4、Set 子接口
+
+#### 1、基本概念
+
+- Set接口是Collection的子接口，set接口没有提供额外的方法
+- Set 集合不允许包含相同的元素，如果试把两个相同的元素加入同一个 Set 集合中，则添加操作失败。
+- Set 判断两个对象是否相同不是使用 == 运算符，而是根据 equals() 方法
+
+#### 2、常用子类
+
+##### HashSet
+
+HashSet 是 Set 接口的典型实现，大多数时候使用 Set 集合时都使用这个实现类。
+
+HashSet 按 Hash 算法来存储集合中的元素，因此具有很好的存取、查找、删除 性能。
+
+判断两个元素相等的标准：
+
+- 两个对象通过 hashCode() 方法比较相等
+- 并且两个对象的 equals() 方法返回值也相等。
+- 任意一个不等都不行！
+
+**注意**：
+
+- 对于存放在Set容器中的对象，对应的类一定要**重写equals()和hashCode(Object  obj)方法**，以实现对象相等规则。即：“相等的对象必须具有相等的散列码”。
+
+**特点**： 
+
+- 不能保证元素的排列顺序 
+- HashSet 不是线程安全的
+- 集合元素可以是 null
+
+**添加元素的过程**：
+
+1. 当向 HashSet 集合中存入一个元素时，HashSet 会调用该对象的 **hashCode**() 方法来得到该对象的 hashCode 值，然后根据 hashCode 值，通过某种**散列函数**决定该对象 在 HashSet **底层数组**中的**存储位置**。（这个散列函数会与底层数组的长度相计算得到在数组中的下标，并且这种散列函数计算还**尽可能保证能均匀存储元素**，越是散列分布， 该散列函数设计的越好）
+2. 如果两个元素的**hashCode**()值相等，会再继续调用**equals**方法，如果equals方法结果为true，添加失败，如果为false，那么会保存该元素，但是该数组的位置已经有元素了，那么会通过链表的方式继续链接。
+3. 如果两个元素的 **equals**() 方法返回 true，但它们的 **hashCode**() 返回值不相 等，hashSet 将会把它们存储在不同的位置，依然可以添加成功。
+
+![image-20220401115015307](images/image-20220401115015307-16487850165343.png)
+
+底层也是**数组**，初始容量为16，当如果使用率超过0.75，（16*0.75=12） 就会扩大容量为原来的**2倍**。（16扩容为32，依次为64,128....等）
+
+##### LinkedHashSet
+
+- LinkedHashSet 是 **HashSet** 的子类 
+- LinkedHashSet 根据元素的 hashCode 值来决定元素的存储位置， 但它同时使用**双向链表**维护元素的次序，这使得元素看起来是以插入顺序保存的。 
+- LinkedHashSet插入性能略低于 HashSet，但在迭代访问 Set 里的全部元素时有很好的性能。 
+- LinkedHashSet 不允许集合元素重复。
+
+##### TreeSet
+
+- TreeSet 是 **SortedSet** 接口的实现类，TreeSet 可以确保集合元素处于排序状态。
+- TreeSet底层使用**红黑树**结构存储数据。
+- TreeSet 两种排序方法：**自然排序**和**定制排序**。默认情况下，TreeSet 采用自然排序。
+
+**注意**：
+
+- TreeSet只能添加同类对象，不然抛出ClassCastException异常。
+
+新增方法：
+
+~~~java
+Comparator comparator()
+    
+Object first()
+    
+Object last()
+    
+Object lower(Object e)
+    
+Object higher(Object e)
+    
+SortedSet subSet(fromElement, toElement)
+    
+SortedSet headSet(toElement)
+    
+SortedSet tailSet(fromElement)
+~~~
+
+**自然排序注意事项**：
+
+- TreeSet 会调用集合元素的 **compareTo**(Object obj) 方法来比较元素之间的大小关系，然后将集合元素按升序(默认情况)排列。也就是说，如果试图把一个对象添加到 TreeSet 时，则该对象的类必须实现 **Comparable**  接口。
+- 向 TreeSet 中添加元素时，只有**第一个**元素无须比较compareTo()方法，后面添 加的所有元素都会调用compareTo()方法进行比较。
+- **建议**：对象如果有重写equals方法，那么如果equals方法于compareTo方法应该一致。equals---->ture，compareTo---->0
+
+**定制排序注意事项**：
+
+- 通过Comparator接口来 实现。需要重写**compare(T o1,T o2)**方法，比较o1和o2的大小：如果方法返回正整数，则表示o1大于o2，如果返回0，表示相等，返回负整数，表示o1小于o2。
+
+## 3、Map接口
+
+### 1、基本概念
+
+- Map 与 Collection 并列存在。用于**保存具有映射关系**的数据：key - value。
+- Map 中的 key 和 value 可以是**任何引用类型的数据**。
+- Map 中的 key 用 **Set** 来存放，**不允许重复**，即同一个 Map 对象所对应的类，因此key所在类重写hashCode()和equals()方法。
+- 常用String类作为Map的键。
+- key 和 value 之间存在单向一对一关系，即通过指定的 key 总能找到唯一的、确定的 value。
+- Map接口的常用实现类：**HashMap**、**TreeMap**、**LinkedHashMap**和 **Properties**。其中，HashMap是 Map 接口使用频率最高的实现类
+
+### 2、常用方法
+
+| 方法 | 用途 |
+| ---- | ---- |
+|Object put(Object key,Object value)|将指定key-value添加到(或修改)当前map对象中 |
+|void putAll(Map m)|将m中的所有key-value对存放到当前map中 |
+|Object remove(Object key)|移除指定key的key-value对，并返回value |
+|void clear()|清空当前map中的所有数据 |
+|Object get(Object key)|获取指定key对应的value |
+|boolean containsKey(Object key)|是否包含指定的key |
+|boolean containsValue(Object value)|是否包含指定的value |
+|int size()|返回map中key-value对的个数 |
+|boolean isEmpty()|判断当前map是否为空 |
+|boolean equals(Object obj)|判断当前map和参数对象obj是否相等 |
+|Set keySet()|返回所有key构成的Set集合 |
+|Collection values()|返回所有value构成的Collection集合 |
+|Set entrySet()|返回所有key-value对构成的Set集合|
+
+### 3、常用子类
+
+#### HashMap
+
+允许使用null键和null值，与HashSet一样，不保证映射的顺序。
+
+所有的key构成的集合是Set无序的、不可重复的，所以，key所在的类要重写equals()和hashCode()。
+
+所有的value构成的集合是Collection无序的、可以重复的，所以，value所在的类要重写equals()。
+
+一个key-value构成一个entry ，所有的entry构成的集合是Set无序的、不可重复的。
+
+**注意**：
+
+-  判断两个 key 相等的标准是：两个 key 通过 equals() 方法返回 true， hashCode 值也相等。
+- 判断两个 value 相等的标准是：两个 value 通过 equals() 方法返回 true。
+
+**JDK7/JDK8区别**：
+
+- JDK 7及以前版本：HashMap是**数组**+**链表结构**(即为链地址法) 。
+- JDK 8版本发布以后：HashMap是**数组**+**链表**+**红黑树实现**。并新增操作，桶的树形化
+
+![image-20220401155541027](images/image-20220401155541027.png)
+
+![image-20220401155559300](images/image-20220401155559300.png)
+
+**源码**：
+
+| 常量 | 作用 |
+| ---- | ---- |
+|DEFAULT_INITIAL_CAPACITY |HashMap的默认容量，16|
+|MAXIMUM_CAPACITY|HashMap的最大支持容量，2^30|
+|DEFAULT_LOAD_FACTOR|HashMap的默认加载因子|
+|TREEIFY_THRESHOLD|Bucket中链表长度大于该默认值，转化为红黑树|
+|UNTREEIFY_THRESHOLD|Bucket中红黑树存储的Node小于该默认值，转化为链表|
+|MIN_TREEIFY_CAPACITY|桶中的Node被树化时最小的hash表容量。（当桶中Node的数量大到需要变红黑树时，若hash表容量小于MIN_TREEIFY_CAPACITY时，此时应执行resize扩容操作这个|
+|table|存储元素的数组，总是2的n次幂|
+|entrySet|存储具体元素的集|
+|size|HashMap中存储的键值对的数量|
+|modCount|HashMap扩容和结构改变的次数|
+|threshold|扩容的临界值 = 数组容量*填充因子|
+|loadFactor|填充因子|
+
+#### LinkedHashMap
+
+- LinkedHashMap 是 HashMap 的子类 。
+- 在HashMap存储结构的基础上，使用了一对**双向链表**来记录添加元素的顺序。
+- 与LinkedHashSet类似，LinkedHashMap 可以维护 Map 的迭代顺序：迭代顺序与 Key-Value 对的插入顺序一致。
+
+#### TreeMap
+
+- TreeMap 存储 Key-Value 对时，需要根据 key-value 对进行排序。 TreeMap 可以保证所有的 Key-Value 对处于有序状态。
+- TreeSet底层使用**红黑树**结构存储数据。
+
+**排序**：
+
+- 自然排序：TreeMap 的所有的 Key 必须实现 **Comparable** 接口，而且所有 的 Key 应该是**同一个类**的对象，否则将会抛出 ClasssCastException
+- 定制排序：创建 TreeMap 时，传入一个 Comparator 对象，该对象负责对 TreeMap 中的所有 key 进行排序。此时不需要 Map 的 Key 实现 Comparable 接口
+
+判断两个key相等的标准：两个key通过**compareTo**()方法或者**compare**()方法返回0。
+
+#### Hashtable
+
+- Hashtable是线程安全的。
+- Hashtable实现原理和HashMap相同，功能相同。底层都使用哈希表结构，查询速度快，很多情况下可以互用。
+- 与HashMap一样，Hashtable 也不能保证其中 Key-Value 对的顺序
+- 与HashMap一样，Hashtable 判断两个key相等、两个value相等的标准。
+- 与HashMap不同，Hashtable 不允许使用 null 作为 key 和 value
+
+#### Properties
+
+- Properties 类是 Hashtable 的子类，该对象用于**处理属性文件**。
+- 由于属性文件里的 key、value 都是字符串类型，所以 Properties 里的 **key**  和 **value** 都是字符串类型。
+- 存取数据时，建议使用setProperty(String key,String value)方法和getProperty(String key)方法。
+
+
+
+
+## 4、Iterator迭代器接口
+
+### 1、基本概念
+
+-  Iterator对象称为迭代器(设计模式的一种)，主要用于遍历 Collection 集合中的元素。
+- Collection接口继承了java.lang.**Iterable**接口，该接口有一个**iterator**()方法，那么所有实现了Collection接口的集合类都有一个iterator()方法，用以返回一个实现了Iterator接口的对象。
+- Iterator 仅用于遍历集合，Iterator 本身并不提供承装对象的能力。如果需要创建Iterator 对象，则必须有一个被迭代的集合。
+- 集合对象每次调用iterator()方法都得到一个**全新**的迭代器对象，默认游标都在集合的**第一个**元素之前。
+
+### 2、常用方法
+
+![image-20220401093056277](images/image-20220401093056277-16487766572261.png)
+
+
+
+**注意**：
+
+- 在调用**it.next()**方法之前必须要调用**it.hasNext()**进行检测。若不调用，且下一条记录无效，直接调用it.next()会抛出NoSuchElementException异常。
+
+- Iterator可以删除集合的元素，但是是遍历过程中通过迭代器对象的remove方法，不是集合对象的remove方法。如果还未调用next()或在上一次调用 next 方法之后已经调用了 remove 方法，再调用remove都会报IllegalStateException。
+
+- 使用 foreach 循环遍历集合元素，底层是调用了Iterator完成操作。
+
+## 5、Comparable 排序接口
+
+### 1、基本概念
+
+**典型实现**： 
+
+- BigDecimal、BigInteger 以及所有的数值型对应的包装类：按它们对应的数值大小进行比较 
+- Character：按字符的 unicode值来进行比较 
+- Boolean：true 对应的包装类实例大于 false 对应的包装类实例 
+- String：按字符串中字符的 unicode 值进行比较 
+- Date、Time：后边的时间、日期比前面的时间、日期大
+
+## 6、Collections 工具类
+
+### 1、基本概念
+
+- Collections 是一个操作 Set、List 和 Map 等集合的工具类
+- Collections 中提供了一系列静态的方法对集合元素进行排序、查询和修改等操作， 还提供了对集合对象设置不可变、对集合对象实现同步控制等方法
+
+### 2、常用方法
+
+| 方法 | 用途 |
+| ---- | ---- |
+|reverse(List)|反转 List 中元素的顺序 |
+|shuffle(List)|对 List 集合元素进行随机排序 |
+|sort(List)|根据元素的自然顺序对指定 List 集合元素按升序排序 |
+|sort(List，Comparator)|根据指定的 Comparator 产生的顺序对 List 集合元素进行排序 |
+|swap(List，int， int)|将指定 list 集合中的 i 处元素和 j 处元素进行交换<br>操作数组的工具类：Arrays 查找、替换 |
+|Object max(Collection)|根据元素的自然顺序，返回给定集合中的最大元素 |
+|Object max(Collection，Comparator)|根据 Comparator 指定的顺序，返回 给定集合中的最大元素 |
+|Object min(Collection) | |
+|Object min(Collection，Comparator) | |
+|int frequency(Collection，Object)|返回指定集合中指定元素的出现次数 |
+|void copy(List dest, List src)|将src中的内容复制到dest中 |
+|boolean replaceAll(List list，Object oldVal，Object newVal)|使用新值替换 List 对象的所有旧值|
+
+Collections 类中提供了多个 synchronizedXxx() 方法，该方法可使将指定集合包装成线程同步的集合，从而可以解决多线程并发访问集合时的线程安全问题。
+
 # JUC
-
-
 
 ## 1、基本概念
 
@@ -143,7 +548,7 @@ static void yield();
 // 低优先级的线程也可以获得执行
 join();
 
-// (指定时间:毫秒)
+// (指定时间 毫秒)
 // 令当前活动线程在指定时间段内放弃对CPU控制,使其他线程有机会被执行,时间到后重排队。
 // 抛出InterruptedException异常
 sleep(long millis);
@@ -527,7 +932,7 @@ class DemoClass{
                 this.wait();
             }
             number++;
-            System.out.println(Thread.currentThread().getName() + "加一成功----------,值为:" + number);
+            System.out.println(Thread.currentThread().getName() + "加一成功----------,值为 " + number);
             notifyAll();
         }catch (Exception e){
             e.printStackTrace();
@@ -540,7 +945,7 @@ class DemoClass{
                 this.wait();
             }
             number--;
-            System.out.println(Thread.currentThread().getName() + "减一成功----------,值为:" + number);
+            System.out.println(Thread.currentThread().getName() + "减一成功----------,值为 " + number);
             notifyAll();
         }catch (Exception e){
             e.printStackTrace();
@@ -567,7 +972,7 @@ class DemoClass{
                 condition.await();
             }
             number++;
-            System.out.println(Thread.currentThread().getName() + "加一成功,值为:" + number);
+            System.out.println(Thread.currentThread().getName() + "加一成功,值为 " + number);
             condition.signalAll();
         }catch (Exception e){
             e.printStackTrace();
@@ -583,7 +988,7 @@ class DemoClass{
                 condition.await();
             }
             number--;
-            System.out.println(Thread.currentThread().getName() + "减一成功,值为:" + number);
+            System.out.println(Thread.currentThread().getName() + "减一成功,值为 " + number);
             condition.signalAll();
         }catch (Exception e){
             e.printStackTrace();
@@ -600,7 +1005,7 @@ class DemoClass{
 
 ~~~java
 class DemoClass{
-    //通信对象:0--打印 A 1---打印 B 2----打印 C
+    //通信对象 0--打印 A 1---打印 B 2----打印 C
     private int number = 0;
     //声明锁
     private Lock lock = new ReentrantLock();
@@ -752,7 +1157,7 @@ Collections 提供了方法 synchronizedList 保证 list 是同步线程安全�
 ~~~java
 public static <T> List<T> synchronizedList(List<T> list) {
     return (list instanceof RandomAccess ?
-            new SynchronizedRandomAccessList<>(list) :
+            new SynchronizedRandomAccessList<>(list)  
             new SynchronizedList<>(list));
 }
 ~~~
@@ -1135,7 +1540,7 @@ public class ReentrantReadWriteLock implements ReadWriteLock, java.io.Serializab
     }
     /** 使用给定的公平策略创建一个新的 ReentrantReadWriteLock */
     public ReentrantReadWriteLock(boolean fair) {
-        sync = fair ? new FairSync() : new NonfairSync();
+        sync = fair ? new FairSync()   new NonfairSync();
         readerLock = new ReadLock(this);
         writerLock = new WriteLock(this);
     }
@@ -1392,7 +1797,7 @@ LinkedTransferQueue 采用一种**预占模式**，意思就是消费者线程�
 
 ## 10、ThreadPool 线程池
 
-<img src="images/image-20220331175240485.png" alt="image-20220331175240485" style="zoom: 80%;" />
+<img src="images/image-20220331175240485.png" alt="image-20220331175240485" style="zoom  80%;" />
 
 ### 1、基本概念
 
@@ -1568,7 +1973,7 @@ public static ExecutorService newWorkStealingPool(int parallelism) {
 
 创建多线程时，使用常见的三种线程池创建方式，单一、可变、定长都有一定问题，原因是 FixedThreadPool 和 SingleThreadExecutor 底层都是用 LinkedBlockingQueue 实现的，这个队列最大长度为 Integer.MAX_VALUE， 容易导致 OOM。所以实际生产一般自己通过 ThreadPoolExecutor 的 7 个参数，自定义线程池。
 
-<img src="images/image-20220331175350301.png" alt="image-20220331175350301" style="zoom:80%;" />
+<img src="images/image-20220331175350301.png" alt="image-20220331175350301" style="zoom 80%;" />
 
 ## 11、Fork/Join 框架
 
@@ -1665,11 +2070,11 @@ private int doJoin() {
     ForkJoinWorkerThread wt; 
     ForkJoinPool.WorkQueue w;
     
-    return (s = status) < 0 ? s : 
+    return (s = status) < 0 ? s   
     ((t = Thread.currentThread()) instanceof ForkJoinWorkerThread) ?
         (w = (wt = (ForkJoinWorkerThread)t).workQueue).
-        tryUnpush(this) && (s = doExec()) < 0 ? s :
-    wt.pool.awaitJoin(w, this, 0L) :
+        tryUnpush(this) && (s = doExec()) < 0 ? s  
+    wt.pool.awaitJoin(w, this, 0L)  
     externalAwaitDone();
 }
 final int doExec() {
@@ -1808,7 +2213,7 @@ public static void main(String[] args) throws Exception {
     }, "A").start();
     
     // 主线程调用 get 方法阻塞
-    System.out.println("主线程调用 get 方法获取结果为: " + future.get());
+    System.out.println("主线程调用 get 方法获取结果为  " + future.get());
     System.out.println("主线程完成,阻塞结束!!!!!!");
 }
 ~~~
@@ -1859,7 +2264,7 @@ public static void main(String[] args) throws Exception{
     
     // 主线程阻塞
     String s = future.get();
-    System.out.println("主线程结束, 子线程的结果为:" + s);
+    System.out.println("主线程结束, 子线程的结果为 " + s);
     
     // 创建线程池
     ExecutorService executorService = Executors.newCachedThreadPool();
@@ -1901,7 +2306,7 @@ public static void main(String[] args) throws Exception{
     });
     
     Integer integer = future.get();
-    System.out.println("主线程结束, 子线程的结果为:" + integer);
+    System.out.println("主线程结束, 子线程的结果为 " + integer);
 }
 ~~~
 
@@ -1930,7 +2335,7 @@ public static void main(String[] args) throws Exception{
     }).thenAccept(new Consumer<Integer>() {
         @Override
         public void accept(Integer integer) {
-            System.out.println("子线程全部处理完成,最后调用了 accept,结果为:" + integer);
+            System.out.println("子线程全部处理完成,最后调用了 accept,结果为 " + integer);
         }
     });
 }
@@ -1945,7 +2350,7 @@ public static void main(String[] args) throws Exception{
 如果该任务正常执行，则get方法返回执行结果，如果是执行异常，则get方法抛出异常。
 
 ~~~java
-// 创建异步执行任务:
+// 创建异步执行任务 
 CompletableFuture<Double> cf = CompletableFuture.supplyAsync(()->{
     System.out.println(Thread.currentThread()+"job1 start,time->"+System.currentTimeMillis());
     try {
@@ -2038,10 +2443,10 @@ public static void main(String[] args) throws Exception{
     }).handle((i,ex) ->{
         System.out.println("进入 handle 方法");
         if(ex != null){
-            System.out.println("发生了异常,内容为:" + ex.getMessage());
+            System.out.println("发生了异常,内容为 " + ex.getMessage());
             return -1;
         }else{
-            System.out.println("正常完成,内容为: " + i);
+            System.out.println("正常完成,内容为  " + i);
             return i;
         }
     });
@@ -2132,7 +2537,7 @@ public static void main(String[] args) throws Exception{
             return list;
         }
     });
-    System.out.println("合并结果为:" + future.get());
+    System.out.println("合并结果为 " + future.get());
     
     CompletableFuture cf4=cf.thenAcceptBoth(cf2, (a,b)->{
         System.out.println(Thread.currentThread()+" start job4,time->"+System.currentTimeMillis());
@@ -2170,7 +2575,7 @@ public static void main(String[] args) throws Exception{
 注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果。
 
 ~~~java
-// 创建异步执行任务:
+// 创建异步执行任务 
 CompletableFuture<Double> cf1 = CompletableFuture.supplyAsync(()->{
     System.out.println(Thread.currentThread()+" start job1,time->"+System.currentTimeMillis());
     try {
@@ -2286,7 +2691,7 @@ public static void main(String[] args) throws Exception{
 
     // 多任务合并
     List<Integer> collect = list.stream()
-        .map(CompletableFuture::join)
+        .map(CompletableFuture  join)
         .collect(Collectors.toList());
 
     System.out.println(collect);
@@ -2438,7 +2843,299 @@ OOM，全称“Out Of Memory”
 
 程序应该循环检测线程被唤醒的条件，并在不满住条件时通知继续等待，防止虚假唤醒。
 
+## 5、instanceof, isinstance,isAssignableFrom的区别
 
+1、instanceof
+
+instanceof运算符 只被用于**对象引用变量**，检查左边的被测试对象 是不是 右边类或接口的 实例化。
+
+如果被测对象是null值，则测试结果总是false。
+
+形象地：自身实例或子类实例 instanceof 自身类 返回true
+
+```java
+String s=new String("javaisland");
+
+System.out.println(s instanceof String); //true
+```
+
+2、isInstance(Object obj)
+
+Class类的isInstance(Object obj)方法，obj是被测试的对象如果obj是调用这个方法的class或接口 的实例，则返回true。这个方法是instanceof运算符的动态等价。
+
+形象地：自身类.class.isInstance(自身实例或子类实例) 返回true
+
+```java
+String s=new String("javaisland");
+System.out.println(String.class.isInstance(s)); //true
+```
+
+3、isAssignableFrom(Class cls)
+
+Class类的isAssignableFrom(Class cls)方法，如果调用这个方法的class 或接口 与 参数cls表示的类或接口相同，或者是参数cls表示的类或接口的父类，则返回true。
+
+形象地：自身类.class.isAssignableFrom(自身类或子类.class) 返回true
+
+```java
+System.out.println(ArrayList.class.isAssignableFrom(Object.class)); //false
+System.out.println(Object.class.isAssignableFrom(ArrayList.class)); //true
+```
+
+## 6、ArrayList的JDK1.8之前与之后的实现区别
+
+JDK1.7：ArrayList像饿汉式，直接创建一个初始容量为10的数组。
+
+JDK1.8：ArrayList像懒汉式，一开始创建一个长度为0的数组，当添加第一个元 素时再创建一个始容量为10的数组。
+
+## 7、ArrayList/LinkedList/Vector的异同
+
+首先是ArrayList和LinkedList的异同：
+
+- 二者都线程不安全，相对线程安全的Vector，执行效率高。 此外，ArrayList是实现了基于动态数组的数据结构，LinkedList基于链表的数据结构。
+- 对于随机访问get和set，ArrayList觉得优于LinkedList，因为LinkedList要移动指针。
+- 对于新增和删除操作add(特指插入)和remove，LinkedList比较占优势，因为ArrayList要移动数据。
+
+然后是ArrayList和Vector的区别：
+
+- Vector和ArrayList几乎是完全相同的，唯一的区别在于Vector是同步类(synchronized)，属于强同步类。因此开销就比ArrayList要大，访问要慢。
+- Vector每次扩容请求其大小的2倍空间，而ArrayList是1.5倍。Vector还有一个子类Stack。
+
+## 8、ArrayList扩容机制
+
+先看ArrayList的两个重要的成员变量：
+
+- ```java
+  // 用于空实例的共享空数组实例。
+  private static final Object[] EMPTY_ELEMENTDATA = {};
+  ```
+
+- ```java
+  // 是用来使用默认构造方法时候返回的空数组，如果第一次添加数据的话那么数组扩容长度为DEFAULT_CAPACITY=10
+  // 或者有指定长度的画，就是用指定长度创建
+  private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
+  ```
+
+~~~java
+public ArrayList(int initialCapacity) {
+    // 如果初始化长度大于0，就使用初始化长度创建数组
+    if (initialCapacity > 0) {
+        this.elementData = new Object[initialCapacity];
+    } else if (initialCapacity == 0) {
+        // 否者使用默认 空实例共享对象
+        this.elementData = EMPTY_ELEMENTDATA;
+    } else {
+        throw new IllegalArgumentException("Illegal Capacity: "+
+                                           initialCapacity);
+    }
+}
+~~~
+
+从这个构造方法可以看出，如果有设置默认大小，则数组长度设置为默认大小，如果没有，则返回一个空的共享空数组实例
+
+而另一个设置容量的方法ensureCapacity，可以在创建数组后设置大小，调用扩容方法grow进行扩容
+
+~~~java
+public void ensureCapacity(int minCapacity) {
+    if (minCapacity > elementData.length
+        && !(elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
+             && minCapacity <= DEFAULT_CAPACITY)) {
+        modCount++;
+        grow(minCapacity);
+    }
+}
+~~~
+
+核心的grow方法，解析如下：
+
+```java
+private Object[] grow(int minCapacity) {
+    // 先获取老数组长度
+    int oldCapacity = elementData.length;
+    // 老数组长度大于0 或者 数组不是默认空共享实例
+    if (oldCapacity > 0 || elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+        // 计算新数组长度需要多少
+        // 关于newLength
+        int newCapacity = ArraysSupport.newLength(oldCapacity,
+                                                  // 最小增长量，一般是当前siez + 1
+                                                  minCapacity - oldCapacity, /* minimum growth */
+                                                  // 位移运算，计算首选增长量，等同于 oldCapacity/2
+                                                  oldCapacity >> 1           /* preferred growth */);
+        // 将老数组复制到新数组
+        return elementData = Arrays.copyOf(elementData, newCapacity);
+    } else {
+        return elementData = new Object[Math.max(DEFAULT_CAPACITY, minCapacity)];
+    }
+}
+
+
+// 软最大增长量
+public static final int SOFT_MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
+
+public static int newLength(int oldLength, int minGrowth, int prefGrowth) {
+    // preconditions not checked because of inlining
+    // assert oldLength >= 0
+    // assert minGrowth > 0
+    // 将老数组长度加上最小增长量于首选增长量中较大值
+    int prefLength = oldLength + Math.max(minGrowth, prefGrowth); // might overflow
+    // 一般来说首选增长量 > 最小增长量，那么新组数长度就会等于 老数组长度 * 1.5 ----》 有溢出可能，看下方判断
+    // 如果新数组长度没有溢出并且小于软最大增长量，则扩容1.5倍
+    if (0 < prefLength && prefLength <= SOFT_MAX_ARRAY_LENGTH) {
+        return prefLength;
+    } else {
+        // 如果超出的上方的条件，则使用最小增长量
+        // put code cold in a separate method
+        return hugeLength(oldLength, minGrowth);
+    }
+}
+
+private static int hugeLength(int oldLength, int minGrowth) {
+    // 有溢出可能，看下方判断
+    int minLength = oldLength + minGrowth;
+    // 如果溢出了，直接抛出异常
+    if (minLength < 0) { // overflow
+        throw new OutOfMemoryError(
+            "Required array length " + oldLength + " + " + minGrowth + " is too large");
+        // 没有溢出，并且小于等于软最大增长量，则直接使用软最大增长量，因为考虑未来可能会要再次添加
+    } else if (minLength <= SOFT_MAX_ARRAY_LENGTH) {
+        return SOFT_MAX_ARRAY_LENGTH;
+    } else {
+        // 如果最小增长量大于软最大增长量，并且没有溢出，则直接使用
+        return minLength;
+    }
+}
+```
+
+由此看出ArrayList为什么是增长1.5倍。
+
+## 9、用Eclipse/IDEA复写hashCode方法，有31这个数字
+
+- 选择系数的时候要选择尽量大的系数，因为如果计算出来的hash地址越大，所谓的 “冲突”就越少，查找起来效率也会提高。（减少冲突）
+
+- 31只占用5bits，相乘造成数据溢出的概率较小。
+
+- 31可以 由 i*31== (i<<5)-1来表示，现在很多虚拟机里面都有做相关优化。（提高算法效率）
+
+- 31是一个素数，素数作用就是如果我用一个数字来乘以这个素数，那么最终出来的结果只能被素数本身和被乘数还有1来整除(减少冲突)
+
+## 10、HashMap在JDK1.8之前与之后的实现区别
+
+**JDK 1.8之前**
+
+**储存结构**：
+
+HashMap的内部存储结构其实是**数组**和**链表**的结合。当实例化一个HashMap时， 系统会创建一个长度为**Capacity**的**Entry数组**，这个长度在哈希表中被称为**容量** (Capacity)，在这个数组中可以**存放元素的位置**我们称之为桶(bucket)，**每个bucket都有自己的索引**，系统可以根据索引快速的查找bucket中的元素。
+
+每个bucket中存储一个元素，即一个Entry对象，但每一个Entry对象可以带一个引用变量，用于指向下一个元素，因此，在一个桶中，就有可能生成一个Entry链，而且新添加的元素作为链表的head。
+
+**添加元素**：
+
+向HashMap中添加entry(key，value)，需要首先**计算entry中key的哈希值**(根据key所在类的hashCode()计算得到)，此哈希值经过处理以后，**得到在底层Entry[]数组中要存储的位置i**。------》 也即，通过哈希函数计算key要放在哪个桶里。
+
+如果位置i上没有元素，则entry直接添加成功。如果位置i上已经存在其他entry(或有entry链表存在的)，则需要通过循环的方法，依次比较要添加的entry中key和其他的entry的key的hashCode。------》找到桶后，需要比较是否已经存在这个entry。
+
+如果彼此hash值不同，则直接添加成功。如果hash值不同，继续比较二者的equals()方法。如果返回值为true，则使用新添加entry的value去替换equals()为true的entry的value。-----》如果桶中没有相同的entry，直接放入，相同的entry，替换value。
+
+如果遍历一遍以后，发现所有的equals返回都为false，则entry仍可添加成功。
+
+新添加的entry指向原有的entry元素。------》放在头部，头插。
+
+**扩容**：
+
+> 当HashMap中的元素越来越多的时候，hash冲突的几率也就越来越高，因为数组的长度是固定的。所以为了提高查询的效率，就要对HashMap的数组进行扩容，而在HashMap数组扩容之后，最消耗性能的点就出现了：原数组中的数据必须重新计算其在新数组中的位置，并放进去，这就是resize。
+
+当HashMap中的 **元素个数** 超过 **数组大小 \* loadFactor** 时就会进行数组扩容。注意：(数组大小指的是length，不是数组中个数 size)  
+
+loadFactor 的默认值 (DEFAULT_LOAD_FACTOR)为**0.75**，这是一个折中的取值。
+
+数组大小 的默认值(DEFAULT_INITIAL_CAPACITY)为**16**。
+
+那么当HashMap中元素个数超过16\*0.75=12（这个值就是代码中的threshold值，也叫做临界值）的时候，就把数组的大小扩展为 2*16=32，即扩大一倍，然后重新计算每个元素在数组中的位置， 而这是一个非常消耗性能的操作，所以如果我们已经预知HashMap中元素的个数， 那么预设元素的个数能够有效的提高HashMap的性能。
+
+**JDK 1.8**
+
+**储存结构**：
+
+HashMap的内部存储结构其实是**数组**+**链表**+**树**的结合。当实例化一个HashMap时，会初始化**initialCapacity**和loadFactor，**在put第一对映射关系时**，系统会创建一个长度为initialCapacity的**Node数组**，（也就是说不会一开始就创建一个16长度的数组了），这个长度在哈希表中被称为**容量**(Capacity)，在这个数组中可以存放元素的位置我们称之为桶(bucket)，每个bucket都有自己的索引，系统可以根据索引快速的查找bucket中的元素。
+
+每个bucket中存储一个元素，可能是一个**Node对象**，并且每一个Node对象可以带一个引用变量next，用于指向下一个元素，因此，在一个桶中，就有可能生成一个Node链表。
+
+每个bucket中存储的可能是一个一个**TreeNode对象**，每一个TreeNode对象有两个叶子结点left和right，因此，在一个桶中，就有可能生成一个TreeNode树。而新添加的元素作为链表的last，或树的叶子结点。尾插。
+
+**扩容**：
+
+当HashMap中的其中一个链的对象个数如果达到了**8**个，此时如果**Capacity**没有达到**64**，那么HashMap会先扩容解决，如果已经达到了64，那么这个链会变成树，结点类型由Node变成TreeNode类型。当然，如果当映射关系被移除后， 下次resize时判断树的结点个数低于**6**个，也会把树再转为链表。调用的方法为**treeifyBin**
+
+~~~java
+// 将桶内所有的 链表节点 替换成 红黑树节点
+final void treeifyBin(Node<K,V>[] tab, int hash) {
+    int n, index; Node<K,V> e;
+    // 如果当前哈希表为空，或者哈希表中元素的个数小于 进行树形化的阈值(默认为 64)，就去新建/扩容
+    if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+        resize();
+    else if ((e = tab[index = (n - 1) & hash]) != null) {
+        // 如果哈希表中的元素个数超过了 树形化阈值，进行树形化
+        // e 是哈希表中指定位置桶里的链表节点，从第一个开始
+        TreeNode<K,V> hd = null, tl = null; // 红黑树的头、尾节点
+        do {
+            // 新建一个树形节点，内容和当前链表节点 e 一致
+            TreeNode<K,V> p = replacementTreeNode(e, null);
+            if (tl == null) // 确定树头节点
+                hd = p;
+            else {
+                p.prev = tl;
+                tl.next = p;
+            }
+            tl = p;
+        } while ((e = e.next) != null);
+        // 让桶的第一个元素指向新建的红黑树头结点，以后这个桶里的元素就是红黑树而不是链表了
+        if ((tab[index] = hd) != null)
+            hd.treeify(tab);
+    }
+}
+TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
+    return new TreeNode<>(p.hash, p.key, p.value, next);
+}
+~~~
+
+1. 根据哈希表中元素个数确定是扩容还是树形化
+2. 如果是树形化遍历桶中的元素，创建相同个数的树形节点，复制内容，建立起联系
+3. 然后让桶第一个元素指向新建的树头结点，替换桶的链表内容为树形内容
+
+## 11、HashMap映射关系的key是否可修改
+
+**不要修改**，如果修改了key，会导致hashCode变化，最后匹配不上。
+
+映射关系存储到HashMap中会存储key的hash值，这样就不用在每次查找时重新计算每一个Entry或Node（TreeNode）的hash值了，因此如果已经put到Map中的映射关系，再修改key的属性，而这个属性又参与hashcode值的计算，那么会导致匹配不上。
+
+## 12、负载因子值的大小，对HashMap有什么影响
+
+负载因子的大小决定了HashMap的数据密度。
+
+负载因子越大，密度越大，发生碰撞的几率越高，数组中的链表容易变长，造成查询或插入时的比较次数增多，性能会下降。
+
+负载因子越小，就越容易触发扩容，数据密度也越小，意味着发生碰撞的几率越小，数组中的链表也就越短，查询和插入时比较的次数也越小，性能会更高。但是会浪费一定的内容空间。而且经常扩容也会影响性能，建议初始化预设大一点的空间。
+
+按照其他语言的参考及研究经验，会考虑将负载因子设置为0.7~0.75，此时平均检索长度接近于常数。
+
+## 13、HashMap的put方法
+
+![image-20220401173631154](images/image-20220401173631154.png)
+
+1. 判断键值对数组 table[i]是否为空或为 null，否则执行 resize() 进行扩容。
+2. 根据键值 key 计算 hash 值得到插入的数组索引 i，如果 table[i]==null，直接新建节点添加， 转向6，如果 table[i]不为空，转向3。
+3. 判断 table[i] 的首个元素是否和 key 一样，如果相同直接覆盖 value，否则转向4，这里的相同指的是 hashCode 以及 equals。 
+4. 判断 table[i] 是否为 treeNode，即 table[i] 是否是红黑树，如果是红黑树，则直接在树中插入键值对，否则转向5。
+5. 遍历 table[i]，判断链表长度是否大于 8，大于 8 的话把链表转换为红黑树，在红黑树中执行插入操作，否则进行链表的插入操作，遍历过程中若发现 key 已经存在直接覆盖 value 即可。
+6. 插入成功后，判断实际存在的键值对数量 size 是否超多了最大容量 threshold，如果超过， 进行扩容。
+
+## 14、HashMap的get方法
+
+1. HashMap 的查找方法是 get()，它通过计算指定 key 的哈希值后，调用内部方法 getNode()。
+2.  这个 getNode() 方法就是根据哈希表元素个数与哈希值求模（使用的公式是 (n - 1)  &hash）得到 key 所在的桶的头结点，如果头节点恰好是红黑树节点， 就调用红黑树节点的 getTreeNode() 方法，否则就遍历链表节点。
+3.  getTreeNode 方法使通过调用树形节点的 find()方法进行查找：
+   1. final TreeNode getTreeNode(int h, Object k) { return ((parent != null) ? root() : this).find(h, k, null); } 
+   2. 由于之前添加时已经保证这个树是有序的，因此查找时基本就是折半查找，效率很高。
+4. 这里和插入时一样，如果对比节点的哈希值和要查找的哈希值相等，就会判断 key 是否相 等，相等就直接返回，不相等就从子树中递归查找。
 
 
 
