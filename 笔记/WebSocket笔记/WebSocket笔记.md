@@ -1,4 +1,69 @@
-# WebSocket
+# WebSocket简介
+
+## 1、基本概念
+
+WebSocket 是一种网络通信协议。RFC6455 定义了它的通信标准。
+
+WebSocket 是 HTML5 开始提供的一种在**单个 TCP 连接上进行全双工通讯的协议**。是一种持久化协议。
+
+**出现原因**：
+
+首先HTTP 协议是一种无状态的、无连接的、单向的应用层协议，它采用了请求/响应模型，通信请求只能由客户端发起，服务端对请求做出应答处理。
+
+这种通信模型有一个弊端：HTTP 协议无法实现服务器主动向客户端发起消息。
+
+这种单向请求的特点，注定了如果服务器有连续的状态变化，客户端要获知就非常麻烦。大多数 Web 应用程序将通过频繁的异步 JavaScript 和 XML（AJAX）请求实现长轮询。轮询的效率低，非常浪费资源（因为必须不停连接，或者 HTTP 连接始终打开）。
+
+而 WebSocket 连接允许客户端和服务器之间进行全双工通信，以便任一方都可以通过建立的连接将数据推送到另一端。
+
+WebSocket 优势在于只需要建立一次连接，就可以一直保持连接状态，这相比于轮询方式的不停建立连接显然效率要大大提高。
+
+## 2、原理
+
+首先Websocket是基于HTTP协议的，借用了HTTP的协议来完成一部分握手。
+
+先看一个典型的Websocket握手
+
+~~~http
+GET /chat HTTP/1.1
+Host: server.example.com
+Upgrade: websocket   #核心
+Connection: Upgrade  #核心
+Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw== 
+Sec-WebSocket-Protocol: chat, superchat
+Sec-WebSocket-Version: 13
+Origin: http://example.com
+~~~
+
+Upgrade和Connection 用于告诉服务器此次发起的是ws链接
+
+Sec-WebSocket-Key 是浏览器随机生成的Base64 encode的值，用于验证服务器能不能处理ws
+
+Sec-WebSocket-Protocol 是一个用户定义的字符串，用来区分同URL下，不同的服务所需要的协议
+
+Sec-WebSocket-Version 告诉服务器所使用的Websocket Draft（协议版本）
+
+连接成功后，服务器会返回一下内容
+
+~~~http
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=
+Sec-WebSocket-Protocol: chat
+~~~
+
+Upgrade和Connection 告诉客服端，服务器已经切换协议
+
+Sec-WebSocket-Accept 经过服务器确认，并且加密过后的 Sec-WebSocket-Key
+
+Sec-WebSocket-Protocol 则是表示最终使用的协议
+
+至此，HTTP已经完成它所有工作了，接下来就是完全按照Websocket协议进行了。
+
+
+
+# WebSocket+SpringBoot
 
 ## 1、需要先引入依赖--POM
 
@@ -466,9 +531,13 @@ AbstractSessionWebSocketMessageBrokerConfigurer类**在后台做的事**：
 
 通过注入`SimpMessageHeaderAccessor`在Controller方法中获取到那些值。
 
+# 问题
 
+## 1、HTTP 和 WebSocket
 
+Websocket 是一个新协议，跟 HTTP 协议基本没有关系，只是为了兼容现有浏览器的握手规范而已，也就是说它是 HTTP 协议上的一种补充。
 
+![image-20220403164919522](images/image-20220403164919522.png)
 
 
 
