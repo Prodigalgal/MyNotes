@@ -2715,7 +2715,7 @@ print(obj['class'])
 ~~~python
 （1）导入：from selenium import webdriver
 （2）创建谷歌浏览器操作对象：
-	path = 谷歌浏览器驱动文件路径
+	path = 谷歌浏览器驱动文件路径cho
 	browser = webdriver.Chrome(path)
 （3）访问网址
 	url = 要访问的网址
@@ -2822,8 +2822,8 @@ def share_browser():
 	chrome_options = Options()
 	chrome_options.add_argument('‐‐headless')
 	chrome_options.add_argument('‐‐disable‐gpu')
-	#浏览器的安装路径 打开文件位置
-	#这个路径是你谷歌浏览器的路径
+	# 浏览器的安装路径 打开文件位置
+	# 这个路径是你谷歌浏览器的路径
 	chrome_options.binary_location = path
 	browser = webdriver.Chrome(chrome_options=chrome_options)
 	return browser

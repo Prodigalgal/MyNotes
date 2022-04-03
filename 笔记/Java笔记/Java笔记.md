@@ -1,3 +1,574 @@
+
+
+# JDK8新特性
+
+## Lambda表达式
+
+### 1、基本概念
+
+JDK8新特性，取代大部分匿名内部类。
+
+需要函数式接口支持也就是，Lambda规定接口中只能有一个需要被实现的方法，不是规定接口中只能有一个方法。
+
+@Functionallinterface 修饰函数式接口，可以检查该接口是否只有一个抽象方法，要求接口中抽象方法只有一个，此注解往往和lambda表达式一起出现。
+
+### 2、语法形式
+
+> （）-> { }；
+>
+> - 其中（）用来描述参数列表
+> - { }用来表述方法体也叫lambda体
+> - -> 为lambda运算符，读作goes to
+
+- 语法一：无参数，无返回值（）-> { }；
+- 语法二：一个参数，无返回值（x）-> { }；
+- 语法三：两个以上的参数，lambda体具有多条语句（x, y）-> { xxx; zzzzzz;}；
+
+
+
+### 3、四大核心函数式接口 
+
+| 函数式接口 | 参数类型 | 返回类型 | 用途 |
+| ---- | ---- | ---- | ---- |
+|Consumer 消费型接口| T| void| 对类型为T的对象应用操作，<br />包含方法： void accept(T t) |
+|Supplier 供给型接口 |无| T | 返回类型为T的对象，<br />包含方法：T get() |
+|Function 函数型接口| T |R| 对类型为T的对象应用操作，并返回结果。结果是R类型的对象。<br />包含方法：R apply(T t) |
+|Predicate 断定型接口| T |boolean |确定类型为T的对象是否满足某约束，并返回<br />包含方法：boolean test(T t)|
+|BiFunction |T,U |R |对类型为 T, U 参数应用操作，返回 R 类型的结果。<br />包含方法为： R apply(T t, U u); |
+|UnaryOperator (Function子接口) |T |T| 对类型为T的对象进行一元运算，并返回T类型的结果。<br />包含方法为：T apply(T t); |
+|BinaryOperator (BiFunction 子接口) |T,T| T| 对类型为T的对象进行二元运算，并返回T类型的结果。<br />包含方法为： T apply(T t1, T t2); |
+|BiConsumer |T,U |void |对类型为T, U 参数应用操作。 <br />包含方法为： void accept(T t, U u) |
+|BiPredicate |T,U| boolean |包含方法为： boolean test(T t,U u)|
+
+![image-20220403093333848](images/image-20220403093333848.png)
+
+### 4、简化Lambda
+
+#### 1、简化参数类型
+
+- （）中可以不写参数类型，但必须所有的都不写，因为JVM具有类型推断，通过上下文类型推断。
+
+- 只有一个参数，可以不写（） 
+
+> x -> { }；
+
+- 方法体内只有一条语句或者只有一条return语句，可以不写{ } 
+
+> x -> xxxx；
+
+![image-20220403093344635](images/image-20220403093344635.png)
+
+#### 2、方法引用
+
+**语法**：方法归属者 **::** 方法名 
+
+- 实例对象::实例方法名
+- 类::静态方法名
+- 类::实例方法名
+
+**注意**：
+
+- 静态方法的归属者为类对象，普通方法归属者为实例对象
+- Lambda体中调用方法的参数列表与返回值类型，要与函数式接口中抽象方法的函数列表和返回值类型保持一致。
+- Lambda参数列表中第一个参数是实例方法的调用者，而第二个参数是实例方法的时，可以用类::实例方法名
+
+~~~java
+// 方法引用-对象::实例方法
+Consumer<Integer> con2 = System.out::println;
+con2.accept(200);
+
+// 方法引用-类名::静态方法名
+BiFunction<Integer, Integer, Integer> biFun = (x, y) -> Integer.compare(x, y);
+BiFunction<Integer, Integer, Integer> biFun2 = Integer::compare;
+Integer result = biFun2.apply(100, 200);
+
+// 方法引用-类名::实例方法名
+BiFunction<String, String, Boolean> fun1 = (str1, str2) -> str1.equals(str2);
+BiFunction<String, String, Boolean> fun2 = String::equals;
+Boolean result2 = fun2.apply("hello", "world");
+System.out.println(result2);
+~~~
+
+
+
+#### 3、构造器引用
+
+声明接口，该接口作为对象的生成器，通过 **类名::new** 的方式来实例化对象，通过调用方法返回对象。
+
+**注意**：需要调用的构造器的参数列表要与函数式接口中的抽象方法的参数列表保持一致
+
+~~~java
+// 构造方法引用  类名::new
+Supplier<Employee> sup = () -> new Employee();
+System.out.println(sup.get());
+Supplier<Employee> sup2 = Employee::new;
+System.out.println(sup2.get());
+
+// 构造方法引用 类名::new （带一个参数）
+Function<Integer, Employee> fun = (x) -> new Employee(x);
+Function<Integer, Employee> fun2 = Employee::new;
+System.out.println(fun2.apply(100));
+~~~
+
+![image-20220403094039820](images/image-20220403094039820.png)
+
+
+
+## Stream流
+
+### 1、基本概念
+
+对指定集合进行复杂的查找、过滤、映射数据等操作，可以串行也可以并行。
+
+**注意**：
+
+- Stream本身不会存储元素。
+- Stream不会改变源对象，会返回一个持有结果的新Stream。
+- Stream操作具有延迟，也就是需要结果的时候才执行。
+
+### 2、三个步骤
+
+#### 1、创建Stream
+
+获取一个数据源（集合、数组），获取一个流
+
+使用**Collection接口**中的方法
+
+~~~java
+- default Stream<E> stream() : 返回一个顺序流
+    
+- default Stream<E> parallelStream() : 返回一个并行流
+~~~
+
+
+
+使用**数组**创建流，具有多个重载形式
+
+~~~java
+- static <T> Stream<T> stream(T[] array): 返回一个流
+
+- public static IntStream stream(int[] array)
+
+- public static LongStream stream(long[] array)
+
+- public static DoubleStream stream(double[] array)
+~~~
+
+
+
+使用**值**创建流，使用静态方法Stream.of()，可以接受任意数量的参数
+
+~~~java
+- public static<T> Stream<T> of(T... values) : 返回一个流。
+~~~
+
+
+
+使用**函数**创建流，无限流
+
+~~~java
+- public static<T> Stream<T> iterate(final T seed, final UnaryOperator<T> f) 迭代
+
+- public static<T> Stream<T> generate(Supplier<T> s) 生成
+~~~
+
+
+
+#### 2、中间操作Stream
+
+一个中间操作链，对数据源的数据处理，该操作的返回值仍然是流
+
+##### 1、筛选与切片 
+
+~~~java
+- filter(Predicate p) 接收 Lambda ， 从流中排除某些元素。
+
+- distinct() 筛选，通过流所生成元素的 hashCode() 和 equals() 去除重复元素
+
+- limit(long maxSize) 截断流，使其元素不超过给定数量。
+    
+- peek(Consumer<? super T> action) 此方法的存在主要是为了支持调试，希望在元素流过管道中的某个点时查看它们
+
+- skip(long n) 跳过元素，返回一个扔掉了前 n 个元素的流。若流中元素不足 n 个，则返回一个空流。与 limit(n) 互补
+~~~
+
+
+
+##### 2、映射  
+
+~~~java
+- map(Function f) 接收一个函数作为参数，该函数会被应用到每个元素上，并将其映射成一个新的元素。
+
+- mapToDouble(ToDoubleFunction f) 接收一个函数作为参数，该函数会被应用到每个元素上，产生一个新的 DoubleStream。
+
+- mapToInt(ToIntFunction f) 接收一个函数作为参数，该函数会被应用到每个元素上，产生一个新的 IntStream。
+
+- mapToLong(ToLongFunction f) 接收一个函数作为参数，该函数会被应用到每个元素上，产生一个新的 LongStream。
+
+- flatMap(Function<? super T, ? extends Stream<? extends R>> mapper) 
+    返回一个流，其中包含将此流的每个元素替换为通过将提供的mapper映射函数应用于每个元素而生成的映射流的内容的结果。
+    
+- flatMapToInt(Function<? super T, ? extends IntStream> mapper) 
+    根据给定的mapper作用于当前流的每个元素，将结果组成新的Int流来返回
+    同理有flatMapToLong flatMapToDouble
+~~~
+
+
+
+##### 3、排序 
+
+~~~java
+- sorted() 产生一个新流，其中按自然顺序排序
+
+- sorted(Comparator comp) 产生一个新流，其中按比较器顺序排序
+~~~
+
+
+
+
+
+#### 3、终止操作
+
+终止操作会执行中间操作链，并产生结果
+
+##### 1、查找与匹配 
+
+~~~java
+- allMatch(Predicate p) 检查是否匹配所有元素
+
+- anyMatch(Predicate p) 检查是否至少匹配一个元素，也即Stream中是否存在任何一个元素满足匹配条件
+
+- noneMatch(Predicate p) 检查是否没有匹配所有元素，也即是不是Stream中的所有元素都不满足给定的匹配条件
+   
+- findFirst() 返回第一个元素
+
+- findAny() 返回当前流中的任意元素，多个挑一个
+
+- count() 返回流中元素总数
+
+- max(Comparator c) 返回流中最大值
+
+- min(Comparator c) 返回流中最小值
+    
+- toArray() 有俩个重载，一个有参数指定返回的数组类型，一个无参数默认Object[]，作用将结果返回为一个数组
+
+- forEach(Consumer c) 
+    内部迭代(使用 Collection 接口需要用户去做迭代，称为外部迭代。相反，Stream API 使用内部迭代——它帮你把迭代做了)
+    在并行的情况下不保证顺序，而forEachOrdered保证顺序
+~~~
+
+
+
+##### 2、归约 （重要）
+
+简介：
+
+归约操作（也称为折叠）接受一个元素序列为输入，反复使用某个合并操作，把序列中的元素合并成一个汇总的结果。
+
+比如查找一个数字列表的总和或者最大值，或者把这些数字累积成一个List对象。
+
+Stream接口有一些通用的归约操作，比如reduce()和collect()；也有一些特定用途的归约操作，比如sum(),max()和count()。
+
+注意：sum()方法不是所有的Stream对象都有的，只有IntStream、LongStream和DoubleStream是实例才有。
+
+
+
+~~~java
+- reduce(T iden, BinaryOperator b) 可以将流中元素反复结合起来，得到一个值。返回 T
+
+- reduce(BinaryOperator b) 可以将流中元素反复结合起来，得到一个值。返回 Optional<T>
+~~~
+
+
+
+##### 3、收集 （重要）
+
+~~~java
+collect(Collector c) 将流转换为其他形式。接收一个 Collector 接口的实现，用于给Stream中元素做汇总的方法
+~~~
+
+Collector 接口中方法的实现决定了如何对流执行收集操作(如收集到 List、Set、Map)。<a href="#Collector 接口">详见</a> 
+
+Collectors 实现类是JDK Collector 接口的预实现类，提供了很多静态方法，可以方便地创建常见收集器实例。<a href="#Collectors 实用类">详见</a> 
+
+ ![image-20220402222628755](images/image-20220402222628755.png)
+
+
+
+
+
+
+
+
+
+### 3、串行流与并行流
+
+并行流：把一个内容分成多个数据块，并用不同的线程分别处理每个数据块的流，Stream API通过parallel()与sequential()进行并串切换，其底层使用Fork/Join框架。
+
+### 4、<a name="Collector 接口">Collector 接口</a> 
+
+#### 1、参数简介
+
+Collector 有五个主要参数，也即一些函数式接口
+
+~~~java
+public interface Collector<T, A, R> {
+    // supplier参数用于生成结果容器，容器类型为A
+    Supplier<A> supplier();
+    // accumulator用于消费元素，也就是归纳元素，这里的T就是元素，它会将流中的元素一个一个与结果容器A发生操作
+    BiConsumer<A, T> accumulator();
+    // combiner用于两个两个合并并行执行的线程的执行结果，将其合并为一个最终结果A
+    BinaryOperator<A> combiner();
+    // finisher用于将之前整合完的结果R转换成为A
+    Function<A, R> finisher();
+    // characteristics表示当前Collector的特征值，这是个不可变Set
+    Set<Characteristics> characteristics();
+}
+~~~
+
+Collector拥有两个of方法用于生成Collector实例，其中一个拥有上面所有五个参数，另一个四个参数，不包括finisher。
+
+~~~java
+public interface Collector<T, A, R> {
+    // 四参方法，用于生成一个Collector，T代表流中的一个一个元素，R代表最终的结果
+    public static<T, R> Collector<T, R, R> of(Supplier<R> supplier,
+                                              BiConsumer<R, T> accumulator,
+                                              BinaryOperator<R> combiner,
+                                              Characteristics... characteristics) {/*...*/}
+    
+    // 五参方法，用于生成一个Collector，T代表流中的一个一个元素，A代表中间结果，R代表最终结果，finisher用于将A转换为R      
+    public static<T, A, R> Collector<T, A, R> of(Supplier<A> supplier,
+                                                 BiConsumer<A, T> accumulator,
+                                                 BinaryOperator<A> combiner,
+                                                 Function<A, R> finisher,
+                                                 Characteristics... characteristics) {/*...*/}                                              
+}
+~~~
+
+>Characteristics：这个特征值是一个枚举，拥有三个值：CONCURRENT（多线程并行），UNORDERED（无序），IDENTITY_FINISH（无需转换结果）。
+>
+>其中四参of方法中没有finisher参数，所以必有IDENTITY_FINISH特征值。
+
+#### 2、<a name="Collectors 实用类">Collectors 实现类</a> 
+
+Collectors是一个工具类，是JDK预实现Collector的工具类，它内部提供了多种Collector，可直接使用。
+
+以下为各个方法的用例
+
+~~~java
+// toCollection 将流中的元素全部放置到一个集合中返回，这里使用Collection，泛指多种集合。
+List<String> ll = list.stream().collect(Collectors.toCollection(LinkedList::new));
+
+------------------------------------------------------------------------------------------------------------
+    
+// toList 将流中的元素放置到一个列表集合中去。这个列表默认为ArrayList。
+List<String> ll = list.stream().collect(Collectors.toList());
+
+------------------------------------------------------------------------------------------------------------
+    
+// toSet 将流中的元素放置到一个无序集set中去。默认为HashSet。
+Set<String> ss = list.stream().collect(Collectors.toSet());
+
+------------------------------------------------------------------------------------------------------------
+    
+// joining 目的是将流中的元素全部以字符序列的方式连接到一起，可以指定连接符，甚至是结果的前后缀。
+// 无参方法
+String s = list.stream().collect(Collectors.joining());
+// 指定连接符
+String ss = list.stream().collect(Collectors.joining("-"));
+// 指定连接符和前后缀
+String sss = list.stream().collect(Collectors.joining("-","S","E"));
+
+------------------------------------------------------------------------------------------------------------
+    
+// mapping 这个映射是首先对流中的每个元素进行映射，即类型转换，然后再将新元素以给定的Collector进行归纳。
+// mapping 收集器在用于多级归约时最有用，例如groupingBy或partitioningBy的下游
+// mapping 方法有俩个参数
+// 第一个参数是Function类型的函数，应用于输入元素的函数
+// 第二个参数是Collector类型，将接受映射值的收集器
+List<Integer> ll = list.stream().limit(5).collect(Collectors.mapping(Integer::valueOf,Collectors.toList()));
+Map<City, Set<String>> lastNamesByCity = 
+    people.stream()
+    .collect(groupingBy(Person::getCity, mapping(Person::getLastName, toSet())));
+
+------------------------------------------------------------------------------------------------------------
+    
+// collectingAndThen 该方法是在收集动作结束之后，对收集的结果进行再处理，也即调整Collector以执行额外的整理转换
+// collectingAndThen 有两个参数
+// 第一个参数是下游的Collectors
+// 第二个参数是对Collectors产生的结果进行处理的函数，是Function类型
+int length = list.stream().collect(Collectors.collectingAndThen(Collectors.toList(), e -> e.size()));
+List<String> list = people.stream().collect(collectingAndThen(toList(), Collections::unmodifiableList));
+
+------------------------------------------------------------------------------------------------------------
+    
+// counting 用于计数
+long size = list.stream().collect(Collectors.counting());
+
+------------------------------------------------------------------------------------------------------------
+    
+// minBy/maxBy 生成一个用于获取最小/最大值的Optional结果。
+// minBy/maxBy 只有一个Comparator类型的参数
+// 等效于reducing(BinaryOperator.minBy(comparator))
+list.stream().collect(Collectors.maxBy((a,b) -> a.length()-b.length()));
+list.stream().collect(Collectors.minBy((a,b) -> a.length()-b.length()));
+
+------------------------------------------------------------------------------------------------------------
+    
+// summingInt/summingLong/summingDouble 生成一个用于求元素和的Collector。
+// 首先通过给定的mapper将元素转换类型，然后再求和，最后结果与转换后类型一致。
+int i = list.stream().limit(3).collect(Collectors.summingInt(Integer::valueOf));
+long l = list.stream().limit(3).collect(Collectors.summingLong(Long::valueOf));
+double d = list.stream().limit(3).collect(Collectors.summingDouble(Double::valueOf));
+
+------------------------------------------------------------------------------------------------------------
+    
+// averagingInt/averagingLong/averagingDouble 生成一个用于求元素平均值的Collector。
+// 参数的作用就是将元素转换为指定的类型，求平均值涉及到除法操作，结果一律为Double类型。
+double i = list.stream().limit(3).collect(Collectors.averagingInt(Integer::valueOf));
+double l = list.stream().limit(3).collect(Collectors.averagingLong(Long::valueOf));
+double d = list.stream().limit(3).collect(Collectors.averagingDouble(Double::valueOf));
+
+------------------------------------------------------------------------------------------------------------
+    
+// reducing 方法有三个重载方法，其实是和Stream里的三个reduce方法对应的。
+// 二者是可以替换使用的，作用完全一致，也是对流中的元素做统计归纳作用。
+
+// 无初始值的情况，返回一个可以生成Optional结果的Collector
+public static <T> Collector<T, ?, Optional<T>> reducing(BinaryOperator<T> op) {/*...*/}
+Map<City, Optional<Person>> tallestByCity = people.stream()
+    .collect(groupingBy(Person::getCity, reducing(BinaryOperator.maxBy(byHeight))));
+
+// 有初始值的情况，返回一个可以直接产生结果的Collector
+public static <T> Collector<T, ?, T> reducing(T identity, BinaryOperator<T> op) {/*...*/}
+
+// 有初始值，还有针对元素的处理方案mapper，生成一个可以直接产生结果的Collector。
+// 元素在执行结果操作op之前需要先执行mapper进行元素转换操作
+public static <T, U> Collector<T, ?, U> reducing(U identity,
+                                                 Function<? super T, ? extends U> mapper,
+                                                 BinaryOperator<U> op) {/*...*/}
+ Map<City, String> longestLastNameByCity = people.stream()
+     .collect(groupingBy(Person::getCity, reducing("",Person::getLastName,BinaryOperator.maxBy(byLength))));
+
+list.stream().limit(4).map(String::length).collect(Collectors.reducing(Integer::sum));
+list.stream().limit(3).map(String::length).collect(Collectors.reducing(0, Integer::sum));
+list.stream().limit(4).collect(Collectors.reducing(0, String::length, Integer::sum));
+
+------------------------------------------------------------------------------------------------------------
+    
+// groupingBy 返回一个Collector ，对T类型的输入元素执行“分组依据”操作，根据分类函数对元素进行分组，并在Map中返回结果。
+// groupingBy 有三个重载方法
+
+// 第一个参数分类器，是Function类型，内部自动将结果保存到一个map中
+// 每个map的键为?类型（即classifier的结果类型），值为一个list，这个list中保存在属于这个组的元素。
+public static <T, K> Collector<T, ?, Map<K, List<T>>> 
+    groupingBy(Function<? super T, ? extends K> classifier) {/*...*/}
+Map<Integer,List<String>> s = list.stream()
+    .collect(Collectors.groupingBy(String::length));
+
+// 第一个参数分类器，对T类型的输入元素实现级联“分组依据”操作，根据分类函数对元素进行分组
+// 第二个参数下游收集器，使用指定的下游Collector对与给定键关联的值执行归约操作。
+// 也即在上面方法的基础上增加了对流中元素的处理方式的Collector，比如上面的默认的处理方法就是Collectors.toList()
+public static <T, K, A, D>Collector<T, ?, Map<K, D>> 
+    groupingBy(Function<? super T, ? extends K> classifier,Collector<? super T, A, D> downstream) {/*...*/}
+ Map<City, Set<String>> namesByCity = people.stream()
+     .collect(groupingBy(Person::getCity, mapping(Person::getLastName, toSet())));
+Map<Integer,List<String>> ss = list.stream()
+    .collect(Collectors.groupingBy(String::length, Collectors.toList()));
+
+// 第一个参数分类器，对T类型的输入元素实现级联“分组依据”操作，根据分类函数对元素进行分组
+// 第二个参数Map工厂，用于提供一个空的map，保存此次分组的结果
+// 第三个参数下游收集器，使用指定的下游Collector对与给定键关联的值执行归约操作。
+// 也即在第二个方法的基础上再添加了结果Map的生成方法。
+public static <T, K, D, A, M extends Map<K, D>> Collector<T, ?, M> 
+    groupingBy(Function<? super T, ? extends K> classifier,
+                                  Supplier<M> mapFactory,
+                                  Collector<? super T, A, D> downstream) {/*...*/}
+Map<City, Set<String>> namesByCity = people.stream()
+    .collect(groupingBy(Person::getCity, TreeMap::new, mapping(Person::getLastName, toSet())));
+Map<Integer,Set<String>> sss = list.stream()
+    .collect(Collectors.groupingBy(String::length,HashMap::new, Collectors.toSet()));
+
+// groupingByConcurrent 并发版groupingBy，功能效果一致
+
+------------------------------------------------------------------------------------------------------------
+    
+// partitioningBy 根据Predicate对输入元素进行分区，并将它们组织成一个Map
+// partitioningBy 方法将流中的元素按照给定的校验规则的结果分为两个部分
+// 其中一份结果放到一个map中返回，map的键是Boolean类型，值为元素的列表List。
+// 该方法有俩个重载
+
+// 只需一个校验参数predicate
+public static <T> Collector<T, ?, Map<Boolean, List<T>>> 
+    partitioningBy(Predicate<? super T> predicate) {/*...*/}
+Map<Boolean,List<String>> map = list.stream().collect(Collectors.partitioningBy(e -> e.length()>5));
+
+// 在上面方法的基础上增加了对流中元素的处理方式的Collector，比如上面的默认的处理方法就是Collectors.toList()
+public static <T, D, A> Collector<T, ?, Map<Boolean, D>> 
+    partitioningBy(Predicate<? super T> predicate, Collector<? super T, A, D> downstream) {/*...*/}
+Map<Boolean,Set<String>> map2 = list.stream()
+    .collect(Collectors.partitioningBy(e -> e.length()>6, Collectors.toSet()));
+
+------------------------------------------------------------------------------------------------------------
+  
+// toMap 方法是根据给定的键生成器和值生成器生成的键和值保存到一个map中返回
+// 键和值的生成都依赖于元素，可以指定出现重复键时的处理方案和保存结果的map。
+// 该方法有三个重载
+    
+// 指定键和值的生成方式keyMapper和valueMapper
+// 如果映射的键可能有重复项，请改用toMap(Function, Function, BinaryOperator) 
+public static <T, K, U> Collector<T, ?, Map<K,U>> 
+    toMap(Function<? super T, ? extends K> keyMapper,Function<? super T, ? extends U> valueMapper) {/*...*/}
+Map<Student, Double> studentToGPA = students.stream()
+    .collect(toMap(Function.identity(), student -> computeGPA(student)));
+Map<String, Student> studentIdToStudent = students.stream()
+    .collect(toMap(Student::getId, Function.identity()));
+Map<String,String> map = list.stream().limit(3).collect(Collectors.toMap(e -> e.substring(0,1), e -> e));
+// 在上面方法的基础上增加了对键发生重复时处理方式的mergeFunction，比如上面的默认的处理方法就是抛出异常
+// 注意是处理键冲突
+public static <T, K, U> Collector<T, ?, Map<K,U>> 
+    toMap(Function<? super T, ? extends K> keyMapper
+          ,Function<? super T, ? extends U> valueMapper
+          ,BinaryOperator<U> mergeFunction) {/*...*/}
+Map<String, String> phoneBook = people.stream()
+    .collect(toMap(Person::getName, Person::getAddress, (s, a) -> s + ", " + a));
+Map<String,String> map1 = list.stream().collect(Collectors.toMap(e -> e.substring(0,1), e->e, (a,b)-> b));
+// 在第二个方法的基础上再添加了Map工厂，可以指定结果Map的生成方法。
+public static <T, K, U, M extends Map<K, U>> Collector<T, ?, M> 
+    toMap(Function<? super T, ? extends K> keyMapper
+          ,Function<? super T, ? extends U> valueMapper
+          ,BinaryOperator<U> mergeFunction
+          ,Supplier<M> mapSupplier) {/*...*/}
+Map<String,String> map2 = list.stream()
+    .collect(Collectors.toMap(e -> e.substring(0,1), e->e,(a,b)->b, HashMap::new));
+
+// toConcurrentMap 和toMap 功能用法效果一致
+
+------------------------------------------------------------------------------------------------------------
+  ;
+// summarizingInt/summarizingLong/summarizingDouble
+// 适用于汇总的，返回值分别是IntSummaryStatistics，LongSummaryStatistics，DoubleSummaryStatistics。
+// 在这些返回值中包含有流中元素的指定结果的数量、和、最大值、最小值、平均值。所有仅仅针对数值结果。
+// summarizingInt ----> 有一个参数mapper，作用域每一个元素，产生一个int映射，剩下俩方法同样道理。
+IntSummaryStatistics intSummary = list.stream()
+    .collect(Collectors.summarizingInt(String::length));
+
+LongSummaryStatistics longSummary = list.stream().limit(4)
+    .collect(Collectors.summarizingLong(Long::valueOf));
+
+DoubleSummaryStatistics doubleSummary = list.stream().limit(3)
+    .collect(Collectors.summarizingDouble(Double::valueOf));
+        
+~~~
+
+扩展：
+
+- StringJoiner：这是一个字符串连接器，可以定义连接符和前后缀，正好适用于实现joining第三种joining方法。
+
+
+
+
+
 # 集合框架
 
 ## 1、基本概念
@@ -3043,13 +3614,13 @@ HashMap的内部存储结构其实是**数组**和**链表**的结合。当实�
 
 > 当HashMap中的元素越来越多的时候，hash冲突的几率也就越来越高，因为数组的长度是固定的。所以为了提高查询的效率，就要对HashMap的数组进行扩容，而在HashMap数组扩容之后，最消耗性能的点就出现了：原数组中的数据必须重新计算其在新数组中的位置，并放进去，这就是resize。
 
-当HashMap中的 **元素个数** 超过 **数组大小 \* loadFactor** 时就会进行数组扩容。注意：(数组大小指的是length，不是数组中个数 size)  
+当HashMap中的 **元素个数** 超过 **数组大小 * loadFactor** 时就会进行数组扩容。注意：(数组大小指的是length，不是数组中个数 size)  
 
 loadFactor 的默认值 (DEFAULT_LOAD_FACTOR)为**0.75**，这是一个折中的取值。
 
 数组大小 的默认值(DEFAULT_INITIAL_CAPACITY)为**16**。
 
-那么当HashMap中元素个数超过16\*0.75=12（这个值就是代码中的threshold值，也叫做临界值）的时候，就把数组的大小扩展为 2*16=32，即扩大一倍，然后重新计算每个元素在数组中的位置， 而这是一个非常消耗性能的操作，所以如果我们已经预知HashMap中元素的个数， 那么预设元素的个数能够有效的提高HashMap的性能。
+那么当HashMap中元素个数超过16*0.75=12（这个值就是代码中的threshold值，也叫做临界值）的时候，就把数组的大小扩展为 2*16=32，即扩大一倍，然后重新计算每个元素在数组中的位置， 而这是一个非常消耗性能的操作，所以如果我们已经预知HashMap中元素的个数， 那么预设元素的个数能够有效的提高HashMap的性能。
 
 **JDK 1.8**
 
