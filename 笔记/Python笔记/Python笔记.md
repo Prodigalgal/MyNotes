@@ -56,8 +56,8 @@ class 类名([父类]) :
 
 在类的代码块中，我们可以定义变量和函数：
 
-- 变量会成为该类实例的公共属性，所有的该类实例都可以通过 对象**.**属性名 的形式访问，但是修改只能由类对象去修改。
-- 函数会成为该类实例的公共方法，所有该类实例都可以通过 对象**.**方法名() 的形式调用方法。
+- 变量会成为该类实例的公共属性，所有的该类实例都可以通过 类对象/实例对象**.**属性名 的形式访问，但是修改只能由类对象去修改。
+- 函数会成为该类实例的公共方法，所有该类实例都可以通过 实例对象**.**方法名() 的形式调用方法。
 
 注意：方法调用时，第一个参数由解析器自动传递，所以定义方法时，至少要定义一个形参！ 
 
@@ -154,7 +154,7 @@ class A(object):
     # 在类内部使用 @classmethod 来修饰的方法属于类方法
     # 类方法的第一个参数是cls，也会被自动传递，cls就是当前的类对象
     #   类方法和实例方法的区别，实例方法的第一个参数是self，而类方法的第一个参数是cls
-    #   类方法可以通过类去调用，也可以通过实例调用，没有区别
+    #   类方法可以通过类去调用，也可以通过实例调用。
     @classmethod
     def test_2(cls):
         print('这是test_2方法，他是一个类方法~~~ ',cls)
@@ -1109,6 +1109,8 @@ del stus[2]  # 删除索引为2的元素
 ### 1.3.2、元组（tuple）
 
 元组是一个不可变的序列，它的操作的方式基本上和列表是一致的。
+
+**注意**：元组不支持元素增删改，支持通过下标或元素值查找
 
 一般当我们希望数据不改变时，就使用元组，其余情况都使用列表。
 
@@ -2715,7 +2717,7 @@ print(obj['class'])
 ~~~python
 （1）导入：from selenium import webdriver
 （2）创建谷歌浏览器操作对象：
-	path = 谷歌浏览器驱动文件路径cho
+	path = 谷歌浏览器驱动文件路径ChormDriver
 	browser = webdriver.Chrome(path)
 （3）访问网址
 	url = 要访问的网址
@@ -2750,25 +2752,119 @@ print(obj['class'])
 
 ~~~python
 获取元素属性
-	.get_attribute('class')
+	element.get_attribute('class')
 获取元素文本
-	.text
+	element.text
 获取标签名
-	.tag_name
+	element.tag_name
 ~~~
 
-#### 2.5.1.5、交互
+#### 2.5.1.5、普通交互
+
+~~~text
+点击:		     element.click()
+输入:			 element.send_keys()
+q：			element.clear()
+后退操作:		browser.back()
+前进操作：	   browser.forword()
+模拟JS滚动:	    browser.execute_script(js) 执行js代码 js='document.documentElement.scrollTop=100000'
+获取网页代码:	  browser.page_source
+退出:			 browser.quit()
+保存屏幕快照:	  browser.save_screenshot('baidu.png')
+~~~
+
+#### 2.5.1.6、下拉框交互
+
+selenium提供了select用于和网页的下拉框进行交互
+~~~python
+from selenium.webdriver.support.select import Select
+~~~
+
+Select类提供了3个方法用于选择下拉选择框中的其一
+
+~~~text
+通过值选择:			select_by_value(value) 
+通过下标选择:			select_by_index(index) 如果option中有index属性，会优先通过index属性选择
+通过标签显示的文本选择:	select_by_visible_text(text) 
+~~~
+
+Select类还提供了一些用于取消选中的方法
+
+~~~text
+取消全选:					deselect_all()  
+通过value属性取消选择:		deselect_by_value(value)
+通过index取消选择:		deselect_by_index(index)
+通过text取消选择:			deselect_by_visible_text(text)
+~~~
+
+示例
 
 ~~~python
-点击：	click()
-输入：	send_keys()
-后退操作： browser.back()
-前进操作：	browser.forword()
-模拟JS滚动：	js='document.documentElement.scrollTop=100000'
-		   browser.execute_script(js) 执行js代码
-获取网页代码：	page_source
-退出：	browser.quit()
+# 实例化一个Select类的对象
+selector = Select(driver.find_element_by_id("selectdemo"))
+ 
+# 下面三种方法用于选择
+selector.select_by_index("2")  # 通过index进行选择,index从0开始
+selector.select_by_value("210103")  # 通过value属性值进行选择
+selector.select_by_visible_text("篮球运动员")  # 通过标签显示的text进行选择
+
+# 其他思路
+# 定位到下拉选择框
+selector = driver.find_element_by_xpath(".//*[@id='selectdemo']")
+ 
+# 选择
+selector.find_element_by_xpath("//option[@value='210103']").click()
+selector.find_elements_by_tag_name("option")[2].click()
+
+# 直接通过xpath定位并选择
+driver.find_element_by_xpath(".//*[@id='selectdemo']/option[3]").click()
 ~~~
+
+#### 2.5.1.7、弹窗交互
+
+selenium提供 switch_to_alert方法：捕获弹出对话框（可以定位alert、confirm、prompt对话框）
+
+~~~text
+switch_to_alert()    --定位弹出对话框
+text()               --获取对话框文本值
+accept()             --相当于点击“确认”
+dismiss()            --相当于点击“取消”
+send_keys()          --输入值（alert和confirm没有输入对话框，所以就不用能用了，只能使用在prompt里）
+~~~
+
+示例
+
+~~~python
+# 锁定警告对话框
+dig_alert = driver.switch_to.alert
+# 打印警告对话框内容
+print(dig_alert.text)
+# alert对话框属于警告对话框，我们这里只能接受弹窗
+dig_alert.accept()
+
+
+# 获取confirm对话框
+dig_confirm = driver.switch_to.alert
+time.sleep(1)
+# 打印对话框的内容
+print(dig_confirm.text)
+# 点击“确认”按钮
+dig_confirm.accept()
+# 点击“取消”按钮
+dig_confirm.dismiss()
+
+# 获取prompt对话框
+dig_prompt = driver.switch_to.alert
+time.sleep(1)
+# 打印对话框内容
+print(dig_prompt.text)
+# 在弹框内输入信息
+dig_prompt.send_keys("Loading")
+# 点击“确认”按钮，提交输入的内容
+dig_prompt.accept()
+~~~
+
+
 
 ### 2.5.2、Phantomjs
 
@@ -2783,8 +2879,6 @@ print(obj['class'])
 （2）browser = webdriver.PhantomJS(path) 
 
 （3）browser.get(url) 
-
-扩展：保存屏幕快照:browser.save_screenshot('baidu.png')
 
 ### 2.5.3、Chrome handless
 
@@ -2833,6 +2927,47 @@ browser = share_browser()
 browser.get('http://www.baidu.com/')
 browser.save_screenshot('handless1.png')
 ~~~
+
+### 2.5.4、案例
+
+~~~python
+import selenium
+from selenium import webdriver
+
+
+def init():
+    path = 'chromedriver.exe'
+    option = webdriver.ChromeOptions()
+
+    option.add_experimental_option('excludeSwitches', ['enable-automation'])
+    option.add_experimental_option('useAutomationExtension', False)
+    option.add_argument('--disable-blink-features=Automationcontrolled')
+
+    return webdriver.Chrome(options=option, executable_path=path)
+
+
+if __name__ == '__main__':
+    browser = init()
+
+    url = 'http://sbj.cnipa.gov.cn/'
+
+    browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+        'source': 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+    })
+
+    browser.get(url)
+
+    a = browser.find_element_by_xpath('/html/body/div/div[6]/div[12]/div/a')
+
+    a.click()
+
+~~~
+
+### 2.5.5、问题
+
+1、在input有值的情况下，使用xpath选取后send_keys会出现失败的情况，即不会改变input内的值。
+
+建议：在send_keys之前，先调用clear清除内容，send_keys是向input内追加而不是覆盖
 
 ## 2.6、Requests
 
@@ -2910,6 +3045,29 @@ with open('proxy.html','w',encoding='utf‐8') as fp:
 
 ### 2.6.5、cookie定制
 
+~~~python
+# 方法一
+response = requests.get(url=url, headers=headers)
+cookies = response.cookies
+# 将获取到的cookies放入下一次请求
+requests.get(url=url, headers=headers， cookies=cookies)
+
+# 方法二
+response = requests.get(url)
+cookie = response.headers['Set-Cookie']
+# 将cookie放进headers中
+headers = {"Set-Cookie": cookie}
+r2 = requests.post(url=url, headers=headers)
+
+# 方法三，在会话保持中，加入cookie
+cookie = { "key":"value" }
+x = requests.session()
+requests.utils.add_dict_to_cookiejar(x.cookies, cookie)
+
+~~~
+
+
+
 一般情况看不到的数据也即为隐藏域，都是在页面的源码中。
 
 ~~~python
@@ -2973,6 +3131,18 @@ content_post = response_post.text
 with open('gushiwen.html','w',encoding= ' utf-8')as fp:
     fp.write(content_post)
 ~~~
+
+### 问题
+
+#### 1、获取验证码时，验证码超时
+
+使用request.session()方法保持会话。
+
+request库的session会话对象可以跨请求保持某些参数，比如cookie等
+
+
+
+
 
 ## 2.7、Scrapy
 
