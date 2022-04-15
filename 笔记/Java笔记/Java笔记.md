@@ -1310,6 +1310,393 @@ JMM对此制定了8条规则：
 - 如果一个变量没有被lock，就不能对其进行unlock操作。也不能unlock一个被其他线程锁住的变量；
 - 对一个变量进行unlock操作之前，必须把此变量同步回主内存；
 
+### 1.16、线程间通信
+
+#### 1、基本方法
+
+线程间通信的模型有两种：**共享内存**和**消息传递**。
+
+- 在共享内存的并发模型里，线程之间共享程序的公共状态，线程之间通过写 - 读内存中的公共状态来隐式进行通信。
+- 在消息传递的并发模型里，线程之间没有公共状态，线程之间必须通过明确的发送消息来显式进行通信。
+- Java 的并发采用的是共享内存模型，Java 线程之间的通信总是隐式进行。
+
+
+
+
+
+以下方式都是基于这两种模型来实现的。
+
+> wait() 与 notify() 和 notifyAll(）
+>
+> 注意：
+>
+> - 这三个方法只有在synchronized方法或synchronized代码块中才能使用，否则会报java.lang.IllegalMonitorStateException异常。
+> - 因为这三个方法必须有锁对象调用，而任意对象都可以作为synchronized的同步锁，因此这三个方法只能在Object类中声明。
+
+<img src="images/image-20220412215324911.png" alt="image-20220412215324911" style="zoom:70%;" />
+
+从上图来看，线程A与线程B之间如要通信的话，必须要经历下面2个步骤：
+
+1. 首先，线程A把本地内存A中更新过的共享变量刷新到主内存中去。
+2. 然后，线程B到主内存中去读取线程A之前已更新过的共享变量。
+
+通过JMM细化来看：
+
+<img src="images/image-20220412215448348.png" alt="image-20220412215448348" style="zoom:70%;" />
+
+本地内存A和B有主内存中共享变量x的副本，假设初始时，这三个内存中的x值都为0。
+
+线程A在执行时，把更新后的x值（假设值为1）临时存放在自己的本地内存A中。
+
+当线程A和线程B需要通信时，线程A首先会把自己本地内存中修改后的x值刷新到主内存中，此时主内存中的x值变为了1，随后，线程B到主内存中去读取线程A更新后的x值，此时线程B的本地内存的x值也变为了1。
+
+从整体来看，这两个步骤实质上是线程A在向线程B发送消息，而且这个通信过程必须要经过主内存，JMM通过控制主内存与每个线程的本地内存之间的交互，来提供内存可见性保证。
+
+#### 2、案例
+
+##### 案例一
+
+两个线程，一个线程对当前数值加 1，另一个线程对当前数值减 1，要求用线程间通信。
+
+###### synchronized方案
+
+~~~java
+public class TestVolatile {
+    
+    public static void main(String[] args){
+        DemoClass demos = new DemoClass();
+        
+        new Thread(() ->{
+            for (int i = 0; i < 5; i++) {
+                demo.increment();
+            }
+        }, "线程 A").start();
+        
+        new Thread(() ->{
+            for (int i = 0; i < 5; i++) {
+                demo.decrement();
+            }
+        }, "线程 B").start();
+    }
+
+}
+
+class DemoClass{
+    //加减对象
+    private int number = 0;
+
+    public synchronized void increment() {
+        try {
+            while (number != 0){
+                this.wait();
+            }
+            number++;
+            System.out.println(Thread.currentThread().getName() + "加一成功----------,值为 " + number);
+            notifyAll();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public synchronized void decrement(){
+        try {
+            while (number == 0){
+                this.wait();
+            }
+            number--;
+            System.out.println(Thread.currentThread().getName() + "减一成功----------,值为 " + number);
+            notifyAll();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+}
+~~~
+
+###### Lock 方案
+
+~~~java
+class DemoClass{
+    //加减对象
+    private int number = 0;
+    //声明锁
+    private Lock lock = new ReentrantLock();
+    //声明钥匙
+    private Condition condition = lock.newCondition();
+
+    public void increment() {
+        try {
+            lock.lock();
+            while (number != 0){
+                condition.await();
+            }
+            number++;
+            System.out.println(Thread.currentThread().getName() + "加一成功,值为 " + number);
+            condition.signalAll();
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            lock.unlock();
+        }
+    }
+
+    public void decrement(){
+        try {
+            lock.lock();
+            while (number == 0){
+                condition.await();
+            }
+            number--;
+            System.out.println(Thread.currentThread().getName() + "减一成功,值为 " + number);
+            condition.signalAll();
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            lock.unlock();
+        }
+    }
+}
+~~~
+
+##### 案例二
+
+ A 线程打印 5 次 A，B 线程打印 10 次 B，C 线程打印 15 次 C，按照此顺序循环 10 轮
+
+~~~java
+class DemoClass{
+    //通信对象 0--打印 A 1---打印 B 2----打印 C
+    private int number = 0;
+    //声明锁
+    private Lock lock = new ReentrantLock();
+    //声明钥匙 A
+    private Condition conditionA = lock.newCondition();
+    //声明钥匙 B
+    private Condition conditionB = lock.newCondition();
+    //声明钥匙 C
+    private Condition conditionC = lock.newCondition();
+
+    public void printA(int j){
+        try {
+            lock.lock();
+            while (number != 0){
+                conditionA.await();
+            }
+            System.out.println(Thread.currentThread().getName() + "输出 A,第" + j + "轮开始");
+            //输出 5 次 A
+            for (int i = 0; i < 5; i++) {
+                System.out.println("A");
+            }
+            //开始打印 B
+            number = 1;
+            //唤醒 B
+            conditionB.signal();
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            lock.unlock();
+        }
+    }
+    
+    public void printB(int j){
+        try {
+            lock.lock();
+            while (number != 1){
+                conditionB.await();
+            }
+            System.out.println(Thread.currentThread().getName() + "输出 B,第" + j + "轮开始");
+            //输出 10 次 B
+            for (int i = 0; i < 10; i++) {
+                System.out.println("B");
+            }
+            //开始打印 C
+            number = 2;
+            //唤醒 C
+            conditionC.signal();
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            lock.unlock();
+        }
+    }
+
+    public void printC(int j){
+        try {
+            lock.lock();
+            while (number != 2){
+                conditionC.await();
+            }
+            System.out.println(Thread.currentThread().getName() + "输出 C,第" + j + "轮开始");
+            //输出 15 次 C
+            for (int i = 0; i < 15; i++) {
+                System.out.println("C");
+            }
+            System.out.println("-----------------------------------------");
+            //开始打印 A
+            number = 0;
+            //唤醒 A
+            conditionA.signal();
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            lock.unlock();
+        }
+    }
+}
+
+~~~
+
+~~~java
+public static void main(String[] args){
+    DemoClass demoClass = new DemoClass();
+    new Thread(() ->{
+        for (int i = 1; i <= 10; i++) {
+            demoClass.printA(i);
+        }
+    }, "A 线程").start();
+
+    new Thread(() ->{
+        for (int i = 1; i <= 10; i++) {
+            demoClass.printB(i);
+        }
+    }, "B 线程").start();
+
+    new Thread(() ->{
+        for (int i = 1; i <= 10; i++) {
+            demoClass.printC(i);
+        }
+    }, "C 线程").start();
+}
+~~~
+
+
+
+### 1.17、数据依赖性
+
+如果两个操作访问同一个变量，且这两个操作中有一个为写操作，此时这两个操作之间就存在数据依赖性。
+
+数据依赖分下列三种类型：
+
+| 名称   | 代码示例      | 说明                           |
+| ------ | ------------- | ------------------------------ |
+| 写后读 | a = 1; b = a; | 写一个变量之后，再读这个位置。 |
+| 写后写 | a = 1;a = 2;  | 写一个变量之后，再写这个变量。 |
+| 读后写 | a = b;b = 1;  | 读一个变量之后，再写这个变量。 |
+
+上面三种情况，只要重排序两个操作的执行顺序，程序的执行结果将会被改变。
+
+编译器和处理器在重排序时，会遵守数据依赖性，编译器和处理器不会改变存在数据依赖关系的两个操作的执行顺序。
+
+**注意**：这里所说的数据依赖性仅针对单个处理器中执行的指令序列和单个线程中执行的操作，不同处理器之间和不同线程之间的数据依赖性不被编译器和处理器考虑。
+
+**as-if-serial语义**：
+
+- 不管怎么重排序（编译器和处理器为了提高并行度），（单线程）程序的执行结果不能被改变。
+- 编译器，runtime 和处理器都必须遵守as-if-serial语义。
+
+
+
+### 1.18、内存屏障
+
+内存屏障其实就是一个CPU指令，在硬件层面上来说可以分为两种：Load Barrier 和 Store Barrier即读屏障和写屏障。
+
+主要有两个作用：
+
+- 阻止屏障两侧的指令重排序，保证有序性
+- 强制把写缓冲区/高速缓存中的脏数据等写回主内存，让缓存中相应的数据失效，保证可见性
+
+在JVM层面上来说作用与上面的一样，但是种类可以分为四种：
+
+<img src="images/DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1.jpg" alt="DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1" style="zoom:67%;" />
+
+**注意**：为了保证内存可见性，java编译器会在生成指令序列的适当位置会插入内存屏障指令来禁止特定类型的处理器重排序。
+
+
+
+### 1.19、顺序一致性内存模型
+
+#### 1、数据竞争
+
+当程序未正确同步时，就会存在数据竞争，java 内存模型规范对数据竞争的定义如下：
+
+- 在一个线程中写一个变量
+- 在另一个线程读同一个变量
+- 而且写和读没有通过同步来排序
+
+当代码中包含数据竞争时，程序的执行往往产生违反直觉的结果，如果一个多线程程序能正确同步，这个程序将是一个没有数据竞争的程序。
+
+
+
+#### 2、顺序一致性
+
+顺序一致性内存模型有两大特性：
+
+- 一个线程中的所有操作必须按照程序的顺序来执行。
+- （不管程序是否同步）所有线程都只能看到一个单一的操作执行顺序，在顺序一致性内存模型中，每个操作都必须原子执行且立刻对所有线程可见。
+
+<img src="images/image-20220415150135783.png" alt="image-20220415150135783" style="zoom:67%;" />
+
+在概念上，顺序一致性模型有一个单一的全局内存，这个内存可以连接到任意一个线程。
+
+同时，每一个线程必须按程序的顺序来执行内存读 / 写操作。
+
+从上图可以看出，在任意时间点最多只能有一个线程可以连接到内存，当多个线程并发执行时，图中的开关装置能把所有线程的所有内存读 / 写操作串行化。
+
+例子：
+
+使用监视器来正确同步：A 线程的三个操作执行后释放监视器，随后 B 线程获取同一个监视器。
+
+<img src="images/image-20220415150546300.png" alt="image-20220415150546300" style="zoom:67%;" />
+
+这两个线程没有做同步。
+
+<img src="images/image-20220415150655643.png" alt="image-20220415150655643" style="zoom:67%;" />
+
+未同步程序在顺序一致性模型中虽然整体执行顺序是无序的，但所有线程都能看到一个一致的整体执行顺序，之所以能得到这个保证是因为顺序一致性内存模型中的每个操作必须立即对任意线程可见。
+
+但是在 JMM 中就没有这个保证，未同步程序在 JMM 中不但整体的执行顺序是无序的，而且所有线程看到的操作执行顺序也可能不一致。
+
+比如，在当前线程把写过的数据缓存在本地内存中，且还没有刷新到主内存之前，这个写操作仅对当前线程可见，从其他线程的角度来观察，会认为这个写操作根本还没有被当前线程执行，只有当前线程把本地内存中写过的数据刷新到主内存之后，这个写操作才能对其他线程可见，在这种情况下，当前线程和其它线程看到的操作执行顺序将不一致。
+
+而 JMM 对正确同步的多线程程序的内存一致性做了如下保证：如果程序是正确同步的，程序的执行将具有顺序一致性（sequentially consistent）即程序的执行结果与该程序在顺序一致性内存模型中的执行结果相同，这里的同步是指广义上的同步，包括对常用同步原语（lock，volatile 和 final）的正确使用。
+
+
+
+#### 3、案例
+
+~~~java
+class SynchronizedExample {
+    int a = 0;
+    boolean flag = false;
+
+    public synchronized void writer() {
+        a = 1;
+        flag = true;
+    }
+
+    public synchronized void reader() {
+        if (flag) {
+            int i = a;
+        }
+    }
+}
+~~~
+
+假设 A 线程执行 writer() 方法后，B 线程才执行 reader() 方法，这是一个正确同步的多线程程序。
+
+根据 JMM 规范，该程序的执行结果将与该程序在顺序一致性模型中的执行结果相同。
+
+下面是该程序在两个内存模型中的执行时序对比图：
+
+<img src="images/image-20220415152043861.png" alt="image-20220415152043861" style="zoom:67%;" />
+
+在顺序一致性模型中，所有操作完全按程序的顺序串行执行。
+
+而在 JMM 中，临界区内的代码可以重排序（但 JMM 不允许临界区内的代码逸出到临界区之外，那样会破坏监视器的语义）。
+
+JMM 会在退出监视器和进入监视器这两个关键时间点做处理，使得线程在这两个时间点具有与顺序一致性模型相同的内存视图。
+
+虽然线程 A 在临界区内做了重排序，但由于监视器的互斥执行的特性，这里的线程 B 根本无法观察到线程 A 在临界区内的重排序，这种重排序既提高了执行效率，又没有改变程序的执行结果，从这里可以看到 JMM 在具体实现上的基本方针：在不改变（正确同步的）程序执行结果的前提下，尽可能的方便编译器和处理器的优化。
+
 
 
 ## 2、JMM
@@ -1325,6 +1712,8 @@ JMM定义了程序中变量的访问规则，也即定义了程序执行的次�
 JMM规定所有的变量都是存在主存当中（类似于物理内存），每个线程都有自己的工作内存（类似于高速缓存），线程对变量的所有操作都必须在工作内存中进行，而不能直接对主存进行操作，并且每个线程不能访问其他线程的工作内存，线程之间值的传递都需要通过主内存来完成。
 
 在java中，所有实例域、静态域和数组元素存储在堆内存中，堆内存在线程之间共享。局部变量（Local variables）、方法定义参数（formal method parameters）、异常处理器参数（exception handler parameters）不会在线程之间共享，它们不会有内存可见性问题，也不受内存模型的影响。
+
+对于未同步或未正确同步的多线程程序，JMM 只提供最小安全性：线程执行时读取到的值，要么是之前某个线程写入的值，要么是默认值（0，null，false），因为 JMM 保证线程读操作读取到的值不会无中生有（out of thin air），为了实现最小安全性，JVM 在堆上分配对象时，首先会清零内存空间，然后才会在上面分配对象（JVM 内部会同步这两个操作），在为清零的内存空间（pre-zeroed memory）分配对象时，域的默认初始化已经完成了。
 
 ### 2、主内存和本地/工作内存结构
 
@@ -1476,39 +1865,11 @@ y = c - d;
 
 写缓冲区可以保证指令流水线持续运行，避免由于处理器停顿下来等待向内存写入数据而产生的延迟，同时通过以批处理的方式刷新写缓冲区，以及合并写缓冲区中对同一内存地址的多次写，可以减少对内存总线的占用。
 
-虽然写缓冲区有这么多好处，但每个处理器上的写缓冲区，仅仅对它所在的处理器可见，这个特性会对内存操作的执行顺序产生重要的影响：**处理器排序后的对内存的读/写操作的执行顺序，不一定与内存实际发生的读/写操作顺序一致**。
+虽然写缓冲区有这么多好处，但每个处理器上的写缓冲区，仅仅对它所在的处理器可见，这个特性会对内存操作的执行顺序产生重要的影响：**处理器排序后的对内存的读/写操作的执行顺序，不一定与内存实际发生的读/写操作顺序一致**。（数据未及时刷新）
 
 
 
-
-
-### 7、数据依赖性
-
-如果两个操作访问同一个变量，且这两个操作中有一个为写操作，此时这两个操作之间就存在数据依赖性。
-
-数据依赖分下列三种类型：
-
-| 名称   | 代码示例      | 说明                           |
-| ------ | ------------- | ------------------------------ |
-| 写后读 | a = 1; b = a; | 写一个变量之后，再读这个位置。 |
-| 写后写 | a = 1;a = 2;  | 写一个变量之后，再写这个变量。 |
-| 读后写 | a = b;b = 1;  | 读一个变量之后，再写这个变量。 |
-
-上面三种情况，只要重排序两个操作的执行顺序，程序的执行结果将会被改变。
-
-编译器和处理器在重排序时，会遵守数据依赖性，编译器和处理器不会改变存在数据依赖关系的两个操作的执行顺序。
-
-**注意**：这里所说的数据依赖性仅针对单个处理器中执行的指令序列和单个线程中执行的操作，不同处理器之间和不同线程之间的数据依赖性不被编译器和处理器考虑。
-
-**as-if-serial语义**：
-
-- 不管怎么重排序（编译器和处理器为了提高并行度），（单线程）程序的执行结果不能被改变。
-
-- 编译器，runtime 和处理器都必须遵守as-if-serial语义。
-
-
-
-### 8、happens-before原则
+### 7、happens-before原则
 
 happens-before 原则用来辅助保证程序执行的原子性、可见性以及有序性的问题，它是判断数据是否存在竞争、线程是否安全的依据。
 
@@ -1525,7 +1886,7 @@ happens-before 原则用来辅助保证程序执行的原子性、可见性以�
 
 
 
-### 9、硬件内存与OS与JMM
+### 8、硬件内存与OS与JMM
 
 #### 1、计算机硬件内存
 
@@ -1567,7 +1928,7 @@ JMM只是一种抽象的概念，是一组规则，并不实际存在，不管�
 
 
 
-## 2、volatile 关键字
+## 3、volatile 关键字
 
 ### 1、概述
 
@@ -1581,6 +1942,15 @@ volatile 关键字是 Java 提供的一种稍弱的同步机制，用来确保�
 > **内存可见性**（Memory Visibility）是指当某个线程正在使用对象状态而另一个线程在同时修改该状态，需要确保当一个线程修改了对象状态后，其他线程能够看到发生的状态变化。
 >
 > **可见性错误**是指当读操作与写操作在不同的线程中执行时，无法确保执行读操作的线程能适时地看到其他线程写入的值，有时甚至是根本不可能的事情。
+
+对于volatile修饰的变量，在它的读/写操作前后都会加上不同的内存屏障：
+
+- 在每个volatile**写操作**的前面插入一个StoreStore屏障，后面插入一个StoreLoad屏障，保证volatile写与之前的写操作指令不会重排序，写完数据之后立即执行flush处理器缓存操作将所有写操作刷到内存，对所有处理器可见。
+  - 也即，对变量更改完之后，要立刻写回到主存中
+- 在每个volatilie**读操作**的前面插入一个LoadLoad屏障，保证在该变量读操作时，如果其他处理修改过，必须从其他处理器高速缓存(或者主内存)加载到自己本地高速缓存，保证读取到的值是最新的，然后在该变量读操作后面插入一个LoadStore屏障，禁止volatile读操作与后面任意读写操作重排序。
+  - 也即，对变量读取的时候，要从主存中读，而不是缓存
+
+<img src="images/image-20220415154815435.png" alt="image-20220415154815435" style="zoom:80%;" />
 
 **注意**：可以将 volatile 看做一个轻量级的锁，但是又与锁有些不同：
 
@@ -1625,31 +1995,7 @@ class ThreadDemo implements Runnable {
 
 
 
-### 2、内存屏障
-
-内存屏障其实就是一个CPU指令，在硬件层面上来说可以分为两种：Load Barrier 和 Store Barrier即读屏障和写屏障。
-
-主要有两个作用：
-
-- 阻止屏障两侧的指令重排序，保证有序性
-- 强制把写缓冲区/高速缓存中的脏数据等写回主内存，让缓存中相应的数据失效，保证可见性
-
-在JVM层面上来说作用与上面的一样，但是种类可以分为四种：
-
-<img src="images/DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1.jpg" alt="DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1" style="zoom:67%;" />
-
-**注意**：为了保证内存可见性，java编译器会在生成指令序列的适当位置会插入内存屏障指令来禁止特定类型的处理器重排序。
-
-对于volatile修饰的变量，在它的读/写操作前后都会加上不同的内存屏障：
-
-- 在每个volatile**写操作**的前面插入一个StoreStore屏障，后面插入一个StoreLoad屏障，保证volatile写与之前的写操作指令不会重排序，写完数据之后立即执行flush处理器缓存操作将所有写操作刷到内存，对所有处理器可见。
-  - 也即，对变量更改完之后，要立刻写回到主存中
-- 在每个volatilie**读操作**的前面插入一个LoadLoad屏障，保证在该变量读操作时，如果其他处理修改过，必须从其他处理器高速缓存(或者主内存)加载到自己本地高速缓存，保证读取到的值是最新的，然后在该变量读操作后面插入一个LoadStore屏障，禁止volatile读操作与后面任意读写操作重排序。
-  - 也即，对变量读取的时候，要从主存中读，而不是缓存
-
-
-
-### 3、懒汉式案例分析
+### 2、懒汉式案例分析
 
 ~~~java
 public class Singleton {
@@ -1699,7 +2045,17 @@ singleton(memory); // 2.初始化对象
 
 由于步骤2和步骤3不存在数据依赖关系，而且无论重排前还是重排后程序的执行结果在单线程中并没有改变，因此这种重排优化是允许的，所以当一条线程访问第一个singleton == null时，由于singleton实例未必已初始化完成，也就造成了线程安全问题。
 
-## 2、原子变量
+
+
+### 3、案例
+
+
+
+
+
+
+
+## 4、原子变量
 
 #### 1、概述
 
@@ -1713,7 +2069,7 @@ AtomicIntegerArray、AtomicLongArray 和 AtomicReferenceArray 类进一步扩展
 
 **核心方法**：boolean compareAndSet(expectedValue, updateValue)
 
-## 2、Synchronized 关键字
+## 5、Synchronized 关键字
 
 ### 1、基本概念
 
@@ -1784,7 +2140,7 @@ synchronized 实现同步的基础：Java 中的每一个对象都可以作为�
 
 
 
-## 3、Lock 接口
+## 6、Lock 接口
 
 ### 3.1、基本概念
 
@@ -2001,259 +2357,9 @@ public class Test {
 
 
 
-## 4、线程间通信
-
-### 4.1、基本方法
-
-线程间通信的模型有两种：**共享内存**和**消息传递**。
-
-以下方式都是基于这两种模型来实现的。
-
-> wait() 与 notify() 和 notifyAll(）
->
-> 注意：
->
-> - 这三个方法只有在synchronized方法或synchronized代码块中才能使用，否则会报java.lang.IllegalMonitorStateException异常。
-> - 因为这三个方法必须有锁对象调用，而任意对象都可以作为synchronized的同步锁，因此这三个方法只能在Object类中声明。
-
-<img src="images/image-20220412215324911.png" alt="image-20220412215324911" style="zoom:70%;" />
-
-从上图来看，线程A与线程B之间如要通信的话，必须要经历下面2个步骤：
-
-1. 首先，线程A把本地内存A中更新过的共享变量刷新到主内存中去。
-2. 然后，线程B到主内存中去读取线程A之前已更新过的共享变量。
-
-通过JMM细化来看：
-
-<img src="images/image-20220412215448348.png" alt="image-20220412215448348" style="zoom:70%;" />
-
-本地内存A和B有主内存中共享变量x的副本，假设初始时，这三个内存中的x值都为0。
-
-线程A在执行时，把更新后的x值（假设值为1）临时存放在自己的本地内存A中。
-
-当线程A和线程B需要通信时，线程A首先会把自己本地内存中修改后的x值刷新到主内存中，此时主内存中的x值变为了1，随后，线程B到主内存中去读取线程A更新后的x值，此时线程B的本地内存的x值也变为了1。
-
-从整体来看，这两个步骤实质上是线程A在向线程B发送消息，而且这个通信过程必须要经过主内存，JMM通过控制主内存与每个线程的本地内存之间的交互，来提供内存可见性保证。
-
-### 4.2、案例
-
-#### 案例一
-
-两个线程，一个线程对当前数值加 1，另一个线程对当前数值减 1，要求用线程间通信。
-
-##### synchronized方案
-
-~~~java
-public class TestVolatile {
-    
-    public static void main(String[] args){
-        DemoClass demos = new DemoClass();
-        
-        new Thread(() ->{
-            for (int i = 0; i < 5; i++) {
-                demo.increment();
-            }
-        }, "线程 A").start();
-        
-        new Thread(() ->{
-            for (int i = 0; i < 5; i++) {
-                demo.decrement();
-            }
-        }, "线程 B").start();
-    }
-
-}
-
-class DemoClass{
-    //加减对象
-    private int number = 0;
-
-    public synchronized void increment() {
-        try {
-            while (number != 0){
-                this.wait();
-            }
-            number++;
-            System.out.println(Thread.currentThread().getName() + "加一成功----------,值为 " + number);
-            notifyAll();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-    public synchronized void decrement(){
-        try {
-            while (number == 0){
-                this.wait();
-            }
-            number--;
-            System.out.println(Thread.currentThread().getName() + "减一成功----------,值为 " + number);
-            notifyAll();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-}
-~~~
-
-##### Lock 方案
-
-~~~java
-class DemoClass{
-    //加减对象
-    private int number = 0;
-    //声明锁
-    private Lock lock = new ReentrantLock();
-    //声明钥匙
-    private Condition condition = lock.newCondition();
-
-    public void increment() {
-        try {
-            lock.lock();
-            while (number != 0){
-                condition.await();
-            }
-            number++;
-            System.out.println(Thread.currentThread().getName() + "加一成功,值为 " + number);
-            condition.signalAll();
-        }catch (Exception e){
-            e.printStackTrace();
-        }finally {
-            lock.unlock();
-        }
-    }
-
-    public void decrement(){
-        try {
-            lock.lock();
-            while (number == 0){
-                condition.await();
-            }
-            number--;
-            System.out.println(Thread.currentThread().getName() + "减一成功,值为 " + number);
-            condition.signalAll();
-        }catch (Exception e){
-            e.printStackTrace();
-        }finally {
-            lock.unlock();
-        }
-    }
-}
-~~~
-
-#### 案例二
-
- A 线程打印 5 次 A，B 线程打印 10 次 B，C 线程打印 15 次 C，按照此顺序循环 10 轮
-
-~~~java
-class DemoClass{
-    //通信对象 0--打印 A 1---打印 B 2----打印 C
-    private int number = 0;
-    //声明锁
-    private Lock lock = new ReentrantLock();
-    //声明钥匙 A
-    private Condition conditionA = lock.newCondition();
-    //声明钥匙 B
-    private Condition conditionB = lock.newCondition();
-    //声明钥匙 C
-    private Condition conditionC = lock.newCondition();
-
-    public void printA(int j){
-        try {
-            lock.lock();
-            while (number != 0){
-                conditionA.await();
-            }
-            System.out.println(Thread.currentThread().getName() + "输出 A,第" + j + "轮开始");
-            //输出 5 次 A
-            for (int i = 0; i < 5; i++) {
-                System.out.println("A");
-            }
-            //开始打印 B
-            number = 1;
-            //唤醒 B
-            conditionB.signal();
-        }catch (Exception e){
-            e.printStackTrace();
-        }finally {
-            lock.unlock();
-        }
-    }
-    
-    public void printB(int j){
-        try {
-            lock.lock();
-            while (number != 1){
-                conditionB.await();
-            }
-            System.out.println(Thread.currentThread().getName() + "输出 B,第" + j + "轮开始");
-            //输出 10 次 B
-            for (int i = 0; i < 10; i++) {
-                System.out.println("B");
-            }
-            //开始打印 C
-            number = 2;
-            //唤醒 C
-            conditionC.signal();
-        }catch (Exception e){
-            e.printStackTrace();
-        }finally {
-            lock.unlock();
-        }
-    }
-
-    public void printC(int j){
-        try {
-            lock.lock();
-            while (number != 2){
-                conditionC.await();
-            }
-            System.out.println(Thread.currentThread().getName() + "输出 C,第" + j + "轮开始");
-            //输出 15 次 C
-            for (int i = 0; i < 15; i++) {
-                System.out.println("C");
-            }
-            System.out.println("-----------------------------------------");
-            //开始打印 A
-            number = 0;
-            //唤醒 A
-            conditionA.signal();
-        }catch (Exception e){
-            e.printStackTrace();
-        }finally {
-            lock.unlock();
-        }
-    }
-}
-
-~~~
-
-~~~java
-public static void main(String[] args){
-    DemoClass demoClass = new DemoClass();
-    new Thread(() ->{
-        for (int i = 1; i <= 10; i++) {
-            demoClass.printA(i);
-        }
-    }, "A 线程").start();
-
-    new Thread(() ->{
-        for (int i = 1; i <= 10; i++) {
-            demoClass.printB(i);
-        }
-    }, "B 线程").start();
-
-    new Thread(() ->{
-        for (int i = 1; i <= 10; i++) {
-            demoClass.printC(i);
-        }
-    }, "C 线程").start();
-}
-~~~
 
 
-
-## 5、集合的线程安全
+## 7、集合的线程安全
 
 ### 1、基本原因
 
@@ -2364,7 +2470,7 @@ CopyOnWriteArrayList CopyOnWriteArraySet 类型，通过动态数组与线程安
 
 
 
-## 6、Callable & Future 接口
+## 8、Callable & Future 接口
 
 目前有两种创建线程的方法一种是通过创建 Thread 类，另一种是通过使用 Runnable 创建线程。
 
@@ -2514,7 +2620,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-## 7、三大辅助类
+## 9、三大辅助类
 
 ### 1、CountDownLatch 
 
@@ -2641,7 +2747,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-## 8、读写锁
+## 10、读写锁
 
 ### 1、基本概念
 
@@ -2756,7 +2862,7 @@ class MyCache {
 
 
 
-## 9、阻塞队列
+## 11、阻塞队列
 
 ### 1、基本概念
 
@@ -2937,7 +3043,7 @@ LinkedTransferQueue 采用一种**预占模式**，意思就是消费者线程�
 - **插入元素时**：如果当前队列已满将会进入阻塞状态，一直等到队列有空的位置时，再将该元素插入，该操作可以通过设置超时参数，超时后返回 false 表示操作失败，也可以不设置超时参数一直阻塞，中断后抛出 InterruptedException 异常。
 - **读取元素时**：如果当前队列为空会阻塞住直到队列不为空然后返回元素，同样可以通过设置超时参数。
 
-## 10、ThreadPool 线程池
+## 12、ThreadPool 线程池
 
 <img src="images/image-20220331175240485.png" alt="image-20220331175240485" style="zoom  80%;" />
 
@@ -3117,7 +3223,7 @@ public static ExecutorService newWorkStealingPool(int parallelism) {
 
 <img src="images/image-20220331175350301.png" alt="image-20220331175350301" style="zoom 80%;" />
 
-## 11、Fork/Join 框架
+## 13、Fork/Join 框架
 
 ### 1、基本概念
 
@@ -3313,7 +3419,7 @@ public static void main(String[] args) {
 
 
 
-## 12、CompletableFuture
+## 14、CompletableFuture
 
 ### 1、基本概念
 
@@ -4368,7 +4474,15 @@ static final int tableSizeFor(int cap) {
 
 它的实际作用就是把 cap 变成第一个大于 等于 2 的幂次方的数。
 
+## 17、sleep()和wait()方法的区别
 
+sleep不释放锁，wait释放锁。
+
+sleep指定休眠的时间，wait可以指定时间也可以无限等待直到notify或notifyAll。
+
+sleep在Thread类中声明的静态方法，wait方法在Object类中声明。
+
+因为调用wait方法是由锁对象调用，而锁对象的类型是任意类型的对象，那么希望任意类型的对象都要有的方法，只能声明在Object类中。
 
 
 
