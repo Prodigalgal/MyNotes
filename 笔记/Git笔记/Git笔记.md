@@ -515,13 +515,49 @@ excludesfile = C:/Users/xxx/git.ignore
 
 ## 2、添加Github账户
 
-<img src="images/image-20220327112734237.png" alt="image-20220327112734237" style="zoom:80%;" />
+<img src="images/image-20220327112734237.png" alt="image-20220327112734237" style="zoom: 50%;" />
 
 如果密码账号无法登陆，可以使用token登陆
 
 <img src="images/image-20220327112850862.png" alt="image-20220327112850862" style="zoom:80%;" />
 
 随便起名字，权限自选，复制生成的token代码，粘贴回idea
+
+## 3、分支
+
+### 1、切换分支
+
+<img src="images/image-20220418160801929.png" alt="image-20220418160801929" style="zoom: 80%;" />
+
+### 2、变基分支
+
+将A分支的修改提交到B分支上
+
+![image-20220418170454214](images/image-20220418170454214.png)
+
+当前在BR3分支上，右键选择M分支变基并签出，即可将BR3分支的修改提交到M分支上
+
+## 4、搁置代码
+
+需要临时切换分支，但是当前分支任务未完成，可以使用搁置代码保存现场，之后需要在还原。
+
+<img src="images/image-20220418163606870.png" alt="image-20220418163606870" style="zoom:80%;" />
+
+<img src="images/image-20220418163632815.png" alt="image-20220418163632815" style="zoom: 67%;" />
+
+![image-20220418163901264](images/image-20220418163901264.png)
+
+<img src="images/image-20220418163941725.png" alt="image-20220418163941725" style="zoom:80%;" />
+
+<img src="images/image-20220418164250161.png" alt="image-20220418164250161" style="zoom:80%;" />
+
+完成之后未提交的代码就已经被搁置了，项目目录里没有未提交的代码，然后签出其他分支完成任务后回来，直接取消搁置并从架子上删除搁置备份即可。
+
+
+
+
+
+
 
 # 8、自建代码托管
 

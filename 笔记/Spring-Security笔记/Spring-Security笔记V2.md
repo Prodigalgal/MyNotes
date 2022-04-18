@@ -542,10 +542,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         // 配置认证
         http.formLogin()
-            .loginPage("/index") // 配置哪个url为登录页面 .loginPage("/testpage.html")，写法有两种，详见问题
-            .loginProcessingUrl("/login") // 设置哪个是提交登录的url。
-            .successForwardUrl("/success") // 登录成功之后跳转到哪个url
-            .failureForwardUrl("/fail"); // 登录失败之后跳转到哪个url
+            .loginPage("/index") // 配置哪个url为登录页面 GET .loginPage("/testpage.html")，写法有两种，详见问题
+            .loginProcessingUrl("/login") // 设置哪个是提交登录的url。 POST
+            .successForwardUrl("/success") // 登录成功之后跳转到哪个url POST
+            .failureForwardUrl("/fail"); // 登录失败之后跳转到哪个url POST
         http.authorizeRequests()
             .antMatchers("/layui/**","/index") // 表示配置请求路径
             .permitAll() // 指定 URL 无需保护。
@@ -924,7 +924,7 @@ JWT 头部分是一个描述 JWT 元数据的 JSON 对象，通常如下所示�
 
 #### 2、有效载荷
 
-有效载荷部分，是 JWT 的主体内容部分，也是一个 JSON 对象，包含需要传递的数据。 JWT 指定七个默认字段供选择。
+有效载荷部分，是 JWT 的主体内容部分，也是一个 JSON 对象，包含需要传递的数据， JWT 指定七个默认字段供选择。
 
 - iss：发行人 
 - exp：到期时间 
@@ -946,19 +946,19 @@ JWT 头部分是一个描述 JWT 元数据的 JSON 对象，通常如下所示�
 
 JSON 对象也使用 Base64 URL 算法转换为字符串保存。
 
-**注意**：默认情况下 JWT 是未加密的，任何人都可以解读其内容，因此不要构建隐私信息 字段，存放保密信息，以防止信息泄露。
+**注意**：默认情况下 JWT 是未加密的，任何人都可以解读其内容，因此不要构建隐私信息字段，存放保密信息，以防止信息泄露。
 
 #### 3、签名哈希
 
 签名哈希部分是对上面两部分数据签名，通过指定的算法生成哈希，以确保数据不会被篡改。
 
-首先，需要指定一个密码（secret）。该密码仅仅为保存在服务器中，并且不能向用户公开。然后，使用标头中指定的签名算法（默认情况下为 HMAC SHA256）根据以下公式生成签名。
+首先，需要指定一个密码（secret）。该密码仅仅为保存在服务器中，并且不能向用户公开，使用标头中指定的签名算法（默认情况下为 HMAC SHA256）根据以下公式生成签名。
 
 ```java
 HMACSHA256(base64UrlEncode(header) + "." + base64UrlEncode(claims), secret)
 ```
 
-在计算出签名哈希后，JWT 头，有效载荷和签名哈希的三个部分组合成一个字符串，每个 部分用"."分隔，就构成整个 JWT 对象。
+在计算出签名哈希后，JWT 头、有效载荷、签名哈希三个部分组合成一个字符串，每个部分用"."分隔，就构成整个 JWT 对象。
 
 ## 3、具体代码实现
 
@@ -966,28 +966,28 @@ HMACSHA256(base64UrlEncode(header) + "." + base64UrlEncode(claims), secret)
 
 
 
-### 1、编写核心配置类
+### 1、编写配置类
 
 ```java
-//标注配置类
+// 标注配置类
 @Configuration
-//启用Web安全的注解，在SpringBoot项目中无需使用
+// 启用Web安全的注解，在SpringBoot项目中无需使用
 @EnableWebSecurity
-//启用注解
+// 启用注解
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class TokenWebSecurityConfig extends WebSecurityConfigurerAdapter {
     
-    //自定义查询数据库用户名密码和权限信息
-    //自定义实现UserDetailsServer接口，重写loadUserByUsername方法，从数据库获取用户名，密码，角色
+    // 自定义查询数据库用户名密码和权限信息
+    // 自定义实现UserDetailsServer接口，重写loadUserByUsername方法，从数据库获取用户名，密码，角色
     private UserDetailsService userDetailsService;
-    //token 管理工具类（生成 token）
+    // token 管理工具类（生成 token）
     private TokenManager tokenManager;
-    //密码管理工具类
+    // 密码管理工具类
     private DefaultPasswordEncoder defaultPasswordEncoder;
-    //redis 操作工具类
+    // redis 操作工具类
     private RedisTemplate redisTemplate;
     
-    //在唯一有参构造器上自动注入
+    // 在唯一有参构造器上自动注入
     @Autowired
     public TokenWebSecurityConfig(UserDetailsService userDetailsService, 
                                   DefaultPasswordEncoder defaultPasswordEncoder,
@@ -1005,7 +1005,6 @@ public class TokenWebSecurityConfig extends WebSecurityConfigurerAdapter {
  	* 配置设置
  	*三个configure的配置
  	*/
-    
     
     //设置退出的地址、token、redis 操作地址
     @Override
@@ -1047,7 +1046,7 @@ public class TokenWebSecurityConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
-### 2、创建认证授权相关的工具类
+### 2、创建认证授权工具类
 
 #### **DefaultPasswordEncoder**
 
@@ -1078,7 +1077,7 @@ public class DefaultPasswordEncoder implements PasswordEncoder {
 
 #### **TokenManager**
 
-token 操作的工具类 
+token 操作的工具类
 
 ```java
 @Component
@@ -1107,7 +1106,7 @@ public class TokenManager {
     }
     
     public void removeToken(String token) {
-        //jwttoken 无需删除，客户端扔掉即可。
+        // jwttoken 无需删除，客户端扔掉即可。
     }
 }
 ```
@@ -1127,11 +1126,14 @@ public class TokenLogoutHandler implements LogoutHandler {
     }
     
     @Override
-    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+    public void logout(HttpServletRequest request, 
+                       HttpServletResponse response, 
+                       Authentication authentication) {
+        
         String token = request.getHeader("token");
         if (token != null) {
             tokenManager.removeToken(token);
-            //清空当前用户缓存中的权限数据
+            // 清空当前用户缓存中的权限数据
             String userName = tokenManager.getUserFromToken(token);
             redisTemplate.delete(userName);
         }
@@ -1166,9 +1168,9 @@ public class UnauthorizedEntryPoint implements AuthenticationEntryPoint {
 @Data
 @Slf4j
 public class SecurityUser implements UserDetails {
-    //当前登录用户
+    // 当前登录用户
     private transient User currentUserInfo;
-    //当前权限
+    // 当前权限
     private List<String> permissionValueList;
     
     public SecurityUser() {
@@ -1234,7 +1236,7 @@ public class User implements Serializable {
 }
 ```
 
-### 4、创建认证和授权的 filter
+### 4、创建认证授权过滤器
 
 #### **TokenLoginFilter**
 
@@ -1262,11 +1264,10 @@ public class TokenLoginFilter extends UsernamePasswordAuthenticationFilter {
     public Authentication attemptAuthentication(HttpServletRequest req, HttpServletResponse res)
         throws AuthenticationException {
         try {
-            //将表单中的账户、密码存入User类中
+            // 将表单中的账户、密码存入User类中
             User user = new ObjectMapper().readValue(req.getInputStream(), User.class);
-            return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsername(),
-                                                                                              user.getPassword(), 
-                                                                                              new ArrayList<>()));
+            return authenticationManager.authenticate( new UsernamePasswordAuthenticationToken(
+                user.getUsername(), user.getPassword(), new ArrayList<>()));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -1281,11 +1282,11 @@ public class TokenLoginFilter extends UsernamePasswordAuthenticationFilter {
                                             FilterChain chain,
                                             Authentication auth) throws IOException, ServletException {
         
-        //获取安全主体
+        // 获取安全主体
         SecurityUser user = (SecurityUser) auth.getPrincipal();
-        //使用token管理类生成token
+        // 使用token管理类生成token
         String token = tokenManager.createToken(user.getCurrentUserInfo().getUsername());
-        //将token存入redis
+        // 将token存入redis
         redisTemplate.opsForValue().set(user.getCurrentUserInfo().getUsername(), 
                                         user.getPermissionValueList());
         ResponseUtil.out(res, R.ok().data("token", token));
@@ -1371,17 +1372,155 @@ public class TokenAuthenticationFilter extends BasicAuthenticationFilter {
 
 
 
+# 10、动态权限
 
+## 1、基本概念
 
+原本的权限授予是在SpringSecurity的配置中写死，不能动态的根据需求修改权限。
 
+```java
+.antMatchers("/", "/index", "/user/register", "/user/login", "/user/authentication/register").permitAll()
+.antMatchers("/msgg").hasRole("p2")
+.antMatchers("/eat").hasAnyRole("p1")
+.antMatchers("/happytime").hasAnyRole("p2")
+.antMatchers("/admin/**").hasAnyRole("root")
+```
 
+而动态权限就是将url与角色写入数据库中，使用自定义的**FilterInvocationSecurityMetadataSource**与**AccessDecisionVoter**实现。
 
+如果不自定义投票器也可以通过自定义AccessDecisionManager实现，不过我认为AccessDecisionManager不应该改变其原本的唱票者身份，所以选择自定义AccessDecisionVoter。
+
+**流程**：当用户登录后，获取用户访问路径并对其进行解析，查看数据库中访问该路径所需要的用户角色，并对比当前用户所拥有的角色，如果相匹配则可以访问，还有一些路径，只需要用户登录即可访问，无关用户角色，则可以在解析路径时返回默认标识或者空值以表示该路径无需用户角色。
+
+## 2、实现流程
+
+首先是自定义的FilterInvocationSecurityMetadataSource
+
+```java
+@Component
+public class CustomizeSecurityMetadataSource implements FilterInvocationSecurityMetadataSource {
+
+    // 用于获取url以及所需的角色
+    @Autowired
+    MenuService menuService;
+	// 匹配请求的url与数据库中的url
+    AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    @Override
+    public Collection<ConfigAttribute> getAttributes(Object object) throws IllegalArgumentException {
+        /* 根据请求地址，分析请求该地址需要什么角色 */
+
+        // 获取请求地址
+        String url = ((FilterInvocation) object).getRequestUrl();
+        // 获取所有地址
+        List<Menu> menuList = menuService.getAllMenus();
+        // 对请求地址进行匹配
+        for (Menu m: menuList) {
+            String pattern = m.getUrl();
+            if(pathMatcher.match(pattern, url)) {
+                // 获取该地址所需的角色
+                MenuRoleVo rolesByMenuUrl = menuService.getRolesByMenuUrl(pattern);
+                List<String> roleList = rolesByMenuUrl.getRoleList()
+                    								  .stream()
+                    								  .map(Role::getRoleName)
+                    								  .collect(Collectors.toList());
+                if (roleList.size() != 0) {
+                    String[] roles = roleList.toArray(new String[0]);
+                    // 返回所需的角色
+                    return SecurityConfig.createList(roles);
+                }
+            }
+        }
+        // 如果该地址无需授权，返回null
+        return null;
+    }
+
+    @Override
+    public Collection<ConfigAttribute> getAllConfigAttributes() {
+        return null;
+    }
+
+    @Override
+    public boolean supports(Class<?> clazz) {
+        // 为了支持所有的类型，直接返回true
+        return true;
+    }
+}
+```
+
+接着自定义AccessDecisionVoter
+
+```java
+@Component
+public class DynamicAccessDecisionVoter implements AccessDecisionVoter<Object> {
+    @Override
+    public boolean supports(ConfigAttribute attribute) {
+        // 同样为了支持所有类型，直接返回true
+        return true;
+    }
+
+    @Override
+    public boolean supports(Class<?> clazz) {
+        // 同样为了支持所有类型，直接返回true
+        return true;
+    }
+
+    @Override
+    public int vote(Authentication authentication, Object object, Collection<ConfigAttribute> attributes) {
+        // 默认弃权票
+        int result = ACCESS_ABSTAIN;
+        Object principal = authentication.getPrincipal();
+        
+        if ("anonymousUser".equals(principal)) {
+            // 当前用户未登录，如果不要求权限->允许访问，否则拒绝访问
+            // 如果当前地址在之前是返回null，则判断
+            return CollectionUtils.isEmpty(attributes) ? ACCESS_GRANTED : ACCESS_DENIED;
+        } else {
+            // 用户所具有的权限
+            Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+            // 对比用户权限与所需权限
+            // 只要具有一个角色即可通过
+            for (ConfigAttribute attribute : attributes) {
+                for (GrantedAuthority authority : authorities) {
+                    if (attribute.getAttribute().equals(authority.getAuthority())) {
+                        result = ACCESS_GRANTED;
+                    }
+                }
+            }
+            return result;
+        }
+    }
+}
+```
+
+最后注册到配置中，与之前相比无需配置总多的antMatchers和hasRole等
+
+```java
+.authorizeRequests()
+// .antMatchers("/", "/index", "/user/register", "/user/login", "/user/authentication/register").permitAll()
+// .antMatchers("/msgg").hasRole("p2")
+// .antMatchers("/eat").hasAnyRole("p1")
+// .antMatchers("/happytime").hasAnyRole("p2")
+// .antMatchers("/admin/**").hasAnyRole("root")
+// 任何请求,都需要身份验证
+.anyRequest().authenticated()
+.withObjectPostProcessor(new ObjectPostProcessor<FilterSecurityInterceptor>() {
+    @Override
+    public <O extends FilterSecurityInterceptor> O postProcess(O fsi) {
+        fsi.setSecurityMetadataSource(customizeSecurityMetadataSource);
+        fsi.setAccessDecisionManager(new AffirmativeBased(getDecisionVoters()));
+        return fsi;
+    }
+})
+```
 
 
 
 
 
 # 扩展
+
+
 
 # 问题
 
@@ -1426,7 +1565,30 @@ public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
 
 如果写的是一个文件的URL，那么需要能够被访问到。
 
+**注意**：如果采用第一种写法，记得给前往登陆界面的URL放行
 
+## 5、使用successForwardUrl()跳转出现405
+
+~~~java
+.successForwardUrl("/success") // 登录成功之后跳转到哪个url
+.failureForwardUrl("/fail"); // 登录失败之后跳转到哪个url
+~~~
+
+由于登陆请求时POST请求，而successForwardUrl和failureForwardUrl均是请求转发，转发过后依旧时POST请求。
+
+如果你在Controller中这样写，第一个success可以成功转发，第二个fail转发失败出现405
+
+~~~java
+@PostMapping("/success")
+public ModelAndView successLogin(){
+    return new ModelAndView("success");
+}
+
+@GetMapping("fail")
+public ModelAndView failLogin(){
+    return new ModelAndView("fail");
+}
+~~~
 
 
 

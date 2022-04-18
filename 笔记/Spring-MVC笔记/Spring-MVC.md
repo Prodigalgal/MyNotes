@@ -2754,7 +2754,7 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 # 问题
 
-## Spring环境下使用Spring-MVC
+## 1、Spring环境下使用Spring-MVC
 
 1、 Bean被创建两次？
 
@@ -2765,7 +2765,7 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 - 多个Spring IOC容器之间可以设置为父子关系，实现良好的解耦
 - Spring-MVC WEB层容器可作为业务层，Spring容器的子容器：即 WEB 层容器可以引用业务层容器的Bean，而业务层容器却访问不到 WEB 层容器的 Bean。
 
-## 由@SessionAttributes引发的异常
+## 2、由@SessionAttributes引发的异常
 
 如果在处理类定义处标注了@SessionAttributes(“xxx”)，则尝试从会话中获取该属性，并将其赋给该入参，然后再用请求消息填充该入参对象。如果在会话中找不到对应的属性，则抛出 HttpSessionRequiredException 异常。
 
@@ -2784,13 +2784,28 @@ public User getUser( ) {
 @ModelAttribute("xxx") User user
 ```
 
-## @ModelAttribute为什么放在返回值是空的方法上要以Map作为参数
+## 3、@ModelAttribute为什么放在返回值是空的方法上要以Map作为参数
 
 @ModelAttribute主要作用是将数据存入模型对象中，等价于model.addAttribute（“xx”，“yy”），所以如果被该注解修饰的方法的入参含有map或者model，可以void返回，因为map已经put了，如果没有map或者model，则需要返回。
 
+## 4、addViewControllers不支持POST请求
 
+该方法就是判断是否满足条件，然后决定是否抛出异常
 
+~~~java
+protected final void checkRequest(HttpServletRequest request) throws ServletException {
+    String method = request.getMethod();
+    if (this.supportedMethods != null && !this.supportedMethods.contains(method)) {
+        throw new HttpRequestMethodNotSupportedException(method, this.supportedMethods);
+    } else if (this.requireSession && request.getSession(false) == null) {
+        throw new HttpSessionRequiredException("Pre-existing session required but none found");
+    }
+}
+~~~
 
+![image-20220417221050313](images/image-20220417221050313.png)
+
+通过断点调试可得，仅支持GET、HEAD
 
 
 

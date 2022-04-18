@@ -1,142 +1,5 @@
 # 扩展
 
-## 动态权限
-
-原本的权限授予是在SpringSecurity的配置中写死，不能动态的根据需求修改权限
-
-```java
-.antMatchers("/", "/index", "/user/register", "/user/login", "/user/authentication/register").permitAll()
-.antMatchers("/msgg").hasRole("p2")
-.antMatchers("/eat").hasAnyRole("p1")
-.antMatchers("/happytime").hasAnyRole("p2")
-.antMatchers("/admin/**").hasAnyRole("root")
-```
-
-而动态权限就是将url与角色写入数据库中，使用自定义的**FilterInvocationSecurityMetadataSource**与**AccessDecisionVoter**实现，不自定义投票器也可以通过自定义AccessDecisionManager实现，不过我认为AccessDecisionManager不应该改变其原本的唱票者身份，所以选择自定义AccessDecisionVoter。
-
-当用户登录后，获取用户访问路径并对其进行解析，查看数据库中访问该路径所需要的用户角色，并对比当前用户所拥有的角色，如果相匹配则可以访问；还有一些路径，只需要用户登录即可访问，无关用户角色，则可以在解析路径时返回默认标识或者空值以表示该路径无需用户角色；
-
-首先是自定义的FilterInvocationSecurityMetadataSource：
-
-```java
-@Component
-public class CustomizeSecurityMetadataSource implements FilterInvocationSecurityMetadataSource {
-
-    // 用于获取url以及所需的角色
-    @Autowired
-    MenuService menuService;
-	// 匹配请求的url与数据库中的url
-    AntPathMatcher pathMatcher = new AntPathMatcher();
-
-    @Override
-    public Collection<ConfigAttribute> getAttributes(Object object) throws IllegalArgumentException {
-        /*根据请求地址 分析请求该地址需要什么角色*/
-
-        // 获取请求地址
-        String url = ((FilterInvocation) object).getRequestUrl();
-        // 获取所有地址
-        List<Menu> menuList = menuService.getAllMenus();
-        // 对请求地址进行匹配
-        for (Menu m: menuList) {
-            String pattern = m.getUrl();
-            if(pathMatcher.match(pattern, url)) {
-                // 获取该地址所需的角色
-                MenuRoleVo rolesByMenuUrl = menuService.getRolesByMenuUrl(pattern);
-                List<String> roleList = rolesByMenuUrl.getRoleList()
-                    								  .stream()
-                    								  .map(Role::getRoleName)
-                    								  .collect(Collectors.toList());
-                if (roleList.size() != 0) {
-                    String[] roles = roleList.toArray(new String[0]);
-                    // 返回所需的角色
-                    return SecurityConfig.createList(roles);
-                }
-            }
-        }
-        // 如果该地址无需授权，返回null
-        return null;
-    }
-
-    @Override
-    public Collection<ConfigAttribute> getAllConfigAttributes() {
-        return null;
-    }
-
-    @Override
-    public boolean supports(Class<?> clazz) {
-        // 为了支持所有的类型，直接返回true
-        return true;
-    }
-}
-```
-
-接着自定义AccessDecisionVoter：
-
-```java
-@Component
-public class DynamicAccessDecisionVoter implements AccessDecisionVoter<Object> {
-    @Override
-    public boolean supports(ConfigAttribute attribute) {
-        // 同样为了支持所有类型，直接返回true
-        return true;
-    }
-
-    @Override
-    public boolean supports(Class<?> clazz) {
-        // 同样为了支持所有类型，直接返回true
-        return true;
-    }
-
-    @Override
-    public int vote(Authentication authentication, Object object, Collection<ConfigAttribute> attributes) {
-        // 默认弃权票
-        int result = ACCESS_ABSTAIN;
-        Object principal = authentication.getPrincipal();
-        
-        if ("anonymousUser".equals(principal)) {
-            // 当前用户未登录，如果不要求权限->允许访问，否则拒绝访问
-            // 如果当前地址在之前是返回null，则判断
-            return CollectionUtils.isEmpty(attributes) ? ACCESS_GRANTED : ACCESS_DENIED;
-        } else {
-            // 用户所具有的权限
-            Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
-            // 对比用户权限与所需权限
-            // 只要具有一个角色即可通过
-            for (ConfigAttribute attribute : attributes) {
-                for (GrantedAuthority authority : authorities) {
-                    if (attribute.getAttribute().equals(authority.getAuthority())) {
-                        result = ACCESS_GRANTED;
-                    }
-                }
-            }
-            return result;
-        }
-    }
-}
-```
-
-最后注册到配置中
-
-```java
-// 与之前的s
-.authorizeRequests()
-// .antMatchers("/", "/index", "/user/register", "/user/login", "/user/authentication/register").permitAll()
-// .antMatchers("/msgg").hasRole("p2")
-// .antMatchers("/eat").hasAnyRole("p1")
-// .antMatchers("/happytime").hasAnyRole("p2")
-// .antMatchers("/admin/**").hasAnyRole("root")
-// 任何请求,都需要身份验证
-.anyRequest().authenticated()
-.withObjectPostProcessor(new ObjectPostProcessor<FilterSecurityInterceptor>() {
-    @Override
-    public <O extends FilterSecurityInterceptor> O postProcess(O fsi) {
-        fsi.setSecurityMetadataSource(customizeSecurityMetadataSource);
-        fsi.setAccessDecisionManager(new AffirmativeBased(getDecisionVoters()));
-        return fsi;
-    }
-})
-```
-
 ## SimpleUrlAuthenticationFailureHandler
 
 ### AuthenticationFailureHandler
@@ -707,11 +570,11 @@ http.authorizeRequests()
     .loginProcessingUrl("/authentication/login/process");
 
 //第二个例子
-http.formLogin() //表单登录
-    .loginPage("/index") //配置哪个url是登录页
-    .loginProcessingUrl("/login") //配置哪个是登陆url
-    .successForwardUrl("/succeed") //登陆成功跳转的url
-    .failureForwardUrl("/fail") //登陆失败跳转的url
+http.formLogin() // 表单登录
+    .loginPage("/login") // 配置哪个url是登录页 GET
+    .loginProcessingUrl("/login") // 配置哪个是提交登陆url POST
+    .successForwardUrl("/succeed") // 登陆成功跳转的url POST
+    .failureForwardUrl("/fail") // 登陆失败跳转的url PO
  
 ```
 
