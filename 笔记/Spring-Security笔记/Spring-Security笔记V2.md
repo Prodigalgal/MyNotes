@@ -392,6 +392,8 @@ public User(String username,
 
 ## 2、PasswordEncoder接口
 
+### 1、接口简介
+
 ```java
 public interface PasswordEncoder {
     // 用于把参数按照特定的解析规则进行解析
@@ -433,7 +435,198 @@ public void test01(){
     // 打印比较结果
     System.out.println("比较结果：\t"+result);
 }
+
+// 注入 PasswordEncoder 类到 spring 容器中
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
 ```
+
+### 2、DelegatingPasswordEncoder
+
+#### 1、简介
+
+默认加载的**委派密码编码器**，内部其实是一个**Map集合**，根据传递的**Key**（Key为加密方式）获取Map集合的Value，而Value则是具体的PasswordEncoder实现类。
+
+也就是说它将具体编码的实现根据要求委派给不同的算法，以此来实现不同编码算法之间的兼容和变化协调。
+
+- 默认加载进DaoAuthenticationProvider。
+
+#### 2、构造方法
+
+**定制构造**：
+
+```java
+// idForEncode、passwordEncoderForEncode、idToPasswordEncoder都是在构造方法中传入
+private final String idForEncode;
+private final PasswordEncoder passwordEncoderForEncode;
+private final Map<String, PasswordEncoder> idToPasswordEncoder;
+
+public DelegatingPasswordEncoder(String idForEncode, Map<String, PasswordEncoder> idToPasswordEncoder) {
+    // idForEncode决定密码编码器的类型
+    if(idForEncode == null) {
+        throw new IllegalArgumentException("idForEncode cannot be null");
+    }
+    // idToPasswordEncoder决定判断匹配时兼容的类型，必须包含idForEncode(不然加密后就无法匹配了)
+    if(!idToPasswordEncoder.containsKey(idForEncode)) {
+        throw new IllegalArgumentException("idForEncode " 
+                                           + idForEncode + "is not found in idToPasswordEncoder " 
+                                           + idToPasswordEncoder);
+    for(String id : idToPasswordEncoder.keySet()) {
+        if(id == null) {
+            continue;
+        }
+        if(id.contains(PREFIX)) {
+            throw new IllegalArgumentException("id " + id + " cannot contain " + PREFIX);
+        }
+        if(id.contains(SUFFIX)) {
+            throw new IllegalArgumentException("id " + id + " cannot contain " + SUFFIX);
+        }
+    }
+    this.idForEncode = idForEncode;
+    this.passwordEncoderForEncode = idToPasswordEncoder.get(idForEncode);
+    this.idToPasswordEncoder = new HashMap<>(idToPasswordEncoder);
+}
+```
+
+**使用工厂构造**：（推荐）
+
+```java
+PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
+```
+
+```java
+// 具体实现
+public static PasswordEncoder createDelegatingPasswordEncoder() {
+    // 默认使用BCryptPasswordEncoder编码
+    String encodingId = "bcrypt";
+    Map<String, PasswordEncoder> encoders = new HashMap<>();
+    encoders.put(encodingId, new BCryptPasswordEncoder());
+    encoders.put("ldap", new LdapShaPasswordEncoder());
+    encoders.put("MD4", new Md4PasswordEncoder());
+    encoders.put("MD5", new MessageDigestPasswordEncoder("MD5"));
+    encoders.put("noop", NoOpPasswordEncoder.getInstance());
+    encoders.put("pbkdf2", new Pbkdf2PasswordEncoder());
+    encoders.put("scrypt", new SCryptPasswordEncoder());
+    encoders.put("SHA-1", new MessageDigestPasswordEncoder("SHA-1"));
+    encoders.put("SHA-256", new MessageDigestPasswordEncoder("SHA-256"));
+    encoders.put("sha256", new StandardPasswordEncoder());
+
+    return new DelegatingPasswordEncoder(encodingId, encoders);
+}
+```
+
+遇到新密码，**DelegatingPasswordEncoder**会委托给**BCryptPasswordEncoder**（encodingId为bcryp）进行加密。
+
+同时，对历史上使用ldap、MD4、MD5等等加密算法的密码认证保持兼容（如果数据库里的密码使用的是MD5算法，那使用matches方法认证仍可以通过，但新密码会使用bcrypt进行储存）。
+
+#### 3、密码存储格式
+
+{encodingId}encodedPassword
+
+encodingId标识**PaswordEncoder**的种类，**encodedPassword**是原密码被编码后的密码。
+
+```java
+// {bcrypt}格式会委托给BCryptPasswordEncoder加密类
+{bcrypt}$2a$10$iMz8sMVMiOgRgXRuREF/f.ChT/rpu2ZtitfkT5CkDbZpZlFhLxO3y
+// {pbkdf2}格式会委托给Pbkdf2PasswordEncoder加密类
+{pbkdf2}cc409867e39f011f6332bbb6634f58e98d07be7fceefb4cc27e62501594d6ed0b271a25fd9f7fc2e
+// {MD5}格式会委托给MessageDigestPasswordEncoder加密类
+{MD5}e10adc3949ba59abbe56e057f20f883e
+// {noop}明文方式，委托给NoOpPasswordEncoder
+{noop}123456
+// ...
+```
+
+**注意**：
+
+- **rawPassword**：相当于密码字符原序列 ”123456”
+- **encodedPassword**：是使用encodingId对应的密码编码器，将密码字符原序列编码后的加密字符串，假设为 ”xxxxx” 存储的密码 
+- **prefixEncodedPassword**：是在数据库中，我们所能见到的形式如 ”{bcrypt}$2a$10$iMz8sMVMiOgRgXRuREF/f.ChT/rpu2ZtitfkT5CkDbZpZlFhLxO3y”
+
+**注意**：
+
+- 若没有在DelegatingPasswordEncoder中设置defaultPasswordEncoderForMatches，数据库中的密码必须按照存储格式储存。
+- 若设置了defaultPasswordEncoderForMatches，则不一定需要按照密码格式储存。
+
+#### 4、密码编码与匹配
+
+```java
+// 编码
+// 通过前缀，获取对应编码器编码
+private static final String PREFIX = "{";
+private static final String SUFFIX = "}";
+
+@Override
+public String encode(CharSequence rawPassword) {
+    return PREFIX + this.idForEncode + SUFFIX + this.passwordEncoderForEncode.encode(rawPassword);
+}
+```
+
+```java
+// 匹配
+@Override
+public boolean matches(CharSequence rawPassword, String prefixEncodedPassword) {
+    if(rawPassword == null && prefixEncodedPassword == null) {
+        return true;
+    }
+    // 取出编码算法的encodingId
+    String id = extractId(prefixEncodedPassword);
+    // 根据编码算法的encodingId从支持的密码编码器Map(构造时传入)中取出对应编码器
+    PasswordEncoder delegate = this.idToPasswordEncoder.get(id);
+    if(delegate == null) {
+    	// 如果找不到对应的密码编码器则使用默认密码编码器进行匹配判断，此时比较的密码字符串是 prefixEncodedPassword
+        return this.defaultPasswordEncoderForMatches.matches(rawPassword, prefixEncodedPassword);
+    }
+    // 从 prefixEncodedPassword 中提取获得 encodedPassword 
+    String encodedPassword = extractEncodedPassword(prefixEncodedPassword);
+    // 使用对应编码器进行匹配判断，此时比较的密码字符串是 encodedPassword ,不携带编码算法encodingId头
+    return delegate.matches(rawPassword, encodedPassword);
+}
+```
+
+#### 5、defaultPasswordEncoderForMatches
+
+```java
+// defaultPasswordEncoderForMatches有一个set方法可以修改
+private PasswordEncoder defaultPasswordEncoderForMatches = new UnmappedIdPasswordEncoder();
+public void setDefaultPasswordEncoderForMatches(
+    PasswordEncoder defaultPasswordEncoderForMatches) {
+    if(defaultPasswordEncoderForMatches == null) {
+        throw new IllegalArgumentException("defaultPasswordEncoderForMatches cannot be null");
+    }
+    this.defaultPasswordEncoderForMatches = defaultPasswordEncoderForMatches;
+}
+
+// 私有的默认实现
+// 唯一作用就是抛出异常提醒你要自己选择一个默认密码编码器来取代它
+private class UnmappedIdPasswordEncoder implements PasswordEncoder {
+    @Override
+    public String encode(CharSequence rawPassword) {
+        throw new UnsupportedOperationException("encode is not supported");
+    }
+
+    @Override
+    public boolean matches(CharSequence rawPassword, String prefixEncodedPassword) {
+        String id = extractId(prefixEncodedPassword);
+        throw new IllegalArgumentException("There is no PasswordEncoder mapped for the id \"" + id + "\"");
+    }
+}
+```
+
+如果不设置会报错，There is no PasswordEncoder mapped for the id "null"
+
+~~~~java
+@Bean
+public  static PasswordEncoder passwordEncoder( ){
+    DelegatingPasswordEncoder delegatingPasswordEncoder =
+        (DelegatingPasswordEncoder) PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    // 设置defaultPasswordEncoderForMatches为NoOpPasswordEncoder
+    delegatingPasswordEncoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance());
+    return  delegatingPasswordEncoder;
+}
+~~~~
 
 
 
@@ -619,7 +812,13 @@ CREATE TABLE `persistent_logins` (
 public class BrowserSecurityConfig {
     @Autowired
     private DataSource dataSource;
-    
+
+    /**
+	* 持久化token
+    *
+	* Security中，默认是使用PersistentTokenRepository的子类InMemoryTokenRepositoryImpl，将token放在内存中
+	* 如果使用JdbcTokenRepositoryImpl，会创建表persistent_logins，将token持久化到数据库
+	*/
     @Bean
     public PersistentTokenRepository persistentTokenRepository(){
         JdbcTokenRepositoryImpl jdbcTokenRepository = new JdbcTokenRepositoryImpl();
@@ -1899,7 +2098,7 @@ public void invoke(FilterInvocation fi) throws IOException, ServletException {
 
 
 
-### 2、AbstractAuthenticationProcessingFilter 类
+### 3、AbstractAuthenticationProcessingFilter 类
 
 doFilter() 相关源码
 
@@ -2106,6 +2305,63 @@ protected void unsuccessfulAuthentication(HttpServletRequest request,
 }
 ~~~
 
+### 4、SecurityContextPersistenceFilter 类
+
+```java
+public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+    HttpServletRequest request = (HttpServletRequest) req;
+    HttpServletResponse response = (HttpServletResponse) res;
+
+    if (request.getAttribute(FILTER_APPLIED) != null) {
+        // ensure that filter is only applied once per request
+        chain.doFilter(request, response);
+        return;
+    }
+
+    final boolean debug = logger.isDebugEnabled();
+
+    request.setAttribute(FILTER_APPLIED, Boolean.TRUE);
+
+    if (forceEagerSessionCreation) {
+        HttpSession session = request.getSession();
+
+        if (debug && session.isNew()) {
+            logger.debug("Eagerly created session: " + session.getId());
+        }
+    }
+
+    HttpRequestResponseHolder holder = new HttpRequestResponseHolder(request, response);
+   	// 当请求到来时， 检查当前Session是否存有SecurityContext对象
+    // 如果有则取出，如果没有则创建一个空的
+    SecurityContext contextBeforeChainExecution = repo.loadContext(holder);
+
+    try {
+        // 将获取到的SecurityContext对象存入SecurityContextHolder
+        SecurityContextHolder.setContext(contextBeforeChainExecution);
+		// 进入下一个过滤器中
+        chain.doFilter(holder.getRequest(), holder.getResponse());
+
+    }
+    finally {
+        // 响应返回时再次取出SecurityContext对象
+        SecurityContext contextAfterChainExecution = SecurityContextHolder.getContext();
+        // Crucial removal of SecurityContextHolder contents - do this before anything
+        // else.
+        // 将SecurityContextHolder中的SecurityContext对象移除
+        SecurityContextHolder.clearContext();
+        // 将取出的SecurityContext对象放入Session
+        repo.saveContext(contextAfterChainExecution, holder.getRequest(), holder.getResponse());
+        request.removeAttribute(FILTER_APPLIED);
+
+        if (debug) {
+            logger.debug("SecurityContextHolder now cleared, as request processing completed");
+        }
+    }
+}
+```
+
+
+
 
 
 ## 6、SpringSecurity 身份验证对象
@@ -2175,45 +2431,387 @@ public void eraseCredentials() {
 
 
 
-## SecurityMetadataSource 接口
+## 7、SpringSecurity 共享认证信息
 
-**SecurityMetadataSource** 是Spring Security的一个概念模型接口，用于表示对受权限保护的"安全对象"的权限设置信息。
+查看 **SecurityContext** 接口及其实现类 **SecurityContextImpl** ， 该类其实就是对 **Authentication** 的封装
 
-一个该类对象可以被理解成一个映射表，映射表中的每一项包含如下信息 ：
+在 UsernamePasswordAuthenticationFilter 过滤器认证成功之后，会在认证成功的处理方法中将已认证的用户信息对象 Authentication 封装进 SecurityContext，并存入 SecurityContextHolder。 
 
-- 安全对象
-- 安全对象所需权限信息
+之后，响应会通过 SecurityContextPersistenceFilter 过滤器，该过滤器的位置在所有过滤器的**最前面**，请求到来先进它，响应返回最后一个通过它，所以在该过滤器中处理已认证的用户信息对象 **Authentication 与 Session 绑定**。
 
-**SecurityMetadataSource** 是从数据库或者其他数据源中加载**ConfigAttribute**，为了在**AccessDecisionManager.decide()** 最终决策中进行match。其有三个方法：
+**认证成功的响应**通过 SecurityContextPersistenceFilter 过滤器时，会从 SecurityContextHolder 中取出封装了已认证用户信息对象 Authentication 的 SecurityContext，**放进 Session 中**。
 
-- 获取某个受保护的安全对象object的所需要的权限信息，是一组**ConfigAttribute**对象的集合，如果该安全对象object不被当前SecurityMetadataSource对象支持，则抛出异常IllegalArgumentException。
-  该方法通常配合boolean supports(Class<?> clazz)一起使用，先使用boolean supports(Class<?\> clazz)确保安全对象能被当前SecurityMetadataSource支持，然后再调用该方法。
+当请求再次到来时，请求首先经过该过滤器，该过滤器会判断当前请求的 **Session 是否存有 SecurityContext 对象**，如果有则将该对象取出再次放入 SecurityContextHolder 中，之后该请求所在的线程获得认证用户信息，后续的资源访问不需要进行身份认证。
+
+当响应再次返回时，该过滤器同样从 SecurityContextHolder 取出 SecurityContext 对象，**放入 Session 中**。
+
+![image-20211005193608380](images/image-20211005193608380.png)
+
+
+
+## 8、SpringSecurity 认证提供与管理
+
+### 1、AuthenticationProvider 接口
+
+实现 **AuthenticationProvider** 接口的主要用于解析特定 **Authentication**。
+
+有两个接口方法：
 
 ```java
-Collection<ConfigAttribute> getAttributes(Object var1) throws IllegalArgumentException;//加载权限资源
+Authentication authenticate(Authentication authentication) throws AuthenticationException;
 ```
 
-- 获取该SecurityMetadataSource对象中保存的针对所有安全对象的权限信息的集合。该方法的主要目的是被**AbstractSecurityInterceptor**用于启动时校验每个**ConfigAttribute**对象。
+- 与 **AuthenticationManager** 中的 **authenticate** 声明及功能完全一致
+- 返回包含凭据的完整身份验证对象 **authentication**。但是，如果 AuthenticationProvider 不支持给定的 Authentication 的话，该方法可能会返回 null，在此情况下，下一个支持 authentication 的 AuthenticationProvider 将会被尝试。
 
 ```java
-Collection<ConfigAttribute> getAllConfigAttributes();//加载所有权限资源
+boolean supports(Class<?> authentication);
 ```
 
-- 这里clazz表示安全对象的类型，该方法用于告知调用者当前SecurityMetadataSource是否支持此类安全对象，只有支持的时候，才能对这类安全对象调用getAttributes方法。
+- 如果 AuthenticationProvider 支持给定的 Authentication 的话，会返回 true。
+- 并不保证 AuthenticationProvider 能够对给定的 Authentication 进行身份认证，它只是表明它可以支持对其进行更深入的评估，AuthenticationProvider 依然可以返回 null，以指示应尝试另一个 AuthenticationProvider。
+- 此方法是用以选择一个能够匹配 Authentication 以胜任身份认证工作的 AuthenticationProvider，交给 **ProviderManager** 来执行。
+
+![image-20220420205655919](images/image-20220420205655919.png)
+
+
+
+
+
+### 2、AbstractUserDetailsAuthenticationProvider 类
+
+用于解析 **UsernamePasswordAuthenticationToken** 以进行身份认证的基础 **AuthenticationProvider**。
+
+该类实现了 AuthenticationProvider 接口的 **authenticate**(Authentication authentication) 方法
+
+**源码如下**：
 
 ```java
-boolean supports(Class<?> var1);
+public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+    
+    // 判断 authentication对象 类型
+    Assert.isInstanceOf(UsernamePasswordAuthenticationToken.class, 
+                        authentication,
+                        () -> messages.getMessage(
+                            "AbstractUserDetailsAuthenticationProvider.onlySupports",
+                            "Only UsernamePasswordAuthenticationToken is supported"));
+
+    // 获取用户名
+    String username = (authentication.getPrincipal() == null) ? "NONE_PROVIDED" : authentication.getName();
+	// 从缓存中获取 UserDetails对象
+    boolean cacheWasUsed = true;
+    UserDetails user = this.userCache.getUserFromCache(username);
+	// 如果缓存中获取的 UserDetails对象 为null，则从子类实现的retrieveUser()方法中获取
+    if (user == null) {
+        cacheWasUsed = false;
+
+        try {
+            user = retrieveUser(username, (UsernamePasswordAuthenticationToken) authentication);
+        }
+        // 如果找不到 UserDetails对象，会抛出错误，处理办法有两个
+        catch (UsernameNotFoundException notFound) {
+            logger.debug("User '" + username + "' not found");
+            
+ 			// 1、如果 hideUserNotFoundExceptions 为 true（默认为 true），即隐藏用户未找到异常，
+            if (hideUserNotFoundExceptions) {
+                // 会重新抛出凭据/密码错误异常，异常信息为 Spring Security框架已定义好的提示信息。
+                throw new BadCredentialsException(messages.getMessage(
+                    "AbstractUserDetailsAuthenticationProvider.badCredentials",
+                    "Bad credentials"));
+            }
+        	// 2、如果不是隐藏用户未找到异常，则直接抛出 UsernameNotFoundException 异常。
+            else {
+                throw notFound;
+            }
+        }
+
+        Assert.notNull(user, "retrieveUser returned null - a violation of the interface contract");
+    }
+
+    try {
+        // 前置身份检查，源码如下。
+        preAuthenticationChecks.check(user);
+        // 额外身份认证校验，对于 UsernamePasswordAuthenticationToken 来说就是凭据/密码校验。
+        // 具体的校验逻辑在其子类 DaoAuthenticationProvider 中
+        additionalAuthenticationChecks(user, (UsernamePasswordAuthenticationToken) authentication);
+    }
+    // 如果认证过程中发生异常，会有如下处理逻辑
+    catch (AuthenticationException exception) {
+        // 如果当前的用户是从用户缓存中取出的
+        // 则使用原有的用户信息再进行一次身份认证，即获取用户信息、前置身份认证检查、额外身份认证检查。
+        if (cacheWasUsed) {
+            // There was a problem, so try again after checking
+            // we're using latest data (i.e. not from the cache)
+            cacheWasUsed = false;
+            user = retrieveUser(username, (UsernamePasswordAuthenticationToken) authentication);
+            preAuthenticationChecks.check(user);
+            additionalAuthenticationChecks(user, (UsernamePasswordAuthenticationToken) authentication);
+        }
+        // 如果不是从用户缓存中取出的，则直接抛出异常。
+        else {
+            throw exception;
+        }
+    }
+	// 后置身份认证检查。源码如下。
+    postAuthenticationChecks.check(user);
+	// 将当前用户放入用户缓存，如果当前用户还没有被用户缓存缓存的话。
+    if (!cacheWasUsed) {
+        this.userCache.putUserInCache(user);
+    }
+	// 转换 principal 为字符串类型。不过，需要 forcePrincipalAsString 参数为 true（默认为 false）。
+    Object principalToReturn = user;
+
+    if (forcePrincipalAsString) {
+        principalToReturn = user.getUsername();
+    }
+	// 创建身份认证成功的 Authentication对象
+    return createSuccessAuthentication(principalToReturn, authentication, user);
+}
 ```
 
-Spring Security对SecurityMetadataSource提供了两个子接口 ：
+默认前置身份检查源码：
 
-**MethodSecurityMetadataSource** 由Spring Security Core定义，用于**表示安全对象是方法**调用(**MethodInvocation**)的安全元数据源。
+```java
+private class DefaultPreAuthenticationChecks implements UserDetailsChecker {
+    public void check(UserDetails user) {
+        // 校验账户是否锁定
+        if (!user.isAccountNonLocked()) {
+            logger.debug("User account is locked");
 
-**FilterInvocationSecurityMetadataSource** 由Spring Security Web定义，用于**表示安全对象是Web请求**调用(**FilterInvocation**)的安全元数据源。
+            throw new LockedException(messages.getMessage(
+                "AbstractUserDetailsAuthenticationProvider.locked",
+                "User account is locked"));
+        }
+		// 校验账户是否可用
+        if (!user.isEnabled()) {
+            logger.debug("User account is disabled");
+
+            throw new DisabledException(messages.getMessage(
+                "AbstractUserDetailsAuthenticationProvider.disabled",
+                "User is disabled"));
+        }
+		// 校验账户是否过期
+        if (!user.isAccountNonExpired()) {
+            logger.debug("User account is expired");
+
+            throw new AccountExpiredException(messages.getMessage(
+                "AbstractUserDetailsAuthenticationProvider.expired",
+                "User account has expired"));
+        }
+    }
+}
+```
+
+默认后置身份检查源码：
+
+```java
+// 默认的后置身份认证检查逻辑如下
+private class DefaultPostAuthenticationChecks implements UserDetailsChecker {
+    public void check(UserDetails user) {
+        // 检查一下用户的凭据/密码是否过期。
+        if (!user.isCredentialsNonExpired()) {
+            logger.debug("User account credentials have expired");
+
+            throw new CredentialsExpiredException(messages.getMessage(
+                "AbstractUserDetailsAuthenticationProvider.credentialsExpired",
+                "User credentials have expired"));
+        }
+    }
+}
+```
+
+默认的创建身份认证成功的 Authentication对象 逻辑如下。
+
+```java
+// 创建了一个新的 UsernamePasswordAuthenticationToken
+// 与未认证的区别就是 principal 变成了检索到的用户详细信息（或者用户名，强制字符串principal）。
+protected Authentication createSuccessAuthentication(Object principal, Authentication authentication, UserDetails user) {
+    UsernamePasswordAuthenticationToken result = 
+        new UsernamePasswordAuthenticationToken(principal, 
+                                                authentication.getCredentials(),
+                                                authoritiesMapper.mapAuthorities(user.getAuthorities()));
+
+    result.setDetails(authentication.getDetails());
+
+    return result;
+}
+```
+
+**注意**：此方法是 protected 类型的，子类可以重写。因为，子类通常在 Authentication对象 中存储用户提供的原始凭据/密码，而非加盐、加密过的。
 
 
 
-## ProviderManager 类
+### 3、DaoAuthenticationProvider 类
+
+**DaoAuthenticationProvider** 是用于解析并认证 **UsernamePasswordAuthenticationToken** 的这样一个认证服务提供者。
+
+**最终目的**：
+
+就是根据 **UsernamePasswordAuthenticationToken**对象 获取到 **username**属性，然后调用 **UserDetailsService** 检索用户详细信息。
+
+**构造方法**：
+
+在 DaoAuthenticationProvider 创建之时，会制定一个默认的 PasswordEncoder，如果我们没有配置任何 PasswordEncoder，将使用这个默认的 PasswordEncoder，如果我们自定义了 PasswordEncoder 实例，那么会使用我们自定义的 PasswordEncoder 实例。
+
+```java
+private PasswordEncoder passwordEncoder;
+private volatile String userNotFoundEncodedPassword;
+public DaoAuthenticationProvider() {
+    setPasswordEncoder(PasswordEncoderFactories.createDelegatingPasswordEncoder());
+}
+public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+    Assert.notNull(passwordEncoder, "passwordEncoder cannot be null");
+    this.passwordEncoder = passwordEncoder;
+    this.userNotFoundEncodedPassword = null;
+}
+```
+
+DaoAuthenticationProvider 的初始化是在 **InitializeUserDetailsManagerConfigurer**#**configure** 方法中完成的
+
+源码如下：
+
+```java
+public void configure(AuthenticationManagerBuilder auth) throws Exception {
+    if (auth.isConfigured()) {
+        return;
+    }
+    UserDetailsService userDetailsService = getBeanOrNull(
+        UserDetailsService.class);
+    if (userDetailsService == null) {
+        return;
+    }
+    // 首先去调用 getBeanOrNull()方法获取一个 PasswordEncoder 实例
+    // getBeanOrNull() 方法实际上就是去 Spring 容器中查找对象。
+    PasswordEncoder passwordEncoder = getBeanOrNull(PasswordEncoder.class);
+    UserDetailsPasswordService passwordManager = getBeanOrNull(UserDetailsPasswordService.class);
+    // 接下来直接 new 一个 DaoAuthenticationProvider 对象
+    // 在 new 的过程中，DaoAuthenticationProvider 中默认的 PasswordEncoder 已经被创建出来了。
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+    provider.setUserDetailsService(userDetailsService);
+    // 如果一开始从 Spring 容器中获取到了 PasswordEncoder 实例，则将之赋值给 DaoAuthenticationProvider 实例
+    // 否则就是用 DaoAuthenticationProvider 自己默认创建的 PasswordEncoder。
+    if (passwordEncoder != null) {
+        provider.setPasswordEncoder(passwordEncoder);
+    }
+    if (passwordManager != null) {
+        provider.setUserDetailsPasswordService(passwordManager);
+    }
+    provider.afterPropertiesSet();
+    auth.authenticationProvider(provider);
+}
+```
+
+额外的身份认证检查方法，也即 **additionalAuthenticationChecks()，密码检查**。源码如下：
+
+```java
+protected void additionalAuthenticationChecks(UserDetails userDetails,
+                                              UsernamePasswordAuthenticationToken authentication)
+    										  throws AuthenticationException {
+    // 校验密码是否为空
+    if (authentication.getCredentials() == null) {
+        logger.debug("Authentication failed: no credentials provided");
+
+        throw new BadCredentialsException(messages.getMessage(
+            "AbstractUserDetailsAuthenticationProvider.badCredentials",
+            "Bad credentials"));
+    }
+	
+    // 将密码转为字符串
+    String presentedPassword = authentication.getCredentials().toString();
+	
+    // 将输入的密码与查询得到的密码进行比对
+    if (!passwordEncoder.matches(presentedPassword, userDetails.getPassword())) {
+        logger.debug("Authentication failed: password does not match stored value");
+
+        throw new BadCredentialsException(messages.getMessage(
+            "AbstractUserDetailsAuthenticationProvider.badCredentials",
+            "Bad credentials"));
+    }
+}
+```
+
+用户检索，即 **retrieveUser()**。源码如下：
+
+需要调用 **UserDetailsService** 检索用户详细信息，如权限列表、存储密码等
+
+```java
+protected final UserDetails retrieveUser(String username,
+                                         UsernamePasswordAuthenticationToken authentication)
+    									 throws AuthenticationException {
+    // 定时攻击保护
+    prepareTimingAttackProtection();
+    try {
+        UserDetails loadedUser = this.getUserDetailsService().loadUserByUsername(username);
+        if (loadedUser == null) {
+            throw new InternalAuthenticationServiceException(
+                "UserDetailsService returned null, which is an interface contract violation");
+        }
+        return loadedUser;
+    }
+    catch (UsernameNotFoundException ex) {
+        // 定时攻击保护
+        mitigateAgainstTimingAttack(authentication);
+        throw ex;
+    }
+    catch (InternalAuthenticationServiceException ex) {
+        throw ex;
+    }
+    catch (Exception ex) {
+        throw new InternalAuthenticationServiceException(ex.getMessage(), ex);
+    }
+}
+```
+
+DaoAuthenticationProvider 还重写了基类的 **createSuccessAuthentication()** 方法。
+
+```java
+protected Authentication createSuccessAuthentication(Object principal,
+                                                     Authentication authentication, 
+                                                     UserDetails user) {
+    
+    boolean upgradeEncoding = this.userDetailsPasswordService != null
+        && this.passwordEncoder.upgradeEncoding(user.getPassword());
+    // 更新一下 User 中的密码
+    if (upgradeEncoding) {
+        String presentedPassword = authentication.getCredentials().toString();
+        // 默认会使用BCryptPasswordEncoder编码
+        // 由PasswordEncoderFactories创建
+        String newPassword = this.passwordEncoder.encode(presentedPassword);
+        user = this.userDetailsPasswordService.updatePassword(user, newPassword);
+    }
+    return super.createSuccessAuthentication(principal, authentication, user);
+}
+```
+
+
+
+### 4、AuthenticationManager 接口
+
+AuthenticationManager这个接口方法，入参和返回值的类型都是**Authentication**。该接口的作用是对用户的未授信凭据进行认证，认证通过则返回授信状态的凭据，否则将抛出认证异常AuthenticationException。
+
+初始化流程：
+
+**WebSecurityConfigurerAdapter**中的**void configure(AuthenticationManagerBuilder auth)**是配置AuthenticationManager 的地方。
+
+```java
+@Override
+protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+    DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+    daoAuthenticationProvider.setUserDetailsService(weChatSecurityConfigProperties.getUserDetailsService());
+    daoAuthenticationProvider.setPasswordEncoder(multiPasswordEncoder());
+    auth.authenticationProvider(daoAuthenticationProvider);
+}
+```
+
+![image-20211122084026271](images/image-20211122084026271.png)
+
+认证过程：
+
+![image-20211122084304705](images/image-20211122084304705.png)
+
+
+
+### 5、ProviderManager 类
 
 **UsernamePasswordAuthenticationFilter** 过滤器的 **attemptAuthentication()** 方法的最后一步将未认证的 **Authentication** 对象传入 **ProviderManager** 类的 **authenticate()** 方法进行身份认证。
 
@@ -2329,6 +2927,363 @@ public Authentication authenticate(Authentication authentication)
 
 
 
+## 9、SpringSecurity 投票与管理
+
+### 1、AccessDecisionManager 接口
+
+AccessDecisionManager本身并不完成相关的逻辑，全部交由其管理的**AccessDecisionVoter**依次去判断与执行。
+
+被 **AbstractSecurityInterceptor** 拦截器调用进行最终访问控制决策。
+
+根据**decide()**方法的逻辑规则不同，Spring Security中分别存在三种不同decide决策规则。
+
+- AffirmativeBased（在Spring Security默认使用）一票通过
+- UnanimousBased 一票否决
+- ConsensusBased 少数服从多数
+
+接口源码：
+
+```java
+public interface AccessDecisionManager {
+    void decide(Authentication authentication, 
+                Object object,
+				Collection<ConfigAttribute> configAttributes) 
+        throws AccessDeniedException, InsufficientAuthenticationException;
+    
+    boolean supports(ConfigAttribute attribute);
+    
+    boolean supports(Class<?> clazz);
+}
+```
+
+- **ConfigAttribute**负责表述规则
+- **AccessDecisionVoter**负责为规则表决
+
+**注意**：最终的访问授权是否通过是由AccessDecisionManager进行决策的。
+
+在框架中AccessDecisionManager是AccessDecisionVoter的集合类，管理对于不同规则进行判断与表决的AccessDecisionVoter们。
+
+但是，AccessDecisionVoter分别都只会对自己支持的规则进行表决，如一个资源的访问规则存在多个并行时，便不能以某一个AccessDecisionVoter的表决作为最终的访问授权结果。
+
+AccessDecisionManager的职责便是在这种场景下，汇总所有AccessDecisionVoter的表决结果后给出一个最终的决策。
+
+从而导致框架中预设了三种不同决策规则的AccessDecisionManager的实现类。
+
+![image-20211122085632086](images/image-20211122085632086.png)
+
+### 2、AccessDecisionVoter 接口
+
+AccessDecisionVoter 是一个投票器，负责对授权决策进行表决，然后，最终由唱票者AccessDecisionManager 统计所有的投票器表决后，来做最终的授权决策。
+
+**AccessDecisionManager.decide()**将使用**AccessDecisionVoter**进行投票决策。
+
+**AccessDecisionVoter**进行投票访问控制决策，访问不通过就抛出**AccessDeniedException**。
+
+**AccessDecisionVoter**的**核心方法vote()** 通常是获取**Authentication的GrantedAuthority**与**已定义好的ConfigAttributes**进行**match**，如果成功为投同意票，匹配不成功为拒绝票，当ConfigAttributes中无属性时，才投弃票。
+
+**AccessDecisionVoter**用三个静态变量表示voter投票情况：
+
+- **ACCESS_ABSTAIN：** 弃权
+- **ACCESS_DENIED：** 拒绝访问
+- **ACCESS_GRANTED：** 允许访问
+
+**PS**：**当所有voter都弃权时使用变量allowIfEqualGrantedDeniedDecisions来判断，true为通过，false抛出AccessDeniedException。** 
+
+
+
+#### 1、WebExpressionVoter 类
+
+**Spring Security** 框架<u>默认</u> **FilterSecurityInterceptor** 实例中 **AccessDecisionManager** 默认的投票器 **WebExpressionVoter**。其实，就是对使用 **http.authorizeRequests()** 基于 Spring-EL进行控制权限的的授权决策类。
+
+```java
+http
+    .authorizeRequests()
+    .anyRequest()
+    .authenticated()
+    .antMatchers().permitAll()
+    .antMatchers().hasRole()
+    .antMatchers().hasAuthority()
+```
+
+#### 2、AuthenticatedVoter 类
+
+针对 **ConfigAttribute#getAttribute()** 中配置为 **IS_AUTHENTICATED_FULLY、IS_AUTHENTICATED_REMEMBERED、IS_AUTHENTICATED_ANONYMOUSLY** 权限标识时的授权决策。因此，其投票策略比较简单：
+
+```java
+public int vote(Authentication authentication, Object object,
+			Collection<ConfigAttribute> attributes) {
+		int result = ACCESS_ABSTAIN;
+
+		for (ConfigAttribute attribute : attributes) {
+			if (this.supports(attribute)) {
+				result = ACCESS_DENIED;
+
+				if (IS_AUTHENTICATED_FULLY.equals(attribute.getAttribute())) {
+					if (isFullyAuthenticated(authentication)) {
+						return ACCESS_GRANTED;
+					}
+				}
+
+				if (IS_AUTHENTICATED_REMEMBERED.equals(attribute.getAttribute())) {
+					if (authenticationTrustResolver.isRememberMe(authentication)
+							|| isFullyAuthenticated(authentication)) {
+						return ACCESS_GRANTED;
+					}
+				}
+
+				if (IS_AUTHENTICATED_ANONYMOUSLY.equals(attribute.getAttribute())) {
+					if (authenticationTrustResolver.isAnonymous(authentication)
+							|| isFullyAuthenticated(authentication)
+							|| authenticationTrustResolver.isRememberMe(authentication)) {
+						return ACCESS_GRANTED;
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+}
+```
+
+#### 3、PreInvocationAuthorizationAdviceVoter 类
+
+用于处理基于注解 **@PreFilter** 和 **@PreAuthorize** 生成的 **PreInvocationAuthorizationAdvice**，来处理授权决策的实现。
+
+```java
+public int vote(Authentication authentication, MethodInvocation method,
+                Collection<ConfigAttribute> attributes) {
+
+    // Find prefilter and preauth (or combined) attributes
+    // if both null, abstain
+    // else call advice with them
+
+    PreInvocationAttribute preAttr = findPreInvocationAttribute(attributes);
+
+    if (preAttr == null) {
+        // No expression based metadata, so abstain
+        return ACCESS_ABSTAIN;
+    }
+
+    boolean allowed = preAdvice.before(authentication, method, preAttr);
+
+    return allowed ? ACCESS_GRANTED : ACCESS_DENIED;
+}
+```
+
+#### 4、RoleVoter 类
+
+角色投票器。用于 **ConfigAttribute#getAttribute()** 中配置为角色的授权决策。其默认前缀为 ROLE_，可以自定义，也可以设置为空，直接使用角色标识进行判断。这就意味着，任何属性都可以使用该投票器投票，也就偏离了该投票器的本意，是不可取的。
+
+```java
+public int vote(Authentication authentication, Object object,
+			Collection<ConfigAttribute> attributes) {
+    if (authentication == null) {
+        return ACCESS_DENIED;
+    }
+    int result = ACCESS_ABSTAIN;
+    Collection<? extends GrantedAuthority> authorities = extractAuthorities(authentication);
+
+    for (ConfigAttribute attribute : attributes) {
+        if (this.supports(attribute)) {
+            result = ACCESS_DENIED;
+
+            // Attempt to find a matching granted authority
+            for (GrantedAuthority authority : authorities) {
+                if (attribute.getAttribute().equals(authority.getAuthority())) {
+                    return ACCESS_GRANTED;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+```
+
+**注意：决策策略比较简单，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**。
+
+#### 5、RoleHierarchyVoter 类
+
+基于 RoleVoter，唯一的不同就是该投票器中的角色是**附带上下级关系的**。也就是说，角色A包含角色B，角色B包含角色C，此时，如果用户拥有角色A，那么理论上可以同时拥有角色B、角色C的全部资源访问权限。
+
+**注意：同 RoleVoter 的决策策略，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**。
+
+
+
+## SecurityContextHolder 接口
+
+**SecurityContextHolder** 类 ， 该类其实是对 **ThreadLocal** 的封装 ， 存储 **SecurityContext** 对象
+
+```java
+public class SecurityContextHolder {
+    private static SecurityContextHolderStrategy strategy;
+    private static int initializeCount = 0;
+
+    private static void initialize() {
+        if (!StringUtils.hasText(strategyName)) {
+            // Set default
+            // 默认使用 MODE_THREADLOCAL 模式
+            strategyName = MODE_THREADLOCAL;
+        }
+
+        if (strategyName.equals(MODE_THREADLOCAL)) {
+            // 默认使用 ThreadLocalSecurityContextHolderStrategy 创建 strategy
+            // 其内部使用 ThreadLocal 管理 SecurityContext
+            strategy = new ThreadLocalSecurityContextHolderStrategy();
+        }
+        else if (strategyName.equals(MODE_INHERITABLETHREADLOCAL)) {
+            strategy = new InheritableThreadLocalSecurityContextHolderStrategy();
+        }
+        else if (strategyName.equals(MODE_GLOBAL)) {
+            strategy = new GlobalSecurityContextHolderStrategy();
+        }
+        else {
+            // Try to load a custom strategy
+            try {
+                Class<?> clazz = Class.forName(strategyName);
+                Constructor<?> customStrategy = clazz.getConstructor();
+                strategy = (SecurityContextHolderStrategy) customStrategy.newInstance();
+            }
+            catch (Exception ex) {
+                ReflectionUtils.handleReflectionException(ex);
+            }
+        }
+
+        initializeCount++;
+    }
+    
+    public static SecurityContext getContext() {
+        // 需要注意，如果当前线程对应的ThreadLocal<SecurityContext> 没有任何对象存储
+        // strategy.getContext() 会创建并返回一个空的 SecurityContext对象
+        // 并且该空的 SecurityContext对象 会存入 ThreadLocal<SecurityContext>
+		return strategy.getContext();
+	}
+    
+    public static void setContext(SecurityContext context) {
+        // 设置当前线程对应的 ThreadLocal<SecurityContext> 的存储
+		strategy.setContext(context);
+	}
+    
+    public static void clearContext() {
+        // 清除当前线程对应的 ThreadLocal<SecurityContext> 的存储
+		strategy.clearContext();
+	}
+}
+```
+
+## **ThreadLocalSecurityContextHolderStrategy**源码
+
+```java
+final class ThreadLocalSecurityContextHolderStrategy implements SecurityContextHolderStrategy {
+    // 使用 ThreadLocal 存储 SecurityContext
+    private static final ThreadLocal<SecurityContext> contextHolder = new ThreadLocal<>();
+
+    public SecurityContext getContext() {
+        // 需要注意，如果当前线程对应的ThreadLocal<SecurityContext> 没有任何对象存储
+        // strategy.getContext() 会创建并返回一个空的 SecurityContext对象
+        // 并且该空的 SecurityContext对象 会存入 ThreadLocal<SecurityContext>
+        SecurityContext ctx = contextHolder.get();
+
+        if (ctx == null) {
+            ctx = createEmptyContext();
+            contextHolder.set(ctx);
+        }
+
+        return ctx;
+    }
+    
+    public void setContext(SecurityContext context) {
+        // 设置当前线程对应的 ThreadLocal<SecurityContext> 的存储
+        Assert.notNull(context, "Only non-null SecurityContext instances are permitted");
+        contextHolder.set(context);
+    }
+
+    public SecurityContext createEmptyContext() {
+        // 创建一个空的 SecurityContext
+        return new SecurityContextImpl();
+    }
+
+    public void clearContext() {
+        // 清除当前线程对应的 ThreadLocal<SecurityContext> 的存储
+        contextHolder.remove();
+    }
+
+
+}
+```
+
+
+
+## SecurityMetadataSource 接口
+
+**SecurityMetadataSource** 是Spring Security的一个概念模型接口，用于表示对受权限保护的"安全对象"的权限设置信息。
+
+一个该类对象可以被理解成一个映射表，映射表中的每一项包含如下信息 ：
+
+- 安全对象
+- 安全对象所需权限信息
+
+**SecurityMetadataSource** 是从数据库或者其他数据源中加载**ConfigAttribute**，为了在**AccessDecisionManager.decide()** 最终决策中进行match。其有三个方法：
+
+- 获取某个受保护的安全对象object的所需要的权限信息，是一组**ConfigAttribute**对象的集合，如果该安全对象object不被当前SecurityMetadataSource对象支持，则抛出异常IllegalArgumentException。
+  该方法通常配合boolean supports(Class<?> clazz)一起使用，先使用boolean supports(Class<?\> clazz)确保安全对象能被当前SecurityMetadataSource支持，然后再调用该方法。
+
+```java
+Collection<ConfigAttribute> getAttributes(Object var1) throws IllegalArgumentException;//加载权限资源
+```
+
+- 获取该SecurityMetadataSource对象中保存的针对所有安全对象的权限信息的集合。该方法的主要目的是被**AbstractSecurityInterceptor**用于启动时校验每个**ConfigAttribute**对象。
+
+```java
+Collection<ConfigAttribute> getAllConfigAttributes();//加载所有权限资源
+```
+
+- 这里clazz表示安全对象的类型，该方法用于告知调用者当前SecurityMetadataSource是否支持此类安全对象，只有支持的时候，才能对这类安全对象调用getAttributes方法。
+
+```java
+boolean supports(Class<?> var1);
+```
+
+Spring Security对SecurityMetadataSource提供了两个子接口 ：
+
+**MethodSecurityMetadataSource** 由Spring Security Core定义，用于**表示安全对象是方法**调用(**MethodInvocation**)的安全元数据源。
+
+**FilterInvocationSecurityMetadataSource** 由Spring Security Web定义，用于**表示安全对象是Web请求**调用(**FilterInvocation**)的安全元数据源。
+
+
+
+
+
+## AuthorityUtils 工具类
+
+此类一般用于UserDetailsService的实现类中的loadUserByUsername方法
+
+此工具类一共有三个方法：
+
+- **commaSeparatedStringToAuthorityList** 作用为给user账户添加一个或多个权限，用逗号分隔，底层调用的是**createAuthorityList**方法，唯一区别在于此方法把所有的权限包含进一个字符串参数中，只不过用逗号分隔。
+
+```java
+commaSeparatedStringToAuthorityList()
+// 例子
+return new User(username,pass,AuthorityUtils.commaSeparatedStringToAuthorityList("admin,normal"));
+
+```
+
+- **createAuthorityList** 将权限转换为List
+
+```java
+List<GrantedAuthority> list=AuthorityUtils.createAuthorityList("admin","normal");//一个权限一个参数
+return new User(username,pass,list);
+```
+
+- **authorityListToSet** 将GrantedAuthority对象的数组转换为Set
+
+```java
+List<GrantedAuthority> list=AuthorityUtils.createAuthorityList("admin","normal");
+Set<String> set=AuthorityUtils.authorityListToSet(list);
+```
+
 
 
 # 问题
@@ -2376,28 +3331,7 @@ public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
 
 **注意**：如果采用第一种写法，记得给前往登陆界面的URL放行
 
-## 5、使用successForwardUrl()跳转出现405
 
-~~~java
-.successForwardUrl("/success") // 登录成功之后跳转到哪个url
-.failureForwardUrl("/fail"); // 登录失败之后跳转到哪个url
-~~~
-
-由于登陆请求时POST请求，而successForwardUrl和failureForwardUrl均是请求转发，转发过后依旧时POST请求。
-
-如果你在Controller中这样写，第一个success可以成功转发，第二个fail转发失败出现405
-
-~~~java
-@PostMapping("/success")
-public ModelAndView successLogin(){
-    return new ModelAndView("success");
-}
-
-@GetMapping("fail")
-public ModelAndView failLogin(){
-    return new ModelAndView("fail");
-}
-~~~
 
 ## 6、当继承了默认User后UserDetailsService的loadUserByUsername修改
 
@@ -2421,11 +3355,84 @@ class org.springframework.security.core.userdetails.User cannot be cast to class
 
 
 
+## 7、SuccessForwardUrl的405报错
+
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+    		....
+            // 登录成功跳转
+        	.successForwardUrl("/success") // 登录成功之后跳转到哪个url
+			.failureForwardUrl("/fail"); // 登录失败之后跳转到哪个url
+           ....
+}
+
+```
+
+```java
+// 错误方法 
+@RequestMapping("/main")
+ public String toMain(Authentication authentication){ 
+     String name = SecurityContextHolder.getContext().getAuthentication().getName();  // 正确方式
+	 System.out.println("登录用户：" + authentication.getName()); 
+     return "main.html";
+ }
+```
+
+**两个错误的地方**：
+
+- 此时括号中的**authentication**无法获取，要用第一行的方式获取用户的认证信息
+- 登录成功跳转出现**异常**：There was an unexpected error (type=Method Not Allowed, status=**405**).
+
+由于登陆请求时POST请求，而successForwardUrl和failureForwardUrl均是请求转发，转发过后依旧时POST请求。
+
+~~~java
+@PostMapping("/success")
+public ModelAndView successLogin(){
+    return new ModelAndView("success");
+}
+
+@GetMapping("fail")
+public ModelAndView failLogin(){
+    return new ModelAndView("fail");
+}
+~~~
+
+如果你在Controller中这样写，第一个success可以成功转发，第二个fail转发失败出现405
 
 
 
+## 8、defaultSuccessUrl/SuccessForwardUrl区别
 
+**defaultSuccessUrl** 有一个重载的方法，如果我们在 defaultSuccessUrl 中指定登录成功的跳转页面为 ”/index”，此时分两种情况
 
+- 如果你是直接在浏览器中输入的登录地址，登录成功后，就直接跳转到 /index
+- 如果你是在浏览器中输入了其他地址，例如 http://localhost:8080/xxxx，结果因为没有登录，又重定向到登录页面，此时登录成功后，就不会来到 “/index“ ，而是来到 ”/xxxx“ 页面。
+
+总结：defaultSuccessUrl 就是说，它会**默认**跳转到 **Referer** 来源页面，如果 Referer 为空，没有来源页，则跳转到默认设置的页面。
+
+```java
+public final T defaultSuccessUrl(String defaultSuccessUrl) {
+	return defaultSuccessUrl(defaultSuccessUrl, false);
+}
+
+public final T defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
+	SavedRequestAwareAuthenticationSuccessHandler handler = new SavedRequestAwareAuthenticationSuccessHandler();
+	handler.setDefaultTargetUrl(defaultSuccessUrl);
+	handler.setAlwaysUseDefaultTargetUrl(alwaysUse);
+	this.defaultSuccessHandler = handler;
+	return successHandler(handler);
+}
+```
+
+**successForwardUrl** 表示不管你是从哪里来的，登录后一律跳转到 successForwardUrl 指定的地址。
+
+例如 successForwardUrl 指定的地址为 ”/index“ ，你在浏览器地址栏输入 http://localhost:8080/codedq，如果你还没有登录，将会重定向到登录页面，当你登录成功之后，就会服务端跳转到 /index 页面。
+
+或者你直接就在浏览器输入了登录页面地址，登录成功后也是来到 /index。
+
+**注意**：defaultSuccessUrl 另外一个重载方法，第二个参数如果输入为 true，则效果和 successForwardUrl 一致。
 
 
 
