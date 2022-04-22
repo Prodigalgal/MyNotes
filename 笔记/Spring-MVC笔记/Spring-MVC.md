@@ -1266,12 +1266,12 @@ Spring-MVC 是通过对**处理方法签名的规约来保存校验结果的**�
 ~~~java
 @RequestMapping("/testUp")
 public String testUp(MultipartFile photo, HttpSession session) throws IOException {
-    //获取上传的文件的文件名
+    // 获取上传的文件的文件名
     String fileName = photo.getOriginalFilename();
-    //处理文件重名问题
+    // 处理文件重名问题
     String hzName = fileName.substring(fileName.lastIndexOf("."));
     fileName = UUID.randomUUID().toString() + hzName;
-    //获取服务器中photo目录的路径
+    // 获取服务器中photo目录的路径
     ServletContext servletContext = session.getServletContext();
     String photoPath = servletContext.getRealPath("photo");
     File file = new File(photoPath);
@@ -1824,6 +1824,13 @@ public class AppConfig  extends WebMvcConfigurerAdapter  {
         viewResolver.setCharacterEncoding("UTF-8");
         viewResolver.setTemplateEngine(templateEngine);
         return viewResolver;
+    }
+    
+    // 放行静态资源
+    @Override
+    public void addResourceHandlers(@NotNull ResourceHandlerRegistry registry) {
+        WebMvcConfigurer.super.addResourceHandlers(registry);
+        registry.addResourceHandler("/br/js/**", "/br/css/**").addResourceLocations("classpath:/static/");
     }
     
 }
