@@ -5,19 +5,21 @@
 ### 1、父项目
 
 ```xml
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.5.2</version>
-        <relativePath/> <!-- lookup parent from repository -->
-    </parent>
+依赖管理
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.5.2</version>
+    <relativePath/> <!-- lookup parent from repository -->
+</parent>
+
 这个父项目的父项目是：
-      <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>2.5.2</version>
-      </parent>
-是SpringBoot的版本仲裁中心，统一管理SpringBoot应用里免的所有依赖版本，之后我们导入依赖默认不需要写版本（没有在dependencies里声明的需要写）
+作用：是SpringBoot的版本仲裁中心，统一管理SpringBoot应用里免的所有依赖版本，之后我们导入依赖默认不需要写版本（没有在dependencies里声明的需要写）
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-dependencies</artifactId>
+    <version>2.5.2</version>
+</parent>
 ```
 
 ### 2、启动器
@@ -29,7 +31,7 @@
 </dependency>
 ```
 
-spring-boot-starter-web：导入了web模块正常运行所依赖的组件
+spring-boot-starter-web：导入了web模块正常运行所依赖的组件，并自动配置好了常用功能，比如字符编码等
 
 spring-boot-starter：spring-boot场景启动器，SpringBoot将所有的功能场景抽取，做成多个spring-boot-starter-xxx启动器，需要在项目使用只需引入需要的starer-xxx，那么相关的依赖就都会导入。
 
@@ -46,9 +48,9 @@ public class HelloWorldSpringBoot {
 }
 ```
 
-## 3、相关注解
+# 2、相关注解
 
-##### 1、**@SpringBootApplication**注解
+## 1、**@SpringBootApplication** 注解
 
 Spring Boot应用标注在某个类上说明这个类是SpringBoot的主配置类
 
@@ -59,19 +61,19 @@ SpringBoot就应该运行这个类的main方法来启动SpringBoot应用。
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-@SpringBootConfiguration//标明配置类
-@EnableAutoConfiguration//开启自动配置功能
+@SpringBootConfiguration // 标明配置类
+@EnableAutoConfiguration // 开启自动配置功能
 @ComponentScan(excludeFilters = {
       @Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
       @Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) })
 public @interface SpringBootApplication {
 ```
 
-##### 2、@**SpringBootConfiguration**注解
+## 2、@**SpringBootConfiguration **注解
 
 标注在某个类上，表示这个是一个SpringBoot的配置类
 
-##### 3、@**Configuration**注解
+## 3、@**Configuration** 注解
 
 配置类上标注这个注解，配置类 = 配置文件，配置类也是容器中的一个组件@Component
 
@@ -154,7 +156,7 @@ public class MainApplication {
 
 
 
-##### 4、@**EnableAutoConfiguration**注解
+## 4、@**EnableAutoConfiguration** 注解
 
 开启自动配置功能，以前需要手动配置的，SpringBoot自动配置
 
@@ -164,11 +166,11 @@ public class MainApplication {
 public @interface EnableAutoConfiguration {
 ```
 
-##### 5、@**AutoConfigurationPackage**
+## 5、@**AutoConfigurationPackage** 注解
 
 自动配置包
 
-##### 6、@Import
+## 6、@Import 注解
 
 给容器中自动创建出组件、默认组件的名字就是全类名。
 
@@ -200,7 +202,147 @@ Spring Boot在启动的时候从类路径下的META-INF/spring.factories中获�
 
 J2EE的整体整合解决方案和自动配置都在spring-boot-autoconfigure-1.5.9.RELEASE.jar；
 
-# 2、配置文件
+
+
+## 7、@ImportResource 注解
+
+原生配置文件引入，导入Spring的配置文件，让配置文件里面的内容生效
+
+Spring Boot里面没有Spring的配置文件，自己编写的配置文件也不能自动识别。
+
+想让Spring的配置文件生效加载进来，需要添加注解@**ImportResource**标注在一个配置类上
+
+~~~xml
+======================beans.xml=========================
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <bean id="haha" class="com.atguigu.boot.bean.User">
+        <property name="name" value="zhangsan"></property>
+        <property name="age" value="18"></property>
+    </bean>
+
+    <bean id="hehe" class="com.atguigu.boot.bean.Pet">
+        <property name="name" value="tomcat"></property>
+    </bean>
+</beans>
+~~~
+
+~~~java
+@ImportResource("classpath:beans.xml")
+public class MyConfig {}
+
+======================测试=================
+        boolean haha = run.containsBean("haha");
+        boolean hehe = run.containsBean("hehe");
+        System.out.println("haha："+haha);//true
+        System.out.println("hehe："+hehe);//true
+~~~
+
+
+
+## 8、@ConfigurationProperties 注解
+
+该注解告诉SpringBoot将本类中的所有属性和配置文件中的相关配置进行绑定。
+
+**属性**：
+
+- prefix：选择配置文件中哪个属性进行一一映射
+
+**注意**：
+
+- 只有这个组件时容器中的组件，才能使用该注解的功能
+
+通过导入配置文件处理器，获得编写配置提示
+
+```xml
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-configuration-processor</artifactId>
+	<optional>true</optional>
+</dependency>
+```
+
+~~~yml
+person:
+    lastName: hello
+~~~
+
+~~~java
+@Component
+@ConfigurationProperties(prefix = "person")
+public class Person {
+    private String lastName;
+}
+~~~
+
+## 9、@PropertySource 注解
+
+加载指定的配置文件
+
+```java
+@PropertySource(value ={"classpath:person.properties"})
+public class Person{}
+```
+
+
+
+## 10、@Conditional 注解
+
+作用：必须是@Conditional指定的条件成立，才给容器中添加组件，配置配里面的所有内容才生效。
+
+| @Conditional扩展注解            | 作用（判断是否满足当前指定条件）                 |
+| ------------------------------- | ------------------------------------------------ |
+| @ConditionalOnJava              | 系统的java版本是否符合要求                       |
+| @ConditionalOnBean              | 容器中存在指定Bean；                             |
+| @ConditionalOnMissingBean       | 容器中不存在指定Bean；                           |
+| @ConditionalOnExpression        | 满足SpEL表达式指定                               |
+| @ConditionalOnClass             | 系统中有指定的类                                 |
+| @ConditionalOnMissingClass      | 系统中没有指定的类                               |
+| @ConditionalOnSingleCandidate   | 容器中只有一个指定的Bean，或者这个Bean是首选Bean |
+| @ConditionalOnProperty          | 系统中指定的属性是否有指定的值                   |
+| @ConditionalOnResource          | 类路径下是否存在指定资源文件                     |
+| @ConditionalOnWebApplication    | 当前是web环境                                    |
+| @ConditionalOnNotWebApplication | 当前不是web环境                                  |
+| @ConditionalOnJndi              | JNDI存在指定项                                   |
+
+**注意：**
+
+- 自动配置类必须在一定的条件下才能生效
+- 可以通过启用  debug=true属性，来让控制台打印自动配置报告，方便的知道哪些自动配置类生效
+
+```java
+=========================
+AUTO-CONFIGURATION REPORT
+=========================
+
+
+Positive matches:（自动配置类启用的）
+-----------------
+
+   DispatcherServletAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.servlet.DispatcherServlet'; @ConditionalOnMissingClass did not find unwanted class (OnClassCondition)
+      - @ConditionalOnWebApplication (required) found StandardServletEnvironment (OnWebApplicationCondition)
+        
+    
+Negative matches:（没有启动，没有匹配成功的自动配置类）
+-----------------
+
+   ActiveMQAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'javax.jms.ConnectionFactory', 'org.apache.activemq.ActiveMQConnectionFactory' (OnClassCondition)
+
+   AopAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'org.aspectj.lang.annotation.Aspect', 'org.aspectj.lang.reflect.Advice' (OnClassCondition)
+```
+
+
+
+# 3、配置文件
 
 ## 1、配置文件
 
@@ -221,9 +363,7 @@ server:
   port: 8081
 ```
 
-### 1、YAML语法
-
-#### 1、基本语法v
+### 1、基本语法
 
 **k：(空格)v**（空格必须有k）
 
@@ -237,25 +377,27 @@ server:
     path: /hello
 ```
 
-#### 2、值的写法
+### 2、值的写法
 
-##### 字面量：普通的值（数字，字符串，布尔）
+##### 1、字面量
 
-k: v：字面直接来写
+普通的值（数字，字符串，布尔），单个的、不可再分的值，date、boolean、string、number、null
 
-字符串默认不用加上单引号或者双引号
+**写法**：k: v：字面直接来写
 
-""：双引号：不会转义字符串里面的特殊字符，特殊字符会作为本身想表示的意思
+**注意**：
 
-​	''：单引号：会转义特殊字符，特殊字符最终只是一个普通的字符串数据
+- 字符串默认不用加上单引号或者双引号
+- ""：双引号，不会转义字符串里面的特殊字符，特殊字符会作为本身想表示的意思
 
-##### 对象、Map（属性和值）（键值对）
+- ​	''：单引号，会转义特殊字符，特殊字符最终只是一个普通的字符串数据
 
-k: v：在下一行来写对象的属性和值的关系，注意缩进
 
-对象还是k: v的方式
+##### 2、对象、Map（属性和值）（键值对）
 
-单行写法：换行，注意缩进
+**写法**：在下一行来写对象的属性和值的关系，注意缩进，对象还是k: v的方式
+
+**单行写法**：换行，注意缩进
 
 ```yaml
 friends:
@@ -263,17 +405,17 @@ friends:
 		age: 20
 ```
 
-行内写法：使用{}包括，键值对用逗号隔开
+**行内写法**：使用{}包括，键值对用逗号隔开
 
 ```yaml
 friends: {lastName: zhangsan,age: 18}
 ```
 
-##### 数组（List、Set）
+##### 3、数组（List、Set）
 
-用 - 值 表示数组中一个元素
+**写法**：用 - 值 表示数组中一个元素
 
-单行写法：换行，注意缩进，注意-后的空格
+**单行写法**：换行，注意缩进，注意-后的空格
 
 ```yaml
 pets:
@@ -282,13 +424,15 @@ pets:
  - pig
 ```
 
-行内写法：使用[]包括，值之间只用逗号隔开
+**行内写法**：使用[]包括，值之间只用逗号隔开
 
 ```yaml
 pets: [cat,dog,pig]
 ```
 
-### 3、配置文件值注入
+## 3、配置文件值注入
+
+可以使用@ConfigurationProperties与@Value注入配置文件的值
 
 准备配置文件
 
@@ -320,45 +464,10 @@ public class Person {
     private Map<String,Object> maps;
     private List<Object> lists;
     private Dog dog;
+}
 ```
 
-##### 1、@ConfigurationProperties注解
-
-该注解告诉SpringBoot将本类中的所有属性和配置文件中的相关配置进行绑定。
-
-属性prefix：选择配置文件中哪个属性进行一一映射
-
-注意：只有这个组件时容器中的组件，才能使用该注解的功能
-
-通过导入配置文件处理器，获得编写配置提示
-
-```xml
-<dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-configuration-processor</artifactId>
-	<optional>true</optional>
-</dependency>
-```
-
-##### 2、@Value与@ConfigurationProperties
-
-|                      | @ConfigurationProperties | @Value     |
-| -------------------- | ------------------------ | ---------- |
-| 功能                 | 批量注入配置文件中的属性 | 一个个指定 |
-| 松散绑定（松散语法） | 支持                     | 不支持     |
-| SpEL                 | 不支持                   | 支持       |
-| JSR303数据校验       | 支持                     | 不支持     |
-| 复杂类型封装         | 支持                     | 不支持     |
-
-无论配置文件时yaml还是properties两个注解都可以获得值
-
-使用场景：
-
-​	只有一个值需要获取，使用@Value
-
-​	需要Bean与配置文件映射，使用@ConfigurationProperties
-
-##### 3、配置文件值注入校验
+## 4、注入校验
 
 ```java
 @Component
@@ -382,50 +491,11 @@ public class Person {
 
 在Bean上添加@Validated注解，在属性上添加需要校验的注解
 
-##### 4、@PropertySource与@ImportResource和@Bean
 
-###### **1、@PropertySource**
 
-加载指定的配置文件
+## 5、配置文件占位符
 
-```java
-@PropertySource(value ={"classpath:person.properties"})
-public class Person{}
-```
-
-###### 2、@ImportResource
-
-导入Spring的配置文件，让配置文件里面的内容生效
-
-Spring Boot里面没有Spring的配置文件，我们自己编写的配置文件也不能自动识别。想让Spring的配置文件生效加载进来，需要添加注解@**ImportResource**标注在一个配置类上
-
-```java
-@ImportResource(locations = {"classpath:beans.xml"})
-```
-
-SpringBoot推荐全注解开发，使用注解给容器添加组件。
-
-1、配置类**@Configuration**------>Spring配置文件
-
-@Configuration表明当前类是一个配置类
-
-2、使用**@Bean**给容器中添加组件
-
-将方法的返回值添加到容器中，容器中这个组件默认的id就是方法名
-
-```java
-@Configuration
-public class MyAppConfig {
-    @Bean
-    public HelloService helloService02(){
-        return new HelloService();
-    }
-}
-```
-
-### 4、配置文件占位符
-
-#### 1、随机数
+### 1、随机数
 
 ```properties
 ${random.value}
@@ -435,7 +505,7 @@ ${random.int(10)}
 ${random.int[1024,65536]}
 ```
 
-#### 2、占位符获取之前配置的值
+### 2、占位符获取之前配置的值
 
 如果没有，可以用：指定默认值
 
@@ -451,15 +521,15 @@ person.dog.name=${person.hello:hello}_dog
 person.dog.age=15
 ```
 
-### 5、Profile
+## 6、Profile
 
-#### 1、多Profile文件
+### 1、多Profile文件
 
 我们在主配置文件编写的时候，文件名可以是   application-{profile}.properties/yml
 
 默认使用application.properties的配置；
 
-#### 2、yml支持多文档块方式
+### 2、yml支持多文档块方式
 
 ```yaml
 server:
@@ -482,7 +552,7 @@ spring:
   profiles: prod  #指定属于哪个环境
 ```
 
-#### 3、激活指定Profile
+### 3、激活指定Profile
 
 **1、在配置文件中指定 ：**spring.profiles.active=dev
 
@@ -492,7 +562,9 @@ spring:
 
 **3、虚拟机参数**：-Dspring.profiles.active=dev
 
-### 6、配置文件加载位置
+
+
+## 7、配置文件加载位置
 
 springboot 启动会扫描以下位置的application.properties或者application.yml文件作为Spring boot的默认配置文件。
 
@@ -508,75 +580,75 @@ springboot 启动会扫描以下位置的application.properties或者application
 - classpath:/
 
 
-优先级由高到底，高优先级的配置会**覆盖**低优先级的配置；
 
-SpringBoot会从这四个位置全部加载主配置文件并**互补配置**；
 
-我们还可以通过spring.config.location来改变默认的配置文件位置
+优先级由高到底，高优先级的配置会覆盖低优先级的配置
 
-**项目打包好以后，我们可以使用命令行参数的形式，启动项目的时候来指定配置文件的新位置。**
+SpringBoot会从这四个位置全部加载主配置文件并互补配置
 
-**指定配置文件和默认加载的这些配置文件共同起作用形成互补配置。**
+我们还可以通过spring.config.location来改变默认的配置文件位置。
+
+**注意**：
+
+项目打包好以后，可以使用命令行参数的形式，启动项目的时候来指定配置文件的新位置。
+
+指定配置文件和默认加载的这些配置文件共同起作用形成互补配置。
 
 java -jar spring-boot-02-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=G:/application.properties
 
-### 7、外部配置加载顺序
 
-**SpringBoot也可以从以下位置加载配置。优先级从高到低。高优先级的配置覆盖低优先级的配置，所有的配置会形成互补配置**
 
-**1.命令行参数**
+## 8、外部配置加载顺序
 
-所有的配置都可以在命令行上进行指定
+SpringBoot也可以从以下位置加载配置。
 
-java -jar spring-boot-02-config-02-0.0.1-SNAPSHOT.jar --server.port=8087  --server.context-path=/abc
+优先级从高到低。
 
-多个配置用空格分开
-
---配置项=值
+高优先级的配置覆盖低优先级的配置，所有的配置会形成互补配置。
 
 
 
-2.来自java:comp/env的JNDI属性
+- **命令行参数**
 
-3.Java系统属性（System.getProperties()）
+  - 所有的配置都可以在命令行上进行指定
 
-4.操作系统环境变量
-
-5.RandomValuePropertySource配置的random.*属性值
+  - java -jar spring-boot-02-config-02-0.0.1-SNAPSHOT.jar --server.port=8087  --server.context-path=/abc
 
 
-
-**由jar包外向jar包内进行寻找；**
-
-**优先加载带profile**
-
-**6.jar包外部的application-{profile}.properties或application.yml(带spring.profile)配置文件**
-
-**7.jar包内部的application-{profile}.properties或application.yml(带spring.profile)配置文件**
+  - 多个配置用空格分开 --配置项=值
 
 
+- **来自java:comp/env的JNDI属性**
 
-**再来加载不带profile**
+- **Java系统属性（System.getProperties()）**
 
-**8.jar包外部的application.properties或application.yml(不带spring.profile)配置文件**
+- **操作系统环境变量**
 
-**9.jar包内部的application.properties或application.yml(不带spring.profile)配置文件**
+- **RandomValuePropertySource配置的random.*属性值**
+
+- **由jar包外向jar包内进行寻找**
+
+- **优先加载带profile**
+
+- **jar包外部的application-{profile}.properties或application.yml(带spring.profile)配置文件**
+
+- **jar包内部的application-{profile}.properties或application.yml(带spring.profile)配置文件**
+
+- **再来加载不带profile**
+- **jar包外部的application.properties或application.yml(不带spring.profile)配置文件**
+- **jar包内部的application.properties或application.yml(不带spring.profile)配置文件**
+
+- **@Configuration注解类上的@PropertySource**
+
+- **通过SpringApplication.setDefaultProperties指定的默认属性**
+
+所有支持的配置加载来源[参考官方文档](https://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/htmlsingle/#boot-features-external-config)。
 
 
 
-10.@Configuration注解类上的@PropertySource
+## 9、自动配置原理
 
-11.通过SpringApplication.setDefaultProperties指定的默认属性
-
-所有支持的配置加载来源；
-
-[参考官方文档](https://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/htmlsingle/#boot-features-external-config)
-
-### 8、自动配置原理
-
-#### 1、**自动配置原理**
-
-1. SpringBoot启动的时候加载主配置类，开启了自动配置功能 通过注解@EnableAutoConfiguration
+1. SpringBoot启动的时候加载主配置类，开启了自动配置功能通过注解@EnableAutoConfiguration
 
    1. @EnableAutoConfiguration 作用：
 
@@ -664,70 +736,16 @@ public class HttpEncodingProperties {
    public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
 ```
 
-##### 总结
+**总结**：
 
-1、**SpringBoot启动会加载大量的自动配置类**
-
-2、**看需要的功能有没有SpringBoot默认写好的自动配置类；**
-
-3、**我们再来看这个自动配置类中到底配置了哪些组件；（只要我们要用的组件有，我们就不需要再来配置了）**
-
-4、**给容器中自动配置类添加组件的时候，会从properties类中获取某些属性。我们就可以在配置文件中指定这些属性的值；**
-
-#### 2、细节
-
-##### 1、@Conditional派生注解
-
-作用：必须是@Conditional指定的条件成立，才给容器中添加组件，配置配里面的所有内容才生效。
-
-| @Conditional扩展注解            | 作用（判断是否满足当前指定条件）                 |
-| ------------------------------- | ------------------------------------------------ |
-| @ConditionalOnJava              | 系统的java版本是否符合要求                       |
-| @ConditionalOnBean              | 容器中存在指定Bean；                             |
-| @ConditionalOnMissingBean       | 容器中不存在指定Bean；                           |
-| @ConditionalOnExpression        | 满足SpEL表达式指定                               |
-| @ConditionalOnClass             | 系统中有指定的类                                 |
-| @ConditionalOnMissingClass      | 系统中没有指定的类                               |
-| @ConditionalOnSingleCandidate   | 容器中只有一个指定的Bean，或者这个Bean是首选Bean |
-| @ConditionalOnProperty          | 系统中指定的属性是否有指定的值                   |
-| @ConditionalOnResource          | 类路径下是否存在指定资源文件                     |
-| @ConditionalOnWebApplication    | 当前是web环境                                    |
-| @ConditionalOnNotWebApplication | 当前不是web环境                                  |
-| @ConditionalOnJndi              | JNDI存在指定项                                   |
-
-**注意：自动配置类必须在一定的条件下才能生效**
-
-**我们可以通过启用  debug=true属性，来让控制台打印自动配置报告，方便的知道哪些自动配置类生效**
-
-```java
-=========================
-AUTO-CONFIGURATION REPORT
-=========================
+1. **SpringBoot启动会加载大量的自动配置类**
+2. **看需要的功能有没有SpringBoot默认写好的自动配置类**
+3. **再来看这个自动配置类中到底配置了哪些组件（只要要用的组件有，就不需要再来配置了）**
+4. **给容器中自动配置类添加组件的时候，会从properties类中获取某些属性。我们就可以在配置文件中指定这些属性的值**
 
 
-Positive matches:（自动配置类启用的）
------------------
 
-   DispatcherServletAutoConfiguration matched:
-      - @ConditionalOnClass found required class 'org.springframework.web.servlet.DispatcherServlet'; @ConditionalOnMissingClass did not find unwanted class (OnClassCondition)
-      - @ConditionalOnWebApplication (required) found StandardServletEnvironment (OnWebApplicationCondition)
-        
-    
-Negative matches:（没有启动，没有匹配成功的自动配置类）
------------------
-
-   ActiveMQAutoConfiguration:
-      Did not match:
-         - @ConditionalOnClass did not find required classes 'javax.jms.ConnectionFactory', 'org.apache.activemq.ActiveMQConnectionFactory' (OnClassCondition)
-
-   AopAutoConfiguration:
-      Did not match:
-         - @ConditionalOnClass did not find required classes 'org.aspectj.lang.annotation.Aspect', 'org.aspectj.lang.reflect.Advice' (OnClassCondition)
-```
-
-# 3、日志
-
-## 1、日志框架
+# 4、日志框架
 
 | 日志门面  （日志的抽象层）                                   | 日志实现层                                           |
 | ------------------------------------------------------------ | ---------------------------------------------------- |
@@ -735,7 +753,7 @@ Negative matches:（没有启动，没有匹配成功的自动配置类）
 
 SpringBoot：底层是Spring，Spring默认时使用JCL，SpringBoot选用SLF4J和logback。
 
-## 2、SLF4J使用
+## 1、SLF4J使用
 
 ### 1、在系统中使用
 
@@ -749,16 +767,18 @@ import org.slf4j.LoggerFactory;
 
 public class HelloWorld {
   public static void main(String[] args) {
-   //需要给getLogger方法传入需要记录的类   
+   // 需要给getLogger方法传入需要记录的类   
     Logger logger = LoggerFactory.getLogger(HelloWorld.class);
     logger.info("Hello World");
   }
 }
 ```
 
-每一个日志的实现框架都有自己的配置文件。使用slf4j以后，**配置文件还是做成日志实现框架自己本身的配置文件。**
+每一个日志的实现框架都有自己的配置文件。
 
-![concrete-bindings](\images\concrete-bindings.png)
+使用slf4j以后，**配置文件还是做成日志实现框架自己本身的配置文件。**
+
+![concrete-bindings](images\concrete-bindings.png)
 
 ### 2、统一日志记录
 
@@ -774,7 +794,7 @@ public class HelloWorld {
 
 3、我们导入slf4j其他的实现
 
-## 3、SpringBoot日志关系
+## 2、SpringBoot日志关系
 
 SpringBoot的日志启动器
 
@@ -785,7 +805,7 @@ SpringBoot的日志启动器
 </dependency>
 ```
 
-底层依赖关系![搜狗截图20180131220946](\images\搜狗截图20180131220946.png)
+底层依赖关系![搜狗截图20180131220946](images\搜狗截图20180131220946.png)
 
 1. SpringBoot底层也是使用slf4j+logback的方式进行日志记录
 2. SpringBoot也把其他的日志都替换成了slf4j
@@ -803,7 +823,7 @@ public abstract class LogFactory {
     static LogFactory logFactory = new SLF4JLogFactory();
 ```
 
-![搜狗截图20180131221411](\images\搜狗截图20180131221411.png)
+![搜狗截图20180131221411](images\搜狗截图20180131221411.png)
 
 SpringBoot排除了Spring的commons-logging框架
 
@@ -823,27 +843,27 @@ SpringBoot排除了Spring的commons-logging框架
 
 SpringBoot能自动适配所有日志，而且底层使用slf4j+logback的方式记录日志，引入其他框架的时候，只需要把这个框架依赖的日志框架排除掉即可。
 
-## 4、日志使用
+## 3、日志使用
 
 ### 1、默认配置
 
 SpringBoot默认帮我们配置好了日志
 
 ```java
-//记录器
+// 记录器
 Logger logger = LoggerFactory.getLogger(getClass());
 @Test
 public void contextLoads() {
-//System.out.println();
-//日志的级别；
-//由低到高   trace<debug<info<warn<error
-//可以调整输出的日志级别；日志就只会在这个级别以以后的高级别生效
-	logger.trace("这是trace日志...");
-	logger.debug("这是debug日志...");
-//SpringBoot默认给我们使用的是info级别的，没有指定级别的就用SpringBoot默认规定的级别；root级别
-	logger.info("这是info日志...");
-	logger.warn("这是warn日志...");
-	logger.error("这是error日志...");
+    // System.out.println();
+    // 日志的级别；
+    // 由低到高   trace<debug<info<warn<error
+    // 可以调整输出的日志级别；日志就只会在这个级别以以后的高级别生效
+    logger.trace("这是trace日志...");
+    logger.debug("这是debug日志...");
+    // SpringBoot默认给我们使用的是info级别的，没有指定级别的就用SpringBoot默认规定的级别；root级别
+    logger.info("这是info日志...");
+    logger.warn("这是warn日志...");
+    logger.error("这是error日志...");
 }
 ```
 
@@ -861,15 +881,15 @@ SpringBoot修改日志的默认配置
 
 ```properties
 logging.level.com.atguigu=trace
-#logging.path=
+# logging.path=
 # 不指定路径在当前项目下生成springboot.log日志
 # 可以指定完整的路径；
-#logging.file=G:/springboot.log
+# logging.file=G:/springboot.log
 
 # 在当前磁盘的根路径下创建spring文件夹和里面的log文件夹；使用 spring.log 作为默认文件
 logging.path=/spring/log
 
-#  在控制台输出的日志的格式
+# 在控制台输出的日志的格式
 logging.pattern.console=%d{yyyy-MM-dd} [%thread] %-5level %logger{50} - %msg%n
 # 指定文件中日志输出的格式
 logging.pattern.file=%d{yyyy-MM-dd} === [%thread] === %-5level === %logger{50} ==== %msg%n
@@ -923,7 +943,7 @@ logback.xml：会直接被日志框架识别
 
  `no applicable action for [springProfile]`
 
-## 5、切换日志框架
+## 4、切换日志框架
 
 可以按照slf4j的日志适配图，进行相关的切换。
 
@@ -945,6 +965,7 @@ slf4j+log4j的方式：
     </exclusion>
   </exclusions>
 </dependency>
+
 添加日志框架slf4j+log4j
 <dependency>
   <groupId>org.slf4j</groupId>
@@ -956,23 +977,24 @@ slf4j+log4j的方式：
 
 ```xml
 <dependency>
-   <groupId>org.springframework.boot</groupId>
-   <artifactId>spring-boot-starter-web</artifactId>
-   排除默认日志框架
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+    排除默认日志框架
     <exclusions>
-      <exclusion>
-        <artifactId>spring-boot-starter-logging</artifactId>                   	                       <groupId>org.springframework.boot</groupId>
-       </exclusion>
-   </exclusions>
- </dependency>
+        <exclusion>
+            <artifactId>spring-boot-starter-logging</artifactId>                   	                       				<groupId>org.springframework.boot</groupId>
+        </exclusion>
+    </exclusions>
+</dependency>
+
 添加log4j
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-log4j2</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-log4j2</artifactId>
 </dependency>
 ```
 
-# 4、WEB开发
+# 5、WEB开发
 
 ## 1、自动配置原理
 
@@ -2451,7 +2473,7 @@ public ConfigurableApplicationContext run(String... args) {
 }
 ```
 
-# 5、数据访问
+# 6、数据访问
 
 ## 1、JDBC
 
@@ -2794,7 +2816,7 @@ spring:
     show-sql: true
 ```
 
-# 6、自动配置原理
+# 7、自动配置原理
 
 SpringBoot所有支持的场景
 https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-starter
@@ -3089,11 +3111,11 @@ ApplicationStartingEvent构造方法中传递了一个**SpringApplication对象*
 
 EventObject类结构。getSource()方法得到的就是SpringApplication对象。
 
-![image-20210830202716948](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\image-20210830202716948.png)
+![image-20210830202716948](images\SpringBoot.assets\image-20210830202716948.png)
 
 所以说**SpringApplicationRunListener**和**ApplicationListener**之间的关系是通过**ApplicationEventMulticaster**广播出去的**SpringApplicationEvent**所联系起来的。
 
-![image-20210830202842436](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\image-20210830202842436.png)
+![image-20210830202842436](images\SpringBoot.assets\image-20210830202842436.png)
 
 
 
@@ -3281,7 +3303,7 @@ public class HelloCommandLineRunner implements CommandLineRunner {
 }
 ```
 
-# 7、自定义Starter
+# 8、自定义Starter
 
 ## 1、前提
 
@@ -3524,7 +3546,25 @@ public class HelloServiceAutoConfiguration {
 }
 ```
 
+# 问题
 
+## 1、@Value/@ConfigurationProperties
+
+|                      | @ConfigurationProperties | @Value     |
+| -------------------- | ------------------------ | ---------- |
+| 功能                 | 批量注入配置文件中的属性 | 一个个指定 |
+| 松散绑定（松散语法） | 支持                     | 不支持     |
+| SpEL                 | 不支持                   | 支持       |
+| JSR303数据校验       | 支持                     | 不支持     |
+| 复杂类型封装         | 支持                     | 不支持     |
+
+无论配置文件时yaml还是properties两个注解都可以获得值
+
+使用场景：
+
+- 只有一个值需要获取，使用@Value
+
+- 需要Bean与配置文件映射，使用@ConfigurationProperties
 
 
 

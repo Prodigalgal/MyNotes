@@ -15,7 +15,7 @@ java SPI就是提供这样的一个机制：为某个接口寻找服务实现的
 在Spring中也有一种类似与Java SPI的加载机制。它在META-INF/spring.factories文件中配置接口的实现类名称，然后在程序中读取这些配置文件并实例化。
  这种自定义的SPI机制是Spring Boot Starter实现的基础。
 
-![image-20210830210658052](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SPI机制.assets\image-20210830210658052.png)
+![image-20210830210658052](images\SPI机制.assets\image-20210830210658052.png)
 
 ## Spring Factories实现原理
 
@@ -135,8 +135,9 @@ org.springframework.boot.diagnostics.LoggingFailureAnalysisReporter
 
 ## 使用场景
 
-我们可能需要实现一些SDK或者Spring Boot Starter给被人使用时，
- 我们就可以使用Factories机制。Factories机制可以让SDK或者Starter的使用只需要很少或者不需要进行配置，只需要在服务中引入我们的jar包即可。
+我们可能需要实现一些SDK或者Spring Boot Starter给被人使用时，我们就可以使用Factories机制。
+
+Factories机制可以让SDK或者Starter的使用只需要很少或者不需要进行配置，只需要在服务中引入我们的jar包即可。
 
 
 

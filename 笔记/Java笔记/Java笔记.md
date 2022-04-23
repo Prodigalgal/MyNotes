@@ -525,7 +525,7 @@ Map<String, Student> studentIdToStudent = students.stream()
     .collect(toMap(Student::getId, Function.identity()));
 Map<String,String> map = list.stream().limit(3).collect(Collectors.toMap(e -> e.substring(0,1), e -> e));
 // 在上面方法的基础上增加了对键发生重复时处理方式的mergeFunction，比如上面的默认的处理方法就是抛出异常
-// 注意是处理键冲突
+// 注意是处理 键 冲突
 public static <T, K, U> Collector<T, ?, Map<K,U>> 
     toMap(Function<? super T, ? extends K> keyMapper
           ,Function<? super T, ? extends U> valueMapper
