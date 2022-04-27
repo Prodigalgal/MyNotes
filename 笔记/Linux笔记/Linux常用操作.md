@@ -96,6 +96,8 @@ PermitRootLogin no -->  PermitRootLogin yes
 
 重启ssh服务
 systemctl restart sshd.service
+chkconfig --add sshd
+chkconfig sshd on
 ```
 
 ## 配置Java环境

@@ -1,40 +1,46 @@
-# Nginx简介
+# 1、Nginx简介
 
 高性能的 HTTP 和反向代理服务器，占有内存少，并发能 力强。
 
 Nginx 可以作为静态页面的 web 服务器，同时还支持 CGI 协议的动态语言。
 
-# 代理
+# 2、Nginx基本用途
 
-## 正向代理
+## 1、代理概念
+
+### 1、正向代理
 
 局域网中的客户端要访问局域网外的Internet，需要通过代理服务器来访问，这种代理服务就称为正向代理。
 
-Nginx 不仅可以做反向代理，实现负载均衡。还能用作正向代理来进行上网等功能。
+Nginx 可以做反向代理、实现负载均衡、还能用作正向代理来进行上网等功能。
 
-需要在客户端配置代理服务器进行指定网站访问
+需要在客户端配置代理服务器进行指定网站访问。
 
 ![image-20220109211300953](images/image-20220109211300953.png) 
 
-## 反向代理
+### 2、反向代理
 
-客户端对反向代理是无感知的，因为客户端不需要任何配置就可以访问，只需要将请求发送到反向代理服务器，由反向代理服务器去选择目标服务器获取数据后，在返回给客户端，此时反向代理服务器和目标服务器对外就是一个服务器，暴露的是代理服务器地址，隐藏了真实服务器 IP 地址。
+客户端对反向代理是无感知的，因为客户端不需要任何配置就可以访问，只需要将请求发送到反向代理服务器，由反向代理服务器去选择目标服务器获取数据后，在返回给客户端。
+
+此时反向代理服务器和目标服务器对外就是一个服务器，暴露的是代理服务器地址，隐藏了真实服务器 IP 地址。
 
 ![image-20220109211359082](images/image-20220109211359082.png) 
 
-# 负载均衡
+## 2、负载均衡
 
 将原先请求集中到单个服务器上的情况改为将请求分发到多个服务器上，将负载分发到不同的服务器，也就是我们所说的负载均衡
 
 ![image-20220109211542076](images/image-20220109211542076.png) 
 
-# 动静分离
+## 3、动静分离
 
 为了加快网站的解析速度，可以把动态页面和静态页面由不同的服务器来解析，加快解析速度。降低原来单个服务器的压力。
 
 ![image-20220109211616914](images/image-20220109211616914.png) 
 
-# 安装Nginx
+# 3、Nginx安装与目录
+
+## 1、安装
 
 一键安装依赖
 
@@ -42,23 +48,52 @@ Nginx 不仅可以做反向代理，实现负载均衡。还能用作正向代�
 yum -y install make zlib zlib-devel gcc-c++ libtool openssl openssl-devel keepalived
 ```
 
-下载Nginx，然后解压缩，进入根目录，执行 `./configure`
+下载Nginx，然后解压缩，进入根目录，执行 `./configure` 
 
-再执行`make && make install`
+再执行`make && make install` 
 
 安装后的默认目录在 `/usr/local/nginx` 
 
-查看开放的端口号`firewall-cmd --list -all`
+查看开放的端口号`firewall-cmd --list -all` 
 
-设置开放的端口号`firewall-cmd --add -service =  http -permanent`
+设置开放的端口号
 
-`firewall-cmd --add -port = 80/tcp --permanent`
+`firewall-cmd --add -service =  http -permanent` 
 
-重启防火墙`firewall-cmd -reload`
+`firewall-cmd --add -port = 80/tcp --permanent` 
 
-# Nginx常用命令
+重启防火墙`firewall-cmd -reload` 
 
-## 启动命令
+## 2、目录结构
+
+主要的文件夹
+
+~~~txt
+sbin：nginx的主程序
+conf：用来存放配置文件相关
+html：用来存放静态文件的默认目录 html、css等
+
+logs 
+uwsgi_temp
+
+client_body_temp 
+fastcgi_temp 
+proxy_temp 
+scgi_temp 
+~~~
+
+其中这几个文件夹在刚安装后是没有的，主要用来存放运行过程中的临时文件
+
+~~~txt
+client_body_temp 
+fastcgi_temp 
+proxy_temp 
+scgi_temp
+~~~
+
+# 4、Nginx常用命令
+
+## 1、启动命令
 
 可以将Nginx命令软连接到 /usr/local/nginx/sbin 目录下的nginx
 
@@ -70,25 +105,25 @@ ln -s /usr/local/nginx/sbin/nginx /usr/bin/nginx
 
 否则需要进入到该目录下执行 `./nginx`
 
-## 关闭命令
+## 2、关闭命令
 
 ```shell
 ./nginx -s stop
 ```
 
-## 重载命令
+## 3、重载命令
 
 ```shell
 ./nginx -s reload
 ```
 
-## 检查配置文件
+## 4、检查配置文件
 
 ```shell
 ./nginx -t
 ```
 
-## 检查运行
+## 5、检查运行
 
 通过检查Nginx程序的监听状态，或者在浏览器中访问此Web服务，默认页面将显示“Welcome to nginx!”
 
@@ -100,35 +135,37 @@ tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      
 
 
 
-# Nginx配置文件
+# 5、Nginx配置文件
 
-## 位置
+## 1、配置文件位置
 
-nginx 安装目录下，其默认的配置文件都放在 /usr/local/nginx 的 conf 目录下，而主配置文件 nginx.conf 也在其中，后续对 nginx 的使用基本上都是对此配置文件进行相应的修改。
+nginx 安装目录下，其默认的配置文件都放在 /usr/local/nginx 的 conf 目录下
+
+主配置文件 nginx.conf 也在其中，后续对 nginx 的使用基本上都是对此配置文件进行相应的修改。
 
 ```text
-worker_processes  1;
+worker_processes  1; 默认为1，表示开启一个业务进程
 
 events {
-    worker_connections  1024;
+    worker_connections  1024; 单个业务进程可接受连接数
 }
 
 http {
-    include       mime.types;
-    default_type  application/octet-stream;
+    include       mime.types; 引入http mime类型
+    default_type  application/octet-stream; 如果mime类型没匹配上，默认使用二进制流的方式传输。
 
-    sendfile        on;
+    sendfile        on; 使用linux的 sendfile(socket, file, len) 高效网络传输，也就是数据0拷贝。
 
     server {
-        listen       80;
-        server_name  localhost;
+        listen       80; 监听端口号
+        server_name  localhost; 主机名
 
-        location / {
-            root   html;
-            index  index.html index.htm;
+        location / { 匹配路径
+            root   html;  文件根目录
+            index  index.html index.htm;  默认页名称
         }
 
-        error_page   500 502 503 504  /50x.html;
+        error_page   500 502 503 504  /50x.html; 报错编码对应页面
         location = /50x.html {
             root   html;
         }
@@ -138,7 +175,7 @@ http {
 }
 ```
 
-## 全局块
+## 2、全局块
 
 从配置文件开始到 events 块之间的内容，主要会设置一些影响 nginx 服务器整体运行的配置指令，主要包括配置运行 Nginx 服务器的用户（组）、允许生成的 worker process 数，进程 PID 存放路径、日志存放路径和类型以及配置文件的引入等。
 
@@ -148,9 +185,11 @@ http {
 worker_processes  1;
 ```
 
-这是 Nginx 服务器并发处理服务的关键配置，worker_processes 值越大，可以支持的并发处理量也越多，但是会受到硬件、软件等设备的制约。
+这是 Nginx 服务器并发处理服务的关键配置，worker_processes 值越大，可以支持的并发处理量也越多
 
-## events块
+受到硬件、软件等设备的制约。
+
+## 3、events块
 
 events 块涉及的指令主要影响 Nginx 服务器与用户的网络连接。
 
@@ -173,13 +212,13 @@ events {
 
 上述例子就表示每个 work process 支持的最大连接数为 1024。
 
-## http块
+## 4、http块
 
 这算是 Nginx 服务器配置中最频繁的部分。
 
 代理、缓存和日志定义等绝大多数功能和第三方模块的配置都在这里。 
 
-需要注意的是：http 块还包括 http 全局块、server 块。
+需要注意的是：http 块还包括 **http全局块**、**server块**。
 
 ```text
 http {
@@ -207,13 +246,13 @@ http {
 }
 ```
 
-### http全局块
+### 1、http全局块
 
 http 全局块配置的指令包括文件引入、MIME-TYPE 定义、日志自定义、连接超时时间、单链接请求数上限等。
 
-### server块
+### 2、server块
 
-这块和虚拟主机有密切关系，虚拟主机从用户角度看，和一台独立的硬件主机是完全一样的，该技术的产生是为了 节省互联网服务器硬件成本。
+server块和虚拟主机有密切关系，虚拟主机从用户角度看，和一台独立的硬件主机是完全一样的，该技术的产生是为了 节省互联网服务器硬件成本。
 
 每个 http 块可以包括多个 server 块，而每个 server 块就相当于一个虚拟主机。
 
@@ -237,7 +276,7 @@ server {
     }
 ```
 
-#### server全局块
+#### 1、server全局块
 
 最常见的配置是本虚拟机主机的监听配置和本虚拟主机的名称或 IP 配置。
 
@@ -246,16 +285,51 @@ listen       80;
 server_name  localhost;
 ```
 
-#### location块
+**servername匹配规则**：
+
+- 匹配分先后顺序，写在前面的匹配上就不会继续往下匹配了。
+
+  - ~~~text
+    
+
+- 可以在同一servername中匹配多个域名。
+
+  - ~~~txt
+    server_name vod.mmban.com www1.mmban.com;
+    ~~~
+
+- 通配符开始匹配。
+
+  - ~~~txt
+    server_name *.mmban.com
+    ~~~
+
+- 通配符结束匹配。
+
+  - ~~~txt
+    server_name vod.*;
+    ~~~
+
+- 正则匹配。
+
+  - ~~~txt
+    server_name ~^[0-9]+\.mmban\.com$;
+    ~~~
+
+
+
+#### 2、location块
 
 一个 server 块可以配置多个 location 块。 
 
-这块的主要作用是基于 Nginx 服务器接收到的请求字符串（例如 server_name/uri-string），对虚拟主机名称（也可以是 IP 别名）之外的字符串（例如 前面的 /uri-string）进行匹配，对特定的请求进行处理。地址定向、数据缓 存和应答控制等功能，还有许多第三方模块的配置也在这里进行。
+这块的主要作用是基于 Nginx 服务器接收到的请求字符串（例如 server_name/uri-string），对虚拟主机名称（也可以是 IP 别名）之外的字符串（例如 前面的 /uri-string）进行匹配。
+
+对特定的请求进行处理，地址定向、数据缓存和应答控制等功能，还有许多第三方模块的配置也在这里进行。
 
 ```text
 location / {
-            root   html;
-            index  index.html index.htm;
+	root   html;
+	index  index.html index.htm;
 }
 ```
 
@@ -275,12 +349,22 @@ location [= | ~ | ~* | ^~] uri {
 2.  ~：用于表示 uri 包含正则表达式，并且区分大小写。
 3.  ~*：用于表示 uri 包含正则表达式，并且不区分大小写。
 4.  ^~：用于不含正则表达式的 uri 前缀，要求 Nginx 服务器找到标识 uri 和请求字符串匹配度最高的 location 后，立即使用此 location 处理请求，而不再使用 location  块中的正则 uri 和请求字符串做匹配。
+4.  /：通用匹配，任何请求都会匹配到。
 
-**ps**：如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识。
+**注意**：如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识。
 
-# Nginx单机配置实例
+**匹配顺序**：
 
-## 配置实例一
+- 多个正则location直接按书写顺序匹配，成功后就不会继续往后面匹配。
+- 普通（非正则）location会一直往下，直到找到匹配度最高的（最大前缀匹配）。
+- 当普通location与正则location同时存在，如果正则匹配成功，则不会再执行普通匹配。
+- 所有类型location存在时，“=”匹配 > “^~”匹配 > 正则匹配 > 普通（最大前缀匹配。
+
+
+
+# 6、Nginx单机配置实例
+
+## 1、配置实例一
 
 实现效果：使用 nginx 反向代理，访问 www.123.com 直接跳转到 127.0.0.1:8080
 
@@ -302,7 +386,7 @@ location [= | ~ | ~* | ^~] uri {
 
 3. 如上配置将会监听80端口，访问域名为 www.123.com ，不加端口号时默认为80端口。
 
-## 配置实例二
+## 2、配置实例二
 
 实现效果：使用 nginx 反向代理，根据访问的路径跳转到不同端口的服务中。
 
@@ -330,7 +414,7 @@ nginx 监听端口为 9001
    }
    ```
 
-## 配置负载均衡
+## 3、配置负载均衡
 
 1. 准备两个Tomcat分别监听不同端口
 
@@ -340,8 +424,9 @@ nginx 监听端口为 9001
    http {
    	upstream myserver {
    		ip_hash;
-   		server {192.168.100.1}:{8081} weight=1;
-   		server {192.168.100.1}:{8082} weight=1;
+   		server {192.168.100.1}:{8081} weight=1 down;
+   		server {192.168.100.1}:{8083} weight=2;
+   		server {192.168.100.1}:{8082} weight=1 backup;
    	}
    	server {
    		location / {
@@ -356,14 +441,26 @@ nginx 监听端口为 9001
 
 1. 轮询
    - 每个请求按时间顺序逐一分配到不同的后端服务器，如果后端服务器 down 掉，能自动剔除。
-2. 权重
+   - 默认情况下使用轮询方式，逐一转发，这种方式适用于无状态请求。
+2. weight 权重
    - 指定轮询几率，weight 和访问比率成正比，用于后端服务器性能不均的情况。
+   - 权重默认值为1，weight越大，负载的权重就越大。 
+   - down：表示当前的server暂时不参与负载 
+   - backup： 其它所有的非backup机器down或者忙的时候，请求backup机器。
 3. ip_hash
    - 每个请求按访问 ip 的 hash 结果分配，这样每个访客固定访问一个后端服务器，可以解决 session 的问题。
 4. fair(第三方)
    - 按后端服务器的响应时间来分配请求，响应时间短的优先分配。
+5. least_conn
+   - 最少连接访问
 
-## 配置动静分离
+6. url_hash
+   - 根据用户访问的url定向转发请求
+
+
+
+
+## 4、配置动静分离
 
 Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理解成只是单纯的把动态页面和静态页面物理分离。严格意义上说应该是动态请求跟静态请求分开，可以理解成使用 Nginx  处理静态页面，Tomcat 处理动态页面。
 
@@ -384,6 +481,13 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
    server {
    	listen 80;
    	server_name 192.168.100.1;
+   	
+       location / {
+       	proxy_pass http://127.0.0.1:8080;
+       	root html;
+       	index index.html index.htm;
+       }
+   	
    	location /www/ {
    		root /data/;
    		index index.html index.htm;
@@ -395,7 +499,7 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
    }
    ```
 
-# Nginx集群配置实例
+# 7、Nginx集群配置实例
 
 ## 1、原理
 
@@ -446,7 +550,7 @@ Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
 
 2、双机**主主**模式：即前端使用两台负载均衡服务器，互为主备，且都处于活动状态，同时各自绑定一个公网虚拟IP，提供负载均衡服务；当其中一台发生故障时，另一台接管发生故障服务器的公网虚拟IP（这时由非故障机器一台负担所有的请求）。这种方案，经济实惠，非常适合于当前架构环境。
 
-## 配置主从集群
+## 4、配置主从集群
 
 需要安装Keepalived
 
@@ -679,7 +783,7 @@ Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
 
 10. ifconfig //查看 IP，此时备节点不会有 VIP（只有当主挂了的时候，VIP 才会飘到备 节点）
 
-## 配置双主模式
+## 5、配置双主模式
 
 ![image-20220110105332995](images/image-20220110105332995.png) 
 
@@ -772,21 +876,33 @@ Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
 
    
 
-# Nginx原理与优化
+# 8、Nginx原理与优化
 
-## 原理
+## 1、基本原理
 
-![image-20220109215913777](images/image-20220109215913777.png) 
+<img src="images/image-20220109215913777.png" alt="image-20220109215913777" style="zoom:80%;" /> 
 
 ![image-20220109215924538](images/image-20220109215924538.png) 
 
-## master-workers 的机制的好处
+## 2、sendfile
+
+<img src="images/image-20220427163820726.png" alt="image-20220427163820726" style="zoom:80%;" />
+
+<img src="images/image-20220427164106217.png" alt="image-20220427164106217" style="zoom:80%;" />
+
+<img src="images/image-20220427164415998.png" alt="image-20220427164415998" style="zoom:80%;" />
+
+
+
+
+
+## 3、master-workers 机制
 
 首先，对于每个 worker 进程来说，独立的进程，不需要加锁，所以省掉了锁带来的开销， 同时在编程以及问题查找时，也会方便很多。
 
 其次，采用独立的进程，可以让进程互相之间不会影响，一个进程退出后，其它进程还在工作，服务不会中断，master 进程则很快启动新的 worker 进程。当然，worker 进程的异常退出，肯定是程序有 bug 了，异常退出，会导致当前 worker 上的所有请求失败，不过不会影响到所有请求，所以降低了风险。
 
-## 需要设置多少个 worker
+## 4、worker 数量
 
 Nginx 同 redis 类似都采用了 io 多路复用机制，每个 worker 都是一个独立的进程，但每个进程里只有一个主线程，通过异步非阻塞的方式来处理请求， 即使是千上万个请求也不在话下。每个 worker 的线程可以把一个 cpu 的性能发挥到极致。所以 worker 数和服务器的 cpu 数相等是最为适宜的。设少了会浪费 cpu，设多了会造成 cpu 频繁切换上下文带来的损耗。
 
@@ -799,7 +915,7 @@ worker_cpu_affinity 0001 0010 0100 1000
 worker_cpu_affinity 0000001 00000010 00000100 00001000
 ```
 
-## 连接数 worker_connection
+## 5、worker_connection 连接数
 
 这个值是表示每个 worker 进程所能建立连接的最大值，所以，一个 nginx 能建立的最大连接数，应该是 
 
@@ -906,6 +1022,8 @@ echo "0 0,12 * * * root python -c 'import random; import time; time.sleep(random
 SLEEPTIME=$(awk 'BEGIN{srand(); print int(rand()*(3600+1))}'); echo "0 0,12 * * * root sleep $SLEEPTIME && certbot renew -q" | sudo tee -a /etc/crontab > /dev/null
 ```
 
+<img src="images/image-20220427171953938.png" alt="image-20220427171953938" style="zoom:80%;" />
+
 ## 2、root与alias
 
 [root]
@@ -913,29 +1031,111 @@ SLEEPTIME=$(awk 'BEGIN{srand(); print int(rand()*(3600+1))}'); echo "0 0,12 * * 
 默认值：root html
 配置段：http、server、location、if
 
-[alias]
-语法：alias path
-配置段：location
-
 ```text
 location ^~ /t/ {
      root /www/root/html/;
 }
 ```
 
-如果一个请求的URI是/t/a.html时，web服务器将会返回服务器上的/www/root/html/t/a.html的文件。
+如果一个请求的URI是 /t/a.html，web服务器将会返回服务器上的/www/root/html/t/a.html的文件。
+
+root指定的目录是location匹配访问的path目录的上一级目录，这个path目录一定要是真实存在root指定目录下。
+
+
+
+[alias]
+语法：alias path
+配置段：location
 
 ```text
 location ^~ /t/ {
- alias /www/root/html/new_t/;
+	alias /www/root/html/new_t/;
 }
 ```
 
-如果一个请求的URI是/t/a.html时，web服务器将会返回服务器上的/www/root/html/new_t/a.html的文件。注意这里是new_t，因为alias会把location后面配置的路径丢弃掉，把当前匹配到的目录指向到指定的目录。
+如果一个请求的URI是 /t/a.html，web服务器将会返回服务器上的/www/root/html/new_t/a.html的文件。
 
-1. 使用alias时，目录名后面一定要加"/"。
+注意这里是new_t，因为alias指定的目录是准确的，即location匹配访问的path目录下的文件直接是在alias目录下查找的，也可以说alias会把location匹配的路径丢弃掉，把当前匹配到的目录指向到指定的目录。
+
+1. 使用alias时，目录名最后面一定要加"/"。
 2. alias在使用正则匹配时，必须捕捉要匹配的内容并在指定的内容处使用。
-3. alias只能位于location块中。（root可以不放在location中）
+3. alias只能位于location块中（root可以不放在location中）。
+
+**注意**：使用alias标签的目录块中不能使用rewrite的break
+
+**注意**：
+
+- alias虚拟目录配置中，location匹配的path目录如果后面不带 /，那么访问的url地址中这个path目录后面加不加 / 不影响访问，访问时它会自动加上 / 。
+
+- 如果location匹配的path目录后面加上 / ，那么访问的url地址中这个path目录必须要加上 / ，访问时它不会自动加上 / ，如果不加上 / ，访问就会失败。
+
+## 3、UrlRewrite
+
+rewrite是实现URL重写的关键指令，根据regex (正则表达式)部分内容，重定向到replacement，结尾是flag标记。
+
+~~~TXT
+关键字 	正则 		替代内容 	flag标记
+rewrite <regex> <replacement> [flag];
+~~~
+
+- 关键字：其中关键字error_log不能改变
+- 正则：perl兼容正则表达式语句进行规则匹配
+- 替代内容：将正则匹配的内容替换成replacement
+- flag标记：rewrite支持的flag标记
+
+rewrite参数的标签段位置：server，location，if
+
+flag标记说明：
+
+~~~TXT
+last # 本条规则匹配完成后，继续向下匹配新的location URI规则
+break # 本条规则匹配完成即终止，不再匹配后面的任何规则
+redirect # 返回302临时重定向，浏览器地址栏会显示跳转后的URL地址
+permanent # 返回301永久重定向，浏览器地址栏会显示跳转后的URL地址
+~~~
+
+~~~txt
+rewrite ^/([0-9]+).html$ /index.jsp?pageNum=$1 break;
+~~~
+
+## 4、防盗链配置
+
+~~~txt
+valid_referers none | blocked | server_names | strings ....;
+~~~
+
+- none：检测 Referer 头域不存在的情况。 
+- blocked：检测 Referer 头域的值被防火墙或者代理服务器删除或伪装的情况，这种情况该头域的值不以 http:// 或 https:// 开头。 
+- server_names：设置一个或多个 URL ，检测 Referer 头域的值是否是这些 URL 中的某一个。
+
+在需要防盗链的location中配置
+
+~~~txt
+valid_referers 192.168.44.101;
+	if ($invalid_referer) {
+	return 403;
+}
+~~~
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

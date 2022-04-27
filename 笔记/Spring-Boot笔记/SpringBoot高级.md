@@ -1391,7 +1391,7 @@ public void hello(){
 
 ```java
 
-//开启基于注解的定时任务
+// 开启基于注解的定时任务
 @EnableScheduling 
 SpringbootApplication{
     ....
@@ -1437,6 +1437,10 @@ public void hello(){
 | C        | 和calendar联系后计算过的值 |
 | #        | 星期，4#2，第二个星期四    |
 
+
+
+
+
 ### 3、邮件任务
 
 #### 1、引入依赖
@@ -1472,18 +1476,18 @@ spring.mail.properties.mail.smtp.ssl.enable=true
 ```java
 @Test
 public void contextLoads() {
-    //创建一封简单邮件
+    // 创建一封简单邮件
     SimpleMailMessage message = new SimpleMailMessage();
-    //邮件设置
-    //邮件标题
+    // 邮件设置
+    // 邮件标题
     message.setSubject("通知-今晚开会");
-    //邮件内容
+    // 邮件内容
     message.setText("今晚7:30开会");
-	//邮件接受者
+	// 邮件接受者
     message.setTo("17512080612@163.com");
-    //邮件来源
+    // 邮件来源
     message.setFrom("534096094@qq.com");
-	//发送邮件
+	// 发送邮件
     mailSender.send(message);
 }
 ```
@@ -1491,22 +1495,22 @@ public void contextLoads() {
 ```java
 @Test
 public void test02() throws  Exception{
-    //1、由mailSender创建一个复杂的消息邮件
+    // 1、由mailSender创建一个复杂的消息邮件
     MimeMessage mimeMessage = mailSender.createMimeMessage();
-    //将mailSender包装为MimeMessageHelper
+    // 将mailSender包装为MimeMessageHelper
     MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
 
-    //由MimeMessageHelper进行邮件设置
+    // 由MimeMessageHelper进行邮件设置
     helper.setSubject("通知-今晚开会");
-    //允许HTLM编码
+    // 允许HTLM编码
     helper.setText("<b style='color:red'>今天 7:30 开会</b>",true);
     helper.setTo("17512080612@163.com");
     helper.setFrom("534096094@qq.com");
 
-    //上传文件
+    // 上传文件
     helper.addAttachment("1.jpg",new File("C:\\Users\\lfy\\Pictures\\Saved Pictures\\1.jpg"));
     helper.addAttachment("2.jpg",new File("C:\\Users\\lfy\\Pictures\\Saved Pictures\\2.jpg"));
-	//发送
+	// 发送
     mailSender.send(mimeMessage);
 
 }

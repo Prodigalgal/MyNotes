@@ -818,8 +818,6 @@ is is not 比较的是对象的**id**是否相等（比较两个对象是否是�
 
 ### 1.2.1、if语句
 
-if语句
-
 ```python
 if 10 < num < 20:
     print('num比10大,num比20小！')
@@ -829,7 +827,7 @@ if True:
     print(123)
 ```
 
-if-else语句
+
 
 ```python
 if age > 17 :
@@ -837,6 +835,20 @@ if age > 17 :
 else :
     print('你还未成年~~')
 ```
+
+
+
+~~~python
+if num >= 0:
+   if num == 0:
+       print("零")
+   else:
+       print("正数")
+else:
+   print("负数")
+~~~
+
+
 
 ### 1.2.2、循环语句
 
@@ -2282,6 +2294,52 @@ pymysql.connect(host,port,user,password,db,charset)
 conn.cursor()
 cursor.execute()
 ~~~
+
+
+
+## 1.9、Pycharm连接Docker
+
+通过一个DockerFile启动一个Docker容器。
+
+启动容器添加端口映射后，修改sshd_config允许root登陆，打开端口号，详情参考Linux笔记里的FireWall部分。
+
+~~~dockerfile
+FROM python:3.7-buster
+
+RUN mkdir /app
+
+COPY ./*.txt ./*.py ./*.sh ./*.onnx /app/
+
+RUN cd /app \
+    && python3 -m pip install --upgrade pip -i https://pypi.douban.com/simple/ \
+    && pip3 install --no-cache-dir -r requirements.txt --extra-index-url https://pypi.douban.com/simple/ \
+    && rm -rf /tmp/* && rm -rf /root/.cache/* \
+    && sed -i 's#http://deb.debian.org#http://mirrors.aliyun.com/#g' /etc/apt/sources.list \
+    && apt-get --allow-releaseinfo-change update && apt install libgl1-mesa-glx -y
+
+RUN touch nohup.out
+RUN apt-get update
+RUN apt-get install vim -y
+RUN apt-get install rpm -y
+RUN apt-get install yum -y
+RUN apt-get install openssh-server -y
+RUN apt-get install openssh-client -y
+RUN apt-get install systemctl -y
+
+	
+WORKDIR /app
+CMD ["bash"]
+~~~
+
+<img src="images/image-20220424230742325.png" alt="image-20220424230742325" style="zoom:50%;" />
+
+然后打开Pycharm，设置、部署、添加一个新的远程服务器
+
+填写登陆账号、密码、端口（映射的端口）
+
+最后在添加一个远程映射等即可
+
+![image-20220424230926938](images/image-20220424230926938.png)
 
 
 
