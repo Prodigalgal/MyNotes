@@ -18,7 +18,7 @@
 | yum -y update              | 升级所有包同时也升级软件和系统内核； |
 | yum -y upgrade：           | 只升级所有包，不升级软件和系统内核   |
 
-![image-20210906173144376](C:\Users\zzp84\Desktop\workspace\images\Linux常用操作.assets\image-20210906173144376.png)
+![image-20210906173144376](images\Linux常用操作.assets\image-20210906173144376.png)
 
 ## tar命令
 
@@ -96,6 +96,7 @@ PermitRootLogin no -->  PermitRootLogin yes
 
 重启ssh服务
 systemctl restart sshd.service
+
 chkconfig --add sshd
 chkconfig sshd on
 ```
@@ -512,8 +513,6 @@ server {
 ```
 
 nohup java -jar /root/work/EatWhatSpecial-0.0.1.jar &
-
-
 
 ```shell
 docker run -itd --name=t -p 8888:8080 -v /data/tomcat/webapps:/usr/local/tomcat/webapps tomcat:9.0

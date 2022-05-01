@@ -100,7 +100,15 @@ yum install docker-ce docker-ce-cli containerd.io
 ## 4、启动docker
 
 ```shell
-systemctl start docker
+systemctl start docker	   # 启动Docker守护进程
+
+systemctl stop docker      # 停止Docker守护进程
+
+systemctl restart docker   # 重启Docker守护进程
+
+systemctl enable docker    #设置Docker开机自启动
+
+systemctl status docker    #查看Docker的运行状态
 ```
 
 ## 测试
@@ -1162,6 +1170,35 @@ docker run -itd -p 5672:5672 \
 rabbitmq:management
 ```
 
+## 6、安装CentOS7
+
+~~~bash
+docker pull centos:7
+~~~
+
+~~~bash
+docker run --name cos -itd --privileged=true -p 9099:22 centos:7 /usr/sbin/init
+~~~
+
+~~~bash
+yum install vim openssh-server openssh-clients -y
+~~~
+
+~~~bash
+ vim /etc/ssh/sshd_config
+ 允许root登陆，允许账号密码登陆
+ 
+ passwd
+ 修改root密码d
+~~~
+
+~~~bash
+systemctl restart sshd.service
+重启sshd
+~~~
+
+
+
 # Docker容器数据卷
 
 ## 1、数据卷
@@ -2069,7 +2106,16 @@ GRANT ALL PRIVILEGES ON *.* TO 'slave'@'%';
 flush privileges;
 ```
 
+## 6、Docker容器无法使用systemctl
 
+rhel系可以尝试，在启动容器时，最后加上/usr/sbin/init
+
+服务操作命令：
+
+- 6的版本：service，对应就是 /usr/sbin/init 1号进程管理
+- 7的版本：systemctl ，对应就是 /usr/lib/systemd/system 1号进程管理
+
+![image-20220502004625935](images/image-20220502004625935.png)
 
 
 

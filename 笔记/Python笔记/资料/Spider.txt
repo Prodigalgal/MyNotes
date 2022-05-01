@@ -1,0 +1,23 @@
+https://search.jd.com/Search?keyword=苹果水果&wq=苹果水果&pvid=8386024336dd445e8dbb21502565b0d4
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&stock=1&ev=exbrand_陇原红^
+
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&stock=1&cid3=13554
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&stock=1&stock=1&cid3=13554&ev=exbrand_陇原红^
+
+
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=1&s=0
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=3&s=60
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=5&s=120
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=7&s=176
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=9&s=236
+https://search.jd.com/search?keyword=苹果水果&qrst=1&wq=苹果水果&page=11&s=296
+
+
+属性keyword=关键词					搜索的关键词
+属性qrst=1						不知道为什么是1，删了也能正常访问
+属性wq=关键词						和搜索关键词同值
+属性ev=品牌^产地^果实直径^品种^包装形式^进出口^特产品类^	商品属性组合
+属性cid3=水果名						商品id
+属性page=1开始递增2					分页
+属性s=0开始递增60						分页
+
