@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="tablesaw-core-0.43.1">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/src/lib/tablesaw-core-0.43.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
