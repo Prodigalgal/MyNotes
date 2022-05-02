@@ -501,30 +501,32 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
 
 # 7、Nginx集群配置实例
 
-## 1、原理
+## 1、集群原理
 
 在Nginx集群中Nginx扮演的角色是：分发器。
 
-  任务：接受请求、分发请求、响应请求。
+任务：接受请求、分发请求、响应请求。
 
-  功能模块：
-    1、ngx_http_upstream_module：基于应用层（七层）分发模块
+功能模块：
 
-    2、ngx_stream_core_module：基于传输层（四层）分发模块（1.9开始提供该功能）
+- ngx_http_upstream_module：基于应用层（七层）分发模块
+
+- ngx_stream_core_module：基于传输层（四层）分发模块（1.9开始提供该功能）
 
 <img src="images/image-20220125105224742.png" alt="image-20220125105224742" style="zoom:50%;" />
 
 Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的。
 
-  虚拟主机：负责接受和响应请求。
+- 虚拟主机：负责接受和响应请求。
 
-  反向代理：带领用户去数据服务器拿数据。
+- 反向代理：带领用户去数据服务器拿数据。
 
-  upstream：告诉nginx去哪个数据服务器拿数据。
+- upstream：告诉nginx去哪个数据服务器拿数据。
 
-## 2、keepalived与heartbeat/corosync
 
-2.1、Heartbeat、Corosync、Keepalived这三个集群组件我们到底选哪个好呢？
+## 2、keepalived/heartbeat/corosync
+
+1、Heartbeat、Corosync、Keepalived这三个集群组件我们到底选哪个好呢？、
 
 首先要说明的是，Heartbeat、Corosync是属于同一类型，Keepalived与Heartbeat、Corosync，根本不是同一类型的。
 
@@ -534,21 +536,27 @@ Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
 
 简单的说就是，Keepalived的目的是模拟路由器的高可用，Heartbeat或Corosync的目的是实现Service的高可用。所以一般Keepalived是实现前端高可用，常用的前端高可用的组合有，就是我们常见的LVS+Keepalived、Nginx+Keepalived、HAproxy+Keepalived。而Heartbeat或Corosync是实现服务的高可用，常见的组合有Heartbeat v3(Corosync)+Pacemaker+NFS+Httpd 实现Web服务器的高可用、Heartbeat v3(Corosync)+Pacemaker+NFS+MySQL 实现MySQL服务器的高可用。
 
-总结一下，Keepalived中实现轻量级的高可用，一般用于前端高可用，且不需要共享存储，一般常用于两个节点的高可用。而Heartbeat(或Corosync)一般用于服务的高可用，且需要共享存储，一般用于多节点的高可用。
+总结：
 
-2.2、那heartbaet与corosync又应该选择哪个好？
+- Keepalived中实现轻量级的高可用，一般用于前端高可用，且不需要共享存储，一般常用于两个节点的高可用。
+- Heartbeat(或Corosync)一般用于服务的高可用，且需要共享存储，一般用于多节点的高可用。
+
+2、那heartbaet与corosync又应该选择哪个好？
 
 一般用corosync，因为corosync的运行机制更优于heartbeat，就连从heartbeat分离出来的pacemaker都说在以后的开发当中更倾向于corosync，所以现在corosync+pacemaker是最佳组合。
 
-## 3、双机高可用方法
+## 3、双机高可用理论
 
 双机高可用一般是通过虚拟IP（飘移IP）方法来实现的，基于Linux/Unix的IP别名技术。
 
 双机高可用方法目前分为两种：
 
-1、双机**主从**模式：即前端使用两台服务器，一台主服务器和一台热备服务器，正常情况下，主服务器绑定一个公网虚拟IP，提供负载均衡服务，热备服务器处于空闲状态。当主服务器发生故障时，热备服务器接管主服务器的公网虚拟IP，提供负载均衡服务。但是热备服务器在主机器不出现故障的时候，永远处于浪费状态，对于服务器不多的网站，该方案不经济实惠。
-
-2、双机**主主**模式：即前端使用两台负载均衡服务器，互为主备，且都处于活动状态，同时各自绑定一个公网虚拟IP，提供负载均衡服务；当其中一台发生故障时，另一台接管发生故障服务器的公网虚拟IP（这时由非故障机器一台负担所有的请求）。这种方案，经济实惠，非常适合于当前架构环境。
+1. 双机**主从**模式：
+   - 即前端使用两台服务器，一台主服务器和一台热备服务器，正常情况下，主服务器绑定一个公网虚拟IP，提供负载均衡服务，热备服务器处于空闲状态。
+   - 当主服务器发生故障时，热备服务器接管主服务器的公网虚拟IP，提供负载均衡服务，但是热备服务器在主机器不出现故障的时候，永远处于浪费状态，对于服务器不多的网站，该方案不经济实惠。
+2. 双机**主主**模式：
+   - 前端使用两台负载均衡服务器，互为主备，且都处于活动状态，同时各自绑定一个公网虚拟IP，提供负载均衡服务。
+   - 当其中一台发生故障时，另一台接管发生故障服务器的公网虚拟IP（这时由非故障机器一台负担所有的请求）这种方案，经济实惠，非常适合于当前架构环境。
 
 ## 4、配置主从集群
 

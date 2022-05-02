@@ -1,8 +1,6 @@
 package Algorithm.SimRank;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 public class SimRank {
@@ -10,12 +8,20 @@ public class SimRank {
         String path = "src/Algorithm/Data/tmdb_movies_data.csv";
         SimRank sr = new SimRank(path);
         sr.sim(4, new String[]{"genres", "keywords"});
-        // 0.03990024899689804
-        // for (int i = 0; i < 9; i++) {
-        //     Double calculate = sr.calculate(sr.items.get(0), sr.items.get(1));
-        //     sr.graph[0][1] = calculate;
-        // }
-        System.out.println(sr.scores_list.get(0)[0][1]);
+        try {
+            FileWriter fw = new FileWriter("src/Algorithm/Data/tmdb_movies_data_result.txt");
+            BufferedWriter bw = new BufferedWriter(fw);
+            double[][] doubles = sr.scores_list.get(0);
+            for (double[] aDouble : doubles) {
+                StringBuilder sb = new StringBuilder();
+                for (double v : aDouble) {
+                    sb.append(v).append(",");
+                }
+                bw.write(sb.toString()+"\n");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public List<double[][]> scores_list = new ArrayList<>();

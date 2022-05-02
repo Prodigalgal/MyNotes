@@ -21,17 +21,17 @@ public class K_means {
         public Point() {
         }
 
-        //计算两个坐标点之间的欧式距离
+        // 计算两个坐标点之间的欧式距离
         public static double distance(Point a, Point b) {
             return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
         }
 
-        //计算两个坐标点之间距离的平方
+        // 计算两个坐标点之间距离的平方
         public static double squaredistance(Point a, Point b) {
             return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
         }
 
-        //计算每个坐标点距离哪个簇最近
+        // 计算每个坐标点距离哪个簇最近
         public static int ClusterDistance(Point p, ArrayList<Cluster> array) {
             int a = 0;
             for (int i = 0; i < array.size(); i++) {
@@ -49,7 +49,7 @@ public class K_means {
         }
     }
 
-    //定义一个类用于表示簇
+    // 定义一个类用于表示簇
     static class Cluster {
         Point center = new Point(); // 簇中心点
         ArrayList<Point> Array = new ArrayList<>();    // 簇中的坐标元素
@@ -82,8 +82,9 @@ public class K_means {
         public static boolean Changing(ArrayList<Cluster> array) {
             boolean ex = false;
             for (Cluster e : array) {
-                if (e.changed == true) {
+                if (e.changed) {
                     ex = true;
+                    break;
                 }
             }
             return ex;

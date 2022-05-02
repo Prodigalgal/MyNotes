@@ -93,8 +93,13 @@ yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++
 
 ## 3、安装docker-ce
 
+~~~bash
+由于RHEL8已从Docker转向PodMan所以需要先
+dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+~~~
+
 ```shell
-yum install docker-ce docker-ce-cli containerd.io
+yum install -y docker-ce docker-ce-cli containerd.io
 ```
 
 ## 4、启动docker
