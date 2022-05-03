@@ -1327,7 +1327,7 @@ ResourceUtils.getURL(ResourceUtils.CLASSPATH_URL_PREFIX).getPath()+"/file/img/1.
 - 使用org.springframework.core.io.ClassPathResource
 
 ~~~java
-ClassPathResource classPathResource = new ClassPathResource("resource.properties");
+ClassPathResource classPathResource = new ClassPathResource("static/resource.properties");
 ~~~
 
 - 使用org.springframework.core.io.ResourceLoader

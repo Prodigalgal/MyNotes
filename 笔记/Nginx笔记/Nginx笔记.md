@@ -526,15 +526,20 @@ Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的�
 
 ## 2、keepalived/heartbeat/corosync
 
-1、Heartbeat、Corosync、Keepalived这三个集群组件我们到底选哪个好呢？、
+1、Heartbeat、Corosync、Keepalived这三个集群组件到底选哪个好呢？、
 
-首先要说明的是，Heartbeat、Corosync是属于同一类型，Keepalived与Heartbeat、Corosync，根本不是同一类型的。
+首先要说明的是，Heartbeat、Corosync是属于同一类型，Keepalived与Heartbeat、Corosync不是同一类型的。
 
-Keepalived使用的**vrrp**协议方式，虚拟路由冗余协议 (Virtual Router Redundancy Protocol，简称VRRP)。
+- Keepalived使用的**vrrp**协议方式，虚拟路由冗余协议 (Virtual Router Redundancy Protocol，简称VRRP)。
 
-Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
+- Heartbeat或Corosync是**基于主机或网络服务**的高可用方式。
 
-简单的说就是，Keepalived的目的是模拟路由器的高可用，Heartbeat或Corosync的目的是实现Service的高可用。所以一般Keepalived是实现前端高可用，常用的前端高可用的组合有，就是我们常见的LVS+Keepalived、Nginx+Keepalived、HAproxy+Keepalived。而Heartbeat或Corosync是实现服务的高可用，常见的组合有Heartbeat v3(Corosync)+Pacemaker+NFS+Httpd 实现Web服务器的高可用、Heartbeat v3(Corosync)+Pacemaker+NFS+MySQL 实现MySQL服务器的高可用。
+
+简单的说就是，Keepalived的目的是模拟路由器的高可用，Heartbeat或Corosync的目的是实现Service的高可用。
+
+所以一般Keepalived是实现前端高可用，常用的前端高可用的组合有，就是我们常见的LVS+Keepalived、Nginx+Keepalived、HAproxy+Keepalived。
+
+而Heartbeat或Corosync是实现服务的高可用，常见的组合有Heartbeat v3(Corosync)+Pacemaker+NFS+Httpd 实现Web服务器的高可用、Heartbeat v3(Corosync)+Pacemaker+NFS+MySQL 实现MySQL服务器的高可用。
 
 总结：
 
