@@ -1177,6 +1177,8 @@ rabbitmq:management
 
 ## 6、安装CentOS7
 
+同样适用于OracleLinux7/8
+
 ~~~bash
 docker pull centos:7
 ~~~
@@ -1202,7 +1204,7 @@ systemctl restart sshd.service
 重启sshd
 ~~~
 
-
+**建议**：主机仅打开需要映射到22端口的端口
 
 # Docker容器数据卷
 
