@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <title>K_means</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id='target' ></div>
+        <script>
+        var target_target = document.getElementById('target');
+        var layout = {
+    title: 'K_means',
+    height: 600,
+    width: 800,
+    xaxis: {
+    title: 'X',
+    },
+
+    yaxis: {
+    title: 'Y',
+    },
+
+};
+
+var trace0 =
+{
+x: ["0.697","0.403","0.245","0.593","0.748","0.751","0.774","0.481","0.343","0.719","0.714","0.532","0.634","0.437","0.639","0.359","0.483","0.473","0.608","0.666","0.657","0.339","0.478","0.725","0.556","0.243","0.36","0.282","0.525","0.446"],
+y: ["0.46","0.237","0.057","0.042","0.232","0.489","0.376","0.149","0.099","0.103","0.346","0.472","0.264","0.211","0.161","0.188","0.312","0.376","0.318","0.091","0.198","0.241","0.437","0.445","0.215","0.267","0.37","0.257","0.369","0.459"],
+mode: 'markers',
+xaxis: 'x',
+yaxis: 'y',
+type: 'scatter',
+name: '',
+};
+
+        var data = [ trace0];
+Plotly.newPlot(target_target, data, layout);            </script>
+
+</body>
+</html>

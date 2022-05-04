@@ -1,7 +1,5 @@
 package Question;
 
-import edu.princeton.cs.algs4.Stopwatch;
-
 import java.util.Arrays;
 import java.util.Random;
 
