@@ -606,8 +606,6 @@ SpringBoot也可以从以下位置加载配置。
 
 高优先级的配置覆盖低优先级的配置，所有的配置会形成互补配置。
 
-
-
 - **命令行参数**
 
   - 所有的配置都可以在命令行上进行指定
@@ -648,15 +646,15 @@ SpringBoot也可以从以下位置加载配置。
 
 ## 9、自动配置原理
 
-1. SpringBoot启动的时候加载主配置类，开启了自动配置功能通过注解@EnableAutoConfiguration
+1. SpringBoot启动的时候加载主配置类，通过注解@EnableAutoConfiguration开启了自动配置功能
 
    1. @EnableAutoConfiguration 作用：
 
-      - 利用EnableAutoConfigurationImportSelector给容器中导入一些组件
+      - 利用**EnableAutoConfigurationImportSelector**给容器中导入一些组件
 
       - 可以查看selectImports()方法的内容
 
-      - List<String> configurations = getCandidateConfigurations(annotationMetadata,      attributes);获取候选的配置
+      - List<String> configurations = getCandidateConfigurations(annotationMetadata,  attributes);获取候选的配置
 
       - ```
         SpringFactoriesLoader.loadFactoryNames()
@@ -665,7 +663,7 @@ SpringBoot也可以从以下位置加载配置。
         从properties中获取到EnableAutoConfiguration.class类（类名）对应的值，然后把他们添加在容器中
         ```
 
-      - 将 类路径下  META-INF/spring.factories 里面配置的所有EnableAutoConfiguration的值加入到了容器中。
+      - 将类路径下 META-INF/spring.factories 里面配置的所有EnableAutoConfiguration的值加入到了容器中。
 
       - ```
         # Auto Configure 例子
@@ -675,42 +673,45 @@ SpringBoot也可以从以下位置加载配置。
         org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,\
         ```
 
-      - 每一个这样的  xxxAutoConfiguration类都是容器中的一个组件，都加入到容器中；用他们来做自动配置。
+      - 每一个这样的  xxxAutoConfiguration类都是容器中的一个组件，都加入到容器中，用他们来做自动配置。
 
 2. 每一个自动配置类进行自动配置
 
 3. 以**HttpEncodingAutoConfiguration（Http编码自动配置）**为例解释自动配置原理。
 
    ```java
-   //表示这是一个配置类，以前编写的配置文件一样，也可以给容器中添加组件
+   // 表示这是一个配置类，以前编写的配置文件一样，也可以给容器中添加组件
    @Configuration  
    
-   //启动指定类的ConfigurationProperties功能；将配置文件中对应的值和HttpEncodingProperties绑定起来；并把HttpEncodingProperties加入到ioc容器中
+   // 启动指定类的ConfigurationProperties功能
+   // 将配置文件中对应的值和HttpEncodingProperties绑定起来
+   // 并把HttpEncodingProperties加入到ioc容器中
    @EnableConfigurationProperties(HttpEncodingProperties.class)  
    
-   //Spring底层@Conditional注解，根据不同的条件，如果满足指定的条件，整个配置类里面的配置就会生效。判断当前应用是否是web应用，如果是，当前配置类生效。
+   // Spring底层@Conditional注解，根据不同的条件，如果满足指定的条件，整个配置类里面的配置就会生效。
+   // 判断当前应用是否是web应用，如果是，当前配置类生效。
    @ConditionalOnWebApplication 
    
-   //判断当前项目有没有这个类CharacterEncodingFilter；SpringMVC中进行乱码解决的过滤器；
+   // 判断当前项目有没有这个类CharacterEncodingFilter，SpringMVC中进行乱码解决的过滤器
    @ConditionalOnClass(CharacterEncodingFilter.class)  
    
-   //判断配置文件中是否存在某个配置  spring.http.encoding.enabled；如果不存在，判断也是成立的
-   //即使我们配置文件中不配置pring.http.encoding.enabled=true，也是默认生效的；
+   // 判断配置文件中是否存在某个配置 spring.http.encoding.enabled，如果不存在，判断也是成立的
+   // 即使我们配置文件中不配置pring.http.encoding.enabled=true，也是默认生效的
    @ConditionalOnProperty(prefix = "spring.http.encoding", value = "enabled", matchIfMissing = true)  
    
    public class HttpEncodingAutoConfiguration {
      
-     	//他已经和SpringBoot的配置文件映射了
+     	// 他已经和SpringBoot的配置文件映射了
      	private final HttpEncodingProperties properties;
      
-      //只有一个有参构造器的情况下，参数的值就会从容器中拿
+      // 只有一个有参构造器的情况下，参数的值就会从容器中拿
      	public HttpEncodingAutoConfiguration(HttpEncodingProperties properties) {
    		this.properties = properties;
    	}
      
-       //给容器中添加一个组件，这个组件的某些值需要从properties中获取
+       // 给容器中添加一个组件，这个组件的某些值需要从properties中获取
        @Bean   
-   	//判断容器没有这个组件？ 
+   	// 判断容器没有这个组件？ 
        @ConditionalOnMissingBean(CharacterEncodingFilter.class) 
    	public CharacterEncodingFilter characterEncodingFilter() {
    		CharacterEncodingFilter filter = new OrderedCharacterEncodingFilter();
@@ -723,14 +724,12 @@ SpringBoot也可以从以下位置加载配置。
 
    根据当前不同的条件判断，决定这个配置类是否生效。
 
-   一但这个配置类生效；这个配置类就会给容器中添加各种组件；这些组件的属性是从对应的properties类中获取的，这些类里面的每一个属性又是和配置文件绑定的。
+   一但这个配置类生效，这个配置类就会给容器中添加各种组件，这些组件的属性是从对应的properties类中获取的，这些类里面的每一个属性又是和配置文件绑定的。
 
-   
-
-4. 所有在配置文件中能配置的属性都是在xxxxProperties类中封装。配置文件能配置什么就可以参照某个功能对应的这个属性类。
+4. 所有在配置文件中能配置的属性都是在xxxxProperties类中封装，配置文件能配置什么就可以参照某个功能对应的这个属性类。
 
 ```java
-//从配置文件中获取指定的值和bean的属性进行绑定
+// 从配置文件中获取指定的值和bean的属性进行绑定
 @ConfigurationProperties(prefix = "spring.http.encoding")  
 public class HttpEncodingProperties {
    public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
@@ -741,9 +740,14 @@ public class HttpEncodingProperties {
 1. **SpringBoot启动会加载大量的自动配置类**
 2. **看需要的功能有没有SpringBoot默认写好的自动配置类**
 3. **再来看这个自动配置类中到底配置了哪些组件（只要要用的组件有，就不需要再来配置了）**
-4. **给容器中自动配置类添加组件的时候，会从properties类中获取某些属性。我们就可以在配置文件中指定这些属性的值**
+4. **给容器中自动配置类添加组件的时候，会从properties类中获取某些属性，我们就可以在配置文件中指定这些属性的值**
 
+## 10、修改默认配置
 
+1. SpringBoot在自动配置很多组件的时候，先看容器中有没有用户自己配置的（@Bean、@Component）如果有就用用户配置的，如果没有，才自动配置，如果有些组件可以有多个（ViewResolver）将用户配置的和自己默认的组合起来。
+2. 在SpringBoot中会有非常多的xxxConfigurer帮助我们进行扩展配置。
+
+3. 在SpringBoot中会有很多的xxxCustomizer帮助我们进行定制配置。
 
 # 4、日志框架
 
@@ -996,131 +1000,372 @@ slf4j+log4j的方式：
 
 # 5、WEB开发
 
-## 1、自动配置原理
+## 1、MVC自动配置
 
-```text
-xxxxAutoConfiguration：帮我们给容器中自动配置组件
-xxxxProperties：配置类来封装配置文件的内容
+### 1、MVCAutoConfiguration
+
+以下是SpringBoot对SpringMVC的默认配置
+
+- 引入 **ContentNegotiatingViewResolver** 和 **BeanNameViewResolver** bean。
+
+  - 自动配置了ViewResolver（视图解析器：根据方法的返回值得到视图对象（View），视图对象决定如何渲染（转发、重定向））
+  - ContentNegotiatingViewResolver：组合所有的视图解析器的。
+  - 如何定制：我们可以自己给容器中添加一个视图解析器，自动的将其组合进来。
+
+- 支持服务静态资源，包括对 WebJars 的支持。
+
+- 自动注册 **Converter**、**GenericConverter** 和 **Formatter** bean。
+
+  - Converter：转换器。public String hello(User user)：类型转换使用Converter。
+
+    - 自己添加的格式化器转换器，我们只需要放在容器中即可
+
+  - Formatter：格式化器。  2017.12.17===Date。
+
+  - ```java
+    @Bean
+    // 在文件中配置日期格式化的规则
+    @ConditionalOnProperty(prefix = "spring.mvc", name = "date-format")
+    public Formatter<Date> dateFormatter() {
+    	// 日期格式化组件
+        return new DateFormatter(this.mvcProperties.getDateFormat());
+    }
+    ```
+
+- 支持 **HttpMessageConverter**。
+
+  - HttpMessageConverter：SpringMVC用来转换Http请求和响应的。User---Json。
+  - HttpMessageConverters 是从容器中确定，获取所有的HttpMessageConverter。
+  - 自己给容器中添加HttpMessageConverter，只需要将自己的组件注册容器中（@Bean，@Component）
+
+- 自动注册 **MessageCodesResolver**。定义错误代码生成规则
+
+- 支持静态 index.html。
+
+- 支持自定义 Favicon 。
+
+- 自动使用 **ConfigurableWebBindingInitializer** bean。
+
+  - 我们可以配置一个ConfigurableWebBindingInitializer来替换默认的（添加到容器）
+
+  - ```text
+    初始化WebDataBinder；
+    请求数据=====JavaBean；
+    ```
+
+**org.springframework.boot.autoconfigure.web：web的所有自动场景**
+
+~~~java
+// 有参构造器所有参数的值都会从容器中确定
+// ResourceProperties resourceProperties 	获取和spring.resources绑定的所有的值的对象
+// WebMvcProperties mvcProperties 			获取和spring.mvc绑定的所有的值的对象
+// ListableBeanFactory beanFactory 			Spring的beanFactory
+// HttpMessageConverters 					找到所有的HttpMessageConverters
+// ResourceHandlerRegistrationCustomizer 	找到资源处理器的自定义器。
+// DispatcherServletPath					应用访问路径
+// ServletRegistrationBean					给应用注册Servlet、Filter....
+public WebMvcAutoConfigurationAdapter(ResourceProperties resourceProperties, 
+                                      WebMvcProperties mvcProperties,
+                                      ListableBeanFactory beanFactory, 
+                                      ObjectProvider<HttpMessageConverters> messageConvertersProvider,
+                                      ObjectProvider<ResourceHandlerRegistrationCustomizer>
+                                      resourceHandlerRegistrationCustomizerProvider,
+                                      ObjectProvider<DispatcherServletPath> dispatcherServletPath,
+                                      ObjectProvider<ServletRegistrationBean<?>> servletRegistrations) {
+    this.resourceProperties = resourceProperties;
+    this.mvcProperties = mvcProperties;
+    this.beanFactory = beanFactory;
+    this.messageConvertersProvider = messageConvertersProvider;
+    this.resourceHandlerRegistrationCustomizer =resourceHandlerRegistrationCustomizerProvider
+        										.getIfAvailable();
+    this.dispatcherServletPath = dispatcherServletPath;
+    this.servletRegistrations = servletRegistrations;
+}
+~~~
+
+### 2、扩展SpringMVC
+
+```xml
+<mvc:view-controller path="/hello" view-name="success"/>
+<mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/hello"/>
+            <bean></bean>
+    	</mvc:interceptor>
+ </mvc:interceptors>
 ```
 
-## 2、静态资源的映射规则
+**1、编写一个配置类（@Configuration），继承WebMvcConfigurerAdapter类，且不能标注@EnableWebMVC**
+
+这样既保留了所有自动配置，也能用我们扩展的配置
 
 ```java
-@ConfigurationProperties(prefix = "spring.resources", ignoreUnknownFields = false)
-public class ResourceProperties implements ResourceLoaderAware {...}
-// 可以设置和静态资源有关的参数，缓存时间等
+// 使用WebMvcConfigurerAdapter可以来扩展SpringMVC的功能
+@Configuration
+public class MyMvcConfig extends WebMvcConfigurerAdapter {
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+       	// super.addViewControllers(registry);
+        // 浏览器发送 /atguigu 请求来到 success
+        registry.addViewController("/atguigu").setViewName("success");
+    }
+}
+// 继承WebMvcConfigurerAdapter的类中重载addViewControllers，编写无逻辑页面跳转。
 ```
 
-在WebMvcAuotConfiguration中使用addResourceHandlers方法设置静态资源的映射规则
+**注意**：在5.0之后**WebMvcConfigurer**接口具有默认实现，所以直接实现接口接口也可以，不需要WebMvcConfigurerAdapter
 
-### 1、/webjars/** 
+**原理**：
 
-都去 classpath:/META-INF/resources/webjars/ 找资源，webjars：以jar包的方式引入静态资源	
+1、WebMvcAutoConfiguration是SpringMVC的自动配置类
+
+2、在做其他自动配置时会导入，@Import(**EnableWebMvcConfiguration**.class)
+
+```java
+@Configuration
+public static class EnableWebMvcConfiguration extends DelegatingWebMvcConfiguration {
+	private final WebMvcConfigurerComposite configurers = new WebMvcConfigurerComposite();
+
+	//从容器中获取所有的WebMvcConfigurer
+    @Autowired(required = false)
+    public void setConfigurers(List<WebMvcConfigurer> configurers) {
+    	if (!CollectionUtils.isEmpty(configurers)) {
+         	this.configurers.addWebMvcConfigurers(configurers);
+            //一个参考实现；将所有的WebMvcConfigurer相关配置都来一起调用；  
+            @Override
+            // public void addViewControllers(ViewControllerRegistry registry) {
+            //    for (WebMvcConfigurer delegate : this.delegates) {
+            //       delegate.addViewControllers(registry);
+            //   }
+         }
+    }
+}
+```
+
+3、容器中所有的WebMvcConfigurer都会一起起作用
+
+4、我们的配置类也会被调用
+
+效果：SpringMVC的自动配置和我们的扩展配置都会起作用
+
+### 3、全面接管SpringMVC
+
+我们需要在配置类中添加@EnableWebMvc即可，但是SpringBoot对SpringMVC的自动配置都失效了，所有都是自己配置。
+
+```java
+//使用WebMvcConfigurerAdapter可以来扩展SpringMVC的功能
+@EnableWebMvc
+@Configuration
+public class MyMvcConfig extends WebMvcConfigurerAdapter {
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+       // super.addViewControllers(registry);
+        //浏览器发送 /atguigu 请求来到 success
+        registry.addViewController("/atguigu").setViewName("success");
+    }
+}
+```
+
+**原理**：
+
+1、@EnableWebMvc的核心
+
+```java
+@Import(DelegatingWebMvcConfiguration.class)
+public @interface EnableWebMvc {
+```
+
+2、@EnableWebMvc将WebMvcConfigurationSupport组件导入进来
+
+```java
+@Configuration
+public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
+```
+
+3、导入的WebMvcConfigurationSupport只是SpringMVC最基本的功能
+
+```java
+@Configuration
+@ConditionalOnWebApplication
+@ConditionalOnClass({ Servlet.class, DispatcherServlet.class,
+		WebMvcConfigurerAdapter.class })
+//容器中没有这个组件的时候，这个自动配置类才生效
+@ConditionalOnMissingBean(WebMvcConfigurationSupport.class)
+@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
+@AutoConfigureAfter({ DispatcherServletAutoConfiguration.class,
+		ValidationAutoConfiguration.class })
+public class WebMvcAutoConfiguration {
+```
+
+## 2、静态资源映射
+
+### 1、基本规则
+
+只要静态资源放在类路径下：/static、/public、/resources、/META-INF/resources，就能够使用 [当前项目根路径/ + 静态资源名] 访问
+
+**原理**：请求进来，先去找Controller看能不能处理，不能处理的请求都交给静态资源处理器，静态资源也找不到则响应404页面
+
+~~~yml
+spring:
+  # 访问静态资源的路径
+  # 当前项目 + static-path-pattern + 静态资源名 = 静态资源文件夹下找
+  # 此项自定义设置会导致自动配置的欢迎页面功能失效
+  mvc:
+    static-path-pattern: /res/**
+  
+  web:
+  # 修改默认静态资源映射
+  # 加载静态资源的路径
+    resources:
+      static-locations: classpath:/haha
+  # 添加请求转换过滤器，默认false，也可以通过注入Bean来开启
+     hidden-method:
+      filter:
+        enabled: true
+~~~
+
+~~~java
+// spring.web.resources.static-locations默认配置
+private static final String[] CLASSPATH_RESOURCE_LOCATIONS = { "classpath:/META-INF/resources/",
+                                                              "classpath:/resources/", 
+                                                              "classpath:/static/", 
+                                                              "classpath:/public/" };
+// spring.mvc.static-path-pattern默认配置
+private String staticPathPattern = "/**";
+
+// 注入请求转换过滤器
+@Bean
+@ConditionalOnMissingBean(HiddenHttpMethodFilter.class)
+@ConditionalOnProperty(prefix = "spring.mvc.hiddenmethod.filter", name = "enabled", matchIfMissing = false)
+public OrderedHiddenHttpMethodFilter hiddenHttpMethodFilter() {
+    return new OrderedHiddenHttpMethodFilter();
+}
+// 自定义请求转换过滤器
+@Bean
+public HiddenHttpMethodFilter hiddenHttpMethodFilter(){
+    HiddenHttpMethodFilter methodFilter = new HiddenHttpMethodFilter();
+    methodFilter.setMethodParam("_m"); // 自定义_method
+    return methodFilter;
+}
+~~~
+
+<img src="images/image-20220507154726492.png" alt="image-20220507154726492" style="zoom:50%;" />
+
+```java
+// 可以设置和静态资源有关的参数，缓存时间等
+@ConfigurationProperties(prefix = "spring.resources", ignoreUnknownFields = false)
+public class ResourceProperties implements ResourceLoaderAware {...}
+```
+
+**注意**：在WebMvcAuotConfiguration中使用addResourceHandlers方法设置静态资源的映射规则
+
+### 2、自动映射
+
+#### 1、/webjars/** 
+
+去 classpath:/META-INF/resources/webjars/ 找资源
+
+webjars：以jar包的方式引入静态资源
 
 ![搜狗截图20180203164743](images\搜狗截图20180203164743.png)
 
-
-
 ```java
-		@Override
-		public void addResourceHandlers(ResourceHandlerRegistry registry) {
-			if (!this.resourceProperties.isAddMappings()) {
-				logger.debug("Default resource handling disabled");a
-				return;
-			}
-			Integer cachePeriod = this.resourceProperties.getCachePeriod();
-			if (!registry.hasMappingForPattern("/webjars/**")) {// 第一个规则/webjars/**
-				customizeResourceHandlerRegistration(
-						registry.addResourceHandler("/webjars/**")
-								.addResourceLocations(
-										"classpath:/META-INF/resources/webjars/")
-						.setCachePeriod(cachePeriod));
-			}
-			String staticPathPattern = this.mvcProperties.getStaticPathPattern();
-          	// 静态资源文件夹映射
-			if (!registry.hasMappingForPattern(staticPathPattern)) {
-				customizeResourceHandlerRegistration(
-						registry.addResourceHandler(staticPathPattern)// 第二个规则staticPathPattern映射/**
-								.addResourceLocations(
-										this.resourceProperties.getStaticLocations())// 第三个规则/**等
-						.setCachePeriod(cachePeriod));
-			}
-		}
+@Override
+public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    if (!this.resourceProperties.isAddMappings()) {
+        logger.debug("Default resource handling disabled");a
+            return;
+    }
+    Integer cachePeriod = this.resourceProperties.getCachePeriod();
+    if (!registry.hasMappingForPattern("/webjars/**")) {// 第一个规则/webjars/**
+        customizeResourceHandlerRegistration(
+            registry.addResourceHandler("/webjars/**")
+            .addResourceLocations(
+                "classpath:/META-INF/resources/webjars/")
+            .setCachePeriod(cachePeriod));
+    }
+    String staticPathPattern = this.mvcProperties.getStaticPathPattern();
+    // 静态资源文件夹映射
+    if (!registry.hasMappingForPattern(staticPathPattern)) {
+        customizeResourceHandlerRegistration(
+            registry.addResourceHandler(staticPathPattern)// 第二个规则staticPathPattern映射/**
+            .addResourceLocations(
+                this.resourceProperties.getStaticLocations())// 第三个规则/**等
+            .setCachePeriod(cachePeriod));
+    }
+}
 ```
 
 ```xml
-<!--引入jquery-webjar-->在访问的时候只需要写webjars下面资源的名称即可
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>jquery</artifactId>
-			<version>3.3.1</version>
-		</dependency>
+<!--引入jquery-webjar-->
+<dependency>
+    <groupId>org.webjars</groupId>
+    <artifactId>jquery</artifactId>
+    <version>3.3.1</version>
+</dependency>
+在访问的时候只需要写webjars下面资源的名称即可
+访问地址：http://localhost:8080/webjars/jquery/3.3.1/jquery.js 后面地址要按照依赖里面的包路径
 ```
 
-### 2、"/**"
+#### 2、welcomePage
 
-访问当前项目的任何资源，都去（静态资源的文件夹）找映射
-
-```text
-"classpath:/META-INF/resources/", 
-"classpath:/resources/",
-"classpath:/static/", 
-"classpath:/public/" 
-"/"：当前项目的根路径
-```
-
-### 3、欢迎页
-
-静态资源文件夹下的所有index.html页面，被"/**"映射
+静态资源文件夹下的所有index.html页面，被默认的spring.mvc.static-path-pattern = "/**"映射
 
 ```java
-		//配置欢迎页映射
-		@Bean
-		public WelcomePageHandlerMapping welcomePageHandlerMapping(
-				ResourceProperties resourceProperties) {
-			return new WelcomePageHandlerMapping(resourceProperties.getWelcomePage(),
-					this.mvcProperties.getStaticPathPattern());
-		}
+// 配置欢迎页映射
+@Bean
+public WelcomePageHandlerMapping welcomePageHandlerMapping(ResourceProperties resourceProperties) {
+    return new WelcomePageHandlerMapping(resourceProperties.getWelcomePage(),
+                                         this.mvcProperties.getStaticPathPattern());
+}
 ```
 
-### 4、**/favicon.ico
+#### 3、**/favicon.ico
 
-都是在静态资源文件下找
+favicon.ico 放在静态资源目录下即可，也就都是在静态资源文件下找
 
 ```java
-       //配置喜欢的图标
-		@Configuration
-		@ConditionalOnProperty(value = "spring.mvc.favicon.enabled", matchIfMissing = true)
-		public static class FaviconConfiguration {
+// 配置喜欢的图标
+@Configuration
+@ConditionalOnProperty(value = "spring.mvc.favicon.enabled", matchIfMissing = true)
+public static class FaviconConfiguration {
 
-			private final ResourceProperties resourceProperties;
+    private final ResourceProperties resourceProperties;
 
-			public FaviconConfiguration(ResourceProperties resourceProperties) {
-				this.resourceProperties = resourceProperties;
-			}
+    public FaviconConfiguration(ResourceProperties resourceProperties) {
+        this.resourceProperties = resourceProperties;
+    }
 
-			@Bean
-			public SimpleUrlHandlerMapping faviconHandlerMapping() {
-				SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
-				mapping.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
-              	//所有  **/favicon.ico 
-				mapping.setUrlMap(Collections.singletonMap("**/favicon.ico",
-						faviconRequestHandler()));
-				return mapping;
-			}
+    @Bean
+    public SimpleUrlHandlerMapping faviconHandlerMapping() {
+        SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
+        mapping.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        //所有  **/favicon.ico 
+        mapping.setUrlMap(Collections.singletonMap("**/favicon.ico",
+                                                   faviconRequestHandler()));
+        return mapping;
+    }
 
-			@Bean
-			public ResourceHttpRequestHandler faviconRequestHandler() {
-				ResourceHttpRequestHandler requestHandler = new ResourceHttpRequestHandler();
-				requestHandler
-						.setLocations(this.resourceProperties.getFaviconLocations());
-				return requestHandler;
-			}
+    @Bean
+    public ResourceHttpRequestHandler faviconRequestHandler() {
+        ResourceHttpRequestHandler requestHandler = new ResourceHttpRequestHandler();
+        requestHandler
+            .setLocations(this.resourceProperties.getFaviconLocations());
+        return requestHandler;
+    }
 
-		}
+}
 ```
 
-## 3、模板引擎
+
+
+
+
+
+
+## 4、模板引擎
 
 ![template-engine](images\template-engine.png)
 
@@ -1426,188 +1671,9 @@ xxxxxx
     </nav>
 ~~~
 
-## 4、SpringMVC自动配置
 
-### 1、MVCAutoConfiguration
 
-以下是SpringBoot对SpringMVC的默认配置
-
-- 引入 `ContentNegotiatingViewResolver` 和 `BeanNameViewResolver` bean。
-
-  - 自动配置了ViewResolver（视图解析器：根据方法的返回值得到视图对象（View），视图对象决定如何渲染（转发、重定向））
-  - ContentNegotiatingViewResolver：组合所有的视图解析器的。
-  - 如何定制：我们可以自己给容器中添加一个视图解析器，自动的将其组合进来。
-
-- 支持服务静态资源，包括对 WebJar 的支持。
-
-- 自动注册 `Converter`、`GenericConverter` 和 `Formatter` bean。
-
-  - Converter：转换器。	public String hello(User user)：类型转换使用Converter。
-
-    - 自己添加的格式化器转换器，我们只需要放在容器中即可
-
-  - `Formatter`  格式化器。  2017.12.17===Date。
-
-  - ```java
-    @Bean
-    //在文件中配置日期格式化的规则
-    @ConditionalOnProperty(prefix = "spring.mvc", name = "date-format")
-    public Formatter<Date> dateFormatter() {
-    	//日期格式化组件
-        return new DateFormatter(this.mvcProperties.getDateFormat());
-    }
-    ```
-
-- 支持 `HttpMessageConverter`。
-
-  - HttpMessageConverter：SpringMVC用来转换Http请求和响应的。User---Json。
-  - `HttpMessageConverters` 是从容器中确定，获取所有的HttpMessageConverter。
-  - 自己给容器中添加HttpMessageConverter，只需要将自己的组件注册容器中（@Bean，@Component）
-
-- 自动注册 `MessageCodesResolver`。定义错误代码生成规则
-
-- 支持静态 index.html。
-
-- 支持自定义 Favicon 。
-
-- 自动使用 `ConfigurableWebBindingInitializer` bean。
-
-  - 我们可以配置一个ConfigurableWebBindingInitializer来替换默认的；（添加到容器）
-
-  - ```text
-    初始化WebDataBinder；
-    请求数据=====JavaBean；
-    ```
-
-**org.springframework.boot.autoconfigure.web：web的所有自动场景；**
-
-### 2、扩展SpringMVC
-
-```xml
-<mvc:view-controller path="/hello" view-name="success"/>
-<mvc:interceptors>
-        <mvc:interceptor>
-            <mvc:mapping path="/hello"/>
-            <bean></bean>
-    	</mvc:interceptor>
- </mvc:interceptors>
-```
-
-**1、编写一个配置类（@Configuration），继承WebMvcConfigurerAdapter类，且不能标注@EnableWebMVC**
-
-这样既保留了所有自动配置，也能用我们扩展的配置
-
-```java
-//使用WebMvcConfigurerAdapter可以来扩展SpringMVC的功能
-@Configuration
-public class MyMvcConfig extends WebMvcConfigurerAdapter {
-
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-       	//super.addViewControllers(registry);
-        //浏览器发送 /atguigu 请求来到 success
-        registry.addViewController("/atguigu").setViewName("success");
-    }
-}
-//继承WebMvcConfigurerAdapter的类中重载addViewControllers，编写无逻辑页面跳转。
-```
-
-**注意**：在5.0之后**WebMvcConfigurer**接口具有默认实现，所以直接实现接口接口也可以，不需要WebMvcConfigurerAdapter
-
-**原理**：
-
-1、WebMvcAutoConfiguration是SpringMVC的自动配置类
-
-2、在做其他自动配置时会导入，@Import(**EnableWebMvcConfiguration**.class)
-
-```java
-@Configuration
-public static class EnableWebMvcConfiguration extends DelegatingWebMvcConfiguration {
-	private final WebMvcConfigurerComposite configurers = new WebMvcConfigurerComposite();
-
-	//从容器中获取所有的WebMvcConfigurer
-    @Autowired(required = false)
-    public void setConfigurers(List<WebMvcConfigurer> configurers) {
-    	if (!CollectionUtils.isEmpty(configurers)) {
-         	this.configurers.addWebMvcConfigurers(configurers);
-            //一个参考实现；将所有的WebMvcConfigurer相关配置都来一起调用；  
-            @Override
-            // public void addViewControllers(ViewControllerRegistry registry) {
-            //    for (WebMvcConfigurer delegate : this.delegates) {
-            //       delegate.addViewControllers(registry);
-            //   }
-         }
-    }
-}
-```
-
-3、容器中所有的WebMvcConfigurer都会一起起作用
-
-4、我们的配置类也会被调用
-
-效果：SpringMVC的自动配置和我们的扩展配置都会起作用
-
-### 3、全面接管SpringMVC
-
-我们需要在配置类中添加@EnableWebMvc即可，但是SpringBoot对SpringMVC的自动配置都失效了，所有都是自己配置。
-
-```java
-//使用WebMvcConfigurerAdapter可以来扩展SpringMVC的功能
-@EnableWebMvc
-@Configuration
-public class MyMvcConfig extends WebMvcConfigurerAdapter {
-
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-       // super.addViewControllers(registry);
-        //浏览器发送 /atguigu 请求来到 success
-        registry.addViewController("/atguigu").setViewName("success");
-    }
-}
-```
-
-**原理**：
-
-1、@EnableWebMvc的核心
-
-```java
-@Import(DelegatingWebMvcConfiguration.class)
-public @interface EnableWebMvc {
-```
-
-2、@EnableWebMvc将WebMvcConfigurationSupport组件导入进来
-
-```java
-@Configuration
-public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
-```
-
-3、导入的WebMvcConfigurationSupport只是SpringMVC最基本的功能
-
-```java
-@Configuration
-@ConditionalOnWebApplication
-@ConditionalOnClass({ Servlet.class, DispatcherServlet.class,
-		WebMvcConfigurerAdapter.class })
-//容器中没有这个组件的时候，这个自动配置类才生效
-@ConditionalOnMissingBean(WebMvcConfigurationSupport.class)
-@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
-@AutoConfigureAfter({ DispatcherServletAutoConfiguration.class,
-		ValidationAutoConfiguration.class })
-public class WebMvcAutoConfiguration {
-```
-
-## 5、修改SpringBoot默认配置
-
-模式：
-
-**1、**SpringBoot在自动配置很多组件的时候，先看容器中有没有用户自己配置的（@Bean、@Component）如果有就用用户配置的，如果没有，才自动配置；如果有些组件可以有多个（ViewResolver）将用户配置的和自己默认的组合起来。
-
-**2、**在SpringBoot中会有非常多的xxxConfigurer帮助我们进行扩展配置。
-
-**3、**在SpringBoot中会有很多的xxxCustomizer帮助我们进行定制配置。
-
-## 6、添加拦截器
+## 5、添加拦截器
 
 实现拦截器接口后，在WebMvcConfigurerAdapter重写方法addInterceptors注册拦截器
 
@@ -1624,7 +1690,7 @@ public void addInterceptors(InterceptorRegistry registry) {
 }
 ```
 
-## 7、错误处理机制
+## 6、错误处理机制
 
 ### 1、默认错误处理
 
@@ -1854,11 +1920,11 @@ public class MyErrorAttributes extends DefaultErrorAttributes {
 
 最终的效果：响应是自适应的，可以通过定制ErrorAttributes改变需要返回的内容。
 
-## 8、配置嵌入式Servlet容器
+## 7、配置嵌入式Servlet容器
 
 SpringBoot默认使用Tomcat作为嵌入式容器
 
-<img src="H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\搜狗截图20180301142915.png" alt="搜狗截图20180301142915" style="zoom:150%;" />
+<img src="images\搜狗截图20180301142915.png" alt="搜狗截图20180301142915" style="zoom:150%;" />
 
 
 
@@ -2317,7 +2383,7 @@ this.embeddedServletContainer = containerFactory.getEmbeddedServletContainer(get
 
 **先启动嵌入式的Servlet容器，再将ioc容器中剩下没有创建出的对象获取出来**
 
-## 9、使用外置Servlet容器
+## 8、使用外置Servlet容器
 
 嵌入式Servlet容器：应用打成可执行的jar
 
@@ -2385,8 +2451,6 @@ Spring的web模块里面有这个文件：**org.springframework.web.SpringServle
 **3、SpringServletContainerInitializer**将@HandlesTypes(WebApplicationInitializer.class)标注的所有这个类型的类都传入到onStartup方法的Set<Class<?>>。为这些**WebApplicationInitializer**类型的类创建实例。
 
 **4、**每一个**WebApplicationInitializer**都调用自己的onStartup
-
-<img src="H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\image-20210823164002452.png" alt="image-20210823164002452" style="zoom:100%;" />
 
 **5、**相当于我们的**SpringBootServletInitializer**的类会被创建对象，并执行onStartup方法
 
@@ -2816,7 +2880,7 @@ spring:
     show-sql: true
 ```
 
-# 7、自动配置原理
+# 7、自动配置流程
 
 SpringBoot所有支持的场景
 https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-starter
@@ -3153,9 +3217,9 @@ private void initialize(Object[] sources) {
 }
 ```
 
-![搜狗截图20180306145727](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\搜狗截图20180306145727.png)
+![搜狗截图20180306145727](images/搜狗截图20180306145727-16519119540781.png)
 
-![搜狗截图20180306145855](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\搜狗截图20180306145855-16303190135681.png)
+![搜狗截图20180306145855](images/搜狗截图20180306145855-16303190135681-16519119957484.png)
 
 ### 2、运行run方法
 

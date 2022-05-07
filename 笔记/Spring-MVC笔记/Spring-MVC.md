@@ -977,17 +977,17 @@ public class HelloView implements View
 
 - 一般 WEB 应用服务器默认的 Servlet 的名称都是 default。若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定。
 
+
+
 ## 2、数据绑定流程
 
-1、Spring-MVC框架将**ServletRequest对象及目标方法的入参实例**传递给**WebDataBinderFactory**实例，创建**DataBinder**对象。
-
-2、DataBinder调用装配在Spring-MVC上下文中的**ConversionService**组件进行数据类型转换、数据格式化。将Servlet中的**请求信息填充到入参对象**中。
-
-3、调用**Validator**组件对已经绑定了请求消息的入参对象进行**数据合法性校验**，最终生成数据绑定结果**BindingData**对象。
-
-4、Spring-MVC抽取BindingResult中的**入参对象和校验错误对象**，将他们赋给**处理方法的响应入参**。
-
-5、由 **@InitBinder** 标识的方法，可以对 WebDataBinder 对象进行初始化。WebDataBinder 是 DataBinder 的子类，用于完成由表单字段到 JavaBean 属性的绑定。
+1. Spring-MVC框架将**ServletRequest对象及目标方法的入参实例**传递给**WebDataBinderFactory**实例，创建**DataBinder**对象。
+   - **WebDataBinder binder = binderFactory.createBinder(webRequest, attribute, name);**
+   - WebDataBinder：web数据绑定器，将请求参数的值绑定到指定的JavaBean里面。
+2. DataBinder调用装配在Spring-MVC上下文中的**ConversionService**组件进行数据类型转换、数据格式化。将Servlet中的**请求信息填充到入参对象**中。
+3. 调用**Validator**组件对已经绑定了请求消息的入参对象进行**数据合法性校验**，最终生成数据绑定结果**BindingData**对象。
+4. Spring-MVC抽取BindingResult中的**入参对象和校验错误对象**，将他们赋给**处理方法的响应入参**。
+5. 由 **@InitBinder** 标识的方法，可以对 WebDataBinder 对象进行初始化。WebDataBinder 是 DataBinder 的子类，用于完成由表单字段到 JavaBean 属性的绑定。
 
 - @InitBinder方法不能有返回值，它必须声明为void。
 
@@ -1011,7 +1011,7 @@ public void initBinder(WebDataBinder dataBinder){
 ### 3.2、自定义类型转换器
 
 1. **ConversionService** 是 Spring 类型转换体系的核心接口。
-2. 可以利用**ConversionServiceFactoryBean**在Spring 的 IOC 容器中定义一个ConversionService。Spring将自动识别出IOC容器中的ConversionService，并在Bean属性配置及Spring-MVC处理方法入参绑定等场合使用它进行数据的转换。
+2. 可以利用**ConversionServiceFactoryBean**在Spring 的 IOC 容器中定义一个ConversionService，Spring将自动识别出IOC容器中的ConversionService，并在Bean属性配置及Spring-MVC处理方法入参绑定等场合使用它进行数据的转换。
 3. 可通过 ConversionServiceFactoryBean 的 **converters** 属性注册自定义的类型转换器。
 
 ```xml
@@ -1025,6 +1025,28 @@ public void initBinder(WebDataBinder dataBinder){
 </bean>
 需要实现Converter接口
 ```
+
+~~~java
+// 在WebMvcConfigurer中配置
+@Override
+public void addFormatters(FormatterRegistry registry) {
+    registry.addConverter(new Converter<String, Pet>() {
+        @Override
+        public Pet convert(String source) {
+            if(!StringUtils.isEmpty(source)){
+                Pet pet = new Pet();
+                String[] split = source.split(",");
+                pet.setName(split[0]);
+                pet.setAge(Integer.parseInt(split[1]));
+                return pet;
+            }
+            return null;
+        }
+    });
+}
+~~~
+
+
 
 ### 3.3、Spring-MVC支持的转换器
 
@@ -1111,13 +1133,15 @@ DispatcherServlet 默认装配 **RequestMappingHandlerAdapter** ，而RequestMap
 
 #### 3.4.5、请求信息转化并绑定到处理方法
 
-使用HttpMessageConverter\<T>将请求信息转化并绑定到处理方法的入参中、或将响应结果转为对应类型的响应信息。Spring提供了两种途径：
+使用HttpMessageConverter\<T>将请求信息转化并绑定到处理方法的入参中、或将响应结果转为对应类型的响应信息。
+
+Spring提供了两种途径：
 
 - 使用 **@RequestBody / @ResponseBody** 对处理方法进行标注。
 
 - 使用 **HttpEntity\<T> / ResponseEntity\<T>** 作为处理方法的入参或返回值。
 
-3、当控制器处理方法使用到 @RequestBody/@ResponseBody 或 HttpEntity\<T>/ResponseEntity\<T> 时，Spring首先根据请求头或响应头的 Accept 属性选择匹配的 HttpMessageConverter, 进而根据参数类型或泛型类型的过滤得到匹配的 HttpMessageConverter, 若找不到可用的HttpMessageConverter 将报错。
+当控制器处理方法使用到 @RequestBody/@ResponseBody 或 HttpEntity\<T>/ResponseEntity\<T> 时，Spring首先根据请求头或响应头的 Accept 属性选择匹配的 HttpMessageConverter，进而根据参数类型或泛型类型的过滤得到匹配的 HttpMessageConverter，若找不到可用的HttpMessageConverter 将报错。
 
 - **注意**：@RequestBody 和 @ResponseBody 不需要成对出现
 
@@ -1132,7 +1156,7 @@ public byte[] handle15() throws IOException {
 }
 
 @RequestMapping(value="handle14", method=RequestMethod.POST)
-//由StringHtpMessageConverter处理
+// 由StringHtpMessageConverter处理
 public String handle14(@RequestBody String requestBody) {
     System.out.println(requestBody);
     return "success";
@@ -1140,6 +1164,8 @@ public String handle14(@RequestBody String requestBody) {
 ```
 
 ![image-20210923115326343](images/image-20210923115326343.png)
+
+
 
 ## 4、数据格式化
 
@@ -1185,6 +1211,8 @@ public String handle14(@RequestBody String requestBody) {
 2. 其实是调用了POJO的**无参构造**，然后使用**set方法**填充属性
 3. 使用该方法POJO无**需使用注解修饰**，POJO的级联POJO也是
 
+主要依靠**ServletModelAttributeMethodProcessor**类
+
 ~~~html
 <form th:action="@{/testpojo}" method="post">
     用户名：<input type="text" name="username"><br>
@@ -1204,6 +1232,26 @@ public String testPOJO(User user){
 }
 //最终结果-->User{id=null, username='张三', password='123', age=23, sex='男', email='123@qq.com'}
 ~~~
+
+ServletModelAttributeMethodProcessor  这个参数处理器支持是否为简单类型。
+
+~~~java
+public static boolean isSimpleValueType(Class<?> type) {
+		return (Void.class != type && void.class != type &&
+				(ClassUtils.isPrimitiveOrWrapper(type) ||
+				Enum.class.isAssignableFrom(type) ||
+				CharSequence.class.isAssignableFrom(type) ||
+				Number.class.isAssignableFrom(type) ||
+				Date.class.isAssignableFrom(type) ||
+				Temporal.class.isAssignableFrom(type) ||
+				URI.class == type ||
+				URL.class == type ||
+				Locale.class == type ||
+				Class.class == type));
+	}
+~~~
+
+
 
 ## 5、数据校验
 
@@ -1249,7 +1297,255 @@ Spring-MVC 是通过对**处理方法签名的规约来保存校验结果的**�
 - 即使处理方法的签名中没有用于保存校验结果的入参，校验结果依旧会保存到隐含模型中。
 - 隐含模型的所有数据最终都将通过HttpServletRequest的属性列表暴露给JSP视图对象，因此可以在页面获取到错误信息。**<form:errors path=“userName”>**
 
-## 6、文件上传与下载
+
+
+## 6、入参绑定流程
+
+SpringMVC的Controller内的handler方法可接收的入参：
+
+~~~java
+// 各种注解
+@RestController
+public class ParameterTestController {
+
+    @GetMapping("/car/{id}/owner/{username}")
+    public Map<String,Object> getCar(@PathVariable("id") Integer id,
+                                     @PathVariable("username") String name,
+                                     @PathVariable Map<String,String> pv,
+                                     @RequestHeader("User-Agent") String userAgent,
+                                     @RequestHeader Map<String,String> header,
+                                     @RequestParam("age") Integer age,
+                                     @RequestParam("inters") List<String> inters,
+                                     @RequestParam Map<String,String> params,
+                                     @CookieValue("_ga") String _ga,
+                                     @CookieValue("_ga") Cookie cookie) {
+
+
+        Map<String,Object> map = new HashMap<>();
+        map.put("age",age);
+        map.put("inters",inters);
+        map.put("params",params);
+        map.put("_ga",_ga);
+        System.out.println(cookie.getName()+"===>"+cookie.getValue());
+        return map;
+    }
+
+
+    @PostMapping("/save")
+    public Map postMethod(@RequestBody String content){
+        Map<String,Object> map = new HashMap<>();
+        map.put("content",content);
+        return map;
+    }
+
+
+    // 1、语法： 请求路径：/cars/sell;low=34;brand=byd,audi,yd
+    // 2、SpringBoot默认是禁用了矩阵变量的功能，需要手动开启。
+    //  原理：对于路径的处理，UrlPathHelper进行解析，removeSemicolonContent（移除分号内容）支持矩阵变量的。
+    // 3、矩阵变量必须有url路径变量才能被解析
+    @GetMapping("/cars/{path}")
+    public Map carsSell(@MatrixVariable("low") Integer low,
+                        @MatrixVariable("brand") List<String> brand,
+                        @PathVariable("path") String path){
+        Map<String,Object> map = new HashMap<>();
+        map.put("low",low);
+        map.put("brand",brand);
+        map.put("path",path);
+        return map;
+    }
+
+    @GetMapping("/boss/{bossId}/{empId}")
+    public Map boss(@MatrixVariable(value = "age",pathVar = "bossId") Integer bossAge,
+                    @MatrixVariable(value = "age",pathVar = "empId") Integer empAge){
+        Map<String,Object> map = new HashMap<>();
+        map.put("bossAge",bossAge);
+        map.put("empAge",empAge);
+        return map;
+    }
+
+}
+	// Servlet原生API
+    @Override
+        public boolean supportsParameter(MethodParameter parameter) {
+            Class<?> paramType = parameter.getParameterType();
+            return (WebRequest.class.isAssignableFrom(paramType) ||
+                    ServletRequest.class.isAssignableFrom(paramType) ||
+                    MultipartRequest.class.isAssignableFrom(paramType) ||
+                    HttpSession.class.isAssignableFrom(paramType) ||
+                    (pushBuilder != null && pushBuilder.isAssignableFrom(paramType)) ||
+                    Principal.class.isAssignableFrom(paramType) ||
+                    InputStream.class.isAssignableFrom(paramType) ||
+                    Reader.class.isAssignableFrom(paramType) ||
+                    HttpMethod.class == paramType ||
+                    Locale.class == paramType ||
+                    TimeZone.class == paramType ||
+                    ZoneId.class == paramType);
+        }
+
+// Map、Model类
+Map<String,Object> map,  Model model, HttpServletRequest request 都是可以给request域中放数据request.getAttribute();
+Map、Model类型的参数，会返回 mavContainer.getModel() ----> BindingAwareModelMap 是Model 也是Map
+mavContainer.getModel(); 获取到值的
+
+// 自定义对象参数POJO
+ServletModelAttributeMethodProcessor;
+
+
+~~~
+
+- 首先HandlerMapping中找到能处理请求的Handler（Controller.method()）
+- 为当前Handler 找一个适配器 HandlerAdapter，RequestMappingHandlerAdapter
+- 适配器执行目标方法并确定方法参数的每一个值
+
+参数解析器--------**HandlerMethodArgumentResolver**
+
+确定将要执行的目标方法的每一个参数的值是什么，并且SpringMVC目标方法能写多少种参数类型，取决于参数解析器。
+
+- 当前解析器是否支持解析这种参数
+- 支持就调用 resolveArgument
+
+~~~JAVA
+// 确定目标方法每一个参数的值
+============InvocableHandlerMethod==========================
+protected Object[] getMethodArgumentValues(NativeWebRequest request, 
+                                           @Nullable ModelAndViewContainer mavContainer,
+                                           Object... providedArgs) throws Exception {
+
+    MethodParameter[] parameters = getMethodParameters();
+    if (ObjectUtils.isEmpty(parameters)) {
+        return EMPTY_ARGS;
+    }
+
+    Object[] args = new Object[parameters.length];
+    for (int i = 0; i < parameters.length; i++) {
+        MethodParameter parameter = parameters[i];
+        parameter.initParameterNameDiscovery(this.parameterNameDiscoverer);
+        args[i] = findProvidedArgument(parameter, providedArgs);
+        if (args[i] != null) {
+            continue;
+        }
+        if (!this.resolvers.supportsParameter(parameter)) {
+            throw new IllegalStateException(formatArgumentError(parameter, "No suitable resolver"));
+        }
+        try {
+            args[i] = this.resolvers.resolveArgument(parameter, 
+                                                     mavContainer, 
+                                                     request, 
+                                                     this.dataBinderFactory);
+        }
+        catch (Exception ex) {
+            // Leave stack trace for later, exception may actually be resolved and handled...
+            if (logger.isDebugEnabled()) {
+                String exMsg = ex.getMessage();
+                if (exMsg != null && !exMsg.contains(parameter.getExecutable().toGenericString())) {
+                    logger.debug(formatArgumentError(parameter, exMsg));
+                }
+            }
+            throw ex;
+        }
+    }
+    return args;
+}
+~~~
+
+~~~java
+// 判断所有参数解析器哪个支持解析这个参数
+@Nullable
+private HandlerMethodArgumentResolver getArgumentResolver(MethodParameter parameter) {
+    HandlerMethodArgumentResolver result = this.argumentResolverCache.get(parameter);
+    if (result == null) {
+        for (HandlerMethodArgumentResolver resolver : this.argumentResolvers) {
+            if (resolver.supportsParameter(parameter)) {
+                result = resolver;
+                this.argumentResolverCache.put(parameter, result);
+                break;
+            }
+        }
+    }
+    return result;
+}
+~~~
+
+调用各自 HandlerMethodArgumentResolver 的 resolveArgument 方法即可解析这个参数
+
+~~~java
+@Override
+@Nullable
+public final Object resolveArgument(MethodParameter parameter, 
+                                    @Nullable ModelAndViewContainer mavContainer,
+                                    NativeWebRequest webRequest, 
+                                    @Nullable WebDataBinderFactory binderFactory) throws Exception {
+
+    Assert.state(mavContainer != null, "ModelAttributeMethodProcessor requires ModelAndViewContainer");
+    Assert.state(binderFactory != null, "ModelAttributeMethodProcessor requires WebDataBinderFactory");
+
+    String name = ModelFactory.getNameForParameter(parameter);
+    ModelAttribute ann = parameter.getParameterAnnotation(ModelAttribute.class);
+    if (ann != null) {
+        mavContainer.setBinding(name, ann.binding());
+    }
+
+    Object attribute = null;
+    BindingResult bindingResult = null;
+
+    if (mavContainer.containsAttribute(name)) {
+        attribute = mavContainer.getModel().get(name);
+    }
+    else {
+        // Create attribute instance
+        try {
+            attribute = createAttribute(name, parameter, binderFactory, webRequest);
+        }
+        catch (BindException ex) {
+            if (isBindExceptionRequired(parameter)) {
+                // No BindingResult parameter -> fail with BindException
+                throw ex;
+            }
+            // Otherwise, expose null/empty value and associated BindingResult
+            if (parameter.getParameterType() == Optional.class) {
+                attribute = Optional.empty();
+            }
+            bindingResult = ex.getBindingResult();
+        }
+    }
+
+    if (bindingResult == null) {
+        // Bean property binding and validation;
+        // skipped in case of binding failure on construction.
+        // 入参解析完毕后，进行数据绑定，详情看上文
+        WebDataBinder binder = binderFactory.createBinder(webRequest, attribute, name);
+        if (binder.getTarget() != null) {
+            if (!mavContainer.isBindingDisabled(name)) {
+                bindRequestParameters(binder, webRequest);
+            }
+            validateIfApplicable(binder, parameter);
+            if (binder.getBindingResult().hasErrors() && isBindExceptionRequired(binder, parameter)) {
+                throw new BindException(binder.getBindingResult());
+            }
+        }
+        // Value type adaptation, also covering java.util.Optional
+        if (!parameter.getParameterType().isInstance(attribute)) {
+            attribute = binder.convertIfNecessary(binder.getTarget(), 
+                                                  parameter.getParameterType(), 
+                                                  parameter);
+        }
+        bindingResult = binder.getBindingResult();
+    }
+
+    // Add resolved attribute and BindingResult at the end of the model
+    Map<String, Object> bindingResultModel = bindingResult.getModel();
+    mavContainer.removeAttributes(bindingResultModel);
+    mavContainer.addAllAttributes(bindingResultModel);
+
+    return attribute;
+}
+~~~
+
+当目标方法执行完成，就将所有的数据都放在 **ModelAndViewContainer**，包含要去的页面地址View，还包含Model数据。
+
+
+
+## 7、文件上传与下载
 
 ### 文件上传
 
@@ -1373,8 +1669,6 @@ public ResponseEntity<byte[]> testResponseEntity(HttpSession session) throws IOE
 }
 ~~~
 
-
-
 # 6、拦截器
 
 ## 简介
@@ -1423,7 +1717,7 @@ public void addInterceptors(InterceptorRegistry registry) {
 
 # 7、过滤器
 
-## 请求转换
+## 1、请求转换
 
 1、配置**HiddenHttpMethodFilter**拦截器，支持将POST转为PUT、DELETE
 
@@ -1447,8 +1741,11 @@ SpringMVC 提供了 **HiddenHttpMethodFilter** 帮助我们**将 POST 请求转�
 
 - 当前请求必须传输请求参数**_method**
 
-
 满足以上条件，**HiddenHttpMethodFilter** 过滤器就会将当前请求的请求方式转换为请求参数_method的值，因此请求参数\_method的值才是最终的请求方式。
+
+    原生request（post）被包装模式requesWrapper重写了getMethod方法，返回的是传入的值。
+    过滤器链放行的时候用wrapper。
+    以后的方法调用getMethod是调用requesWrapper的。
 
 ```text
 目前为止，SpringMVC中提供了两个过滤器：CharacterEncodingFilter 和 HiddenHttpMethodFilter
@@ -1465,7 +1762,7 @@ SpringMVC 提供了 **HiddenHttpMethodFilter** 帮助我们**将 POST 请求转�
 		String paramValue = request.getParameter(this.methodParam);
 ```
 
-## 请求参数乱码
+## 2、请求参数乱码
 
 解决获取请求参数的乱码问题，可以使用SpringMVC提供的编码过滤器CharacterEncodingFilter，但是必须在web.xml中进行注册
 
@@ -1489,9 +1786,8 @@ SpringMVC 提供了 **HiddenHttpMethodFilter** 帮助我们**将 POST 请求转�
 </filter-mapping>
 ```
 
-> 注：
+> 注：SpringMVC中处理编码的过滤器一定要配置到其他过滤器之前，否则无效
 >
-> SpringMVC中处理编码的过滤器一定要配置到其他过滤器之前，否则无效
 
 # 8、异常处理
 
@@ -1634,7 +1930,7 @@ Spring-MVC 提供了多个表单组件标签，如\<form:input>\<form:select>等
 
 # 10、<a name="完全注解Spring-MVC">完全注解Spring-MVC</a> 
 
-## 原理
+## 1、原理
 
 1. WEB容器在启动的时候，会扫描每个jar包下的**META-INF/services/javax.servlet.ServletContainerInitializer**。
 
@@ -1671,7 +1967,7 @@ Spring3.2引入了一个便利的WebApplicationInitializer基础实现，名为A
 public abstract class AbstractAnnotationConfigDispatcherServletInitializer extends AbstractDispatcherServletInitializer{.......}
 ```
 
-## 步骤
+## 2、步骤
 
 ### 1、创建初始化类
 
@@ -1732,7 +2028,7 @@ public class RootConfig {
 
 代替SpringMVC的配置文件
 
-通过继承**WebMvcConfigurerAdapter**，实现方法来定制MVC
+通过继承**WebMvcConfigurerAdapter**，并添加注解**@EnableWebMvc** + **@Configuration**实现方法来定制MVC
 
 ```java
 // SpringMVC只扫描Controller，子容器
@@ -1925,7 +2221,7 @@ public Callable<String> async01(){
 
 # 12、原生Servlet
 
-## 使用Servlet API作为入参
+## 1、Servlet API作为入参
 
 ```java
 public String testServletAPI(HttpServletResponse response, HttpServletRequest request)
@@ -1945,7 +2241,7 @@ public String testServletAPI(HttpServletResponse response, HttpServletRequest re
 9、Writer
 ```
 
-## Servlet3.0
+## 2、Servlet3.0
 
 ### 1、新规
 
@@ -2034,15 +2330,15 @@ public class HelloAsyncServlet extends HttpServlet {
 
 # 扩展
 
-## Spring-MVC运行流程
+## 1、Spring-MVC运行流程
 
 ![image-20210923165259667](images/image-20210923165259667.png)
 
-### DispatcherServlet初始化过程
+### 1、DispatcherServlet初始化过程
 
 DispatcherServlet 本质上是一个 Servlet，所以天然的遵循 Servlet 的生命周期。所以宏观上是 Servlet 生命周期来进行调度。
 
-![images](\images\Spring-MVC.assets\img005.png)
+![images](images\Spring-MVC.assets\img005.png)
 
 ##### 1、初始化WebApplicationContext
 
@@ -2155,7 +2451,7 @@ protected void initStrategies(ApplicationContext context) {
 }
 ```
 
-### DispatcherServlet调用组件处理请求
+### 2、DispatcherServlet调用组件处理请求
 
 ##### 1、processRequest()
 
@@ -2293,7 +2589,9 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
             	handler：浏览器发送的请求所匹配的控制器方法
             	interceptorList：处理控制器方法的所有拦截器集合
             	interceptorIndex：拦截器索引，控制拦截器afterCompletion()的执行
+            	RequestMappingHandlerMapping：保存了所有@RequestMapping 和 handler的映射规则。
             */
+            // 找到当前请求使用哪个Handler（Controller的方法）处理
             mappedHandler = getHandler(processedRequest);
             if (mappedHandler == null) {
                 noHandlerFound(processedRequest, response);
@@ -2368,6 +2666,8 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 
 ##### 4、processDispatchResult()
 
+处理派发结果
+
 ```java
 private void processDispatchResult(HttpServletRequest request, HttpServletResponse response,
                                    @Nullable HandlerExecutionChain mappedHandler, @Nullable ModelAndView mv,
@@ -2390,6 +2690,7 @@ private void processDispatchResult(HttpServletRequest request, HttpServletRespon
     // Did the handler return a view to render?
     if (mv != null && !mv.wasCleared()) {
         // 处理模型数据和渲染视图
+        // 会继续调用renderMergedOutputModel，该方法由具体子类实现
         render(mv, request, response);
         if (errorView) {
             WebUtils.clearErrorRequestAttributes(request);
@@ -2414,57 +2715,103 @@ private void processDispatchResult(HttpServletRequest request, HttpServletRespon
 }
 ```
 
-### SpringMVC的执行流程
+~~~java
+@Override
+protected void renderMergedOutputModel(
+    Map<String, Object> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-1) 用户向服务器发送请求，请求被SpringMVC 前端控制器 DispatcherServlet捕获。
+    // 暴露模型作为请求域属性
+    exposeModelAsRequestAttributes(model, request);
+
+    // Expose helpers as request attributes, if any.
+    exposeHelpers(request);
+
+    // Determine the path for the request dispatcher.
+    String dispatcherPath = prepareForRendering(request, response);
+
+    // Obtain a RequestDispatcher for the target resource (typically a JSP).
+    RequestDispatcher rd = getRequestDispatcher(request, dispatcherPath);
+    if (rd == null) {
+        throw new ServletException("Could not get RequestDispatcher for [" + getUrl() +
+                                   "]: Check that the corresponding file exists within your web application archive!");
+    }
+
+    // If already included or response already committed, perform include, else forward.
+    if (useInclude(request, response)) {
+        response.setContentType(getContentType());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Including [" + getUrl() + "]");
+        }
+        rd.include(request, response);
+    }
+
+    else {
+        // Note: The forwarded resource is supposed to determine the content type itself.
+        if (logger.isDebugEnabled()) {
+            logger.debug("Forwarding to [" + getUrl() + "]");
+        }
+        rd.forward(request, response);
+    }
+}
+~~~
+
+~~~JAVA
+protected void exposeModelAsRequestAttributes(Map<String, Object> model,
+                                              HttpServletRequest request) throws Exception {
+
+    // model中的所有数据遍历挨个放在请求域中
+    model.forEach((name, value) -> {
+        if (value != null) {
+            request.setAttribute(name, value);
+        }
+        else {
+            request.removeAttribute(name);
+        }
+    });
+}
+~~~
+
+
+
+
+
+### 3、SpringMVC的执行流程
+
+1. 用户向服务器发送请求，请求被SpringMVC 前端控制器 DispatcherServlet捕获。
 
 2) DispatcherServlet对请求URL进行解析，得到请求资源标识符（URI），判断请求URI对应的映射：
+   - 不存在：
+     1. 再判断是否配置了mvc:default-servlet-handler
+   
+     2. 如果没配置，则控制台报映射查找不到，客户端展示404错误
+   
+        ![image-20210709214911404](images/img006.png)
+   
+        ![image-20210709214947432](images/img007.png)
+   
+     3. 如果有配置，则访问目标资源（一般为静态资源，如：JS,CSS,HTML)，找不到客户端也会展示404错误
+   
+     ![image-20210709215255693](images/img008.png)
+   
+     ![image-20210709215336097](images/img009.png)
+   
+   - 存在则执行下面的流程：
+   
+     1. 根据该URI，调用HandlerMapping获得该Handler配置的所有相关的对象（包括Handler对象以及Handler对象对应的拦截器），最后以HandlerExecutionChain执行链对象的形式返回。
+     2. DispatcherServlet 根据获得的Handler，选择一个合适的HandlerAdapter。
+     3. 如果成功获得HandlerAdapter，此时将开始执行拦截器的preHandler(…)方法【正向】
+     4. 提取Request中的模型数据，填充Handler入参，开始执行Handler（Controller)方法，处理请求。在填充Handler的入参过程中，根据你的配置，Spring将帮你做一些额外的工作：也即入参解析
+        - HttpMessageConveter： 将请求消息（如Json、xml等数据）转换成一个对象，将对象转换为指定的响应信息
+        - 数据转换：对请求消息进行数据转换。如String转换成Integer、Double等
+        - 数据格式化：对请求消息进行数据格式化。 如将字符串转换成格式化数字或格式化日期等
+        - 数据验证： 验证数据的有效性（长度、格式等），验证结果存储到BindingResult或Error中
+     5. Handler执行完成后，向DispatcherServlet 返回一个ModelAndView对象。
+     6. 此时将开始执行拦截器的postHandle(...)方法【逆向】。
+     7. 根据返回的ModelAndView（此时会判断是否存在异常：如果存在异常，则执行HandlerExceptionResolver进行异常处理）选择一个适合的ViewResolver进行视图解析，根据Model和View，来渲染视图。
+     8. 渲染视图完毕执行拦截器的afterCompletion(…)方法【逆向】。
+     9. 将渲染结果返回给客户端。
 
-a) 不存在
-
-i. 再判断是否配置了mvc:default-servlet-handler
-
-ii. 如果没配置，则控制台报映射查找不到，客户端展示404错误
-
-![image-20210709214911404](images\Spring-MVC.assets\img006.png)
-
-![image-20210709214947432](images\Spring-MVC.assets\img007.png)
-
-iii. 如果有配置，则访问目标资源（一般为静态资源，如：JS,CSS,HTML），找不到客户端也会展示404错误
-
-![image-20210709215255693](images\Spring-MVC.assets\img008.png)
-
-![image-20210709215336097](images\Spring-MVC.assets\img009.png)
-
-b) 存在则执行下面的流程
-
-3) 根据该URI，调用HandlerMapping获得该Handler配置的所有相关的对象（包括Handler对象以及Handler对象对应的拦截器），最后以HandlerExecutionChain执行链对象的形式返回。
-
-4) DispatcherServlet 根据获得的Handler，选择一个合适的HandlerAdapter。
-
-5) 如果成功获得HandlerAdapter，此时将开始执行拦截器的preHandler(…)方法【正向】
-
-6) 提取Request中的模型数据，填充Handler入参，开始执行Handler（Controller)方法，处理请求。在填充Handler的入参过程中，根据你的配置，Spring将帮你做一些额外的工作：
-
-a) HttpMessageConveter： 将请求消息（如Json、xml等数据）转换成一个对象，将对象转换为指定的响应信息
-
-b) 数据转换：对请求消息进行数据转换。如String转换成Integer、Double等
-
-c) 数据格式化：对请求消息进行数据格式化。 如将字符串转换成格式化数字或格式化日期等
-
-d) 数据验证： 验证数据的有效性（长度、格式等），验证结果存储到BindingResult或Error中
-
-7) Handler执行完成后，向DispatcherServlet 返回一个ModelAndView对象。
-
-8) 此时将开始执行拦截器的postHandle(...)方法【逆向】。
-
-9) 根据返回的ModelAndView（此时会判断是否存在异常：如果存在异常，则执行HandlerExceptionResolver进行异常处理）选择一个适合的ViewResolver进行视图解析，根据Model和View，来渲染视图。
-
-10) 渲染视图完毕执行拦截器的afterCompletion(…)方法【逆向】。
-
-11) 将渲染结果返回给客户端。
-
-## @ModelAttribute源码流程分析
+## 2、@ModelAttribute源码流程分析
 
 1. 首先调用@ModelAttribute注解修饰的方法，若采用通过入参处使用**Model类型或者Map类型**写入数据，会把Map中的数据放入implicitModel中。
 2. 解析请求处理器的目标参数，该目标参数来自于**WebDataBinder**对象的target属性。
@@ -2475,7 +2822,7 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
    3. Spring-MVC把WebDataBinder的attrName和target给到implicitModel，进而传到request域对象中。
    4. 把WebDataBinder的target作为参数传递给目标方法的入参。
 
-## 关于\<mvc:annotation-driven/>
+## 3、关于\<mvc:annotation-driven/>
 
 - 会自动注册**RequestMappingHandlerMapping**、**RequestMappingHandlerAdapter**、**ExceptionHandlerExceptionResolver**三个bean
 
@@ -2487,7 +2834,7 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
 
 ![image-20210923105518249](images\Spring-MVC.assets\image-20210923105518249.png)
 
-## 隐含模型
+## 4、隐含模型
 
 1、首先解释**Model**、**ModelMap**、**Map**、**ModelAndView**的关系
 
@@ -2513,7 +2860,7 @@ d) 数据验证： 验证数据的有效性（长度、格式等），验证结�
 
 - 如果方法入参为**Map**或者**Model**类型，Sping-MVC会将隐含模型的引用传递给入参，之后在方法体内开发者可以通过这个入参对象访问/修改到模型中的数据。
 
-## HandlerExceptionResolver异常处理器使用详解
+## 5、HandlerExceptionResolver异常处理器使用详解
 
 ### 古老的异常处理方式
 
