@@ -847,7 +847,7 @@ public String testApplication(HttpSession session){
 
 # 4、视图和视图解析器
 
-## 简介
+## 1、简介
 
 1. Spring-MVC根据返回值类型String、ModelAndView、View =》**ModelAndView** =》ViewResolver =》视图对象JSP/JSTL/PDF
 2. 请求处理方法执行完毕，**最终会返回一个ModelAndView对象**，返回其他类型的Spring-MVC会在内部装配成一个ModelAndView对象。
@@ -856,7 +856,7 @@ public String testApplication(HttpSession session){
 4. **视图解析器**：在SpringWEB上下文中配置一种或多种解析策略，并指定他们之间的先后顺序。每一种映射策略对应一个具体的视图解析器实现类，将逻辑视图解析为一个具体的视图对象。所有的视图解析器都必须实现**ViewResolver接口**。
 5. 每个视图解析器都实现了**Ordered接口**并开放出一个**order属性**，可以通过order属性指定解析器的优先顺序，order越小优先级越高。Spring-MVC会按视图解析器顺序对逻辑视图名进行解析，直到成功，否则抛出ServletException异常。
 
-## 常用的视图实现类
+## 2、常用的视图实现类
 
 - URL资源视图：
   - **InternalResourceView**：将JSP或其他资源封装成一个视图，是InternalResourceViewResolver默认使用的视图实现类
@@ -868,14 +868,14 @@ public String testApplication(HttpSession session){
 - JSON视图：
   - **MappingJacksonJsonView**：将模型数据通过Jackson开源框架的ObjectMapper以JSON方式输出
 
-## 常用的视图解析器实现类
+## 3、常用的视图解析器实现类
 
 - 解析为Bean的名字：
   - **BeanNameViewResolver**：将逻辑视图名解析为一个Bean，Bean的id等于逻辑视图名
 - 解析为URL文件：
   - **InternalResourceViewResolver**：将视图名解析为一个URL文件，一般使用该解析器将视图名映射为一个保存在WEN-INF目录下的程序文件
 
-## InternalResourceViewResolver解析器
+## 4、InternalResourceViewResolver解析器
 
 用于解析JSP
 
@@ -889,7 +889,7 @@ public String testApplication(HttpSession session){
 
 可以通过\<property name="viewNames" value="html*"/>指定处理规则，此规则表示，只处理html开头的视图名，如html/aa。
 
-## 转发向视图
+## 5、转发向视图
 
 如果返回的视图名中带**forward：** 前缀
 
@@ -909,7 +909,7 @@ public String testForward(){
 }
 ```
 
-## 重定向视图
+## 6、重定向视图
 
 SpringMVC中默认的重定向视图是**RedirectView**
 
@@ -926,7 +926,7 @@ public String testRedirect(){
 
 重定向视图在解析时，会先将redirect:前缀去掉，然后会判断剩余部分是否以/开头，若是则会自动拼接上下文路径
 
-## 补充
+## 8、补充
 
 1、如果要使用JSTL的fmt标签需要在Spring-MVC的配置文件中配置国际化资源文件
 
@@ -1073,11 +1073,11 @@ public void addFormatters(FormatterRegistry registry) {
 
 报文信息转换器，将请求报文转换为Java对象，或将Java对象转换为响应报文。
 
-提供了两个注解和两个类型：@RequestBody，@ResponseBody，RequestEntity，ResponseEntity
+提供了两个注解和两个类型：@RequestBody、@ResponseBody，RequestEntity、ResponseEntity
 
 **HttpMessageConverter\<T>**是Spring 3.0 新添加的一个接口，负责将请求信息转为一个对象（类型T），将对象输出为响应信息。
 
-##### RequestEntity
+##### 1、RequestEntity
 
 RequestEntity封装请求报文的一种类型，需要在控制器方法的形参中设置该类型的形参，当前请求的请求报文就会赋值给该形参，可以通过getHeaders()获取请求头信息，通过getBody()获取请求体信息。
 
@@ -1090,7 +1090,7 @@ public String testRequestEntity(RequestEntity<String> requestEntity){
 }
 ~~~
 
-##### ResponseEntity
+##### 2、ResponseEntity
 
 ResponseEntity用于控制器方法的返回值类型，该控制器方法的返回值就是响应到浏览器的响应报文
 
@@ -1131,7 +1131,7 @@ DispatcherServlet 默认装配 **RequestMappingHandlerAdapter** ，而RequestMap
 
 ![image-20210923112844941](images/image-20210923112844941.png)
 
-#### 3.4.5、请求信息转化并绑定到处理方法
+#### 3.4.5、数据转化并绑定
 
 使用HttpMessageConverter\<T>将请求信息转化并绑定到处理方法的入参中、或将响应结果转为对应类型的响应信息。
 
@@ -1164,6 +1164,94 @@ public String handle14(@RequestBody String requestBody) {
 ```
 
 ![image-20210923115326343](images/image-20210923115326343.png)
+
+
+
+#### 3.4.6、自定义MessageConverter
+
+实现多协议数据兼容json、xml、x-xx
+
+- @ResponseBody 响应数据出去，调用 **RequestResponseBodyMethodProcessor** 处理
+- Processor 处理方法返回值，通过 **MessageConverter** 处理
+- 所有 **MessageConverter** 合起来可以支持各种媒体类型数据的操作（读、写）
+- 内容协商找到最终的 **messageConverter**
+
+~~~java
+// 方法一
+@Override
+public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
+    configurer.mediaType("xio", MediaType.parseMediaType("application/finally"));
+}
+
+@Override
+public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+    converters.add(new CustomConverter());
+}
+~~~
+
+~~~yml
+# 方法
+spring.mvc.contentnegotiation.media-types.markdown=text/markdown
+~~~
+
+**注意**：后缀模式匹配已弃用，并将在未来版本中删除。
+
+### 3.5、内容协商
+
+#### 1、基本概念
+
+首先返回值会被服务器端影响，也会被客户端 Accept 头的影响。
+
+因此服务器端和客户端协商决定最终返回什么格式的内容，双方列出支持/接受格式列表，找出都能支持的格式类型返回，找不到则报错
+
+例子：
+
+~~~java
+@RequestMapping(value = "/cn/test1")
+@ResponseBody
+public List<String> test1() {
+    List<String> result = Arrays.asList(
+        "刘德华",
+        "张学友",
+        "郭富城",
+        "黎明");
+    return result;
+}
+
+// 不加入下方依赖时，返回json数据，加入后返回xml
+// 如果在请求头中加入Accept: application/json则返回json
+~~~
+
+~~~xml
+<!-- 引入依赖 -->
+<dependency>
+    <groupId>com.fasterxml.jackson.dataformat</groupId>
+    <artifactId>jackson-dataformat-xml</artifactId>
+</dependency>
+~~~
+
+只需要改变请求头中Accept字段，因为Http协议中规定的，Accept字段告诉服务器该客户端可以接收的数据类型。
+
+Spring5.2.4之后不推荐使用后缀获取MediaType，默认只开启HeaderContentNegotiationStrategy
+
+~~~yml
+# 开启基于请求参数的内容协商功能 （不推荐）
+spring:
+	mvc:
+      contentnegotiation:
+        favor-parameter: true
+~~~
+
+#### 2、客户端告诉服务器
+
+- http 请求头中使用 Accept 来指定客户端能够接收的类型（又叫：媒体类型）
+- 通过后缀来指定类容类型比如请求中可以添加一个参数，如 format 来指定能够接收的内容类型
+
+#### 3、服务器可响应的媒体类型
+
+- @RequestMapping 注解的 produces 属性
+- response.setHeader("Content-Type", "媒体类型");
+- SpringMVC 内部机制自动确定能够响应的媒体类型列表
 
 
 
@@ -2860,9 +2948,9 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
 
 - 如果方法入参为**Map**或者**Model**类型，Sping-MVC会将隐含模型的引用传递给入参，之后在方法体内开发者可以通过这个入参对象访问/修改到模型中的数据。
 
-## 5、HandlerExceptionResolver异常处理器使用详解
+## 5、HandlerExceptionResolver使用详解
 
-### 古老的异常处理方式
+### 1、古老的异常处理方式
 
 在web.xml中配置
 
@@ -2881,7 +2969,7 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
 
 ```
 
-### Spring MVC处理异常
+### 2、Spring MVC处理异常
 
 Spring MVC提供处理异常的方式主要分为两种：
 
@@ -3106,7 +3194,190 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 }
 ```
 
+## 6、返回值解析器原理
 
+**HandlerMethodReturnValueHandler**：
+
+- 返回值处理器判断是否支持这种类型返回值 supportsReturnType
+- 返回值处理器调用 handleReturnValue 进行处理
+- RequestResponseBodyMethodProcessor 可以处理返回值标了@ResponseBody 注解的。
+  - 利用 MessageConverters 进行处理 将数据写为json
+    - 内容协商（浏览器默认会以请求头的方式告诉服务器他能接受什么样的内容类型）
+    - 服务器最终根据自己自身的能力，决定服务器能生产出什么样内容类型的数据，
+    - SpringMVC会挨个遍历所有容器底层的 HttpMessageConverter ，看谁能处理？
+      - 得到MappingJackson2HttpMessageConverter可以将对象写为json
+      - 利用MappingJackson2HttpMessageConverter将对象转为json再写出去。
+
+
+~~~java
+try {
+    this.returnValueHandlers.handleReturnValue(
+        returnValue, getReturnValueType(returnValue), mavContainer, webRequest);
+}
+
+@Override
+public void handleReturnValue(@Nullable Object returnValue, 
+                              MethodParameter returnType,
+                              ModelAndViewContainer mavContainer, 
+                              NativeWebRequest webRequest) throws Exception {
+
+    HandlerMethodReturnValueHandler handler = selectHandler(returnValue, returnType);
+    if (handler == null) {
+        throw new IllegalArgumentException("Unknown return value type: " 
+                                           + returnType.getParameterType().getName());
+    }
+    handler.handleReturnValue(returnValue, returnType, mavContainer, webRequest);
+}
+
+=======RequestResponseBodyMethodProcessor========
+@Override
+public void handleReturnValue(@Nullable Object returnValue, 
+                              MethodParameter returnType,
+                              ModelAndViewContainer mavContainer, 
+                              NativeWebRequest webRequest)
+    throws IOException, HttpMediaTypeNotAcceptableException, HttpMessageNotWritableException {
+
+    mavContainer.setRequestHandled(true);
+    ServletServerHttpRequest inputMessage = createInputMessage(webRequest);
+    ServletServerHttpResponse outputMessage = createOutputMessage(webRequest);
+
+    // Try even with null return value. ResponseBodyAdvice could get involved.
+    // 使用消息转换器进行写出操作
+    writeWithMessageConverters(returnValue, returnType, inputMessage, outputMessage);
+}
+~~~
+
+Spring支持的返回值列表
+
+~~~java
+ModelAndView
+Model
+View
+ResponseEntity 
+ResponseBodyEmitter
+StreamingResponseBody
+HttpEntity
+HttpHeaders
+Callable
+DeferredResult
+ListenableFuture
+CompletionStage
+WebAsyncTask
+有 @ModelAttribute 且为对象类型的
+@ResponseBody 注解 ---> RequestResponseBodyMethodProcessor
+~~~
+
+
+
+## 7、内容协商原理
+
+~~~java
+org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodProcessor
+    # writeWithMessageConverters(T, org.springframework.core.MethodParameter,
+                                 org.springframework.http.server.ServletServerHttpRequest,
+                                 org.springframework.http.server.ServletServerHttpResponse)
+~~~
+
+1. 获取客户端能够接收的媒体类型列表：由请求头 Accpet 解析得到
+
+   - - **contentNegotiationManager** 内容协商管理器，默认使用基于请求头的策略
+     - **HeaderContentNegotiationStrategy**  确定客户端可以接收的内容类型
+
+   <img src="images/image-20220507212814423.png" alt="image-20220507212814423" style="zoom:50%;" />
+
+   ~~~java
+   private List<MediaType> getAcceptableMediaTypes(HttpServletRequest request)
+       throws HttpMediaTypeNotAcceptableException {
+       return this.contentNegotiationManager.resolveMediaTypes(new ServletWebRequest(request));
+   }
+   ~~~
+
+2. 获取服务器端能够响应的媒体类型列表：遍历所有 HttpMessageConverter 的getSupportedMediaTypes方法得到一个媒体类型列表
+
+   ~~~java
+   List<MediaType> producibleTypes = getProducibleMediaTypes(request, valueType, targetType);
+   ~~~
+
+   ~~~java
+   protected List<MediaType> getProducibleMediaTypes(HttpServletRequest request, 
+                                                     Class<?> valueClass, 
+                                                     @Nullable Type targetType) {
+    	// 这个是从@RquestMapping的produces属性中取值，如果有就直接取这个的值
+       Set<MediaType> mediaTypes = (Set<MediaType>) request
+           											.getAttribute(HandlerMapping
+                                                     					.PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE);
+       if (!CollectionUtils.isEmpty(mediaTypes)) {
+           return new ArrayList<>(mediaTypes);
+       }
+       // 遍历HttpMessageConverter,调用其canWrite方法判断是否能够处理当前接口方法的返回值，比如当前接口是List<String>
+       // 若可以处理，则调用其getSupportedMediaTypes方法，得到媒体类型列表
+       List<MediaType> result = new ArrayList<>();
+       for (HttpMessageConverter<?> converter : this.messageConverters) {
+           if (converter instanceof GenericHttpMessageConverter && targetType != null) {
+               if (((GenericHttpMessageConverter<?>) converter).canWrite(targetType, valueClass, null)) {
+                   result.addAll(converter.getSupportedMediaTypes(valueClass));
+               }
+           }
+           else if (converter.canWrite(valueClass, null)) {
+               result.addAll(converter.getSupportedMediaTypes(valueClass));
+           }
+       }
+       // 如果上面的媒体类型为空，则返回*/*媒体类型，否则返回找到的媒体类型列表
+       return (result.isEmpty() ? Collections.singletonList(MediaType.ALL) : result);
+   }
+   ~~~
+
+3. 根据双方支持的媒体类型列表，得到双方都认可媒体类型列表
+
+   ~~~java
+   // getProducibleMediaTypes 方法执行完毕之后，得到了服务器端能够响应的媒体类型列表
+   ~~~
+
+   <img src="images/image-20220507213358042.png" alt="image-20220507213358042" style="zoom:80%;" />
+
+4. 对双方都支持的媒体类型列表进行排序
+
+   <img src="images/image-20220507213417534.png" alt="image-20220507213417534" style="zoom:80%;" />
+
+5. 取一个合适的作为响应的媒体类型
+
+   <img src="images/image-20220507213456050.png" alt="image-20220507213456050" style="zoom:80%;" />
+
+6. 根据接口的返回值和得到的 MediaType，匹配到合适 HttpMessageConverter，然后调用 HttpMessageConverter 的 write 方法，其内部将内容转换为指定的格式输出
+
+
+
+## 8、视图解析原理
+
+1. 目标方法处理的过程中，所有数据都会被放在 ModelAndViewContainer 里面，包括数据和视图地址
+2. 方法的参数是一个自定义类型对象（从请求参数中确定的），重新放在 ModelAndViewContainer 
+3. 任何目标方法执行完成以后都会返回 ModelAndView（数据和视图地址）
+4. processDispatchResult  处理派发结果（页面做何响应）
+   - render(mv, request, response); 进行页面渲染逻辑
+     1. 根据方法的String返回值得到 View 对象【定义了页面的渲染逻辑】
+     2. 所有的视图解析器尝试是否能根据当前返回值得到View对象
+     3. 得到 redirect:/main.html --> Thymeleaf new RedirectView()
+     4. ContentNegotiationViewResolver 里面包含了下面所有的视图解析器，内部还是利用下面所有视图解析器得到视图对象。
+     5. view.render(mv.getModelInternal(), request, response);   视图对象调用自定义的render进行页面渲染工作
+        - RedirectView 渲染【重定向到一个页面】
+        - 获取目标url地址
+        - response.sendRedirect(encodedURL);
+
+<img src="images/image-20220507225647689.png" alt="image-20220507225647689" style="zoom:80%;" />
+
+视图解析：
+
+- 返回值以 forward: 开始
+
+  new InternalResourceView(forwardUrl); -->  转发request.getRequestDispatcher(path).forward(request, response); 
+
+- 返回值以 redirect: 开始
+
+  new RedirectView() --->  render就是重定向 
+
+- 返回值是普通字符串
+
+  new ThymeleafView（）---> 自定义视图解析器+自定义视图；
 
 # 问题
 
