@@ -525,7 +525,9 @@ public Response errorTest2(){
 
 ### 简介
 
-这是一个增强的 Controller。使用这个 Controller ，可以实现三个方面的功能：
+这是一个增强的 Controller，用于封装Controller的全部切面属性，包括切入点和切入属性，具体的切入依靠其他注解。
+
+使用这个 Controller ，可以实现三个方面的功能：
 
 1. 全局异常处理
 2. 全局数据绑定

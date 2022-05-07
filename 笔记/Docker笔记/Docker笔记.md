@@ -1309,6 +1309,10 @@ Dockerfile、Docker镜像与Docker容器分别代表软件的三个不同阶段�
 *  Docker镜像是软件的交付品
 *  Docker容器则可以认为是软件镜像的运行态，也即依照镜像运行的容器实例
 
+**注意**：
+
+- 每条指令都是独立运行的，并会创建一个新镜像，因此RUN cd /tmp不会对下一条指令产生任何影响。
+
 ## 2、基本规则
 
 1. 每条**保留字指令**都必须为**大写字母**且后面要跟随**至少一个参数**。
@@ -1552,11 +1556,11 @@ Compose允许用户通过定义一个单独的 YAML 格式的配置文件docker-
 
 ### 1.1、核心概念
 
-yml文件，服务（service），工程（project）
+**三大件**：yml文件，服务（service），工程（project）
 
-服务：一个个应用容器实例，比如订单微服务、mysql容器。
+**服务**：一个个应用容器实例，比如订单微服务、mysql容器。
 
-工程：由一组关联的应用容器组成的一个完整业务单元，在 docker-compose.yml 文件中定义。
+**工程**：由一组关联的应用容器组成的一个完整业务单元，在 docker-compose.yml 文件中定义。
 
 不用Compose的问题：启动一个工程需要多个run命令启动多个容器，容器启停会导致ip变化，映射规则可能出现问题
 
@@ -1645,13 +1649,17 @@ networks:                        #关于compose中的networks的详细使用
 为全部用户安装docker-compose
 
 ```bash
-curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
 ```
+
+~~~bash
+curl -SL https://github.com/docker/compose/releases/download/v2.5.0/docker-compose-linux-aarch64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+~~~
 
 赋予权限给可执行的二进制文件
 
 ```bash
-chmod +x /usr/local/bin/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ```
 
 测试
@@ -1670,7 +1678,7 @@ docker compose version
 
 使用 docker-compose.yml 定义一个完整业务单元，安排好整体应用中的各个容器服务。
 
-最后，执行docker-compose up命令 来启动并运行整个应用程序，完成一键部署上线。
+最后，执行docker-compose up -f yml文件命令 来启动并运行整个应用程序，完成一键部署上线。
 
 ## 4、常用命令
 
@@ -1679,19 +1687,19 @@ Compose常用命令
 
 | 命令                 | 功能                                 |
 | --------------------| ------------------------------------ |
-|docker-compose exec yml里面的服务id  | 进入容器实例内部，docker-compose exec docker-compose.yml文件中写的服务id /bin/bash |
-|docker-compose ps               | 展示当前docker-compose编排过的运行的所有容器 |
-|docker-compose top               | 展示当前docker-compose编排过的容器进程 |
-|docker-compose logs  yml里面的服务id | 查看容器输出日志 |
-|docker-compose config   | 检查配置 |
-|docker-compose config -q | 检查配置，有问题才有输出 |
-|docker-compose restart  | 重启服务 |
-|docker-compose start    | 启动服务 |
-|docker-compose stop     | 停止服务 |
-| docker-compose -h    | 查看帮助                             |
-| docker-compose up    | 启动所有docker-compose服务           |
-| docker-compose up -d | 启动所有docker-compose服务并后台运行 |
-| docker-compose down  | 停止并删除容器、网络、卷、镜像。     |
+|docker compose exec yml里面的服务id  | 进入容器实例内部，docker-compose exec docker-compose.yml文件中写的服务id /bin/bash |
+|docker compose ps               | 展示当前docker-compose编排过的运行的所有容器 |
+|docker compose top               | 展示当前docker-compose编排过的容器进程 |
+|docker compose logs  yml里面的服务id | 查看容器输出日志 |
+|docker compose config   | 检查配置 |
+|docker compose config -q | 检查配置，有问题才有输出 |
+|docker compose restart  | 重启服务 |
+|docker compose start    | 启动服务 |
+|docker compose stop     | 停止服务 |
+| docker compose -h   | 查看帮助                             |
+| docker compose -f yml文件 up | 启动所有docker-compose服务           |
+| docker compose  -f yml文件 up -d | 启动所有docker-compose服务并后台运行 |
+| docker compose down | 停止并删除容器、网络、卷、镜像。     |
 
 ## 5、例子
 
@@ -1762,7 +1770,7 @@ services:
     privileged: true
 ```
 
-执行docker compose up -d后，进入容器中进行主从分配
+执行docker compose -f yml文件 up -d后，进入容器中进行主从分配
 
 # Docker可视化工具
 
