@@ -1633,14 +1633,15 @@ public final Object resolveArgument(MethodParameter parameter,
 
 
 
-## 7、文件上传与下载
+## 7、文件处理
 
-### 文件上传
+### 1、文件上传
 
-文件上传要求form表单的请求方式必须为post，并且添加属性enctype="multipart/form-data"
+**注意**：文件上传要求form表单的请求方式必须为**post**，并且添加属性**enctype="multipart/form-data"**
 
-1. Spring-MVC为文件上传提供了直接支持，使用 **MultipartResolver** 实现，通过此对象可以获取文件相关信息。Spring用 **Jakarta Commons FileUpload** 技术实现了一个MultipartResolver的实现类：**CommonsMultipartResovler**。
-2. Spring-MVC上下文**默认没有装配MultipartResovler**，因此默认情况下不能处理文件的上传工作，若需使用要在上下文中配置MultipartResolver。
+1. Spring-MVC为文件上传提供了直接支持，使用 **MultipartResolver** 实现，通过此对象可以获取文件相关信息。
+1. Spring用 **Jakarta Commons FileUpload** 技术实现了一个MultipartResolver的实现类：**CommonsMultipartResovler**。
+2. Spring-MVC上下文**默认没有装配MultipartResovler**，因此默认情况下不能处理文件的上传工作，若需使用要在上下文中配置MultipartResolver。（SpringBoot自动注入）
 
 ```xml
 <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
@@ -1650,6 +1651,7 @@ public final Object resolveArgument(MethodParameter parameter,
 ```
 
 ~~~java
+// 例子一
 @RequestMapping("/testUp")
 public String testUp(MultipartFile photo, HttpSession session) throws IOException {
     // 获取上传的文件的文件名
@@ -1673,6 +1675,40 @@ public String testUp(MultipartFile photo, HttpSession session) throws IOExceptio
 List<MultipartFile> files = ((MultipartHttpServletRequest) request).getFiles("file");
 ~~~
 
+~~~java
+// 例子二
+/**
+* MultipartFile 自动封装上传过来的文件
+*/
+@PostMapping("/upload")
+public String upload(@RequestParam("email") String email,
+                     @RequestParam("username") String username,
+                     @RequestPart("headerImg") MultipartFile headerImg,
+                     @RequestPart("photos") MultipartFile[] photos) throws IOException {
+
+    log.info("上传的信息：email={}，username={}，headerImg={}，photos={}",
+             email,username,headerImg.getSize(),photos.length);
+
+    if(!headerImg.isEmpty()){
+        // 保存到文件服务器，OSS服务器
+        String originalFilename = headerImg.getOriginalFilename();
+        headerImg.transferTo(new File("H:\\cache\\"+originalFilename));
+    }
+
+    if(photos.length > 0){
+        for (MultipartFile photo : photos) {
+            if(!photo.isEmpty()){
+                String originalFilename = photo.getOriginalFilename();
+                photo.transferTo(new File("H:\\cache\\"+originalFilename));
+            }
+        }
+    }
+
+    return "main";
+}
+
+~~~
+
 **注意**：
 
 - Bean的ID必须为multipartResolver否则Spring找不到。
@@ -1689,7 +1725,18 @@ List<MultipartFile> files = ((MultipartHttpServletRequest) request).getFiles("fi
         max-file-size: 1000MB
         max-request-size: 1000MB
 
-### 文件下载
+**注意**：
+
+- SpringBoot中自动开启文件上传自动配置类------>**MultipartAutoConfiguration**------>**MultipartProperties**，无需手动注入Bean
+  - 自动配置好了 **StandardServletMultipartResolver**【文件上传解析器】
+  - 原理步骤
+    - 请求进来使用文件上传解析器判断（isMultipart）并封装（resolveMultipart，返回MultipartHttpServletRequest）文件上传请求
+    - 参数解析器来解析请求中的文件内容封装成MultipartFile
+    - 将request中文件信息封装为一个Map；MultiValueMap<String, MultipartFile> FileCopyUtils，实现文件流的拷贝
+
+![image-20220508095600889](images/image-20220508095600889.png)
+
+### 2、文件下载
 
 使用ResponseEntity实现下载文件的功能
 
@@ -1759,7 +1806,7 @@ public ResponseEntity<byte[]> testResponseEntity(HttpSession session) throws IOE
 
 # 6、拦截器
 
-## 简介
+## 1、简介
 
 Spring-MVC可以使用拦截器对请求进行拦截处理，开发者可以自定义拦截器来实现特定的功能。
 
@@ -1772,7 +1819,21 @@ Spring-MVC可以使用拦截器对请求进行拦截处理，开发者可以自�
 - **postHandle()**：这个方法在**业务处理器处理完请求后**，但是DispatcherServlet 向客户端**返回响应前**被调用，在该方法中对用户请求request进行处理。 
 - **afterCompletion()**：这个方法在 DispatcherServlet 完全处理完请求后被调用，可以在该方法中进行一些资源清理的操作。
 
-## 拦截器方法执行顺序
+## 2、拦截器方法执行顺序
+
+1. 根据当前请求，找到**HandlerExecutionChain【**可以处理请求的handler以及handler的所有拦截器】
+2. 先来**顺序执行**所有拦截器的preHandle方法
+3. - 如果当前拦截器prehandler方法返回为true，则执行下一个拦截器的preHandle方法
+   - 如果当前拦截器返回为false，直接倒序执行所有已经执行了的拦截器的afterCompletion方法
+4. 倒序执行所有拦截器的postHandle方法
+5. 页面成功渲染完成以后，倒序触发afterCompletion方法
+
+**注意**：
+
+- 如果任何一个拦截器返回false，直接跳出不执行目标方法
+- 所有拦截器都返回True，才执行目标方法
+- 前面的步骤有任何异常都会直接倒序触发afterCompletion方法
+- 如果在**preHandle**阶段任意一个拦截器返回false直接跳到最后。
 
 单个拦截器：
 
@@ -1782,9 +1843,9 @@ First#preHandle --> HandlerAdapter#handle --> First#postHandle --> DispatcherSer
 
 First#preHandle --> Second#preHandle --> HandlerAdapter#handle --> Second#postHandle --> First#postHandle --> DispatcherServlet#render --> Second# afterCompletion --> First#afterCompletion
 
-**注意**：如果在**preHandle**阶段任意一个拦截器返回false直接跳到最后。
+![image-20220508094135099](images/image-20220508094135099.png)
 
-## 配置自定义拦截器
+## 3、配置自定义拦截器
 
 ```xml
 <mvc:interceptors>
@@ -1802,6 +1863,8 @@ public void addInterceptors(InterceptorRegistry registry) {
     registry.addInterceptor(loginInterceptor).excludePathPatterns("/index", "/");
 }
 ~~~
+
+
 
 # 7、过滤器
 
@@ -1879,13 +1942,13 @@ SpringMVC 提供了 **HiddenHttpMethodFilter** 帮助我们**将 POST 请求转�
 
 # 8、异常处理
 
-## 简介
+## 1、简介
 
 1. 使用 **HandlerExceptionResolver** 处理程序的异常，包括Handler映射、数据绑定、目标处理方法执行异常。
 2. 使用 @ExceptionHandler注解，<a href="#@ExceptionHandler注解">详见</a>。
 3. 使用 @controlleradvice注解，<a href="#@controlleradvice注解">详见</a>。
 
-## HandlerExceptionResolver
+## 2、HandlerExceptionResolver
 
 默认装配的异常处理器：
 
@@ -1899,25 +1962,37 @@ DispatcherServlet默认装配的**HandlerExceptionResolver**。
 
 ![image-20210923163511094](images/image-20210923163511094.png)
 
-#### 1、ExceptionHandlerExceptionResolver
+自定义实现 HandlerExceptionResolver 处理异常，可以作为默认的全局异常处理规则。
+
+
+
+### 1、ExceptionHandlerExceptionResolver
 
 **作用**：主要处理Handler中使用**@ExceptionHandler注解**定义的方法。
 
+为@ControllerAdvice+@ExceptionHandler处理全局异常做支持
 
 
-#### 2、ResponseStatusExceptionResolver
+
+### 2、ResponseStatusExceptionResolver
 
 **作用**：在异常及异常父类中找到**@ResponseStatus注解**，然后使用这个注解的属性进行处理。
 
+为@ResponseStatus+自定义异常做支持
+
+@ResponseStatus注解的信息底层调用 response.sendError(statusCode, resolvedReason)，相当于给tomcat再次发送请求，并且请求为/error，ResponseStatusExceptionResolver在调用完response.sendError()后会返回一个空view和空model的ModelAndView对象实例，以便结束本次请求的后续流程，直接进入/error请求处理逻辑。
 
 
-#### 3、DefaultHandlerExceptionResolver
+
+### 3、DefaultHandlerExceptionResolver
 
 **作用**：对一些特殊的异常进行处理：**NoSuchRequestHandlingMethodException**、**HttpReques** **tMethodNotSupportedException**、**HttpMediaTypeNotSuppo** **rtedException**、**HttpMediaTypeNotAcceptableException** 等
 
+为Spring底层的异常做支持，如参数类型转换异常，处理框架底层的异常
 
 
-#### 4、SimpleMappingExceptionResolver
+
+### 4、SimpleMappingExceptionResolver
 
 **作用**：如果希望对所有异常进行统一处理，可以使用**SimpleMappingExceptionResolver**，它将异常类名映射为视图名，即发生异常时使用对应的视图报告异常。
 
@@ -1941,7 +2016,11 @@ DispatcherServlet默认装配的**HandlerExceptionResolver**。
 - **exceptionAttribute**：定义存入的异常名默认为exception，将出现的异常信息在请求域中进行共享
 - **exceptionMappings**：定义需要处理的特殊异常，用类名全路径作为key，异常视图为值。
 
-### 5、自定义
+
+
+### 5、自定义ExceptionResolver
+
+可以作为默认的全局异常处理规则
 
 ~~~java
 @Component //注意该类需要交给Spring容器管理
@@ -1957,7 +2036,6 @@ public class MyExceptionResolver implements HandlerExceptionResolver {
         ModelAndView mv = new ModelAndView();
         mv.setViewName("/error.jsp");
         return mv;
-        
     }
 }
 ~~~
@@ -2232,7 +2310,7 @@ public class AppConfig  extends WebMvcConfigurerAdapter  {
 
 # 11、异步Spring-MVC
 
-## Callable
+## 1、Callable
 
 1、首先方法需要返回的是**Callable**
 
@@ -2242,7 +2320,7 @@ public class AppConfig  extends WebMvcConfigurerAdapter  {
 
 4、Callable返回结果，SpringMVC将请求**重新派发给容器**，恢复之前的处理
 
-5、根据Callable返回的结果。SpringMVC继续进行视图渲染流程等（从收请求--->视图渲染）
+5、根据Callable返回的结果，SpringMVC继续进行视图渲染流程等（从收请求--->视图渲染）
 
 6、流程：
 
@@ -2268,10 +2346,10 @@ afterCompletion...
 @RequestMapping("/async01")
 public Callable<String> async01(){
     System.out.println("主线程开始..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
-	//创建一个Callable，执行异步处理
+	// 创建一个Callable，执行异步处理
     Callable<String> callable = new Callable<String>() {
         @Override
-        //异步处理
+        // 异步处理
         public String call() throws Exception {
             System.out.println("副线程开始..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
             Thread.sleep(2000);
@@ -2285,7 +2363,7 @@ public Callable<String> async01(){
 }
 ```
 
-## **DeferredResult**
+## 2、DeferredResult
 
 **需求**：
 
@@ -2770,6 +2848,7 @@ private void processDispatchResult(HttpServletRequest request, HttpServletRespon
         }
         else {
             Object handler = (mappedHandler != null ? mappedHandler.getHandler() : null);
+            // 如果请求发生异常，则由该方法处理
             mv = processHandlerException(request, response, handler, exception);
             errorView = (mv != null);
         }
@@ -2910,7 +2989,7 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
    3. Spring-MVC把WebDataBinder的attrName和target给到implicitModel，进而传到request域对象中。
    4. 把WebDataBinder的target作为参数传递给目标方法的入参。
 
-## 3、关于\<mvc:annotation-driven/>
+## 3、\<mvc:annotation-driven/>
 
 - 会自动注册**RequestMappingHandlerMapping**、**RequestMappingHandlerAdapter**、**ExceptionHandlerExceptionResolver**三个bean
 
@@ -2948,6 +3027,8 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
 
 - 如果方法入参为**Map**或者**Model**类型，Sping-MVC会将隐含模型的引用传递给入参，之后在方法体内开发者可以通过这个入参对象访问/修改到模型中的数据。
 
+
+
 ## 5、HandlerExceptionResolver使用详解
 
 ### 1、古老的异常处理方式
@@ -2969,7 +3050,7 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
 
 ```
 
-### 2、Spring MVC处理异常
+### 2、SpringMVC处理异常
 
 Spring MVC提供处理异常的方式主要分为两种：
 
@@ -3169,7 +3250,7 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 
 它对这些异常的处理，亦可参考内置的`ResponseEntityExceptionHandler`实现，它提供了基于`@ExceptionHandler`的很多异常类型的处理。
 
-#### 自定义`HandlerExceptionResolver`处理异常
+#### 自定义异常处理器
 
 ```java
 @Configuration
@@ -3378,6 +3459,8 @@ org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMe
 - 返回值是普通字符串
 
   new ThymeleafView（）---> 自定义视图解析器+自定义视图；
+
+
 
 # 问题
 

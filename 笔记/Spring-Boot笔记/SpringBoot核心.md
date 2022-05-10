@@ -1207,10 +1207,16 @@ public class WebMvcAutoConfiguration {
 
 **原理**：请求进来，先去找Controller看能不能处理，不能处理的请求都交给静态资源处理器，静态资源也找不到则响应404页面
 
+**注意**：
+
+- 静态资源的访问路径必须时绝对路径/css/**，不能时相对路径css/\*\*
+
+- 配置时填写路径也是一样
+
 ~~~yml
 spring:
   # 访问静态资源的路径
-  # 当前项目 + static-path-pattern + 静态资源名 = 静态资源文件夹下找
+  # 当前项目 + static-path-pattern + 静态资源名 = 静态资源文件夹/haha下找，并且还会往/haha的子文件夹找
   # 此项自定义设置会导致自动配置的欢迎页面功能失效
   mvc:
     static-path-pattern: /res/**
@@ -1234,6 +1240,18 @@ private static final String[] CLASSPATH_RESOURCE_LOCATIONS = { "classpath:/META-
                                                               "classpath:/public/" };
 // spring.mvc.static-path-pattern默认配置
 private String staticPathPattern = "/**";
+
+@Configuration
+public class MyMvcConfig extends WebMvcConfigurerAdapter {
+	@Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 表示增加一个映射，不会取消默认映射
+        // 当访问路径包含/img时，会往/imgs查找，并往还会往其子文件查找
+        registry.addResourceHandler("/img/**").addResourceLocations("classpath:/imgs/");
+        super.addResourceHandlers(registry);
+    }
+}
+
 
 // 注入请求转换过滤器
 @Bean
@@ -1373,32 +1391,32 @@ public static class FaviconConfiguration {
 
 ```xml
 <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-thymeleaf</artifactId>
-     <!--2.1.6版本-->
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    <!--2.1.6版本-->
 </dependency>
- <!--切换thymeleaf版本-->
+<!--切换thymeleaf版本-->
 <properties>
-		<thymeleaf.version>3.0.9.RELEASE</thymeleaf.version>
-		<!-- 布局功能的支持程序  thymeleaf3主程序  layout2以上版本 -->
-		<!-- thymeleaf2   layout1-->
-		<thymeleaf-layout-dialect.version>2.2.2</thymeleaf-layout-dialect.version>
-  </properties>
+    <thymeleaf.version>3.0.9.RELEASE</thymeleaf.version>
+    <!-- 布局功能的支持程序  thymeleaf3主程序  layout2以上版本 -->
+    <!-- thymeleaf2   layout1-->
+    <thymeleaf-layout-dialect.version>2.2.2</thymeleaf-layout-dialect.version>
+</properties>
 ```
 
-springboot中添加spring-boot-starter-thymeleaf依赖后，springboot会自动注入
+springboot中添加spring-boot-starter-thymeleaf依赖后，springboot会自动注入以下类：
 
-- SpringResourceTemplateResolver（模板解析器）
-- SpringTemplateEngine（模板引擎）
-- ThymeleafViewResolver（thymeleaf视图解析器）等对象
+- **SpringResourceTemplateResolver**（模板解析器）
+- **SpringTemplateEngine**（模板引擎）
+- **ThymeleafViewResolver**（thymeleaf视图解析器）等对象
 
-这样可以使用模板引擎就可以将模板解析成字符串以及生成文件等。
+以此使用模板引擎将模板解析成字符串以及生成文件等
 
 ~~~java
-//解析邮件模板并绑定变量参数  
+// 解析邮件模板并绑定变量参数  
 var context = new Context();  
 context.setVariable("user", buyer);  
-//mailContent为模板m  
+// mailContent为模板m  
 var content = templateEngine.process("mailContent", context); 
 ~~~
 
@@ -1417,18 +1435,24 @@ public class ThymeleafProperties {
 	public static final String DEFAULT_PREFIX = "classpath:/templates/";
 
 	public static final String DEFAULT_SUFFIX = ".html";
+}
 
+    
+// 自动配置好了
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ThymeleafProperties.class)
+@ConditionalOnClass({ TemplateMode.class, SpringTemplateEngine.class })
+@AutoConfigureAfter({ WebMvcAutoConfiguration.class, WebFluxAutoConfiguration.class })
+public class ThymeleafAutoConfiguration { }
 ```
 
-#### 准备操作
-
-##### 1、导入Thymeleaf名称空间
+#### 1、导入Thymeleaf名称空间
 
 ```html
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 ```
 
-##### 2、使用Thymeleaf语法
+#### 2、使用Thymeleaf语法
 
 ```html
 <!DOCTYPE html>
@@ -1447,30 +1471,30 @@ public class ThymeleafProperties {
 
 ### 3、Thymeleaf语法
 
-1、th：text	改变当前元素内的文本内容
+#### 1、基础语法
 
-2、th：任意html属性	替换原本属性
+| 表达式名字 | 语法                           | 用途                                                         |
+| ---------- | ------------------------------ | ------------------------------------------------------------ |
+| 变量取值   | ${...}                         | 获取请求域、session域、对象等值                              |
+| 选择变量   | *{...}                         | 获取上下文对象值                                             |
+| 消息       | #{...}                         | 获取国际化等值                                               |
+| 链接       | @{...}                         | 生成链接                                                     |
+| 片段表达式 | ~{...}                         | jsp:include 作用，引入公共页面片段                           |
+| 设置属性值 | th：任意html属性 或者 th：attr | 替换原本属性值<br>\<img th:attr="src=@{/images/gtvglogo.png},title=#{logo},alt=#{logo}" /> |
 
-![2018-02-04_123955](images\2018-02-04_123955.png)
-
-3、表达式
-
-```properties
-Simple expressions:（表达式语法）
-    Variable Expressions: ${...}：获取变量值；支持OGNL；
-    		1）、获取对象的属性、调用方法
-    		
-    		2）、使用内置的基本对象：
-    			#ctx : the context object.
-    			#vars: the context variables.
-                #locale : the context locale.
-                #request : (only in Web Contexts) the HttpServletRequest object.
-                #response : (only in Web Contexts) the HttpServletResponse object.
-                #session : (only in Web Contexts) the HttpSession object.
-                #servletContext : (only in Web Contexts) the ServletContext object.
-                ${session.foo}
-                
-            3）、内置的一些工具对象：
+~~~properties
+Variable Expressions: ${...}：获取变量值；支持OGNL；
+1、获取对象的属性、调用方法
+2、使用内置的基本对象：
+ #ctx : the context object.
+ #vars: the context variables.
+ #locale : the context locale.
+ #request : (only in Web Contexts) the HttpServletRequest object.
+ #response : (only in Web Contexts) the HttpServletResponse object.
+ #session : (only in Web Contexts) the HttpSession object.
+ #servletContext : (only in Web Contexts) the ServletContext object.
+ ${session.foo}     
+3、内置的一些工具对象：
 #execInfo : information about the template being processed.
 #messages : methods for obtaining externalized messages inside variables expressions, in the same way as they would be obtained using #{…} syntax.
 #uris : methods for escaping parts of URLs/URIs
@@ -1487,47 +1511,76 @@ Simple expressions:（表达式语法）
 #maps : methods for maps.
 #aggregates : methods for creating aggregates on arrays or collections.
 #ids : methods for dealing with id attributes that might be repeated (for example, as a result of an iteration).
+~~~
 
-	Selection Variable Expressions: *{...}：选择表达式：和${}在功能上是一样；
+~~~properties
+Selection Variable Expressions: *{...}：选择表达式：和${}在功能上是一样；
     补充：配合 th:object="${session.user}：
     <div th:object="${session.user}">
     	<p>Name: <span th:text="*{firstName}">Sebastian</span>.</p>
     	<p>Surname: <span th:text="*{lastName}">Pepper</span>.</p>
     	<p>Nationality: <span th:text="*{nationality}">Saturn</span>.</p>
     </div>
-    
-    Message Expressions: #{...}：获取国际化内容
-    Link URL Expressions: @{...}：定义URL；
-    		@{/order/process(execId=${execId},execType='FAST')}
-    Fragment Expressions: ~{...}：片段引用表达式
-    		<div th:insert="~{commons :: main}">...</div>
-    		
-Literals（字面量）
+~~~
+
+~~~properties
+Message Expressions: #{...}：获取国际化内容
+~~~
+
+~~~properties
+Link URL Expressions: @{...}：定义URL；
+
+@{/order/process(execId=${execId},execType='FAST')}
+~~~
+
+~~~properties
+Fragment Expressions: ~{...}：片段引用表达式
+
+<div th:insert="~{commons :: main}">...</div>
+~~~
+
+![2018-02-04_123955](images\2018-02-04_123955.png)
+
+
+
+```properties
+Literals:（字面量）
       Text literals: 'one text' , 'Another one!' ,…
       Number literals: 0 , 34 , 3.0 , 12.3 ,…
       Boolean literals: true , false
       Null literal: null
       Literal tokens: one , sometext , main ,…
+      
 Text operations:（文本操作）
     String concatenation: +
     Literal substitutions: |The name is ${name}|
+    
 Arithmetic operations:（数学运算）
     Binary operators: + , - , * , / , %
     Minus sign (unary operator): -
+    
 Boolean operations:（布尔运算）
     Binary operators: and , or
     Boolean negation (unary operator): ! , not
+    
 Comparisons and equality:（比较运算）
     Comparators: > , < , >= , <= ( gt , lt , ge , le )
     Equality operators: == , != ( eq , ne )
+    
 Conditional operators:条件运算（三元运算符）
     If-then: (if) ? (then)
-    
     If-then-else: (if) ? (then) : (else)
     Default: (value) ?: (defaultvalue)
+    
 Special tokens:
     No-Operation: _ 
 ```
+
+
+
+
+
+
 
 ```html
 <div th:if="${xxx == null}">
@@ -1551,20 +1604,51 @@ Special tokens:
 </ul>
 ```
 
+#### 2、迭代
+
+~~~html
+<tr th:each="prod : ${prods}">
+        <td th:text="${prod.name}">Onions</td>
+        <td th:text="${prod.price}">2.41</td>
+        <td th:text="${prod.inStock}? #{true} : #{false}">yes</td>
+</tr>
+
+<tr th:each="prod,iterStat : ${prods}" th:class="${iterStat.odd}? 'odd'">
+  <td th:text="${prod.name}">Onions</td>
+  <td th:text="${prod.price}">2.41</td>
+  <td th:text="${prod.inStock}? #{true} : #{false}">yes</td>
+</tr>
+~~~
+
+#### 3、条件运算
+
+~~~html
+<a href="comments.html"
+	th:href="@{/product/comments(prodId=${prod.id})}"
+	th:if="${not #lists.isEmpty(prod.comments)}" >view</a>
+
+<div th:switch="${user.role}">
+  <p th:case="'admin'">User is an administrator</p>
+  <p th:case="#{roles.manager}">User is a manager</p>
+  <p th:case="*">User is some other thing</p>
+</div>
+~~~
 
 
-#### 1、抽取公共片段
+
+#### 4、公共片段
 
 ```html
-1、抽取公共片段
+1、设置公共片段
 <div th:fragment="copy">
-xxxxxx
+	xxxxxx
 </div>
 
 2、引入公共片段
 <div th:insert="~{footer :: copy}"></div>
-~{templatename::selector}：模板名::选择器
-~{templatename::fragmentname}:模板名::片段名
+语法：
+	~{templatename::selector}：模板名::选择器
+	~{templatename::fragmentname}:模板名::片段名
 
 3、默认效果：
 insert的公共片段在div标签中
@@ -1572,25 +1656,22 @@ insert的公共片段在div标签中
 行内写法可以加上：[[~{}]];[(~{})]；
 ```
 
-**templatename：**当前引用片段所在文件位置
-
-**selector：**公共片段的选择器
-
-**fragmentname:**公共片段的名字
+- **templatename：**当前引用片段所在文件位置
+- **selector：**公共片段的选择器
+- **fragmentname:**公共片段的名字
 
 
 
 三种引入公共片段的th属性：
 
-**th:insert**：将公共片段整个插入到声明引入的元素中
+- **th:insert**：将公共片段整个插入到声明引入的元素中
 
-**th:replace**：将声明引入的元素替换为公共片段
-
-**th:include**：将被引入的片段的内容包含进这个标签中
+- **th:replace**：将声明引入的元素替换为公共片段
+- **th:include**：将被引入的片段的内容包含进这个标签中
 
 ```html
 <footer th:fragment="copy">
-xxxxxx
+	xxxxxx
 </footer>
 
 引入方式
@@ -1601,16 +1682,16 @@ xxxxxx
 效果
 <div>
     <footer>
-    xxxxxx
+    	xxxxxx
     </footer>
 </div>
 
 <footer>
-xxxxxx
+	xxxxxx
 </footer>
 
 <div>
-xxxxxx
+	xxxxxx
 </div>
 ```
 
@@ -1624,19 +1705,26 @@ xxxxxx
                 <a class="nav-link active"
                    th:class="${activeUri=='main.html'?'nav-link active':'nav-link'}"
                    href="#" th:href="@{/main.html}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-home">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" 
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" 
+                         stroke-linejoin="round" class="feather feather-home">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                     Dashboard <span class="sr-only">(current)</span>
                 </a>
             </li>
+        </ul>
+    </div>
+</nav>
 
-<!--引入侧边栏;传入参数-->
+<!--引入侧边栏，同时传入参数-->
 <div th:replace="commons/bar::#sidebar(activeUri='emps')"></div>
 ```
 
-#### 2、简单的分页模板
+
+
+#### 5、简单的分页模板
 
 样式使用Bootstarp4
 
@@ -1678,35 +1766,100 @@ xxxxxx
 实现拦截器接口后，在WebMvcConfigurerAdapter重写方法addInterceptors注册拦截器
 
 ```java
-//注册拦截器
+// 注册拦截器
 @Override
 public void addInterceptors(InterceptorRegistry registry) {
-//super.addInterceptors(registry);
-//静态资源；  *.css , *.js
-//SpringBoot已经做好了静态资源映射
-      registry.addInterceptor(new LoginHandlerInterceptor())
-          .addPathPatterns("/**")
-          .excludePathPatterns("/index.html","/","/user/login");
+    // super.addInterceptors(registry); 
+    registry.addInterceptor(new LoginHandlerInterceptor())
+        .addPathPatterns("/**") //所有请求都被拦截包括静态资源，*.css , *.js
+        .excludePathPatterns("/index.html","/","/user/login", "/static/css/**"); // 放行特定请求与静态资源
+}
+
+/**
+ * 登录检查
+ * 1、配置好拦截器要拦截哪些请求
+ * 2、把这些配置放在容器中
+ */
+@Slf4j
+public class LoginInterceptor implements HandlerInterceptor {
+
+    /**
+     * 目标方法执行之前
+     */
+    @Override
+    public boolean preHandle(HttpServletRequest request, 
+                             HttpServletResponse response, 
+                             Object handler) throws Exception {
+
+        String requestURI = request.getRequestURI();
+        log.info("preHandle拦截的请求路径是{}",requestURI);
+
+        // 登录检查逻辑
+        HttpSession session = request.getSession();
+
+        Object loginUser = session.getAttribute("loginUser");
+
+        if(loginUser != null){
+            // 放行
+            return true;
+        }
+
+        // 拦截住,未登录,跳转到登录页
+        request.setAttribute("msg","请先登录");
+        // re.sendRedirect("/");
+        request.getRequestDispatcher("/").forward(request,response);
+        return false;
+    }
+
+    /**
+     * 目标方法执行完成以后
+     */
+    @Override
+    public void postHandle(HttpServletRequest request, 
+                           HttpServletResponse response, 
+                           Object handler, 
+                           ModelAndView modelAndView) throws Exception {
+        log.info("postHandle执行{}",modelAndView);
+    }
+
+    /**
+     * 页面渲染以后
+     */
+    @Override
+    public void afterCompletion(HttpServletRequest request, 
+                                HttpServletResponse response, 
+                                Object handler, 
+                                Exception ex) throws Exception {
+        log.info("afterCompletion执行异常{}",ex);
+    }
 }
 ```
+
+
 
 ## 6、错误处理机制
 
 ### 1、默认错误处理
 
-SpringBoot默认的错误处理机制，浏览器返回一个默认错误页面
+- 默认情况下，Spring Boot提供**/error**处理所有错误的映射。
+- 对于机器客户端，它将生成JSON响应，其中包含错误，HTTP状态和异常消息的详细信息。
+- 对于浏览器客户端，响应一个“whitelabel错误视图，以HTML格式呈现相同的数据。
+
+SpringBoot默认的错误处理机制，浏览器返回的一个默认错误页面
 
 ![搜狗截图20180226173408](images\搜狗截图20180226173408.png)
 
 SpringBoot根据请求头响应不同的错误数据，如果请求头为优先接受html页面，则返回默认错误处理页面，如果不限，则返回一个json数据
 
-#### 原理
+![image-20220508095925072](images/image-20220508095925072.png)
+
+### 2、默认错误处理原理
 
 参照ErrorMvcAutoConfiguration，错误处理的自动配置。
 
 ErrorMvcAutoConfiguration给容器中添加了以下组件。
 
-##### 1、DefaultErrorAttributes
+#### 1、DefaultErrorAttributes
 
 ```text
 默认提供一下错误信息
@@ -1723,15 +1876,16 @@ path - 引发异常时的 URL 路径
 ```java
 // 获取错误信息，帮助我们在页面共享信息
 @Override
-public Map<String, Object> getErrorAttributes(RequestAttributes requestAttributes, boolean includeStackTrace) {
+public Map<String, Object> getErrorAttributes(RequestAttributes requestAttributes, 
+                                              boolean includeStackTrace) {
 		Map<String, Object> errorAttributes = new LinkedHashMap<String, Object>();
-    	//设置时间戳	
+    	// 设置时间戳	
 		errorAttributes.put("timestamp", new Date());
-    	//设置状态码
+    	// 设置状态码
 		addStatus(errorAttributes, requestAttributes);
-    	//设置根异常的类名，错误原因，异常堆栈跟踪
+    	// 设置根异常的类名，错误原因，异常堆栈跟踪
 		addErrorDetails(errorAttributes, requestAttributes, includeStackTrace);
-    	//设置引发异常时的 URL 路径
+    	// 设置引发异常时的 URL 路径
 		addPath(errorAttributes, requestAttributes);
 		return errorAttributes;
 	}
@@ -1739,7 +1893,7 @@ public Map<String, Object> getErrorAttributes(RequestAttributes requestAttribute
 
 
 
-##### 2、BasicErrorController
+#### 2、BasicErrorController
 
 处理默认的/error请求
 
@@ -1747,45 +1901,52 @@ public Map<String, Object> getErrorAttributes(RequestAttributes requestAttribute
 @Controller
 @RequestMapping("${server.error.path:${error.path:/error}}")
 public class BasicErrorController extends AbstractErrorController {
-    
-    //产生html类型的数据，浏览器发送的请求来到这个方法处理
+    // 产生html类型的数据，浏览器发送的请求来到这个方法处理
     @RequestMapping(produces = "text/html")
 	public ModelAndView errorHtml(HttpServletRequest request,
 								  HttpServletResponse response) {
 		HttpStatus status = getStatus(request);
-		Map<String, Object> model = 
-            Collections.unmodifiableMap(getErrorAttributes(request, isIncludeStackTrace(request, MediaType.TEXT_HTML)));
+		Map<String, Object> model = Collections
+            						.unmodifiableMap(getErrorAttributes(request,
+                                                                        isIncludeStackTrace(request,
+                                                                                     MediaType.TEXT_HTML)));
 		response.setStatus(status.value());
         
-        //去哪个页面作为错误页面，包含页面地址和页面内容
+        // 去哪个页面作为错误页面，包含页面地址和页面内容
 		ModelAndView modelAndView = resolveErrorView(request, response, status, model);
 		return (modelAndView == null ? new ModelAndView("error", model) : modelAndView);
 	}
 
 	@RequestMapping
-    //产生json数据，其他客户端来到这个方法处理
+    // 产生json数据，其他客户端来到这个方法处理
 	@ResponseBody    
 	public ResponseEntity<Map<String, Object>> error(HttpServletRequest request) {
-		Map<String, Object> body = 
-            getErrorAttributes(request, isIncludeStackTrace(request, MediaType.ALL));
+		Map<String, Object> body = getErrorAttributes(request, isIncludeStackTrace(request, MediaType.ALL));
 		HttpStatus status = getStatus(request);
 		return new ResponseEntity<Map<String, Object>>(body, status);
 	}
 ```
 
-##### 3、ErrorPageCustomizer
+
+
+#### 3、ErrorPageCustomizer
 
 ```java
 @Value("${error.path:/error}")
-//系统出现错误以后来到error请求进行处理；（web.xml注册的错误页面规则）
+// 系统出现错误以后来到error请求进行处理；（web.xml注册的错误页面规则）
 private String path = "/error";
 ```
 
-##### 4、DefaultErrorViewResolver
+
+
+#### 4、DefaultErrorViewResolver
 
 ```java
 @Override
-public ModelAndView resolveErrorView(HttpServletRequest request, HttpStatus status, Map<String, Object> model) {
+public ModelAndView resolveErrorView(HttpServletRequest request, 
+                                     HttpStatus status, 
+                                     Map<String, Object> model) {
+    
 		ModelAndView modelAndView = resolve(String.valueOf(status), model);
 		if (modelAndView == null && SERIES_VIEWS.containsKey(status.series())) {
 			modelAndView = resolve(SERIES_VIEWS.get(status.series()), model);
@@ -1794,29 +1955,33 @@ public ModelAndView resolveErrorView(HttpServletRequest request, HttpStatus stat
 	}
 
 	private ModelAndView resolve(String viewName, Map<String, Object> model) {
-        //默认SpringBoot可以去找到一个页面 error/404
+        // 默认SpringBoot可以去找到一个页面 error/404
 		String errorViewName = "error/" + viewName;
         
-        //模板引擎可以解析这个页面地址就用模板引擎解析
+        // 模板引擎可以解析这个页面地址就用模板引擎解析
 		TemplateAvailabilityProvider provider = this.templateAvailabilityProviders
 				.getProvider(errorViewName, this.applicationContext);
 		if (provider != null) {
-            //模板引擎可用的情况下返回到errorViewName指定的视图地址
+            // 模板引擎可用的情况下返回到errorViewName指定的视图地址
 			return new ModelAndView(errorViewName, model);
 		}
-        //模板引擎不可用，就在静态资源文件夹下找errorViewName对应的页面 error/404.html
+        // 模板引擎不可用，就在静态资源文件夹下找errorViewName对应的页面 error/404.html
 		return resolveResource(errorViewName, model);
 	}
 ```
 
-流程：一但系统出现**4xx**或者**5xx**之类的错误；**ErrorPageCustomizer**就会生效（定制错误的响应规则），就会来到/error请求。就会被**BasicErrorController**处理，之后响应页面，去哪个页面是由**DefaultErrorViewResolver**解析得到的
+#### 5、处理流程
+
+- 一但系统出现**4xx**或者**5xx**之类的错误
+- **ErrorPageCustomizer**就会生效（定制错误的响应规则），就会来到/error请求。
+- 就会被**BasicErrorController**处理，之后响应页面，去哪个页面是由**DefaultErrorViewResolver**解析得到的
 
 ```java
 protected ModelAndView resolveErrorView(HttpServletRequest request,
       									HttpServletResponse response, 
                                         HttpStatus status, 
                                         Map<String, Object> model) {
-    //所有的ErrorViewResolver得到ModelAndView
+    // 所有的ErrorViewResolver得到ModelAndView
    for (ErrorViewResolver resolver : this.errorViewResolvers) {
       ModelAndView modelAndView = resolver.resolveErrorView(request, status, model);
       if (modelAndView != null) {
@@ -1827,31 +1992,39 @@ protected ModelAndView resolveErrorView(HttpServletRequest request,
 }
 ```
 
-### 2、定制错误处理
+### 3、定制错误处理
+
+**注意**：
+
+- 要完全替换默认行为，可以实现 **ErrorController** 并注册该类型的Bean定义，或添加 **ErrorAttributes**类型的组件。
+
+
 
 #### 1、定制错误页面
 
-**1、有模板引擎的情况**
+- **有模板引擎的情况**
 
-error/状态码
+例子：error/状态码、error/404.html、error/505.html
 
-将错误页面命名为**错误状态码.html**放在模板引擎文件夹里面的**error文件夹**。发生此状态码的错误就会来到对应的页面。
+将错误页面命名为**错误状态码.html**放在模板引擎文件夹里面的**error文件夹**，发生此状态码的错误就会来到对应的页面。
 
 我们可以使用**4xx**和**5xx**作为错误页面的文件名来模糊匹配这种类型的所有错误
 
 精确匹配优先（优先寻找精确的状态码.html）
 
-**2、没有模板引擎**（模板引擎找不到这个错误页面）
+- **没有模板引擎**/模板引擎找不到这个错误页面
 
 静态资源文件夹下找
 
-**3、以上都没有错误页面**
+- **以上都没有错误页面**
 
 默认来到SpringBoot默认的错误提示页面
 
-#### 2、定制错误的JSON数据
+#### 2、定制错误JSON数据
 
-1、自定义异常处理与返回定制JSON数据
+@ControllerAdvice+@ExceptionHandler处理全局异常，底层是 **ExceptionHandlerExceptionResolver 支持的**
+
+- 自定义异常处理与返回定制JSON数据
 
 ```java
 @ControllerAdvice
@@ -1868,13 +2041,14 @@ public class MyExceptionHandler {
 //没有自适应效果...
 ```
 
-2、转发到/error进行自适应响应效果处理
+- 转发到/error进行自适应响应效果处理
+
 
 ```java
  @ExceptionHandler(UserNotExistException.class)
  public String handleException(Exception e, HttpServletRequest request){
        	Map<String,Object> map = new HashMap<>();
-        //传入我们自己的错误状态码4xx或5xx，否则就不会进入定制错误页面的解析流程
+        // 传入我们自己的错误状态码4xx或5xx，否则就不会进入定制错误页面的解析流程
         /**
          * Integer statusCode = (Integer) request.getAttribute("javax.servlet.error.status_code");
          */
@@ -1886,19 +2060,19 @@ public class MyExceptionHandler {
     }
 ```
 
-#### 3、定制的错误数据响应
+#### 3、定制错误数据响应
 
-出现错误以后，会来到**/error请求**，会被**BasicErrorController**处理，响应出去可以获取的数据是由**getErrorAttributes**得到的（是AbstractErrorController（ErrorController）规定的方法）
+出现错误以后，会来到**/error请求**，会被**BasicErrorController**处理
+
+响应出去可以获取的数据是由**getErrorAttributes**得到的（是AbstractErrorController（ErrorController）规定的方法）
 
 实现方法：
 
-1、完全来编写一个**ErrorController**的实现类，或者是编写**AbstractErrorController**的子类，放在容器中。
+1. 完全来编写一个**ErrorController**的实现类，或者是编写**AbstractErrorController**的子类，放在容器中。
+2. 页面上能用的数据，或者是JSON返回能用的数据都是通过**errorAttributes.getErrorAttributes**得到。
+3. 容器中DefaultErrorAttributes.getErrorAttributes()，默认进行数据处理。
 
-2、页面上能用的数据，或者是JSON返回能用的数据都是通过**errorAttributes.getErrorAttributes**得到。
-
-容器中DefaultErrorAttributes.getErrorAttributes()，默认进行数据处理。
-
-**自定义ErrorAttributes，默认的DefaultErrorAttributes就会失效**
+**注意**：自定义ErrorAttributes生效，默认的DefaultErrorAttributes就会失效
 
 ```java
 //给容器中加入我们自己定义的ErrorAttributes
@@ -1906,11 +2080,13 @@ public class MyExceptionHandler {
 public class MyErrorAttributes extends DefaultErrorAttributes {
 
     @Override
-    public Map<String, Object> getErrorAttributes(RequestAttributes requestAttributes, boolean includeStackTrace) {
+    public Map<String, Object> getErrorAttributes(RequestAttributes requestAttributes, 
+                                                  boolean includeStackTrace) {
+        
         Map<String, Object> map = super.getErroexrAttributes(requestAttributes, includeStackTrace);
         map.put("xxxx","yyyyy");
-        //在错误Controller类中将需要的错误信息放入request中，在此处取出。
-        //requestAttributes是一个将会话与请求关联的抽象类，支持访问请求范围的属性以及会话范围的属性。
+        // 在ErrorController类中将需要的错误信息放入request中，在此处取出。
+        // requestAttributes是一个将会话与请求关联的抽象类，支持访问请求范围的属性以及会话范围的属性。
         Map<String,Object> ex = (Map<String, Object>) requestAttributes.getAttribute("ex", 0);
         map.put("ex",ex);
         return map;
@@ -1920,7 +2096,32 @@ public class MyErrorAttributes extends DefaultErrorAttributes {
 
 最终的效果：响应是自适应的，可以通过定制ErrorAttributes改变需要返回的内容。
 
-## 7、配置嵌入式Servlet容器
+#### 4、定制ErrorViewResolver
+
+- response.sendError()，error请求就会转给ErrorController
+- 异常没有任何人能处理，tomcat底层 response.sendError()，error请求就会转给ErrorController
+- 自己调用 response.sendError()，error请求也会转给ErrorController
+
+basicErrorController 处理error请求，其内部使用ErrorViewResolver进行解析，ErrorViewResolver会返回一个页面后者json数据
+
+
+
+### 4、异常处理流程
+
+1. 执行目标方法，目标方法运行期间有任何异常都会被catch，并标志当前请求结束；并且用 **dispatchException** 保存catch到的异常
+2. 进入视图解析流程：processDispatchResult(processedRequest, response, mappedHandler, **mv**, **dispatchException**);
+3. **mv = processHandlerException(request, response, handler, exception);** 处理handler发生的异常，处理完成返回ModelAndView。
+   1. 遍历所有的 HandlerExceptionResolvers，看谁能处理当前异常
+   2. DefaultErrorAttributes先来处理异常，但是只会把异常信息保存到request域，并且返回null
+   3. 默认情况下没有任何HandlerExceptionResolver能处理异常，所以异常会被抛出
+      1. 如果没有任何HandlerExceptionResolver能处理最终底层就会发送 /error 请求，被底层的BasicErrorController处理
+      2. 解析错误视图，遍历所有的ErrorViewResolver看谁能解析
+         1. 默认的DefaultErrorViewResolver，作用是把响应状态码作为错误页的地址，error/500.html
+         2. 模板引擎最终响应这个页面 error/500.html
+
+
+
+## 7、Servlet容器
 
 SpringBoot默认使用Tomcat作为嵌入式容器
 
@@ -1928,13 +2129,15 @@ SpringBoot默认使用Tomcat作为嵌入式容器
 
 
 
-### 1、定制和修改Servlet容器配置
+### 1、定制嵌入式Servlet容器
 
-#### **1、application修改和server有关的配置**
+有两种方式
 
-​	直接在SpringBoot的配置文件中修改。
+**1、application修改和server有关的配置**
 
-​	在**ServerProperties**中有server相关属性，且ServerProperties实现了**EmbeddedServletContainerCustomizer**接口。
+直接在SpringBoot的配置文件中修改
+
+在**ServerProperties**中有server相关属性，ServerProperties实现了**EmbeddedServletContainerCustomizer**接口。
 
 ```properties
 server.port=8081
@@ -1942,28 +2145,30 @@ server.context-path=/crud
 
 server.tomcat.uri-encoding=UTF-8
 
-//通用的Servlet容器设置
+# 通用的Servlet容器设置
 server.xxx
-//Tomcat的设置
+# Tomcat的设置
 server.tomcat.xxx
 ```
 
-#### **2、编写一个EmbeddedServletContainerCustomizer实现类**
 
-​	**EmbeddedServletContainerCustomizer**是嵌入式的Servlet容器的定制器，来修改Servlet容器的配置。在容器启动前，会由容器工厂回调。该接口通常由**EmbeddedServletContainerCustomizerBeanPostProcessor**调用。
 
-​	**ConfigurableEmbeddedServletContainer**接口声明了一系列Servlet容器的属性设置方法。
+**2、编写一个EmbeddedServletContainerCustomizer实现类**
+
+- **EmbeddedServletContainerCustomizer**是嵌入式的Servlet容器的定制器，用于修改Servlet容器的配置。
+- 在容器启动前，会由容器工厂回调，该接口通常由**EmbeddedServletContainerCustomizerBeanPostProcessor**调用。
+- **ConfigurableEmbeddedServletContainer**接口声明了一系列Servlet容器的属性设置方法。
 
 ```java
-//一定要将这个定制器加入到容器中
+// 一定要将这个定制器加入到容器中
 @Bean  
 public EmbeddedServletContainerCustomizer embeddedServletContainerCustomizer(){
     return new EmbeddedServletContainerCustomizer() {
 
-        //定制嵌入式的Servlet容器相关的规则
+        // 定制嵌入式的Servlet容器相关的规则
         @Override
         public void customize(ConfigurableEmbeddedServletContainer container) {
-            //container需要传入的容器
+            // container需要传入的容器
             container.setPort(8083);
         }
     };
@@ -1975,20 +2180,40 @@ public EmbeddedServletContainerCustomizer embeddedServletContainerCustomizer(){
 
 由于SpringBoot默认是以jar包的方式启动嵌入式的Servlet容器来启动SpringBoot的web应用，没有web.xml文件，所以注册三大组件用以下方式。
 
-#### 1、ServletRegistrationBean
+#### 1、使用原生API
+
+配置类需要添加@ServletComponentScan注解，指定原生Servlet组件放置位置。
+
+~~~java
+@ServletComponentScan(basePackages = "com.xxx")
+
+@WebServlet(urlPatterns = "/my")
+@WebFilter(urlPatterns={"/css/*","/images/*"})
+@WebListener
+~~~
+
+**注意**：自定义Servlet不经过SpringMVC的拦截器，因为DispatcherServlet处理 “/” 请求，自定义Servlet处理特定请求，按照精确优先原则，不使用DispatcherServlet，而只有经过DispatcherServlet才会被SpringMVC拦截器拦截
+
+<img src="images/image-20220510172731828.png" alt="image-20220510172731828" style="zoom:50%;" />
+
+
+
+#### 2、使用RegistrationBean
+
+##### 1、ServletRegistrationBean
 
 Servlet注册类
 
 ```java
 @Bean
 public ServletRegistrationBean myServlet(){
-    //需要传入一个自定义的Servlet以及一个拦截路径
-    ServletRegistrationBean registrationBean = new ServletRegistrationBean(new MyServlet(),"/myServlet");
+    // 需要传入一个自定义的Servlet以及一个拦截路径
+    ServletRegistrationBean registrationBean = new ServletRegistrationBean(new MyServlet(), "/myServlet");
     return registrationBean;
 }
 ```
 
-#### 2、FilterRegistrationBean
+##### 2、FilterRegistrationBean
 
 拦截器注册类
 
@@ -1996,27 +2221,28 @@ public ServletRegistrationBean myServlet(){
 @Bean
 public FilterRegistrationBean myFilter(){
     FilterRegistrationBean registrationBean = new FilterRegistrationBean();
-    //设置自定义拦截器
+    // 设置自定义拦截器
     registrationBean.setFilter(new MyFilter());
-    //设置拦截路径
-    registrationBean.setUrlPatterns(Arrays.asList("/hello","/myServlet"));
+    // 设置拦截路径
+    registrationBean.setUrlPatterns(Arrays.asList("/hello", "/myServlet"));
     return registrationBean;
 }
 ```
 
-#### 3、ServletListenerRegistrationBean
+##### 3、ServletListenerRegistrationBean
 
 Servlet监听器注册类
 
 ```java
 @Bean
 public ServletListenerRegistrationBean myListener(){
-    ServletListenerRegistrationBean<MyListener> registrationBean = new ServletListenerRegistrationBean<>(new MyListener());
+    ServletListenerRegistrationBean<MyListener> registrationBean = 
+        new ServletListenerRegistrationBean<>(new MyListener());
     return registrationBean;
 }
 ```
 
-SpringBoot帮我们自动SpringMVC的时候，自动的注册SpringMVC的前端控制器，DIspatcherServlet。
+SpringBoot自动配置SpringMVC的时候，自动的注册SpringMVC的前端控制器，DIspatcherServlet。
 
 DispatcherServletAutoConfiguration中：
 
@@ -2026,9 +2252,9 @@ DispatcherServletAutoConfiguration中：
 public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet dispatcherServlet) {
    ServletRegistrationBean registration = new ServletRegistrationBean(dispatcherServlet, 
                                                                       this.serverProperties.getServletMapping());
-    //默认拦截：/  所有请求，包静态资源，但是不拦截jsp请求。   
+    // 默认拦截：/  所有请求，包静态资源，但是不拦截jsp请求。   
     //        /*会拦截jsp
-    //可以通过server.servletPath来修改SpringMVC前端控制器默认拦截的请求路径
+    // 可以通过server.servletPath来修改SpringMVC前端控制器默认拦截的请求路径
     
    registration.setName(DEFAULT_DISPATCHER_SERVLET_BEAN_NAME);
    registration.setLoadOnStartup(this.webMvcProperties.getServlet().getLoadOnStartup());
@@ -2040,17 +2266,15 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 
 ```
 
-### 3、替换其他嵌入式Servlet容器
+### 3、更换嵌入式Servlet容器
 
 
 
 ![image-20210823155201211](C:\Users\zzp84\AppData\Roaming\Typora\typora-user-images\image-20210823155201211.png)
 
+**ServletWebServerApplicationContext** 容器启动寻找 **ServletWebServerFactory** 并引导创建服务器
 
-
-
-
-#### 默认支持Tomcat（默认使用）
+#### 1、Tomcat容器（默认使用）
 
 ```xml
 <dependency>
@@ -2060,7 +2284,7 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 </dependency>
 ```
 
-#### 替换为Jetty容器
+#### 2、更换为Jetty容器
 
 ```xml
 <!-- 引入web模块 -->
@@ -2083,7 +2307,7 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 </dependency>
 ```
 
-#### 替换为Undertow容器
+#### 3、更换为Undertow容器
 
 ```xml
 <!-- 引入web模块 -->
@@ -2106,7 +2330,9 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 </dependency>
 ```
 
-### 4、嵌入式Servlet容器自动配置原理
+### 4、自动配置原理
+
+
 
 **EmbeddedServletContainerAutoConfiguration**：嵌入式的Servlet容器自动配置类
 
@@ -2114,9 +2340,9 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @Configuration
 @ConditionalOnWebApplication
-//导入BeanPostProcessorsRegistrar：给容器中导入一些组件
-//导入了EmbeddedServletContainerCustomizerBeanPostProcessor：
-//后置处理器：bean初始化前后（创建完对象，还没赋值赋值）执行初始化工作
+// 导入BeanPostProcessorsRegistrar：给容器中导入一些组件
+// 导入了EmbeddedServletContainerCustomizerBeanPostProcessor：
+// 后置处理器：bean初始化前后（创建完对象，还没赋值赋值）执行初始化工作
 @Import(BeanPostProcessorsRegistrar.class)
 public class EmbeddedServletContainerAutoConfiguration {
     
