@@ -1804,6 +1804,48 @@ public ResponseEntity<byte[]> testResponseEntity(HttpSession session) throws IOE
 }
 ~~~
 
+### 3、自定义Banner
+
+首先在Github仓库上传一个banner.txt文件
+
+然后在启动类处设置自定义的Banner类，通过加载仓库里的banner.txt文件
+
+~~~java
+public class BannerConfig implements Banner {
+
+    public BannerConfig() {}
+
+    @Override
+    public void printBanner(Environment environment, Class<?> sourceClass, PrintStream out) {
+        try {
+            // 格式https://cdn.jsdelivr.net/gh/用户名/仓库名/banner文件路径
+            URL url = new URL("https://cdn.jsdelivr.net/gh/Prodigalgal/MyNotes/banner.txt");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(5 * 1000);
+
+            try (InputStream is = conn.getInputStream()) {
+                byte[] bytes = is.readAllBytes();
+                String s = new String(bytes);
+                out.println(s);
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+public static void main(String[] args) {
+    SpringApplication springApplication = new SpringApplication(SecurityTsetApplication.class);
+    springApplication.setBanner(new BannerConfig());
+    springApplication.run(args);
+}
+~~~
+
+
+
+
+
 # 6、拦截器
 
 ## 1、简介
