@@ -1177,21 +1177,21 @@ public class MyMvcConfig extends WebMvcConfigurerAdapter {
 public @interface EnableWebMvc {
 ```
 
-2、@EnableWebMvc将WebMvcConfigurationSupport组件导入进来
+2、@EnableWebMvc将DelegatingWebMvcConfiguration组件导入进来
 
 ```java
 @Configuration
 public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
 ```
 
-3、导入的WebMvcConfigurationSupport只是SpringMVC最基本的功能
+3、导入的DelegatingWebMvcConfiguration只是SpringMVC最基本的功能
 
 ```java
 @Configuration
 @ConditionalOnWebApplication
 @ConditionalOnClass({ Servlet.class, DispatcherServlet.class,
 		WebMvcConfigurerAdapter.class })
-//容器中没有这个组件的时候，这个自动配置类才生效
+// 容器中没有这个组件的时候，这个自动配置类才生效
 @ConditionalOnMissingBean(WebMvcConfigurationSupport.class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
 @AutoConfigureAfter({ DispatcherServletAutoConfiguration.class,
@@ -2332,9 +2332,20 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 
 ### 4、自动配置原理
 
+- SpringBoot应用启动发现当前是Web应用----->导入tomcat
+- web应用会创建一个web版的ioc容器**ServletWebServerApplicationContext** 
+- ServletWebServerApplicationContext  启动的时候寻找 ServletWebServerFactory（ServletWeb服务器工厂---> ServletWeb服务器） 
+  -  SpringBoot底层默认有很多的WebServer工厂：TomcatServletWebServerFactory、JettyServletWebServerFactory、UndertowServletWebServerFactory
+- 底层有一个自动配置类：**ServletWebServerFactoryAutoConfiguration**
+  - ServletWebServerFactoryAutoConfiguration 导入了 ServletWebServerFactoryConfiguration（配置类）
+- ServletWebServerFactoryConfiguration 配置类动态判断系统中导入了哪个Web服务器的包（默认是web-starter导入tomcat包），容器中就有 XxxxServletWebServerFactory
+- XxxxServletWebServerFactory 创建出Xxx服务器并启动
+- XxxxWebServer的构造器拥有初始化方法 initialize------>this.Xxxx.start();
+  - 内嵌服务器，就是手动把启动服务器的代码调用（tomcat核心jar包存在）
 
+#### 1、EmbeddedServletContainerAutoConfiguration
 
-**EmbeddedServletContainerAutoConfiguration**：嵌入式的Servlet容器自动配置类
+嵌入式的Servlet容器自动配置类
 
 ```java
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
@@ -2347,9 +2358,9 @@ public ServletRegistrationBean dispatcherServletRegistration(DispatcherServlet d
 public class EmbeddedServletContainerAutoConfiguration {
     
     @Configuration
-    //判断当前是否引入了Tomcat依赖
+    // 判断当前是否引入了Tomcat依赖
 	@ConditionalOnClass({ Servlet.class, Tomcat.class })
-    //判断当前容器没有用户自己定义EmbeddedServletContainerFactory：嵌入式的Servlet容器工厂。作用：创建嵌入式的Servlet容器
+    // 判断当前容器没有用户自己定义EmbeddedServletContainerFactory：嵌入式的Servlet容器工厂。作用：创建嵌入式的Servlet容器
 	@ConditionalOnMissingBean(value = EmbeddedServletContainerFactory.class, search = SearchStrategy.CURRENT)
 	public static class EmbeddedTomcat {
 
@@ -2392,7 +2403,9 @@ public class EmbeddedServletContainerAutoConfiguration {
 	}
 ```
 
-1、**EmbeddedServletContainerFactory**（嵌入式Servlet容器工厂）
+#### 2、EmbeddedServletContainerFactory
+
+（嵌入式Servlet容器工厂）
 
 ```java
 public interface EmbeddedServletContainerFactory {
@@ -2406,21 +2419,25 @@ public interface EmbeddedServletContainerFactory {
 
 <img src="C:\Users\zzp84\AppData\Roaming\Typora\typora-user-images\image-20210823160004059.png" alt="image-20210823160004059" style="zoom:100%;" />
 
-2、**EmbeddedServletContainer**（嵌入式Servlet容器）
+#### 3、EmbeddedServletContainer
+
+（嵌入式Servlet容器）
 
 ![image-20210823160111967](C:\Users\zzp84\AppData\Roaming\Typora\typora-user-images\image-20210823160111967.png)
 
 
 
-3、以**TomcatEmbeddedServletContainerFactory**为例
+#### 4、Tomcat例子分析
+
+1、TomcatEmbeddedServletContainerFactory
 
 ```java
 @Override
 public EmbeddedServletContainer getEmbeddedServletContainer(ServletContextInitializer... initializers) {
-    //创建一个Tomcat
+    // 创建一个Tomcat
    Tomcat tomcat = new Tomcat();
     
-    //配置Tomcat的基本环节
+    // 配置Tomcat的基本环节
    File baseDir = (this.baseDirectory != null ? this.baseDirectory : createTempDir("tomcat"));
    tomcat.setBaseDir(baseDir.getAbsolutePath());
    Connector connector = new Connector(this.protocol);
@@ -2434,26 +2451,22 @@ public EmbeddedServletContainer getEmbeddedServletContainer(ServletContextInitia
    }
    prepareContext(tomcat.getHost(), initializers);
     
-    //将配置好的Tomcat传入进去，返回一个EmbeddedServletContainer；并且启动Tomcat服务器
+    // 将配置好的Tomcat传入进去，返回一个EmbeddedServletContainer；并且启动Tomcat服务器
    return getTomcatEmbeddedServletContainer(tomcat);
 }
 ```
 
-4、自定义配置生效
+2、自定义配置生效
 
-**ServerProperties、EmbeddedServletContainerCustomizer**
+**ServerProperties、EmbeddedServletContainerCustomizer**：嵌入式容器定制器帮我们修改了Servlet容器的配置。
 
-**EmbeddedServletContainerCustomizer**：嵌入式容器定制器帮我们修改了Servlet容器的配置。
-
-**ServerProperties**也是定制器
-
-5、容器中导入**EmbeddedServletContainerCustomizerBeanPostProcessor**
+3、容器中导入**EmbeddedServletContainerCustomizerBeanPostProcessor**
 
 ```java
-//初始化之前
+// 初始化之前
 @Override
 public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-    //如果当前初始化的是一个ConfigurableEmbeddedServletContainer类型的组件，则后置处理器开始工作
+    // 如果当前初始化的是一个ConfigurableEmbeddedServletContainer类型的组件，则后置处理器开始工作
    if (bean instanceof ConfigurableEmbeddedServletContainer) {
        //
       postProcessBeforeInitialization((ConfigurableEmbeddedServletContainer) bean);
@@ -2462,7 +2475,7 @@ public Object postProcessBeforeInitialization(Object bean, String beanName) thro
 }
 
 private void postProcessBeforeInitialization(ConfigurableEmbeddedServletContainer bean) {
-    //获取所有的定制器，调用每一个定制器的customize方法来给Servlet容器进行属性赋值
+    // 获取所有的定制器，调用每一个定制器的customize方法来给Servlet容器进行属性赋值
     for (EmbeddedServletContainerCustomizer customizer : getCustomizers()) {
         customizer.customize(bean);
     }
@@ -2472,8 +2485,8 @@ private Collection<EmbeddedServletContainerCustomizer> getCustomizers() {
     if (this.customizers == null) {
         // Look up does not include the parent context
         this.customizers = new ArrayList<EmbeddedServletContainerCustomizer>(
-            //从容器中获取所有这个类型的组件：EmbeddedServletContainerCustomizer
-            //定制Servlet容器，给容器中可以添加一个EmbeddedServletContainerCustomizer类型的组件
+            // 从容器中获取所有这个类型的组件：EmbeddedServletContainerCustomizer
+            // 定制Servlet容器，给容器中可以添加一个EmbeddedServletContainerCustomizer类型的组件
             this.beanFactory
             	.getBeansOfType(EmbeddedServletContainerCustomizer.class, false, false)
             	.values());
@@ -2487,33 +2500,42 @@ private Collection<EmbeddedServletContainerCustomizer> getCustomizers() {
 
 总结步骤：
 
-1、SpringBoot根据导入的依赖情况，给容器中添加相应的**EmbeddedServletContainerFactory**（TomcatEmbeddedServletContainerFactory）
+1. SpringBoot根据导入的依赖情况，给容器中添加相应的**EmbeddedServletContainerFactory**（TomcatEmbeddedServletContainerFactory）
 
-2、容器中某个组件要创建对象就会触发后置处理器，**EmbeddedServletContainerCustomizerBeanPostProcessor**。
+2. 容器中某个组件要创建对象就会触发后置处理器，**EmbeddedServletContainerCustomizerBeanPostProcessor**。
 
-只要是嵌入式的Servlet容器工厂，后置处理器就工作
+3. 只要是嵌入式的Servlet容器工厂，后置处理器就工作
 
-3、后置处理器，从容器中获取所有的**EmbeddedServletContainerCustomizer**，调用定制器的定制方法
+4. 后置处理器，从容器中获取所有的**EmbeddedServletContainerCustomizer**，调用定制器的定制方法
+
+
 
 ### 5、嵌入式Servlet容器启动原理
 
 **获取嵌入式的Servlet容器工厂：**
 
-​	**1、SpringBoot应用启动运行run方法**
+1. SpringBoot应用启动运行run方法
 
-​	**2、refreshContext(context);**
-
-​		   SpringBoot刷新IOC容器（创建IOC容器对象，并初始化容器，创建容器中的每一个组件）
-
-​			如果是web应用创建**AnnotationConfigEmbeddedWebApplicationContext**，否则创建**AnnotationConfigApplicationContext**
-
-​	**3、refresh(context);**刷新刚才创建好的ioc容器
+2. refreshContext(context);
+   - SpringBoot刷新IOC容器（创建IOC容器对象，并初始化容器，创建容器中的每一个组件）
+   - 如果是web应用创建**AnnotationConfigEmbeddedWebApplicationContext**
+   - 否则创建**AnnotationConfigApplicationContext**
+3. refresh(context);刷新刚才创建好的ioc容器
+4. ​	**onRefresh();**web的ioc容器重写了onRefresh方法
+5. webioc容器会创建嵌入式的Servlet容器，**createEmbeddedServletContainer**()
+6. 获取嵌入式的Servlet容器工厂
+   - EmbeddedServletContainerFactory containerFactory = getEmbeddedServletContainerFactory();
+   - 从ioc容器中获取**EmbeddedServletContainerFactory** 组件，**TomcatEmbeddedServletContainerFactory**创建对象，后置处理器得知是个对象，就获取所有的定制器来先定制Servlet容器的相关配置。
+7. 使用容器工厂获取嵌入式的Servlet容器
+   - this.embeddedServletContainer = containerFactory.getEmbeddedServletContainer(getSelfInitializer());
+8. 嵌入式的Servlet容器创建对象并启动Servlet容器
+   - 先启动嵌入式的Servlet容器，再将ioc容器中剩下没有创建出的对象获取出来
 
 ```java
 public void refresh() throws BeansException, IllegalStateException {
    synchronized (this.startupShutdownMonitor) {
       // Prepare this context for refreshing.
-      //准备此上下文以进行刷新。
+      // 准备此上下文以进行刷新。
       prepareRefresh();
 
       // Tell the subclass to refresh the internal bean factory.
@@ -2521,44 +2543,44 @@ public void refresh() throws BeansException, IllegalStateException {
       ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
       // Prepare the bean factory for use in this context.
-       //准备在此上下文中使用的 bean 工厂。
+       // 准备在此上下文中使用的 bean 工厂。
       prepareBeanFactory(beanFactory);
 
       try {
          // Allows post-processing of the bean factory in context subclasses.
-          //允许在上下文子类中对 bean 工厂进行后处理。
+          // 允许在上下文子类中对 bean 工厂进行后处理。
          postProcessBeanFactory(beanFactory);
 
          // Invoke factory processors registered as beans in the context.
-          //调用在上下文中注册为 bean 的工厂处理器。
+          // 调用在上下文中注册为 bean 的工厂处理器。
          invokeBeanFactoryPostProcessors(beanFactory);
 
          // Register bean processors that intercept bean creation.
-          //注册拦截 bean 创建的 bean 处理器。
+          // 注册拦截 bean 创建的 bean 处理器。
          registerBeanPostProcessors(beanFactory);
 
          // Initialize message source for this context.
-          //初始化此上下文的消息源。
+          // 初始化此上下文的消息源。
          initMessageSource();
 
          // Initialize event multicaster for this context.
-          //为此上下文初始化事件多播器。
+          // 为此上下文初始化事件多播器。
          initApplicationEventMulticaster();
 
          // Initialize other special beans in specific context subclasses.
-          //初始化特定上下文子类中的其他特殊 bean。
+          // 初始化特定上下文子类中的其他特殊 bean。
          onRefresh();
 
          // Check for listener beans and register them.
-          //检查侦听器 bean 并注册它们。
+          // 检查侦听器 bean 并注册它们。
          registerListeners();
 
          // Instantiate all remaining (non-lazy-init) singletons.
-          //实例化所有剩余的（非延迟初始化）单例。
+          // 实例化所有剩余的（非延迟初始化）单例。
          finishBeanFactoryInitialization(beanFactory);
 
          // Last step: publish corresponding event.
-          //最后一步：发布相应的事件。
+          // 最后一步：发布相应的事件。
          finishRefresh();
       }
 
@@ -2569,45 +2591,61 @@ public void refresh() throws BeansException, IllegalStateException {
          }
 
          // Destroy already created singletons to avoid dangling resources.
-          //销毁已经创建的单例以避免悬空资源。
+          // 销毁已经创建的单例以避免悬空资源。
          destroyBeans();
 
          // Reset 'active' flag.
-          //重置“活动”标志。
+          // 重置“活动”标志。
          cancelRefresh(ex);
 
          // Propagate exception to caller.
-          //将异常传播给调用者。
+          // 将异常传播给调用者。
          throw ex;
       }
 
       finally {
          // Reset common introspection caches in Spring's core, since we
          // might not ever need metadata for singleton beans anymore...
-          //重置 Spring 核心中的常见内省缓存，因为我们可能不再需要单例 bean 的元数据......
+          // 重置 Spring 核心中的常见内省缓存，因为我们可能不再需要单例 bean 的元数据......
          resetCommonCaches();
       }
    }
 }
 ```
 
-​	**4、** **onRefresh();**web的ioc容器重写了onRefresh方法
+### 6、定制嵌入式Servlet容器
 
-​	**5、**webioc容器会创建嵌入式的Servlet容器，**createEmbeddedServletContainer**()
+- 实现  WebServerFactoryCustomizer\<ConfigurableServletWebServerFactory> 
 
-​	**6、获取嵌入式的Servlet容器工厂**
+- - 把配置文件的值和 ServletWebServerFactory 进行绑定
 
-EmbeddedServletContainerFactory containerFactory = getEmbeddedServletContainerFactory();
+- 修改配置文件 **server.xxx**
+- 直接自定义 **ConfigurableServletWebServerFactory** 
 
-从ioc容器中获取**EmbeddedServletContainerFactory** 组件，**TomcatEmbeddedServletContainerFactory**创建对象，后置处理器得知是个对象，就获取所有的定制器来先定制Servlet容器的相关配置。
+~~~java
+import org.springframework.boot.web.server.WebServerFactoryCustomizer;
+import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory;
+import org.springframework.stereotype.Component;
 
-​	**7、使用容器工厂获取嵌入式的Servlet容器**
+@Component
+public class CustomizationBean implements WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> {
 
-this.embeddedServletContainer = containerFactory.getEmbeddedServletContainer(getSelfInitializer());
+    @Override
+    public void customize(ConfigurableServletWebServerFactory server) {
+        server.setPort(9000);
+    }
 
-​	**8、嵌入式的Servlet容器创建对象并启动Servlet容器**
+}
+~~~
 
-**先启动嵌入式的Servlet容器，再将ioc容器中剩下没有创建出的对象获取出来**
+定制套路：
+
+- 修改配置文件
+- 使用 xxxxxCustomizer类
+- 编写自定义的配置类   xxxConfiguration + @Bean注解替换、增加容器中默认组件
+- Web应用编写一个配置类实现 WebMvcConfigurer 即可定制化web功能 + @Bean注解给容器中再扩展一些组件
+
+
 
 ## 8、使用外置Servlet容器
 

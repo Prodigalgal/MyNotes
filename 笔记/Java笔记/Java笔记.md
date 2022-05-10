@@ -2474,7 +2474,7 @@ CopyOnWriteArrayList CopyOnWriteArraySet 类型，通过动态数组与线程安
 
 目前有两种创建线程的方法一种是通过创建 Thread 类，另一种是通过使用 Runnable 创建线程。
 
-但是，Runnable 缺少的一项功能是，当线程终止时（即 run()完成时），我们无法使线程返回结果。为了支持此功能， Java 中提供了 Callable 接口。
+但是，Runnable 缺少的一项功能是，当线程终止时（即 run()完成时），我们无法使线程返回结果，为了支持此功能， Java 中提供了 Callable 接口。
 
 ### 1、Callable 接口
 
@@ -2534,7 +2534,8 @@ public boolean isDone()
 
 实际上，future 也可以与 Runnable 一起使用。
 
-要创建线程，需要 Runnable。为了获得结果，需要 future。
+- 要创建线程，需要 Runnable。
+- 为了获得结果，需要 future。
 
 
 
@@ -2555,7 +2556,9 @@ public boolean isDone()
 
 ### 3、FutureTask
 
-FutureTask 类型实现 **Runnable** 和 **Future**，并方便地将两种功能组合在一起。 可以通过为其构造函数提供 **Callable** 来创建，将 FutureTask 对象提供给 Thread 的构造函数以创建 Thread 对象，间接地使用 Callable 创建线程。
+FutureTask 类型实现 **Runnable** 和 **Future**，并方便地将两种功能组合在一起。 
+
+可以通过为其构造函数提供 **Callable** 来创建，将 FutureTask 对象提供给 Thread 的构造函数以创建 Thread 对象，间接地使用 Callable 创建线程。
 
 在主线程中需要执行比较耗时的操作时，但又不想阻塞主线程时，可以把这些作业交给 Future 对象在后台完成。
 
