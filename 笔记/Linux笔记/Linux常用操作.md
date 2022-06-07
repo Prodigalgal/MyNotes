@@ -81,6 +81,17 @@ Linux压缩文件中最常见的后缀名即为`.gz`，`gzip`是用来压缩和�
 
 开机启用 ： systemctl enable firewalld
 
+查看开放的端口：netstat -anp 或者 firewall-cmd --list -port
+
+开放端口：firewall-cmd --zone=public --add-port=端口号/tcp --permanent
+
+关闭端口：firewall-cmd --zone=public --remove-port=端口号/tcp --permanent
+
+**注意**：
+
+- 端口号-端口号，可以批量打开，同理而已批量删除
+- --permanent，永久生效，重启不会恢复
+
 ## 允许ROOT与密码登陆
 
 ```shell
