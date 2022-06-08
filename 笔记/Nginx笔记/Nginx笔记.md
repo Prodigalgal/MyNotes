@@ -453,7 +453,6 @@ nginx 监听端口为 9001
    - 按后端服务器的响应时间来分配请求，响应时间短的优先分配。
 5. least_conn
    - 最少连接访问
-
 6. url_hash
    - 根据用户访问的url定向转发请求
 
@@ -499,6 +498,103 @@ Nginx 动静分离简单来说就是把动态跟静态请求分开，不能理�
    }
    ```
 
+
+
+## 5、配置Sticky模块
+
+[使用参考](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) 
+
+tengine中有session_sticky模块我们通过第三方的方式安装在开源版本中。
+
+sticky是第三方模块，需要重新编译Nginx，他可以对Nginx这种静态文件服务器使用基于cookie的负载均衡。
+
+1. 下载模块：
+
+   - [项目官网](https://bitbucket.org/nginx-goodies/nginx-sticky-module-ng/src/master/)，[下载](https://bitbucket.org/nginx-goodies/nginx-sticky-module-ng/get/1.2.6.zip)
+
+   - [另外一个版本](https://github.com/bymaximus/nginx-sticky-module-ng) 
+
+2. 上传解压
+
+3. 重新编译Nginx
+
+   1. 依赖 openssl-devel
+
+   2. ~~~bash
+      ./configure --prefix=/usr/local/nginx --add-module=/root/nginx-goodies-nginx-sticky-module-ng-c78b7dd79d0d
+      ~~~
+
+4. 执行make
+
+   1. 如遇报错修改源码
+
+   2. 打开 `ngx_http_sticky_misc.c`文件
+
+      - 在12行添加
+
+      ```bash
+      #include <openssl/sha.h>
+      #include <openssl/md5.h>
+      ```
+
+      - 备份之前的程序
+
+      - ~~~bash
+        mv /usr/local/nginx/sbin/nginx /usr/local/nginx/sbin/nginx.old
+        ~~~
+
+5. 把编译好的Nginx程序替换到原来的目录里
+
+   - ~~~bash
+     cp objs/nginx /usr/local/nginx/sbin/
+     ~~~
+
+6. 升级检测
+
+   - ~~~bash
+     make upgrade
+     ~~~
+
+7. 检查程序中是否包含新模块
+
+   - ~~~bash
+     nginx -V
+     ~~~
+
+配置方法：
+
+~~~bash
+upstream httpget {
+
+    sticky name=route expires=6h;
+
+    server 192.168.44.102;
+    server 192.168.44.103;
+}
+~~~
+
+
+
+## 6、配置KeepAlive
+
+在http协议的header中可以看到当前连接状态
+
+#### 1、什么时候使用KeepAlive？
+
+- 明显的预知用户会在当前连接上有下一步操作
+
+- 复用连接，有效减少握手次数，尤其是https建立一次连接开销会更大
+
+#### 2、什么时候不用KeepAlive？
+
+- 访问内联资源一般用缓存，不需要keepalive
+
+- 长时间的tcp连接容易导致系统资源无效占用
+
+
+
+
+
 # 7、Nginx集群配置实例
 
 ## 1、集群原理
@@ -522,6 +618,7 @@ Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的�
 - 反向代理：带领用户去数据服务器拿数据。
 
 - upstream：告诉nginx去哪个数据服务器拿数据。
+
 
 
 ## 2、keepalived/heartbeat/corosync
@@ -550,6 +647,8 @@ Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的�
 
 一般用corosync，因为corosync的运行机制更优于heartbeat，就连从heartbeat分离出来的pacemaker都说在以后的开发当中更倾向于corosync，所以现在corosync+pacemaker是最佳组合。
 
+
+
 ## 3、双机高可用理论
 
 双机高可用一般是通过虚拟IP（飘移IP）方法来实现的，基于Linux/Unix的IP别名技术。
@@ -562,6 +661,8 @@ Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的�
 2. 双机**主主**模式：
    - 前端使用两台负载均衡服务器，互为主备，且都处于活动状态，同时各自绑定一个公网虚拟IP，提供负载均衡服务。
    - 当其中一台发生故障时，另一台接管发生故障服务器的公网虚拟IP（这时由非故障机器一台负担所有的请求）这种方案，经济实惠，非常适合于当前架构环境。
+
+
 
 ## 4、配置主从集群
 
@@ -795,6 +896,8 @@ Nginx集群其实是：虚拟主机+反向代理+upstream分发模块组成的�
    
 
 10. ifconfig //查看 IP，此时备节点不会有 VIP（只有当主挂了的时候，VIP 才会飘到备 节点）
+
+
 
 ## 5、配置双主模式
 

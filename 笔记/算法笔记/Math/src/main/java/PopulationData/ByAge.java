@@ -20,7 +20,7 @@ public class ByAge {
 
         try {
 
-            FileReader fr = new FileReader("src/main/java/PopulationData/按年龄人口数分类.csv", "GBK");
+            FileReader fr = new FileReader("src/main/java/PopulationData/按年龄人口数分类.csv");
             BufferedReader br = new BufferedReader(fr);
             String head = br.readLine();
             String s;
