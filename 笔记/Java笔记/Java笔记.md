@@ -572,37 +572,36 @@ DoubleSummaryStatistics doubleSummary = list.stream().limit(3)
 ~~~java
 List<类> list; // 代表某集合
  
-//返回 对象集合以类属性一升序排序
- 
+// 返回 对象集合以类属性一升序排序
 list.stream().sorted(Comparator.comparing(类::属性一));
  
-//返回 对象集合以类属性一降序排序 注意两种写法
+// 返回 对象集合以类属性一降序排序 注意两种写法
+list.stream().sorted(Comparator.comparing(类::属性一).reversed());// 先以属性一升序,结果进行属性一降序
+list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder()));// 以属性一降序
  
-list.stream().sorted(Comparator.comparing(类::属性一).reversed());//先以属性一升序,结果进行属性一降序
- 
-list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder()));//以属性一降序
- 
-//返回 对象集合以类属性一升序 属性二升序
- 
+// 返回 对象集合以类属性一升序 属性二升序
 list.stream().sorted(Comparator.comparing(类::属性一).thenComparing(类::属性二));
  
-//返回 对象集合以类属性一降序 属性二升序 注意两种写法
+// 返回 对象集合以类属性一降序 属性二升序 注意两种写法
+// 先以属性一升序,升序结果进行属性一降序,再进行属性二升序
+list.stream().sorted(Comparator.comparing(类::属性一).reversed().thenComparing(类::属性二));
+// 先以属性一降序,再进行属性二升序
+list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder()).thenComparing(类::属性二));
  
-list.stream().sorted(Comparator.comparing(类::属性一).reversed().thenComparing(类::属性二));//先以属性一升序,升序结果进行属性一降序,再进行属性二升序
+// 返回 对象集合以类属性一降序 属性二降序 注意两种写法
+// 先以属性一升序,升序结果进行属性一降序,再进行属性二降序
+list.stream().sorted(Comparator.comparing(类::属性一)
+                     .reversed()
+                     .thenComparing(类::属性二,Comparator.reverseOrder()));
+// 先以属性一降序,再进行属性二降序
+list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder())
+                     .thenComparing(类::属性二,Comparator.reverseOrder()));
  
-list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder()).thenComparing(类::属性二));//先以属性一降序,再进行属性二升序
- 
-//返回 对象集合以类属性一降序 属性二降序 注意两种写法
- 
-list.stream().sorted(Comparator.comparing(类::属性一).reversed().thenComparing(类::属性二,Comparator.reverseOrder()));//先以属性一升序,升序结果进行属性一降序,再进行属性二降序
- 
-list.stream().sorted(Comparator.comparing(类::属性一,Comparator.reverseOrder()).thenComparing(类::属性二,Comparator.reverseOrder()));//先以属性一降序,再进行属性二降序
- 
-//返回 对象集合以类属性一升序 属性二降序 注意两种写法
-//先以属性一升序,升序结果进行属性一降序,再进行属性二升序,结果进行属性一降序属性二降序
+// 返回 对象集合以类属性一升序 属性二降序 注意两种写法
+// 先以属性一升序,升序结果进行属性一降序,再进行属性二升序,结果进行属性一降序属性二降序
 list.stream().sorted(Comparator.comparing(类::属性一).reversed().thenComparing(类::属性二).reversed());
 
-//先以属性一升序,再进行属性二降序<br><br><br>
+// 先以属性一升序,再进行属性二降序<br><br><br>
 list.stream().sorted(Comparator.comparing(类::属性一).thenComparing(类::属性二,Comparator.reverseOrder()));
 ~~~
 
@@ -612,7 +611,54 @@ Comparator.comparing(类::属性一).reversed();
 Comparator.comparing(类::属性一,Comparator.reverseOrder());
 ~~~
 
-两种排序是完全不一样的,一定要区分开来 1 是得到排序结果后再排序,2是直接进行排序,很多人会混淆导致理解出错,2更好理解,建议使用2
+两种排序是完全不一样的，一定要区分开来：
+
+- 1 是得到排序结果后再排序
+- 2 是直接进行排序，很多人会混淆导致理解出错，2更好理解，建议使用2
+
+
+
+## 新日期API
+
+### 1、概述
+
+- 常用日期API的继承结构
+
+![image-20220609085409188](images/image-20220609085409188.png)
+
+<img src="images/image-20220609085734716.png" alt="image-20220609085734716" style="zoom:80%;" />
+
+
+
+### 2、获取时间
+
+#### 1、LocalDate
+
+#### 2、LocalTime
+
+#### 3、LocalDateTime
+
+<img src="images/image-20220609090006873.png" alt="image-20220609090006873" style="zoom: 67%;" />
+
+#### 4、Instant 
+
+### 3、时间处理
+
+#### 1、Duration
+
+#### 2、Period
+
+#### 7、TemporalAdjuster 
+
+#### 8、DateTimeFormatter 
+
+### 4、时区处理
+
+#### 1、ZonedDate
+
+#### 2、ZonedTime
+
+#### 3、ZonedDateTime
 
 
 
@@ -1123,15 +1169,25 @@ TERMINATED;(终结)
 
 并行就是多个任务同时执行，最后汇总。
 
+
+
 ### 1.5、管程
 
-**管程(monitor)**：别名：锁
+**管程(monitor)**：别名：锁，是一种程序结构，结构内的多个子程序（对象或模块）形成的多个工作线程互斥访问共享资源。
+
+管程可以看做一个软件模块，将共享的变量和对于这些共享变量的操作封装起来在一个对象内部，形成一个具有一定接口的功能模块，进程可以调用管程来实现进程级别的并发控制。
+
+>共享资源一般是硬件设备或一些变量
 
 JVM支持方法级同步、和方法内同步，都是使用管程，其保证了同一时刻只有一个进程在管程内活动，即管程内定义的操作在同一时刻只能被一个进程调用(由编译器实现)，但是这样并不能保证进程以设计的顺序执行。
 
 JVM 中同步是基于进入和退出管程(monitor)对象实现的，执行线程首先要持有管程对象，然后才能执行方法，当方法完成之后会释放管程无论正常完成还是非正常完成，方法在执行时候会持有管程，其他线程无法再获取同一个管程。
 
 每个对象都会有一个管程 (monitor)对象，管程(monitor)会随着 java 对象一同创建和销毁。
+
+**注意**：
+
+- 在HotSpot虚拟机中，monitor采用ObjectMonitor实现
 
 
 
@@ -1705,21 +1761,276 @@ JMM 会在退出监视器和进入监视器这两个关键时间点做处理，�
 
 
 
+### 1.20、锁
+
+
+
+#### 1、悲观锁与乐观锁
+
+悲观锁：
+
+- 认为自己在使用数据的时候一定有别的线程来修改数据，因此在获取数据的时候会先加锁，确保数据不会被别的线程修改。
+
+- synchronized关键字和Lock的实现类都是悲观锁
+- 适合多写的场景，先加锁可以保证写操作时数据正确。
+
+乐观锁：
+
+- 认为自己在使用数据时不会有别的线程修改数据，所以不会添加锁，只是在更新数据的时候去判断之前有没有别的线程更新了这个数据。如果这个数据没有被更新，当前线程将自己修改的数据成功写入。如果数据已经被其他线程更新，则根据不同的实现方式执行不同的操作
+
+- 乐观锁在Java中是通过使用无锁编程来实现，最常采用的是CAS算法，Java原子类中的递增操作就通过CAS自旋实现的。
+- 适合多读的场景，不加锁的特点能够使其读操作的性能大幅提升。
+- 实现方式：采用版本号机制，CAS（Compare-and-Swap，即比较并替换）算法实现
+
+~~~java
+ 
+// =============悲观锁的调用方式
+public synchronized void m1() {
+    // 加锁后的业务逻辑......
+}
+
+// 保证多个线程使用的是同一个lock对象的前提下
+ReentrantLock lock = new ReentrantLock();
+public void m2() {
+    lock.lock();
+    try {
+        // 操作同步资源
+    }finally {
+        lock.unlock();
+    }
+}
+
+// =============乐观锁的调用方式
+// 保证多个线程使用的是同一个AtomicInteger
+private AtomicInteger atomicInteger = new AtomicInteger();
+atomicInteger.incrementAndGet();
+ 
+
+~~~
+
+
+
+#### 2、公平锁与非公平锁
+
+按序排队公平锁：判断同步队列是否还有先驱节点的存在，如果没有先驱节点才能获取锁
+先占先得非公平锁：是不管这个事的，只要能抢获到同步状态就可以
+
+<img src="images/image-20220609102854143.png" alt="image-20220609102854143" style="zoom:80%;" />
+
+
+
+#### 3、可重入锁
+
+##### 1、概述
+
+可重入锁又名递归锁：指同一个线程在外层方法获取锁的时候，再次进入该线程的内层方法会自动获取锁(前提，锁对象得是同一个对象)，不会因为之前已经获取过还没释放而阻塞。
+
+例如：如果是1个有 synchronized 修饰的递归调用方法，程序第2次进入被自己阻塞了岂不是天大的笑话，出现了作茧自缚。所以Java中ReentrantLock和synchronized都是可重入锁，可重入锁的一个优点是可一定程度避免死锁。
+
+>可重复进入同步域（即同步代码块/方法或显式锁锁定的代码）
+>
+>一个线程中的多个流程可以获取同一把锁，持有这把同步锁可以再次进入
+
+
+
+##### 2、synchronized可重入锁
+
+**原理**：
+
+每个锁对象拥有一个**锁计数器**和一个**指针**指向持有该锁的线程
+
+> 当执行monitorenter时，如果目标锁对象的计数器为零，那么说明它没有被其他线程所持有，Java虚拟机会将该锁对象的持有线程设置为当前线程，并且将其计数器加1。
+>
+> 在目标锁对象的计数器不为零的情况下，如果锁对象的持有线程是当前线程，那么 Java 虚拟机可以将其计数器加1，否则需要等待，直至持有线程释放该锁。
+>
+> 当执行monitorexit时，Java虚拟机则需将锁对象的计数器减1，计数器为零代表锁已被释放。
+
+~~~java
+// synchronized 同步代码块的可重入锁示例
+public static void main(String[] args) {
+    final Object objectLockA = new Object();
+    new Thread(() -> {
+        synchronized (objectLockA) {
+            System.out.println("-----外层调用");
+            synchronized (objectLockA) {
+                System.out.println("-----中层调用");
+                synchronized (objectLockA) {
+                    System.out.println("-----内层调用");
+                }
+            }
+        }
+    }, "a").start();
+}
+
+// synchronized 同步方法的可重入锁示例
+public synchronized void m1() {
+    System.out.println("-----m1");
+    m2();
+}
+public synchronized void m2() {
+    System.out.println("-----m2");
+    m3();
+}
+public synchronized void m3() {
+    System.out.println("-----m3");
+}
+
+public static void main(String[] args) {
+    ReEntryLockDemo reEntryLockDemo = new ReEntryLockDemo();
+    reEntryLockDemo.m1();
+}
+~~~
+
+
+
+##### 3、ReentrantLock可重入锁
+
+~~~java
+static Lock lock = new ReentrantLock();
+
+public static void main(String[] args) {
+    // 第一个线程
+    new Thread(() -> {
+        lock.lock(); // 锁计数器加1，1
+        try {
+            System.out.println("----外层调用lock");
+            lock.lock(); // 锁计数器加1，2
+            try {
+                System.out.println("----内层调用lock");
+            } finally {
+                // 故意注释，实现加锁次数和释放次数不一样
+                // 由于加锁次数和释放次数不一样，第二个线程始终无法获取到锁，导致一直在等待。
+                // 正常情况，加锁几次就要解锁几次
+                lock.unlock(); // 锁计数器减1，1
+            }
+        } finally {
+            lock.unlock(); // 锁计数器减1，0
+        }
+    },"a").start();
+    
+	// 第二个线程
+    new Thread(() -> {
+        lock.lock();
+        try {
+            System.out.println("b thread----外层调用lock");
+        } finally {
+            lock.unlock();
+        }
+    },"b").start();
+
+}
+~~~
+
+
+
+#### 4、死锁及排查
+
+##### 1、主要原因
+
+- 系统资源不足
+- 进程运行推进的顺序不合适
+- 资源分配不当
+
+~~~java
+// 死锁例子
+// A线程先持有oA，然后等待oB
+// B线程现持有oB，然后等待oA
+// AB线程互相等待造成死锁
+final Object objectLockA = new Object();
+final Object objectLockB = new Object();
+
+new Thread(() -> {
+    synchronized (objectLockA) {
+        System.out.println(Thread.currentThread().getName() + "\t" + "自己持有A，希望获得B");
+        // 暂停几秒钟线程
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        synchronized (objectLockB) {
+            System.out.println(Thread.currentThread().getName() + "\t" + "A-------已经获得B");
+        }
+    }
+}, "A").start();
+
+new Thread(() -> {
+    synchronized (objectLockB) {
+        System.out.println(Thread.currentThread().getName() + "\t" + "自己持有B，希望获得A");
+        // 暂停几秒钟线程
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        synchronized (objectLockA) {
+            System.out.println(Thread.currentThread().getName() + "\t" + "B-------已经获得A");
+        }
+    }
+}, "B").start();
+~~~
+
+
+
+##### 2、排查
+
+~~~cmd
+jps -l
+jstack 进程编号
+~~~
+
+或者使用图形化界面的 jconsole
+
+
+
+#### 5、<a href="#读写锁">写锁/读锁</a> 
+
+又叫(独占锁)/(共享锁)
+
+
+
+#### 6、自旋锁
+
+SpinLock
+
+
+
+#### 7、邮戳锁
+
+StampedLock
+
+
+
+#### 8、偏向锁
+
+
+
+#### 9、轻量锁
+
+
+
+#### 10、重量锁
+
+
+
 ## 2、JMM
 
 ### 1、基本概念
 
 在Java虚拟机规范中试图定义一种Java内存模型（Java Memory Model，JMM）来屏蔽各个硬件平台和操作系统的内存访问差异，以实现让Java程序在各种平台下都能达到一致的内存访问效果，其本身是一种抽象的概念，并不真实存在，描述的是一组规则或规范，通过这组规范定义了程序中各个变量（包括实例字段，静态字段和构成数组对象的元素）的访问方式。
 
-JMM定义了程序中变量的访问规则，也即定义了程序执行的次序。
+JMM定义了程序中变量的访问规则，也即定义了程序执行的次序，JMM规定所有的变量都是存在主存当中（类似于物理内存），每个线程都有自己的工作内存（类似于高速缓存），线程对变量的所有操作都必须在工作内存中进行，而不能直接对主存进行操作，并且每个线程不能访问其他线程的工作内存，线程之间值的传递都需要通过主内存来完成。
 
-为了获得较好的执行性能，JMM并没有限制执行引擎使用处理器的寄存器或者高速缓存来提升指令执行速度，也没有限制编译器对指令进行重排序，也就是说，在JMM中，也会存在缓存一致性问题和指令重排序的问题。
+- 在java中，所有实例域、静态域和数组元素存储在堆内存中，堆内存在线程之间共享。
+- 局部变量（Local variables）、方法定义参数（formal method parameters）、异常处理器参数（exception handler parameters）不会在线程之间共享，它们不会有内存可见性问题，也不受内存模型的影响。
 
-JMM规定所有的变量都是存在主存当中（类似于物理内存），每个线程都有自己的工作内存（类似于高速缓存），线程对变量的所有操作都必须在工作内存中进行，而不能直接对主存进行操作，并且每个线程不能访问其他线程的工作内存，线程之间值的传递都需要通过主内存来完成。
+**注意**：
 
-在java中，所有实例域、静态域和数组元素存储在堆内存中，堆内存在线程之间共享。局部变量（Local variables）、方法定义参数（formal method parameters）、异常处理器参数（exception handler parameters）不会在线程之间共享，它们不会有内存可见性问题，也不受内存模型的影响。
+- 对于未同步或未正确同步的多线程程序，JMM 只提供最小安全性：线程执行时读取到的值，要么是之前某个线程写入的值，要么是默认值（0，null，false）。
+  - 因为 JMM 保证线程读操作读取到的值不会无中生有（out of thin air），为了实现最小安全性，JVM 在堆上分配对象时，首先会清零内存空间，然后才会在上面分配对象（JVM 内部会同步这两个操作），在为清零的内存空间（pre-zeroed memory）分配对象时，域的默认初始化已经完成了。
+- 为了获得较好的执行性能，JMM并没有限制执行引擎使用处理器的寄存器或者高速缓存来提升指令执行速度，也没有限制编译器对指令进行重排序，也就是说，在JMM中，也会存在缓存一致性问题和指令重排序的问题。
 
-对于未同步或未正确同步的多线程程序，JMM 只提供最小安全性：线程执行时读取到的值，要么是之前某个线程写入的值，要么是默认值（0，null，false），因为 JMM 保证线程读操作读取到的值不会无中生有（out of thin air），为了实现最小安全性，JVM 在堆上分配对象时，首先会清零内存空间，然后才会在上面分配对象（JVM 内部会同步这两个操作），在为清零的内存空间（pre-zeroed memory）分配对象时，域的默认初始化已经完成了。
+
 
 ### 2、主内存和本地/工作内存结构
 
@@ -2085,29 +2396,39 @@ synchronized 实现同步的基础：Java 中的每一个对象都可以作为�
 
 每个对象都有一个锁，并且是唯一的，锁是针对对象的，所以也叫对象锁。
 
+
+
 它修饰的对象有以下几种：
 
-- 修饰一个**代码块**，被修饰的代码块称为同步语句块，其作用的范围是大括号 { } 括起来的代码，作用的对象是该实例
+- 修饰一个**代码块**，被修饰的代码块称为同步语句块，其作用的范围是大括号 { } 括起来的代码，作用的对象是括号里的实例
 - 修饰一个**方法**，被修饰的方法称为同步方法，其作用的范围是该实例对象，作用的对象是该实例。
-
 - 修改一个**静态的方法**，其作用的范围是整个静态方法，作用的对象是这个类的所有对象。针对类，也叫类锁
 - 修改一个**类**，其作用的范围是 synchronized 后面括号括起来的部分，作用的对象是这个类的所有对象。针对类，也叫类锁
 
->1、对于普通同步方法，锁是当前实例对象this，被锁定后，其它的线程都不能进入到当前对象的其它的 synchronized 方法。因为对象的锁唯一。只有解锁后再由JVM去分配。
+
+
+>1、对于同步方法块，锁是 Synchonized 括号里配置的对象。
 >
->2、对于静态同步方法，锁是当前类的 Class 对象。 
+>2、对于普通同步方法，锁是当前实例对象this，被锁定后，其它的线程都不能进入到当前对象的其它的 synchronized 方法。因为对象的锁唯一。只有解锁后再由JVM去分配。
 >
->3、对于同步方法块，锁是 Synchonized 括号里配置的对象。
->
->4、静态同步方法与非静态同步方法之间是不会有竞态条件的。
+>3、对于静态同步方法，锁是当前类的 Class 对象。 
+
+
 
 **注意**：
 
-虽然可以使用 synchronized 来修饰方法，但 synchronized 并不属于方法定义的一部分，因此 **synchronized 关键字不能被继承**。
+- 静态同步方法与非静态同步方法之间是不会有竞态条件的
+- synchronized必须作用于某个对象中，所以Java在对象的头文件存储了锁的相关信息。
 
-如果在父类中的某个方法使用了 synchronized 关键字，而在子类中覆盖了这个方法，在子类中的这个方法默认情况下并不是同步的，而必须显式地在子类的这个方法中加上 synchronized 关键字才可以。
+**注意**：
 
-当然，还可以在子类方法中调用父类中相应的方法，这样虽然子类中的方法不是同步的，但子类调用了父类的同步方法，因此， 子类的方法也就相当于同步了。
+- 虽然可以使用 synchronized 来修饰方法，但 synchronized 并不属于方法定义的一部分，因此 **synchronized 关键字不能被继承**。
+
+- 如果在父类中的某个方法使用了 synchronized 关键字，而在子类中覆盖了这个方法，在子类中的这个方法默认情况下并不是同步的，而必须显式地在子类的这个方法中加上 synchronized 关键字才可以。
+
+- 当然，还可以在子类方法中调用父类中相应的方法，这样虽然子类中的方法不是同步的，但子类调用了父类的同步方法，因此， 子类的方法也就相当于同步了。
+
+
 
 **场景**：
 
@@ -2132,15 +2453,107 @@ synchronized 实现同步的基础：Java 中的每一个对象都可以作为�
    - 不会产生互斥
    - 锁类型不一样，产生的不是同一个对象锁，一个是类的，一个是实例的
 
+
+
 ### 2、Synchronized(){}代码块
 
 - 括号内不写或者括号内写this，效果是一样的，只是后者更精确，有时显得更高效
-
 - 括号内写非this对象
   - 这个"非this对象"大多数是实例变量及方法的参数，可以是任意的。
   - 锁住的不是当前实例对象，而是此非this对象，即对该非this对象进行加锁。
   - 代码块中的程序与同步方法是异步的，不与其他锁this同步方法争抢this锁，大大提高了运行效率。
   - 非this对象，这个对象如果是实例变量的话，指的是对象的引用，只要对象的引用不变，即使改变了对象的属性，运行结果依然是同步的。
+
+~~~java
+public static void main(String[] args) {
+    FutureTest ft = new FutureTest();
+
+    new Thread(() -> {
+        try {
+            System.out.println("A work");
+            ft.m1("a");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }).start();
+
+    new Thread(() -> {
+        try {
+            System.out.println("B work");
+            ft.m1("b");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }).start();
+}
+
+final Object o = new Object();
+public synchronized void m1(String a) throws InterruptedException {
+    System.out.println("Lock" + a + " " + LocalTime.now());
+    TimeUnit.SECONDS.sleep(5);
+}
+~~~
+
+
+
+
+
+### 3、实现原理
+
+#### 1、同步代码块
+
+~~~java
+final Object o = new Object();
+public void m1() {
+    synchronized(o) {
+        System.out.println("Lock");
+    }
+}
+~~~
+
+反编译结果：
+
+- 实现使用的是**monitorenter**和**monitorexit**指令
+
+<img src="images/image-20220609092222524.png" alt="image-20220609092222524" style="zoom:80%;" />
+
+
+
+#### 2、普通同步方法
+
+~~~java
+public synchronized void m1(String a) throws InterruptedException {
+    System.out.println("Lock" + a + " " + LocalTime.now());
+    TimeUnit.SECONDS.sleep(5);
+}
+~~~
+
+反编译结果：
+
+- 调用指令将会检查方法的ACC_SYNCHRONIZED访问标志是否被设置
+- 如果设置了，执行线程将会先持有monitor然后再执行方法
+- 最后在方法完成(无论是正常完成还是非正常完成)时释放monitor
+
+<img src="images/image-20220609093628410.png" alt="image-20220609093628410" style="zoom:67%;" />
+
+
+
+#### 3、静态同步方法
+
+~~~java
+public static synchronized void m1(String a) throws InterruptedException {
+    System.out.println("Lock" + a + " " + LocalTime.now());
+    TimeUnit.SECONDS.sleep(5);
+}
+~~~
+
+反编译结果：
+
+- ACC_STATIC, ACC_SYNCHRONIZED访问标志区分该方法是否静态同步方法
+
+<img src="images/image-20220609100056489.png" alt="image-20220609100056489" style="zoom:80%;" />
+
+
 
 
 
@@ -2156,6 +2569,8 @@ Lock 锁实现提供了比使用同步方法和语句可以获得的更广泛的
 
 Lock 提供了比 synchronized 更多的功能。
 
+
+
 ### 3.2、Lock/Synchronized
 
 - synchronized 是 Java 语言的关键字，因此是内置特性。Lock 不是 Java 语言内置的，是一个类，通过这个类可以实现同步访问。
@@ -2163,6 +2578,8 @@ Lock 提供了比 synchronized 更多的功能。
 - Lock可以让等待锁的线程响应中断，而synchronized却不行，使用synchronized时，等待的线程会一直等待下去，不能够响应中断
 - 通过Lock可以知道有没有成功获取锁，而synchronized却无法办到。
 - Lock可以提高多个线程进行读操作的效率。在性能上来说，如果竞争资源不激烈，两者的性能是差不多的，而当竞争资源非常激烈时（即有大量线程同时竞争），此时Lock的性能要远远优于synchronized。
+
+
 
 ### 3.3、Lock 接口
 
@@ -2176,6 +2593,8 @@ public interface Lock {
     Condition newCondition();
 }
 ~~~
+
+
 
 #### 3.3.1、lock()
 
@@ -2200,6 +2619,8 @@ try{
 }
 ~~~
 
+
+
 #### 3.3.2、newCondition()
 
 关键字 synchronized 与 wait()/notify() 这两个方法一起使用可以实现等待/通知模式。
@@ -2214,6 +2635,8 @@ Condition 比较常用的两个方法：
 - signal()用于唤醒一个等待的线程。
 
 **注意**：在调用Condition的await()/signal()方法前，也需要线程持有相关的Lock锁，调用await()后线程会释放这个锁，在singal()调用后会从当前Condition对象的等待队列中，唤醒 一个线程，唤醒的线程尝试获得锁， 一旦获得锁成功就继续执行。
+
+
 
 #### 3.3.3、ReentrantLock
 
@@ -2260,6 +2683,7 @@ public class Test {
     
 }
 ```
+
 
 
 #### 3.3.4、ReadWriteLock
@@ -3625,7 +4049,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-## 10、读写锁
+## 10、<a name="读写锁">读写锁</a> 
 
 ### 1、基本概念
 
@@ -4328,6 +4752,8 @@ JVM在运行Java程序时会把自己管理的内存划分为以上区域（运�
 
 Integer会缓存 -128 ~ 127 范围的整型数字
 
+
+
 ## 2、Integer i1 = 100 与 Integer i2 = 200 有何不一样
 
 首先要知道 Integer i1 = 100 在做这样的操作时，实际就是基本数据类型与引用类型之间的拆箱和装箱操作，Integer i1 = 100是一个装箱操作，本质就是Integer i1 = Integer.valueOf(100)，源码如下：
@@ -4366,6 +4792,8 @@ public boolean equals(Object obj) {
 
 设计IntegerCache类来缓存-128~127是为了节省内存消耗，提高程序性能，Integer是一个经常使用到的类，并且一般创建的对象值范围都在-128~127之间，并且创建这样相似值的对象并没有太大意义，所以使用IntegerCache类，与此类似的ByteCache、ShortCache等。
 
+
+
 ## 3、何为OOM
 
 OOM，全称“Out Of Memory”
@@ -4382,13 +4810,17 @@ OOM，全称“Out Of Memory”
 
 按照JVM规范，除了程序计数器不会抛出OOM外，其他各个内存区域都可能会抛出OOM。
 
-## 4、wait()为什么要处于while循环中
+
+
+## 4、wait()为什么要处于while循环中(虚假唤醒)
 
 当多个线程并发访问同一个资源的时候，若消费者同时被唤醒，但是只有一个资源可用，那么如果用 if 去判断竞态条件，会导致在资源被用完后，还有线程直接去获取资源(发生越界异常等)，而while则会让每个消费者获取之前再去判断一下资源是否可用，可用则获取，不可用则继续wait。
 
 程序应该循环检测线程被唤醒的条件，并在不满住条件时通知继续等待，防止虚假唤醒。
 
-## 5、instanceof, isinstance,isAssignableFrom的区别
+
+
+## 5、instanceof,isinstance,isAssignableFrom的区别
 
 1、instanceof
 
@@ -4426,11 +4858,15 @@ System.out.println(ArrayList.class.isAssignableFrom(Object.class)); //false
 System.out.println(Object.class.isAssignableFrom(ArrayList.class)); //true
 ```
 
+
+
 ## 6、ArrayList的JDK1.8之前与之后的实现区别
 
 JDK1.7：ArrayList像饿汉式，直接创建一个初始容量为10的数组。
 
 JDK1.8：ArrayList像懒汉式，一开始创建一个长度为0的数组，当添加第一个元 素时再创建一个始容量为10的数组。
+
+
 
 ## 7、ArrayList/LinkedList/Vector的异同
 
@@ -4444,6 +4880,8 @@ JDK1.8：ArrayList像懒汉式，一开始创建一个长度为0的数组，当�
 
 - Vector和ArrayList几乎是完全相同的，唯一的区别在于Vector是同步类(synchronized)，属于强同步类。因此开销就比ArrayList要大，访问要慢。
 - Vector每次扩容请求其大小的2倍空间，而ArrayList是1.5倍。Vector还有一个子类Stack。
+
+
 
 ## 8、ArrayList扩容机制
 
@@ -4582,6 +5020,8 @@ private void grow(int minCapacity) {
 
 - 31是一个素数，素数作用就是如果我用一个数字来乘以这个素数，那么最终出来的结果只能被素数本身和被乘数还有1来整除(减少冲突)
 
+
+
 ## 10、HashMap在JDK1.8之前与之后的实现区别
 
 **JDK 1.8之前**
@@ -4666,11 +5106,15 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
 2. 如果是树形化遍历桶中的元素，创建相同个数的树形节点，复制内容，建立起联系
 3. 然后让桶第一个元素指向新建的树头结点，替换桶的链表内容为树形内容
 
+
+
 ## 11、HashMap映射关系的key是否可修改
 
 **不要修改**，如果修改了key，会导致hashCode变化，最后匹配不上。
 
 映射关系存储到HashMap中会存储key的hash值，这样就不用在每次查找时重新计算每一个Entry或Node（TreeNode）的hash值了，因此如果已经put到Map中的映射关系，再修改key的属性，而这个属性又参与hashcode值的计算，那么会导致匹配不上。
+
+
 
 ## 12、负载因子值的大小，对HashMap有什么影响
 
@@ -4681,6 +5125,8 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
 负载因子越小，就越容易触发扩容，数据密度也越小，意味着发生碰撞的几率越小，数组中的链表也就越短，查询和插入时比较的次数也越小，性能会更高。但是会浪费一定的内容空间。而且经常扩容也会影响性能，建议初始化预设大一点的空间。
 
 按照其他语言的参考及研究经验，会考虑将负载因子设置为0.7~0.75，此时平均检索长度接近于常数。
+
+
 
 ## 13、HashMap的put方法
 
@@ -4693,6 +5139,8 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
 5. 遍历 table[i]，判断链表长度是否大于 8，大于 8 的话把链表转换为红黑树，在红黑树中执行插入操作，否则进行链表的插入操作，遍历过程中若发现 key 已经存在直接覆盖 value 即可。
 6. 插入成功后，判断实际存在的键值对数量 size 是否超多了最大容量 threshold，如果超过， 进行扩容。
 
+
+
 ## 14、HashMap的get方法
 
 1. HashMap 的查找方法是 get()，它通过计算指定 key 的哈希值后，调用内部方法 getNode()。
@@ -4702,6 +5150,8 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
    2. 由于之前添加时已经保证这个树是有序的，因此查找时基本就是折半查找，效率很高。
 4. 这里和插入时一样，如果对比节点的哈希值和要查找的哈希值相等，就会判断 key 是否相 等，相等就直接返回，不相等就从子树中递归查找。
 
+
+
 ## 15、HashMap的resize方法
 
 resize每次扩容都是翻倍，与 原来计算（n-1）&hash 的结果相比，只是多了一个 bit 位，所以节点要么就在原来的位置，要么就被分配到原位置+旧容量这个位置。
@@ -4709,6 +5159,8 @@ resize每次扩容都是翻倍，与 原来计算（n-1）&hash 的结果相比�
 比如原来的容量为 32，那么应该拿 hash 跟 31（0x11111）做与操作，在扩容扩到了 64 的容量之后，应该拿 hash 跟 63（0x111111）做与操作，新容量跟原来相比只是多了一个 bit 位，假设原来的位置在 23，那么当新增的那个 bit 位的计算结果为 0 时，那么该节点还是在 23，相反，计算结果为 1 时，则该节点会被分配到 23+31 的 桶上。
 
 因此保证了 rehash 之后每个桶上的节点数必定小于等 于原来桶上的节点数，即保证了 rehash 之后不会出现更严重的冲突。
+
+
 
 ## 16、HashMap的hash方法
 
@@ -4751,6 +5203,8 @@ static final int tableSizeFor(int cap) {
 
 它的实际作用就是把 cap 变成第一个大于 等于 2 的幂次方的数。
 
+
+
 ## 17、sleep()和wait()方法的区别
 
 sleep不释放锁，wait释放锁。
@@ -4760,6 +5214,8 @@ sleep指定休眠的时间，wait可以指定时间也可以无限等待直到no
 sleep在Thread类中声明的静态方法，wait方法在Object类中声明。
 
 因为调用wait方法是由锁对象调用，而锁对象的类型是任意类型的对象，那么希望任意类型的对象都要有的方法，只能声明在Object类中。
+
+
 
 ## 18、<a name="CompletableFuture的join与get方法的差别">CompletableFuture的join与get方法的差别</a> 
 
@@ -4788,4 +5244,44 @@ try {
     throw new RuntimeException(e);
 }
 ~~~
+
+
+
+## 19、为什么默认非公平锁
+
+恢复挂起的线程到真正锁的获取还是有时间差的，从开发人员来看这个时间微乎其微，但是从CPU的角度来看，这个时间差存在的还是很明显的，所以非公平锁能更充分的利用CPU 的时间片，尽量减少 CPU 空闲状态时间。
+
+使用多线程很重要的考量点是**线程切换的开销**，当采用非公平锁时，1个线程请求锁获取同步状态，然后释放同步状态，因为不需要考虑是否还有前驱节点，所以刚释放锁的线程在此刻再次获取同步状态的概率就变得非常大，所以就减少了线程的开销。
+
+如果为了更高的吞吐量，很显然非公平锁是比较合适的，因为节省很多线程切换时间，吞吐量自然就上去了，否则那就用公平锁，大家公平使用。
+
+
+
+## 20、使用公平锁的问题
+
+公平锁保证了排队的公平性，非公平锁霸气的忽视这个规则，所以就有可能导致排队的长时间在排队，也没有机会获取到锁。
+
+也就是会产生饥饿锁。
+
+
+
+## 21、String类为什么不能做为锁
+
+因为两个String对象可能指向常量池中的同一个字符串
+
+解决办法：调用一下String的intern方法，将String对象放入常量池，再用其做锁
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
