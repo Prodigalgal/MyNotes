@@ -1131,11 +1131,16 @@ TERMINATED;(终结)
 }
 ~~~
 
+
+
 ### 1.3、wait/sleep
 
 - sleep 是 Thread 的静态方法，wait 是 Object 的方法，任何对象实例都能调用。
-- sleep 不会释放锁，它也不需要占用锁。wait 会释放锁，但调用它的前提是当前线程占有锁(即代码要在 synchronized 中)。
+- sleep 不会释放锁，它也不需要占用锁
+- wait 会释放锁，但调用它的前提是当前线程占有锁(即代码要在 synchronized 中)。
 - 它们都可以被 interrupted 方法中断。
+
+
 
 ### 1.4、并发与并行
 
@@ -2013,6 +2018,183 @@ StampedLock
 
 
 
+### 1.21、线程中断
+
+一个线程不应该由其他线程来强制中断或停止，而是应该由线程自己自行停止，所以Thread.stop，Thread.suspend，Thread.resume 都已经被废弃了。
+
+在Java中没有办法立即停止一条线程，然而停止线程却显得尤为重要，如取消一个耗时操作，因此Java提供了一种用于停止线程的机制——中断。
+
+中断只是一种协作机制，Java没有给中断增加任何语法，中断的过程完全需要程序员自己实现，若要中断一个线程，你需要手动调用该线程的interrupt方法（可以在别的线程中调用，也可以在自己的线程中调用），该方法也仅仅是将线程对象的中断标识设成true（每个线程对象中都有的一个标识），接着你需要自己写代码不断地检测当前线程的标识位，如果为true，表示别的线程要求这条线程中断，此时究竟该做什么需要自己写代码实现。
+
+|                                     |                                                              |
+| ----------------------------------- | ------------------------------------------------------------ |
+| public void interrupt()             | 实例方法，实例方法interrupt()仅仅是设置线程的中断状态为true，不会停止线程 |
+| public static boolean interrupted() | 静态方法，Thread.interrupted();<br>判断线程是否被中断，并清除当前中断状态<br>这个方法做了两件事：<br/>1、返回当前线程的中断状态<br/>2、将当前线程的中断状态设为false |
+| public boolean isInterrupted()      | 实例方法，判断当前线程是否被中断（通过检查中断标志位）       |
+
+**注意**：
+
+- interrupted连续调用两次的结果可能不一样
+
+
+
+### 1.22、线程阻塞与唤醒
+
+#### 1、3种方法
+
+- 方式1：使用Object中的wait()方法让线程等待，使用Object中的notify()方法唤醒线程
+  - wait()视为当前线程马上释放对象锁并阻塞的方法，将当前进程挂起，等待唤醒
+  - notify()则是等到执行notify方法的线程将程序执行完，退出sychronized代码块后，当前线程才会释放锁，而呈wait状态所在的线程才可以获取该对象锁
+- 方式2：使用JUC包中Condition的await()方法让线程等待，使用signal()方法唤醒线程
+- 方式3：LockSupport类可以park()阻塞当前线程以及unpark()唤醒指定被阻塞的线程
+
+>LockSupport是用来创建锁和其他同步类的基本线程阻塞原语
+
+
+
+#### 2、wait/notify
+
+Object类中的wait和notify方法实现线程等待和唤醒：
+
+~~~java
+public static void main(String[] args) {
+    Object objectLock = new Object(); // 同一把锁，类似资源类
+
+    new Thread(() -> {
+        synchronized (objectLock) {
+            try {
+                System.out.println("T1的sy");
+                // 释放锁
+                objectLock.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println(Thread.currentThread().getName() + "\t" + "被唤醒了");
+    }, "t1").start();
+
+    // 暂停几秒钟线程
+    try {
+        TimeUnit.SECONDS.sleep(3L);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+
+    new Thread(() -> {
+        synchronized (objectLock) {
+            System.out.println("T2的sy");
+            // 通知获取其他线程获取锁，等到sy代码块执行完毕
+            objectLock.notify();
+            
+        }
+
+        // objectLock.notify();
+
+        /*synchronized (objectLock) {
+                try {
+                    objectLock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }*/
+    }, "t2").start();
+}
+~~~
+
+**注意**：
+
+- Object类中的wait、notify、notifyAll用于线程等待和唤醒的方法，都必须在synchronized内部执行（必须用到关键字synchronized）
+- 先wait后notify、notifyall方法，等待中的线程才会被唤醒，否则无法唤醒
+
+
+
+#### 3、await/signal
+
+Condition接口中的await后signal方法实现线程的等待和唤醒：
+
+~~~java
+public static void main(String[] args) {
+    Lock lock = new ReentrantLock();
+    Condition condition = lock.newCondition();
+
+    new Thread(() -> {
+        lock.lock();
+        try {
+            System.out.println(Thread.currentThread().getName() + "\t" + "start");
+            condition.await();
+            System.out.println(Thread.currentThread().getName() + "\t" + "被唤醒");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }, "t1").start();
+
+    // 暂停几秒钟线程
+    try {
+        TimeUnit.SECONDS.sleep(3L);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+
+    new Thread(() -> {
+        lock.lock();
+        try {
+            condition.signal();
+            System.out.println(Thread.currentThread().getName() + "\t" + "通知了");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+            System.out.println(Thread.currentThread().getName() + "\t" + "解锁了");
+        }
+    }, "t2").start();
+}
+~~~
+
+**注意**：
+
+- 调用condition中线程等待和唤醒的方法的前提是，要在lock和unlock方法中，要有锁才能调用
+- 先await()后signal才OK，否则线程无法被唤醒
+
+
+
+#### 4、park/unpark
+
+LockSupport类中的park等待和unpark唤醒：
+
+LockSupport类使用了一种名为Permit（许可）的概念来做到阻塞和唤醒线程的功能， 每个线程都有一个许可(permit)，permit只有两个值1和零，默认是零，可以把许可看成是一种(0,1)信号量（Semaphore），但与 Semaphore 不同的是，许可的累加上限是1。
+
+~~~java
+public static void main(String[] args) {
+    // 正常使用+不需要锁块
+    Thread t1 = new Thread(() -> {
+        System.out.println(Thread.currentThread().getName() + " " + "1111111111111");
+        LockSupport.park();
+        System.out.println(Thread.currentThread().getName() + " " + "2222222222222------end被唤醒");
+    }, "t1");
+    t1.start();
+
+    // 暂停几秒钟线程
+    try {
+        TimeUnit.SECONDS.sleep(3);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+
+    LockSupport.unpark(t1);
+    System.out.println(Thread.currentThread().getName() + "   -----LockSupport.unparrk() invoked over");
+}
+~~~
+
+
+
+
+
+
+
+
+
 ## 2、JMM
 
 ### 1、基本概念
@@ -2611,10 +2793,10 @@ lock()方法是平常使用得最多的一个方法，就是用来获取锁。
 ~~~java
 Lock lock = ...;
 lock.lock();
-try{
+try {
     //处理任务
-}catch(Exception ex){
-}finally{
+} catch(Exception ex) {
+} finally {
     lock.unlock(); //释放锁
 }
 ~~~
@@ -5273,9 +5455,212 @@ try {
 
 
 
+## 22、使用中断标识停止线程
+
+- 在需要中断的线程中不断监听中断状态，一旦发生中断，就执行相应的中断处理业务逻辑。
+  - 修改状态
+  - 停止程序运行
+
+通过一个volatile变量实现：
+
+~~~java
+private static volatile boolean isStop = false;
+
+public static void main(String[] args) {
+    new Thread(() -> {
+        while(true) {
+            if(isStop) {
+                System.out.println(Thread.currentThread().getName()+"线程------isStop = true,自己退出了");
+                break;
+            }
+            System.out.println("-------hello interrupt");
+        }
+    },"t1").start();
+
+    // 暂停几秒钟线程
+    try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+    isStop = true;
+}
+~~~
+
+通过AtomicBoolean：
+
+~~~java
+private final static AtomicBoolean atomicBoolean = new AtomicBoolean(true);
+
+public static void main(String[] args) {
+    Thread t1 = new Thread(() -> {
+        while(atomicBoolean.get()) {
+            try { TimeUnit.MILLISECONDS.sleep(500); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println("-----hello");
+        }
+    }, "t1");
+    t1.start();
+
+    try { TimeUnit.SECONDS.sleep(3); } catch (InterruptedException e) { e.printStackTrace(); }
+
+    atomicBoolean.set(false);
+}
+~~~
+
+通过Thread类自带的中断api方法实现：
+
+~~~java
+public static void main(String[] args) {
+    Thread t1 = new Thread(() -> {
+        while(true) {
+            if(Thread.currentThread().isInterrupted()) {
+                System.out.println("-----t1 线程被中断了，break，程序结束");
+                break;
+            }
+            System.out.println("-----hello");
+        }
+    }, "t1");
+    t1.start();
+
+    System.out.println("**************"+t1.isInterrupted());
+    // 暂停5毫秒
+    try { TimeUnit.MILLISECONDS.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+    t1.interrupt();
+    System.out.println("**************"+t1.isInterrupted());
+}
+
+~~~
+
+静态方法Thread.interrupted()：
+
+~~~java
+public static void main(String[] args) throws InterruptedException {
+    System.out.println(Thread.currentThread().getName()+"---"+Thread.interrupted());
+    System.out.println(Thread.currentThread().getName()+"---"+Thread.interrupted());
+    System.out.println("111111");
+    Thread.currentThread().interrupt();
+    System.out.println("222222");
+    System.out.println(Thread.currentThread().getName()+"---"+Thread.interrupted());
+    System.out.println(Thread.currentThread().getName()+"---"+Thread.interrupted());
+}
+
+// 静态方法interrupted将会清除中断状态（传入的参数ClearInterrupted为true），
+// 实例方法isInterrupted则不会（传入的参数ClearInterrupted为false）。
+~~~
 
 
 
+
+
+## 23、线程的中断标识为true，是不是就立刻停止
+
+具体来说，当对一个线程，调用 interrupt() 时：
+
+如果线程处于正常活动状态，那么会将该线程的中断标志设置为 true，仅此而已，被设置中断标志的线程将继续正常运行，不受影响，所以， interrupt() 并不能真正的中断线程，需要被调用的线程自己进行配合才行。
+
+如果线程处于被阻塞状态（例如处于sleep,、wait、join等状态），在别的线程中调用当前线程对象的interrupt方法，那么线程将立即退出被阻塞状态，并抛出一个InterruptedException异常。
+
+~~~java
+public static void main(String[] args) throws InterruptedException {
+    Thread t1 = new Thread(() -> {
+        for (int i=0;i<300;i++) {
+            System.out.println("-------"+i);
+        }
+        System.out.println("after t1.interrupt()--第2次---: "+Thread.currentThread().isInterrupted());
+    },"t1");
+    t1.start();
+
+    System.out.println("before t1.interrupt()----: "+t1.isInterrupted());
+    // 实例方法interrupt()仅仅是设置线程的中断状态位设置为true，不会停止线程
+    t1.interrupt();
+    // 活动状态,t1线程还在执行中
+    try { TimeUnit.MILLISECONDS.sleep(3); } catch (InterruptedException e) { e.printStackTrace(); }
+    System.out.println("after t1.interrupt()--第1次---: "+t1.isInterrupted());
+    // 非活动状态,t1线程不在执行中，已经结束执行了。
+    try { TimeUnit.MILLISECONDS.sleep(3000); } catch (InterruptedException e) { e.printStackTrace(); }
+    System.out.println("after t1.interrupt()--第3次---: "+t1.isInterrupted());
+}
+
+-------0
+-------1
+-------......
+-------12
+-------13
+before t1.interrupt()----: false
+-------14
+-------15
+-------......
+-------118
+-------119
+after t1.interrupt()--第1次---: true
+-------120
+-------.......
+-------297
+-------298
+-------299
+after t1.interrupt()--第2次---: true
+after t1.interrupt()--第3次---: true
+
+进程已结束,退出代码0
+
+~~~
+
+如果添加在线程中添加sleep：
+
+sleep方法抛出InterruptedException后，中断标识也被清空重置为false，如果在catch没有再次调用interrupt()方法再次中断，有可能会导致死循环。
+
+~~~java
+public static void main(String[] args) throws InterruptedException {
+    Thread t1 = new Thread(() -> {
+        for (int i=0;i<300;i++) {
+            System.out.println("-------"+i);
+        }
+        System.out.println("after t1.interrupt()--第2次---: "+Thread.currentThread().isInterrupted());
+        // 添加了一个sleep，在线程被中断的时候
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    },"t1");
+    t1.start();
+
+    System.out.println("before t1.interrupt()----: "+t1.isInterrupted());
+    // 实例方法interrupt()仅仅是设置线程的中断状态位设置为true，不会停止线程
+    t1.interrupt();
+    // 活动状态,t1线程还在执行中
+    try { TimeUnit.MILLISECONDS.sleep(3); } catch (InterruptedException e) { e.printStackTrace(); }
+    System.out.println("after t1.interrupt()--第1次---: "+t1.isInterrupted());
+    // 非活动状态,t1线程不在执行中，已经结束执行了。
+    try { TimeUnit.MILLISECONDS.sleep(3000); } catch (InterruptedException e) { e.printStackTrace(); }
+    System.out.println("after t1.interrupt()--第3次---: "+t1.isInterrupted());
+}
+
+
+-------0
+before t1.interrupt()----: false
+-------1
+
+-------134
+after t1.interrupt()--第1次---: true
+-------135
+
+-------299
+    // 出现报错
+after t1.interrupt()--第2次---: true
+Exception in thread "t1" java.lang.RuntimeException: java.lang.InterruptedException: sleep interrupted
+	at Thread.FutureTest.lambda$main$0(FutureTest.java:26)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+Caused by: java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at java.base/java.lang.Thread.sleep(Thread.java:337)
+	at java.base/java.util.concurrent.TimeUnit.sleep(TimeUnit.java:446)
+	at Thread.FutureTest.lambda$main$0(FutureTest.java:24)
+	... 1 more
+    // 线程标志也被清除
+after t1.interrupt()--第3次---: false
+~~~
+
+
+
+ 
 
 
 
