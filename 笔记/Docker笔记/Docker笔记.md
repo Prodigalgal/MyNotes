@@ -1206,6 +1206,24 @@ systemctl restart sshd.service
 
 **建议**：主机仅打开需要映射到22端口的端口
 
+
+
+## 7、安装Nginx
+
+~~~bash
+docker run -itd  --name nginx \
+-p 80:80 \
+-v /data/docker/nginx/html:/usr/share/nginx/html \
+-v /data/docker/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+-v /data/docker/nginx/conf/conf.d:/etc/nginx/conf.d  \
+-v /data/docker/nginx/logs:/var/log/nginx \
+nginx
+~~~
+
+
+
+
+
 # Docker容器数据卷
 
 ## 1、数据卷
@@ -1423,7 +1441,7 @@ ADD RedisCloud-0.0.1-SNAPSHOT.jar ppz.jar
 # 运行jar包
 RUN bash -c 'touch /ppz.jar'
 ENTRYPOINT ["java","-jar","/ppz.jar"]
-#暴露8081端口作为微服务
+# 暴露8081端口作为微服务
 EXPOSE 8081
 ```
 

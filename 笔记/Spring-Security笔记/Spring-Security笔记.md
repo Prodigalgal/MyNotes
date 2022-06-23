@@ -224,9 +224,15 @@ public void invoke(FilterInvocation fi) throws IOException, ServletException {
 }
 ```
 
+
+
 ### 2、ExceptionTranslationFilter
 
 **异常过滤器**，用来处理在认证授权过程中抛出的异常。
+
+允许将`AccessDeniedException`和`AuthenticationException`转换为`HTTP`响应
+
+![d3ce9f84dd2343a2b2f8f86f77a97d15](images/d3ce9f84dd2343a2b2f8f86f77a97d15.png)
 
 ```java
 public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
@@ -235,6 +241,17 @@ public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
     HttpServletResponse response = (HttpServletResponse) res;
 
     try {
+        // 直接进入下一个过滤器，除非出现异常才执行自己的代码
+        // 如果出现异常，判断异常类型
+        // 如果是AuthenticationException，则开始身份验证
+        // 		清除SecurityContextHolder的身份验证
+        //		（SEC-112：清除SecurityContextHolder的身份验证，因为现有身份验证不再有效）。
+        //		将HttpServletRequest保存在RequestCache中。
+        //		当用户成功进行身份验证时，RequestCache用于重现原始请求。
+        //		AuthenticationEntryPoint用于从客户端请求凭据。
+        //		例如，它可能会重定向到登录页面或发送WWW-Authenticate标头。
+        // 如果是AccessDeniedException
+        // 		拒绝访问，调用AccessDeniedHandler来处理拒绝的访问。
         chain.doFilter(request, response);
 
         logger.debug("Chain processed normally");
@@ -275,6 +292,8 @@ public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
     }
 }
 ```
+
+
 
 ### 3、UsernamePasswordAuthenticationFilter
 
@@ -347,6 +366,10 @@ public interface UserDetailsService {
 **注意**：
 
 - 在项目启动时，会被注入进DaoAuthenticationProvider，在**InitializeUserDetailsBeanManagerConfigurer**类中进行，由getBeanOrNull(Class\<T> type)方法根据Bean的类型获取。
+
+**扩展**：
+
+- 多用户类型登陆时，可以多实现该接口，并提供support方法判断是否适用于此用户
 
 ### 2、返回值UserDetails
 
@@ -630,6 +653,202 @@ public  static PasswordEncoder passwordEncoder( ){
 
 
 
+## 3、多用户类型案例
+
+### 1、UserDetailsService
+
+自定义实现一个CustomUserDetailsService接口，编写一个接口support，用于后续判断
+
+~~~java
+public interface CustomUserDetailsService extends UserDetailsService {
+    boolean support(String type);
+}
+~~~
+
+继承CustomUserDetailsService，实现loadUserByUsername与support方法
+
+~~~java
+@Service(value="vistorUserDetailsService")
+@Slf4j
+public class VistorUserDetailsServiceImpl implements CustomUserDetailsService {
+    @Resource
+    VistorService vistorService;
+    @Resource
+    RoleService roleService;
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        log.info("开始登陆");
+        Vistor vistor = vistorService.getOne(new QueryWrapper<Vistor>().eq("username", username));
+        SecurityUser user;
+
+        if(vistor == null) {
+            throw new UsernameNotFoundException("用户不存在");
+        } else {
+            user = new SecurityUser();
+            user.setUsername(vistor.getUsername());
+            user.setPassword(vistor.getPassword());
+        }
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        roleService.getRolesByVistorId(vistor.getId())
+            .forEach(r -> authorities.add(new SimpleGrantedAuthority(r.getName())));
+
+        log.info("用户角色 {}", authorities);
+        user.setAuthorities(authorities);
+        return user;
+    }
+
+    @Override
+    public boolean support(String type) {
+        return type.equals(UserType.VISITOR.getType());
+    }
+}
+~~~
+
+### 2、AuthenticationDetails
+
+通过继承WebAuthenticationDetails，保存用户登陆发送过来的数据额外数据，例如验证码、类型等
+
+原始的WebAuthenticationDetails只能保存账号密码，sessionid、ip
+
+~~~java
+public class CustomWebAuthenticationDetails extends WebAuthenticationDetails {
+    private static final long serialVersionUID = 6975601077714123878L;
+    private final String type;
+
+
+    public CustomWebAuthenticationDetails(HttpServletRequest request) {
+        super(request);
+        type = request.getParameter("type");
+    }
+
+    public String getType() {
+        return type;
+    }
+
+}
+~~~
+
+通过继承WebAuthenticationDetailsSource将CustomWebAuthenticationDetails置入容器中
+
+~~~java
+@Component
+public class CustomWebAuthenticationDetailsSource extends WebAuthenticationDetailsSource {
+
+    @Override
+    public CustomWebAuthenticationDetails buildDetails(HttpServletRequest context) {
+        return new CustomWebAuthenticationDetails(context);
+    }
+}
+~~~
+
+### 3、AuthenticationProvider
+
+由于账户密码登陆是由DaoAuthenticationProvider进行校验的，且其中需要自定义的方法retrieveUser被设为final无法重写，所以我们继承其父类AbstractUserDetailsAuthenticationProvider，并实现retrieveUser方法
+
+~~~java
+@Component
+@Slf4j
+public class CustomDaoAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
+
+    
+  	// 由于使用supprot判断支不支持所以将原来的单个userDetailsService修改为list
+    private final List<CustomUserDetailsService> userDetailsServices = new ArrayList<>();
+
+    public CustomDaoAuthenticationProvider() {
+        setPasswordEncoder(PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    }
+
+
+    @Override
+    protected final UserDetails retrieveUser(String username, 
+                                             UsernamePasswordAuthenticationToken authentication)
+            throws AuthenticationException {
+        prepareTimingAttackProtection();
+        try {
+            UserDetails loadedUser = null;
+            
+            // 从details中获取用户发送过来的登录信息
+            CustomWebAuthenticationDetails details = 
+                (CustomWebAuthenticationDetails) authentication.getDetails();
+            
+            String type = details.getType();
+            // 遍历是否支持
+            for (CustomUserDetailsService userDetailsService : userDetailsServices) {
+                if(userDetailsService.support(type)) {
+                    log.info("用户登陆类型 ----》 {}", type);
+                    loadedUser = userDetailsService.loadUserByUsername(username);
+                }
+            }
+            if (loadedUser == null) {
+                throw new InternalAuthenticationServiceException("UserDetailsService returned null, which is an interface contract violation");
+            }
+            return loadedUser;
+        } catch (UsernameNotFoundException ex) {
+            mitigateAgainstTimingAttack(authentication);
+            throw ex;
+        } catch (InternalAuthenticationServiceException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new InternalAuthenticationServiceException(ex.getMessage(), ex);
+        }
+    }
+
+   
+    public void setUserDetailsService(List<CustomUserDetailsService> userDetailsServices) {
+        this.userDetailsServices.addAll(userDetailsServices);
+    }
+
+    public void setUserDetailsService(CustomUserDetailsService userDetailsService) {
+        this.userDetailsServices.add(userDetailsService);
+    }
+
+
+    public void setUserDetailsPasswordService(UserDetailsPasswordService userDetailsPasswordService) {
+        this.userDetailsPasswordService = userDetailsPasswordService;
+    }
+
+}
+~~~
+
+### 4、config
+
+最后在config中将所配置的自定义类注入
+
+~~~java
+@Resource
+private CustomDaoAuthenticationProvider customDaoAuthenticationProvider;
+
+@Autowired
+@Qualifier("vistorUserDetailsService")
+private CustomUserDetailsService vistorUserDetailsService;
+
+@Bean
+public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Exception {
+    return http
+        .formLogin()
+        .loginProcessingUrl("/api/auth/login")
+        .permitAll()
+        .authenticationDetailsSource(customWebAuthenticationDetailsSource)
+        .build();
+}
+
+@Bean
+public AuthenticationManagerBuilder authenticationManagerBuilder(
+    ObjectPostProcessor<Object> objectPostProcessor,
+    PasswordEncoder passwordEncoder) {
+    
+    customDaoAuthenticationProvider.setUserDetailsService(vistorUserDetailsService);
+    customDaoAuthenticationProvider.setPasswordEncoder(passwordEncoder);
+    AuthenticationManagerBuilder managerBuilder = new AuthenticationManagerBuilder(objectPostProcessor);
+    managerBuilder.authenticationProvider(customDaoAuthenticationProvider);
+    return managerBuilder;
+}
+~~~
+
+
+
 # 6、WEB案例
 
 ## 1、固定账号密码
@@ -790,6 +1009,8 @@ public class MyUserDetailsService implements UserDetailsService {
 }
 ```
 
+
+
 ## 3、基于数据库的记住我
 
 1、创建记住我的数据表
@@ -885,6 +1106,45 @@ protected void configure(HttpSecurity http) throws Exception {
 
 
 
+## 4、Session控制
+
+~~~java
+@Bean
+public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Exception {
+    return http
+        .sessionManagement()
+        // session失效跳转的URL，需要一个Controller
+        .invalidSessionUrl("/session/invalid")
+        // session最大登陆数量，超出报错maxim 1
+        .maximumSessions(1)
+        // 是否保留已经登录的用户，如果为false，则不保留旧用户，保留新用户
+        .maxSessionsPreventsLogin(false)
+        // 当session过期的行为
+        .expiredSessionStrategy(customizeSessionInformationExpiredStrategy)
+        .and()
+        .and()
+        .build();
+}
+
+@Component
+public class CustomizeSessionInformationExpiredStrategy 
+    implements SessionInformationExpiredStrategy {
+    
+    @Override
+    public void onExpiredSessionDetected(SessionInformationExpiredEvent sessionInformationExpiredEvent) 
+        throws IOException, ServletException {
+        
+        // 旧用户被踢出后处理方法
+        R r = R.error().encryptionData("您的账号在异地登录", "您的账号在异地登录");
+        HttpServletResponse httpServletResponse = sessionInformationExpiredEvent.getResponse();
+        httpServletResponse.setContentType("text/json;charset=utf-8");
+        httpServletResponse.getWriter().write(r.toJson());
+    }
+}
+~~~
+
+
+
 
 
 # 7、访问控制
@@ -940,9 +1200,11 @@ return new User(users.getUsername(), new BCryptPasswordEncoder().encode(users.ge
      .antMatchers("/layui/**","/index").hasAnyRole("admin"，"role”);
 ```
 
-# 8、CSRF
+# 8、CSRF/CORS
 
-## 1、基本概念
+## 1、CSRF
+
+### 1、基本概念
 
 **跨站请求伪造**（英语：Cross-site request forgery），也被称为 **one-click  attack** 或者 **session riding**，通常缩写为 CSRF 或者 XSRF， 是一种挟制用户在当前已登录的 Web 应用程序上执行非本意的操作的攻击方法。
 
@@ -952,7 +1214,7 @@ return new User(users.getUsername(), new BCryptPasswordEncoder().encode(users.ge
 
 从 Spring Security 4.0 开始，**默认情况下会启用 CSRF 保护**，以防止 CSRF 攻击应用程序，Spring Security CSRF 会针对 **PATCH**，**POST**，**PUT** 和 **DELETE** 方法进行防护。
 
-## 2、案例
+### 2、案例
 
 在不关闭Security的CSRF情况下，在登陆页面添加一个隐藏域。
 
@@ -962,7 +1224,7 @@ return new User(users.getUsername(), new BCryptPasswordEncoder().encode(users.ge
 
 **注意**：如果不关闭CSRF，则必须在form表单中添加这个，否则请求会被拒绝。
 
-## 3、实现 CSRF 的原理
+### 3、实现 CSRF 的原理
 
 1、生成 **csrfToken** 保存到 **HttpSession** 或者 **Cookie** 中。
 
@@ -1064,6 +1326,63 @@ protected void doFilterInternal(HttpServletRequest request,
     filterChain.doFilter(request, response);
 }
 ```
+
+
+
+## 2、CORS
+
+### 1、基本概念
+
+跨域请求就是指：当前发起请求的域与该请求指向的资源所在的域不同时的请求
+
+- 协议 + 域名 + 端口号，任一不相同，就是跨域
+
+**注意**：
+
+- 设置跨域的是不建议使用 ***** 通配符，能写具体写具体
+
+### 2、解决跨域
+
+~~~java
+// SpringSecurity解决同源策源
+public CorsConfigurationSource corsConfigurationSource(){
+    CorsConfiguration corsConfiguration = new CorsConfiguration();
+
+    corsConfiguration.setAllowCredentials(true);
+    corsConfiguration.setAllowedMethods(List.of("POST", "GET", "DELETE", "PUT", "OPTIONS"));
+
+    List<String> domain = new ArrayList<>();
+    for (int i = 1; i < 65525; i++) {
+        String s = "http://localhost:";
+        domain.add(s+i);
+    }
+    corsConfiguration.setAllowedOrigins(domain);
+    corsConfiguration.setAllowedOriginPatterns(Collections.singletonList("*"));
+    corsConfiguration.setMaxAge(3600L);
+
+    List<String> head = List.of("Content-Type", "Cookie", "X-PINGOTHER");
+    corsConfiguration.setExposedHeaders(head);
+    corsConfiguration.setAllowedHeaders(head);
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", corsConfiguration);
+    return source;
+}
+
+@Bean
+public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Exception {
+    return http
+        .cors()
+        .configurationSource(corsConfigurationSource())
+        .build();
+}
+
+前端ajax请求也需要添加字段，如此才可以获取cooike
+~~~
+
+
+
+
 
 # 9、JWT方案（不推荐）
 
@@ -1825,6 +2144,8 @@ public class DynamicAccessDecisionVoter implements AccessDecisionVoter<Object> {
     }
 })
 ```
+
+
 
 # 扩展
 
@@ -2654,7 +2975,7 @@ public void eraseCredentials() {
 Authentication authenticate(Authentication authentication) throws AuthenticationException;
 ```
 
-- 与 **AuthenticationManager** 中的 **authenticate** 声明及功能完全一致
+- 与 **AuthenticationManager** 中的 **authenticate** 声明及功能完全一致。
 - 返回包含凭据的完整身份验证对象 **authentication**。但是，如果 AuthenticationProvider 不支持给定的 Authentication 的话，该方法可能会返回 null，在此情况下，下一个支持 authentication 的 AuthenticationProvider 将会被尝试。
 
 ```java
@@ -2980,11 +3301,13 @@ protected Authentication createSuccessAuthentication(Object principal,
 
 ### 4、AuthenticationManager 接口
 
-AuthenticationManager这个接口方法，入参和返回值的类型都是**Authentication**。该接口的作用是对用户的未授信凭据进行认证，认证通过则返回授信状态的凭据，否则将抛出认证异常AuthenticationException。
+AuthenticationManager这个接口方法，入参和返回值的类型都是**Authentication**。
+
+该接口的作用是对用户的未授信凭据进行认证，认证通过则返回授信状态的凭据，否则将抛出认证异常AuthenticationException。
 
 初始化流程：
 
-**WebSecurityConfigurerAdapter**中的**void configure(AuthenticationManagerBuilder auth)**是配置AuthenticationManager 的地方。
+**WebSecurityConfigurerAdapter**中的**void configure(AuthenticationManagerBuilder auth)**是配置 AuthenticationManager 的地方。
 
 ```java
 @Override
@@ -3375,19 +3698,19 @@ public void configure(WebSecurity web) throws Exception {
 
 举个例子，如果遇到**CredentialsExpiredException**异常(**AuthenticationException**异常的一种，表示密码过期失效)，可以将用户重定向到修改密码页面而不是登录认证页面。
 
-```
+```java
 public interface AuthenticationFailureHandler {
 
-	/**
+    /**
 	 * 认证失败时会调用此方法
 	 * @param request 出现认证失败时所处于的请求.
 	 * @param response 对应上面请求的响应对象.
 	 * @param exception 携带认证失败原因的认证失败异常对象
 	 * request.
 	 */
-	void onAuthenticationFailure(HttpServletRequest request,
-			HttpServletResponse response, AuthenticationException exception)
-			throws IOException, ServletException;
+    void onAuthenticationFailure(HttpServletRequest request,
+                                 HttpServletResponse response, AuthenticationException exception)
+        throws IOException, ServletException;
 }
 ```
 
@@ -3591,7 +3914,56 @@ public class SimpleUrlAuthenticationFailureHandler implements
 
 
 
-### 2、SavedRequestAwareAuthenticationSuccessHandler 
+#### 2、CustomizeAuthenticationFailureHandler
+
+~~~java
+@Component
+public class CustomizeAuthenticationFailureHandler implements AuthenticationFailureHandler {
+
+
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        AuthenticationException exception)
+        throws IOException, ServletException {
+
+        R r;
+        if (exception instanceof AccountExpiredException) {
+            // 账号过期
+            r = R.error().encryptionData("账号过期", "账号过期");
+        } else if (exception instanceof BadCredentialsException) {
+            // 密码错误
+            r = R.error().encryptionData("密码错误", "密码错误");
+        } else if (exception instanceof CredentialsExpiredException) {
+            // 密码过期
+            r = R.error().encryptionData("密码过期", "密码过期");
+        } else if (exception instanceof DisabledException) {
+            // 账号不可用
+            r = R.error().encryptionData("账号不可用", "账号不可用");
+        } else if (exception instanceof LockedException) {
+            // 账号锁定
+            r = R.error().encryptionData("账号锁定", "账号锁定");
+        } else if (exception instanceof InternalAuthenticationServiceException) {
+            // 用户不存在
+            r = R.error().encryptionData("用户不存在", "用户不存在");
+        } else {
+            // 其他错误
+            r = R.error().encryptionData("其他错误", "其他错误").data("错误信息", exception.getStackTrace());
+            exception.printStackTrace();
+        }
+        // 处理编码方式，防止中文乱码的情况
+        response.setContentType("text/json;charset=utf-8");
+        // 塞到HttpServletResponse中返回给前台
+        response.getWriter().write(r.toJson());
+    }
+}
+~~~
+
+
+
+### 2、AuthenticationSuccessHandler 
+
+#### 1、SavedRequestAwareAuthenticationSuccessHandler 
 
 身份验证成功策略，该策略**DefaultSavedRequest**可能已由会话存储在会话中**ExceptionTranslationFilter**。
 
@@ -3609,6 +3981,532 @@ public class SimpleUrlAuthenticationFailureHandler implements
 当在**ExceptionTranslationFilter**中拦截时，会调用**HttpSessionRequestCache**保存原始的请求信息。
 
 在**UsernamePasswordAuthenticationFilter**过滤器登录成功后，会调用**SavedRequestAwareAuthenticationSuccessHandler**。
+
+
+
+#### 2、CustomizeAuthenticationSuccessHandler
+
+~~~java
+@Component
+public class CustomizeAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+
+
+    @Resource
+    VistorService vistorService;
+    @Resource
+    TenantService tenantService;
+
+    @Resource
+    AdminService adminService;
+    @Resource
+    PropertyService propertyService;
+
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest httpServletRequest,
+                                        HttpServletResponse httpServletResponse,
+                                        Authentication authentication)
+        throws IOException, ServletException {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        CustomWebAuthenticationDetails details = (CustomWebAuthenticationDetails) auth.getDetails();
+        SecurityUser userDetails = (SecurityUser) auth.getPrincipal();
+        String type = details.getType();
+        boolean updated = update(userDetails.getUsername(), type);
+
+        R r = R.status(updated).encryptionData("status", updated);
+        httpServletResponse.setContentType("text/json;charset=utf-8");
+        httpServletResponse.getWriter().write(r.toJson());
+    }
+
+    public boolean update(String username, String type) {
+        boolean result = false;
+        if (VISITOR.getType().equals(type)) {
+            result = vistorService.updateLoginTimeByName(username);
+        } else if (TENANT.getType().equals(type)) {
+            result = tenantService.updateLoginTimeByName(username);
+        } else if (PROPERTY.getType().equals(type)) {
+            result = propertyService.updateLoginTimeByName(username);
+        }
+        return result;
+    }
+}
+~~~
+
+
+
+
+
+## 12、SpringSecurity 身份验证入口
+
+**AuthenticationEntryPoint**
+
+### 1、BasicAuthenticationEntryPoint
+
+由ExceptionTranslationFilter用于通过BasicAuthenticationFilter开始身份验证。
+
+一旦使用BASIC对用户代理进行身份验证，可以发送未经授权的 (401) 标头，最简单的方法是调用BasicAuthenticationEntryPoint类的commence方法。 
+
+这将向浏览器指示其凭据不再被授权，导致它提示用户再次登录。
+
+~~~java
+public class BasicAuthenticationEntryPoint implements AuthenticationEntryPoint,InitializingBean {
+    // 领域名称
+    private String realmName;
+
+    // 检查属性
+    public void afterPropertiesSet() {
+        Assert.hasText(realmName, "realmName must be specified");
+    }
+
+    public void commence(HttpServletRequest request, HttpServletResponse response,
+                         AuthenticationException authException) throws IOException {
+        // 填充响应
+        response.addHeader("WWW-Authenticate", "Basic realm=\"" + realmName + "\"");
+        response.sendError(HttpStatus.UNAUTHORIZED.value(), HttpStatus.UNAUTHORIZED.getReasonPhrase());
+    }
+    ...
+}
+
+~~~
+
+
+
+### 2、DelegatingAuthenticationEntryPoint
+
+根据RequestMatcher匹配（委托）一个具体的AuthenticationEntryPoint
+
+~~~java
+public class DelegatingAuthenticationEntryPoint implements AuthenticationEntryPoint,
+		InitializingBean {
+	private final Log logger = LogFactory.getLog(getClass());
+
+    // RequestMatcher与AuthenticationEntryPoint的映射
+	private final LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints;
+	// 默认AuthenticationEntryPoint
+	private AuthenticationEntryPoint defaultEntryPoint;
+    // 构造方法
+	public DelegatingAuthenticationEntryPoint(
+			LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints) {
+		this.entryPoints = entryPoints;
+	}
+
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException, ServletException {
+        // 遍历entryPoints
+		for (RequestMatcher requestMatcher : entryPoints.keySet()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Trying to match using " + requestMatcher);
+			}
+			// 如果RequestMatcher匹配请求
+			if (requestMatcher.matches(request)) {
+			    // 获取匹配请求的RequestMatcher对应的AuthenticationEntryPoint
+				AuthenticationEntryPoint entryPoint = entryPoints.get(requestMatcher);
+				if (logger.isDebugEnabled()) {
+					logger.debug("Match found! Executing " + entryPoint);
+				}
+				// 委托给匹配请求的RequestMatcher对应的AuthenticationEntryPoint
+				entryPoint.commence(request, response, authException);
+				return;
+			}
+		}
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("No match found. Using default entry point " + defaultEntryPoint);
+		}
+
+		// 没有匹配的身份验证入口，使用defaultEntryPoint
+		defaultEntryPoint.commence(request, response, authException);
+	}
+
+	/**
+	 * 没有RequestMatcher返回true时使用的EntryPoint（默认）
+	 */
+	public void setDefaultEntryPoint(AuthenticationEntryPoint defaultEntryPoint) {
+		this.defaultEntryPoint = defaultEntryPoint;
+	}
+    // 检查属性
+	public void afterPropertiesSet() {
+		Assert.notEmpty(entryPoints, "entryPoints must be specified");
+		Assert.notNull(defaultEntryPoint, "defaultEntryPoint must be specified");
+	}
+}
+
+~~~
+
+
+
+### 3、DigestAuthenticationEntryPoint
+
+由SecurityEnforcementFilter用于通过DigestAuthenticationFilter开始身份验证。
+
+发送回用户代理的随机数将在setNonceValiditySeconds(int)指示的时间段内有效，默认情况下为300秒。 
+
+- 如果重放攻击是主要问题，则应使用更短的时间。
+- 如果性能更受关注，则可以使用更大的值。
+
+当nonce过期时，此类正确显示stale=true标头，因此正确实施的用户代理将自动与新的nonce值重新协商（即不向用户显示新的密码对话框）。
+
+~~~java
+public class DigestAuthenticationEntryPoint implements AuthenticationEntryPoint,
+		InitializingBean, Ordered {
+	private static final Log logger = LogFactory
+			.getLog(DigestAuthenticationEntryPoint.class);
+
+	// 用于验证用户身份的字符串键值
+	private String key;
+	// 领域名称
+	private String realmName;
+	// nonce有效时间
+	private int nonceValiditySeconds = 300;
+	private int order = Integer.MAX_VALUE; 
+
+	...
+	
+    // 检查属性
+	public void afterPropertiesSet() {
+		if ((realmName == null) || "".equals(realmName)) {
+			throw new IllegalArgumentException("realmName must be specified");
+		}
+
+		if ((key == null) || "".equals(key)) {
+			throw new IllegalArgumentException("key must be specified");
+		}
+	}
+
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException {
+		HttpServletResponse httpResponse = response;
+
+		// 计算随机数（由于代理，请勿使用远程IP地址）
+		// 随机数格式为：base64(expirationTime + ":" + md5Hex(expirationTime + ":" + key))
+		// 过期时间
+		long expiryTime = System.currentTimeMillis() + (nonceValiditySeconds * 1000);
+		// 由下面三个步骤计算随机数
+		String signatureValue = DigestAuthUtils.md5Hex(expiryTime + ":" + key);
+		String nonceValue = expiryTime + ":" + signatureValue;
+		String nonceValueBase64 = new String(Base64.getEncoder().encode(nonceValue.getBytes()));
+
+		// 用于填充响应的验证Header
+		String authenticateHeader = "Digest realm=\"" + realmName + "\", "
+				+ "qop=\"auth\", nonce=\"" + nonceValueBase64 + "\"";
+
+		if (authException instanceof NonceExpiredException) {
+			authenticateHeader = authenticateHeader + ", stale=\"true\"";
+		}
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("WWW-Authenticate header sent to user agent: "
+					+ authenticateHeader);
+		}
+		
+        // 填充响应
+		httpResponse.addHeader("WWW-Authenticate", authenticateHeader);
+		httpResponse.sendError(HttpStatus.UNAUTHORIZED.value(),
+			HttpStatus.UNAUTHORIZED.getReasonPhrase());
+	}
+	
+    // 设置key属性
+    public void setKey(String key) {
+		this.key = key;
+	}
+	
+	...
+}
+
+~~~
+
+
+
+### 4、Http403ForbiddenEntryPoint
+
+在预验证的验证案例中，用户已经通过某种外部机制被识别，并且在调用SecurityEnforcement过滤器时建立了一个安全上下文。
+
+因此，此类实际上并不负责身份验证的入口。 
+
+如果用户被AbstractPreAuthenticatedProcessingFilter拒绝，它将被调用，从而导致null身份验证。
+
+commence方法将始终返回HttpServletResponse.SC_FORBIDDEN （403 错误，除非拥有授权否则服务器拒绝提供所请求的资源）。
+
+~~~java
+public class Http403ForbiddenEntryPoint implements AuthenticationEntryPoint {
+	private static final Log logger = LogFactory.getLog(Http403ForbiddenEntryPoint.class);
+
+	/**
+	 * 始终向客户端返回403错误代码
+	 */
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException arg2) throws IOException {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Pre-authenticated entry point called. Rejecting access");
+		}
+		response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
+	}
+}
+
+~~~
+
+
+
+### 5、HttpStatusEntryPoint
+
+发送通用HttpStatus作为响应的AuthenticationEntryPoint。
+
+对于由浏览器拦截响应而无法使用Basic身份验证的JavaScript客户端很有用。
+
+~~~java
+public final class HttpStatusEntryPoint implements AuthenticationEntryPoint {
+    // 用于设置响应的状态码
+	private final HttpStatus httpStatus;
+
+	/**
+	 * 构造方法
+	 */
+	public HttpStatusEntryPoint(HttpStatus httpStatus) {
+		Assert.notNull(httpStatus, "httpStatus cannot be null");
+		this.httpStatus = httpStatus;
+	}
+
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) {
+		// 根据httpStatus属性的值，设置响应的状态码
+		response.setStatus(httpStatus.value());
+	}
+}
+
+~~~
+
+
+
+### 6、LoginUrlAuthenticationEntryPoint
+
+由ExceptionTranslationFilter用于通过UsernamePasswordAuthenticationFilter开始表单登录身份验证。
+
+在loginFormUrl属性中保存登录表单的URL，并使用它来构建到登录页面的重定向URL，或者，可以在此属性中设置绝对URL。
+
+使用相对URL时，可以将forceHttps属性设置为true，以强制用于登录表单的协议为HTTPS，即使原始截获的资源请求使用HTTP协议，发生这种情况时，在成功登录（通过 HTTPS）后，原始资源仍将通过原始请求URL以作为HTTP访问，如果使用绝对URL，则forceHttps属性的值将不起作用。
+
+~~~java
+public class LoginUrlAuthenticationEntryPoint implements AuthenticationEntryPoint,
+		InitializingBean {
+
+	private static final Log logger = LogFactory
+			.getLog(LoginUrlAuthenticationEntryPoint.class);
+
+    // 向调用者提供有关哪些HTTP端口与系统上的哪些HTTPS端口相关联的信息
+	private PortMapper portMapper = new PortMapperImpl();
+    // 端口解析器，基于请求解析出端口
+	private PortResolver portResolver = new PortResolverImpl();
+    // 登陆页面URL
+	private String loginFormUrl;
+    // 默认为false，即不强制Https转发或重定向
+	private boolean forceHttps = false;
+    // 默认为false，即不是转发到登陆页面，而是进行重定向
+	private boolean useForward = false;
+    // 重定向策略
+	private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
+
+	/**
+	 * loginFormUrl – 可以找到登录页面的URL
+	 * 应该是相对于web-app上下文路径（包括前导/）或绝对URL
+	 */
+	public LoginUrlAuthenticationEntryPoint(String loginFormUrl) {
+		Assert.notNull(loginFormUrl, "loginFormUrl cannot be null");
+		this.loginFormUrl = loginFormUrl;
+	}
+
+	// 检查属性
+	public void afterPropertiesSet() {
+		Assert.isTrue(
+				StringUtils.hasText(loginFormUrl)
+						&& UrlUtils.isValidRedirectUrl(loginFormUrl),
+				"loginFormUrl must be specified and must be a valid redirect URL");
+		if (useForward && UrlUtils.isAbsoluteUrl(loginFormUrl)) {
+			throw new IllegalArgumentException(
+					"useForward must be false if using an absolute loginFormURL");
+		}
+		Assert.notNull(portMapper, "portMapper must be specified");
+		Assert.notNull(portResolver, "portResolver must be specified");
+	}
+
+	/**
+	 * 允许子类修改成适用于给定请求的登录表单URL
+	 */
+	protected String determineUrlToUseForThisRequest(HttpServletRequest request,
+			HttpServletResponse response, AuthenticationException exception) {
+
+		return getLoginFormUrl();
+	}
+
+	/**
+	 * 执行到登录表单URL的重定向（或转发）
+	 */
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException, ServletException {
+
+		String redirectUrl = null;
+        // 如果使用转发
+		if (useForward) {
+			if (forceHttps && "http".equals(request.getScheme())) {
+				// 首先将当前请求重定向到HTTPS
+				// 当收到该请求时，将使用到登录页面的转发
+				redirectUrl = buildHttpsRedirectUrlForRequest(request);
+			}
+            // 如果重定向地址为null
+			if (redirectUrl == null) {
+			    // 获取登陆表单URL
+				String loginForm = determineUrlToUseForThisRequest(request, response,
+						authException);
+
+				if (logger.isDebugEnabled()) {
+					logger.debug("Server side forward to: " + loginForm);
+				}
+                // RequestDispatcher用于接收来自客户端的请求并将它们发送到服务器上的任何资源
+				RequestDispatcher dispatcher = request.getRequestDispatcher(loginForm);
+                // 进行转发
+				dispatcher.forward(request, response);
+
+				return;
+			}
+		}
+		else {
+			// 重定向到登录页面
+			// 如果forceHttps为真，则使用https
+			redirectUrl = buildRedirectUrlToLoginPage(request, response, authException);
+
+		}
+        // 进行重定向
+		redirectStrategy.sendRedirect(request, response, redirectUrl);
+	}
+
+    // 构建重定向URL
+	protected String buildRedirectUrlToLoginPage(HttpServletRequest request,
+			HttpServletResponse response, AuthenticationException authException) {
+        // 通过determineUrlToUseForThisRequest方法获取URL
+		String loginForm = determineUrlToUseForThisRequest(request, response,
+				authException);
+        // 如果是绝对URL，直接返回
+		if (UrlUtils.isAbsoluteUrl(loginForm)) {
+			return loginForm;
+		}
+        // 如果是相对URL
+        // 构造重定向URL
+		int serverPort = portResolver.getServerPort(request);
+		String scheme = request.getScheme();
+
+		RedirectUrlBuilder urlBuilder = new RedirectUrlBuilder();
+
+		urlBuilder.setScheme(scheme);
+		urlBuilder.setServerName(request.getServerName());
+		urlBuilder.setPort(serverPort);
+		urlBuilder.setContextPath(request.getContextPath());
+		urlBuilder.setPathInfo(loginForm);
+
+		if (forceHttps && "http".equals(scheme)) {
+			Integer httpsPort = portMapper.lookupHttpsPort(serverPort);
+
+			if (httpsPort != null) {
+				// 覆盖重定向URL中的scheme和port
+				urlBuilder.setScheme("https");
+				urlBuilder.setPort(httpsPort);
+			}
+			else {
+				logger.warn("Unable to redirect to HTTPS as no port mapping found for HTTP port "
+						+ serverPort);
+			}
+		}
+
+		return urlBuilder.getUrl();
+	}
+
+	/**
+	 * 构建一个URL以将提供的请求重定向到HTTPS
+	 * 用于在转发到登录页面之前将当前请求重定向到HTTPS
+	 */
+	protected String buildHttpsRedirectUrlForRequest(HttpServletRequest request)
+			throws IOException, ServletException {
+
+		int serverPort = portResolver.getServerPort(request);
+		Integer httpsPort = portMapper.lookupHttpsPort(serverPort);
+
+		if (httpsPort != null) {
+			RedirectUrlBuilder urlBuilder = new RedirectUrlBuilder();
+			urlBuilder.setScheme("https");
+			urlBuilder.setServerName(request.getServerName());
+			urlBuilder.setPort(httpsPort);
+			urlBuilder.setContextPath(request.getContextPath());
+			urlBuilder.setServletPath(request.getServletPath());
+			urlBuilder.setPathInfo(request.getPathInfo());
+			urlBuilder.setQuery(request.getQueryString());
+
+			return urlBuilder.getUrl();
+		}
+
+		// 通过警告消息进入服务器端转发
+		logger.warn("Unable to redirect to HTTPS as no port mapping found for HTTP port "
+				+ serverPort);
+
+		return null;
+	}
+
+	/**
+	 * 设置为true以强制通过https访问登录表单
+	 * 如果此值为true（默认为false），并且触发拦截器的请求还不是https
+	 * 则客户端将首先重定向到https URL，即使serverSideRedirect（服务器端转发）设置为true
+	 */
+	public void setForceHttps(boolean forceHttps) {
+		this.forceHttps = forceHttps;
+	}
+
+    ...
+    
+	/**
+	 * 是否要使用RequestDispatcher转发到loginFormUrl，而不是302重定向
+	 */
+	public void setUseForward(boolean useForward) {
+		this.useForward = useForward;
+	}
+	
+	...
+}
+
+~~~
+
+
+
+### 7、CustomizeAuthenticationEntryPoint
+
+~~~java
+@Component
+public class CustomizeAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+    @Override
+    public void commence(HttpServletRequest httpServletRequest,
+                         HttpServletResponse httpServletResponse,
+                         AuthenticationException e) throws IOException, ServletException {
+
+        R r = R.error()
+                .setMessage("权限/认证错误")
+                .data("message", e.getMessage())
+                .data("trace", e.getStackTrace());
+
+        e.printStackTrace();
+
+        httpServletResponse.setContentType("text/json;charset=utf-8");
+        httpServletResponse.getWriter().write(r.toJson());
+    }
+}
+
+@Bean
+public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Exception {
+    return http
+        .exceptionHandling()
+        .authenticationEntryPoint(customizeAuthenticationEntryPoint)
+}
+~~~
+
+
+
+
 
 
 

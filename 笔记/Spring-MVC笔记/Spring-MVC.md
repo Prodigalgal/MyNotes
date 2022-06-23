@@ -3561,7 +3561,28 @@ protected final void checkRequest(HttpServletRequest request) throws ServletExce
 
 
 
+## 5、解决跨域问题
 
+跨域请求就是指：当前发起请求的域与该请求指向的资源所在的域不同时的请求，即“协议 + 域名 + 端口号” 有不相同。
+
+- 前端的解决方法——使用[正向代理](https://so.csdn.net/so/search?q=正向代理&spm=1001.2101.3001.7020)，隐藏请求者真实地址
+
+- 创建一个适配器ConfigurerAdapter实现WebMvcConfigurer接口的addCorsMappings方法，对所有跨域请求进行放行。
+
+  ~~~java
+  @Configuration
+  public class ConfigurerAdapter implements WebMvcConfigurer {
+      @Override
+      public void addCorsMappings(CorsRegistry registry) {
+          registry.addMapping("/**")
+              .allowCredentials(false)
+              .allowedMethods("POST","GET","DELETE","PUT","OPTIONS")
+              .allowedOrigins("*");
+      }
+  }
+  ~~~
+
+- 直接在对应Controller上添加@CrossOrigin注解
 
 
 
