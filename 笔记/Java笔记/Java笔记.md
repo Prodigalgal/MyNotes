@@ -2358,9 +2358,105 @@ public static void main(String[] args) {
 
 
 
+### 1.23、ThreadLocal
 
+#### 1、基本概念
 
+ThreadLocal提供线程局部变量，这些变量与正常的变量不同，因为每一个线程在访问ThreadLocal实例的时候（通过其get或set方法）都有自己的、独立初始化的变量副本，避免了线程安全问题，解决了让每个线程绑定自己的值
 
+ThreadLocal实例通常是类中的私有静态字段，使用它的目的是希望将状态（例如，用户ID或事务ID）与线程关联起来。
+
+目的：实现每一个线程都有自己专属的本地变量副本（不共享，每人一份)
+
+![image-20220624205032786](images/image-20220624205032786.png)
+
+#### 2、案例
+
+##### 非线程安全的SimpDateFormat
+
+SimpleDateFormat类内部有一个Calendar对象引用，它用来储存和这个SimpleDateFormat相关的日期信息
+
+例如sdf.parse(dateStr)，sdf.format(date) 诸如此类的方法参数传入的日期相关String，Date等等，都是交由Calendar引用来储存的。
+
+这样就会导致一个问题如果你的SimpleDateFormat是个static的，那么多个thread 之间就会共享这个SimpleDateFormat，同时也是共享这个Calendar引用。
+
+<img src="images/image-20220624211200934.png" alt="image-20220624211200934" style="zoom:80%;" />
+
+<img src="images/image-20220624211219427.png" alt="image-20220624211219427" style="zoom:80%;" />
+
+**解决方法**：
+
+1. 定义为局部变量
+
+   ~~~java
+   public class DateUtils {
+       public static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    
+       public static void main(String[] args) throws Exception
+       {
+           for (int i = 1; i <=30; i++) {
+               new Thread(() -> {
+                   try {
+                       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                       System.out.println(sdf.parse("2020-11-11 11:11:11"));
+                       sdf = null;
+                   } catch (Exception e) {
+                       e.printStackTrace();
+                   }
+               }, String.valueOf(i)).start();
+           }
+       }
+   }
+   ~~~
+
+2. 使用ThreadLocal
+
+   ~~~java
+   public class DateUtils {
+       private static final ThreadLocal<SimpleDateFormat>  sdf_threadLocal =
+               ThreadLocal.withInitial(()-> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
+   
+       /**
+        * ThreadLocal可以确保每个线程都可以得到各自单独的一个SimpleDateFormat的对象，那么自然也就不存在竞争问题了。
+        * @param stringDate
+        * @return
+        * @throws Exception
+        */
+       public static Date parseDateTL(String stringDate)throws Exception {
+           return sdf_threadLocal.get().parse(stringDate);
+       }
+   
+       public static void main(String[] args) throws Exception {
+           for (int i = 1; i <=30; i++) {
+               new Thread(() -> {
+                   try {
+                       System.out.println(DateUtils.parseDateTL("2020-11-11 11:11:11"));
+                   } catch (Exception e) {
+                       e.printStackTrace();
+                   }
+               }, String.valueOf(i)).start();
+           }
+       }
+   }
+   ~~~
+
+3. 加锁
+
+4. 第三方时间库
+
+#### 3、Thread\ThreadLocal\ThreadLocalMap
+
+ ![image-20220624211812127](images/image-20220624211812127.png)
+
+![image-20220624212027244](images/image-20220624212027244.png)
+
+threadLocalMap实际上就是一个以threadLocal实例为key，任意对象为value的Entry对象
+
+当我们为threadLocal变量赋值，实际上就是把当前threadLocal实例作为key，值作为value组为Entry往这个threadLocalMap中存放
+
+>JVM内部维护了一个线程版的Map<Thread,T>(通过ThreadLocal对象的set方法，结果把ThreadLocal对象自己当做key，放进了ThreadLoalMap中)
+>
+>每个线程要用到这个T的时候，用当前的线程去Map里面获取，通过这样让每个线程都拥有了自己独立的变量，人手一份，竞争条件被彻底消除，在并发模式下是绝对安全的变量。
 
 
 
@@ -2749,10 +2845,6 @@ public class UseVolatileDemo {
 #### 2、状态标志，判断业务是否结束
 
 ~~~java
-package com.atguigu.juc.prepare;
-
-import java.util.concurrent.TimeUnit;
-
 /**
  * 使用：作为一个布尔状态标志，用于指示发生了一个重要的一次性事件，例如完成初始化或任务结束
  * 理由：状态标志并不依赖于程序内任何其他状态，且通常只有一种状态转换
@@ -2803,6 +2895,419 @@ AtomicIntegerArray、AtomicLongArray 和 AtomicReferenceArray 类进一步扩展
 **核心方法**：boolean compareAndSet(expectedValue, updateValue)
 
 
+
+#### 2、基本类型原子类
+
+~~~java
+public final int get() //获取当前的值
+public final int getAndSet(int newValue)//获取当前的值，并设置新的值
+public final int getAndIncrement()//获取当前的值，并自增
+public final int getAndDecrement() //获取当前的值，并自减
+public final int getAndAdd(int delta) //获取当前的值，并加上预期的值
+boolean compareAndSet(int expect, int update) //如果输入的数值等于预期值，则以原子方式将该值设置为输入值（update）
+~~~
+
+~~~java
+class MyNumber {
+    @Getter
+    private AtomicInteger atomicInteger = new AtomicInteger();
+    
+    public void addPlusPlus() {
+        atomicInteger.incrementAndGet();
+    }
+}
+
+public class AtomicIntegerDemo {
+    public static void main(String[] args) throws InterruptedException {
+        MyNumber myNumber = new MyNumber();
+        CountDownLatch countDownLatch = new CountDownLatch(100);
+
+        for (int i = 1; i <= 100; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=5000; j++) {
+                        myNumber.addPlusPlus();
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }, String.valueOf(i)).start();
+        }
+
+        countDownLatch.await();
+        System.out.println(myNumber.getAtomicInteger().get());
+    }
+}
+~~~
+
+
+
+#### 3、数组类型原子类
+
+~~~java
+public class AtomicIntegerArrayDemo {
+    public static void main(String[] args)
+    {
+        AtomicIntegerArray atomicIntegerArray = new AtomicIntegerArray(new int[5]);
+        // AtomicIntegerArray atomicIntegerArray = new AtomicIntegerArray(5);
+        // AtomicIntegerArray atomicIntegerArray = new AtomicIntegerArray(new int[]{1,2,3,4,5});
+
+        for (int i = 0; i < atomicIntegerArray.length(); i++) {
+            System.out.println(atomicIntegerArray.get(i));
+        }
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        int tmpInt = 0;
+
+        tmpInt = atomicIntegerArray.getAndSet(0, 1122);
+        System.out.println(tmpInt+"\t"+atomicIntegerArray.get(0));
+        atomicIntegerArray.getAndIncrement(1);
+        atomicIntegerArray.getAndIncrement(1);
+        tmpInt = atomicIntegerArray.getAndIncrement(1);
+        System.out.println(tmpInt+"\t"+atomicIntegerArray.get(1));
+    }
+}
+~~~
+
+
+
+#### 4、引用类型原子类
+
+~~~java
+@Getter
+@ToString
+@AllArgsConstructor
+class User {
+    String userName;
+    int    age;
+}
+
+public class AtomicReferenceDemo {
+    public static void main(String[] args) {
+        User z3 = new User("z3",24);
+        User li4 = new User("li4",26);
+
+        AtomicReference<User> atomicReferenceUser = new AtomicReference<>();
+        atomicReferenceUser.set(z3);
+        
+        System.out.println(atomicReferenceUser.compareAndSet(z3,li4)
+                           +"\t"+atomicReferenceUser.get().toString());
+        System.out.println(atomicReferenceUser.compareAndSet(z3,li4)
+                           +"\t"+atomicReferenceUser.get().toString());
+    }
+}
+~~~
+
+
+
+~~~java
+public class ABADemo {
+    static AtomicInteger atomicInteger = new AtomicInteger(100);
+    static AtomicStampedReference<Integer> stampedReference = new AtomicStampedReference<>(100, 1);
+    static AtomicMarkableReference<Integer> markableReference = new AtomicMarkableReference<>(100, false);
+
+    public static void main(String[] args) {
+        new Thread(() -> {
+            atomicInteger.compareAndSet(100,101);
+            atomicInteger.compareAndSet(101,100);
+            System.out.println(Thread.currentThread().getName()+"\t"+"update ok");
+        }, "t1").start();
+
+        new Thread(() -> {
+            // 暂停几秒钟线程
+            try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+            atomicInteger.compareAndSet(100,2020);
+        }, "t2").start();
+ 
+        // 暂停几秒钟线程
+        try { TimeUnit.SECONDS.sleep(2); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        System.out.println(atomicInteger.get());
+
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+        System.out.println("============以下是ABA问题的解决,让我们知道引用变量中途被更改了几次============");
+        new Thread(() -> {
+            System.out.println(Thread.currentThread().getName()
+                               +"\t 1次版本号"+stampedReference.getStamp());
+            // 故意暂停200毫秒，让后面的t4线程拿到和t3一样的版本号
+            try { TimeUnit.MILLISECONDS.sleep(200); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+
+            stampedReference.compareAndSet(100,101,
+                                           stampedReference.getStamp(),stampedReference.getStamp()+1);
+            System.out.println(Thread.currentThread().getName()
+                               +"\t 2次版本号"+stampedReference.getStamp());
+            stampedReference.compareAndSet(101,100,
+                                           stampedReference.getStamp(),stampedReference.getStamp()+1);
+            System.out.println(Thread.currentThread().getName()
+                               +"\t 3次版本号"+stampedReference.getStamp());
+        }, "t3").start();
+
+        new Thread(() -> {
+            int stamp = stampedReference.getStamp();
+            System.out.println(Thread.currentThread().getName()+"\t =======1次版本号"+stamp);
+            // 暂停2秒钟,让t3先完成ABA操作了，看看自己还能否修改
+            try { TimeUnit.SECONDS.sleep(2); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+            
+            boolean b = stampedReference.compareAndSet(100, 2020, stamp, stamp + 1);
+            System.out.println(Thread.currentThread().getName()
+                               +"\t=======2次版本号"
+                               +stampedReference.getStamp()+"\t"+stampedReference.getReference());
+        }, "t4").start();
+
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+        System.out.println("============AtomicMarkableReference不关心引用变量更改过几次，只关心是否更改过======");
+
+        new Thread(() -> {
+            boolean marked = markableReference.isMarked();
+            System.out.println(Thread.currentThread().getName()+"\t 1次版本号"+marked);
+            try { TimeUnit.MILLISECONDS.sleep(100); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+            
+            markableReference.compareAndSet(100,101, marked,!marked);
+            System.out.println(Thread.currentThread().getName()
+                               +"\t 2次版本号"+markableReference.isMarked());
+            
+            markableReference.compareAndSet(101,100,
+                                            markableReference.isMarked(),!markableReference.isMarked());
+            System.out.println(Thread.currentThread().getName()
+                               +"\t 3次版本号"+markableReference.isMarked());
+        }, "t5").start();
+
+        new Thread(() -> {
+            boolean marked = markableReference.isMarked();
+            System.out.println(Thread.currentThread().getName()+"\t 1次版本号"+marked);
+            // 暂停几秒钟线程
+            try { TimeUnit.MILLISECONDS.sleep(100); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+            
+            markableReference.compareAndSet(100,2020, marked,!marked);
+            System.out.println(Thread.currentThread().getName()
+                               +"\t"+markableReference.getReference()+"\t"+markableReference.isMarked());
+        }, "t6").start();
+    }
+}
+~~~
+
+
+
+#### 5、对象属性修改原子类
+
+以一种线程安全的方式操作非线程安全对象内的某些字段。
+
+**注意**：
+
+- 更新的对象属性必须使用public volatile修饰。
+
+- 因为该类均为抽象类，所以每次使用都需要使用静态方法newUptade()创建一个新的更新器，并设置需要更新的类和属性。
+
+~~~java
+class BankAccount {
+    
+    private String bankName = "CCB"; // 银行
+    public volatile int money = 0; // 钱数
+    AtomicIntegerFieldUpdater<BankAccount> accountAtomicIntegerFieldUpdater = 
+        AtomicIntegerFieldUpdater.newUpdater(BankAccount.class, "money");
+
+    // 不加锁+性能高，局部微创
+    public void transferMoney(BankAccount bankAccount) {
+        accountAtomicIntegerFieldUpdater.incrementAndGet(bankAccount);
+    }
+}
+
+/**
+ * 以一种线程安全的方式操作非线程安全对象的某些字段。
+ * 需求：
+ * 1000个人同时向一个账号转账一元钱，那么累计应该增加1000元，
+ * 除了synchronized和CAS,还可以使用AtomicIntegerFieldUpdater来实现。
+ */
+public class AtomicIntegerFieldUpdaterDemo {
+
+    public static void main(String[] args) {
+        BankAccount bankAccount = new BankAccount();
+
+        for (int i = 1; i <=1000; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                bankAccount.transferMoney(bankAccount);
+            }, String.valueOf(i)).start();
+        }
+
+        // 暂停毫秒
+        try { TimeUnit.MILLISECONDS.sleep(500); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        System.out.println(bankAccount.money);
+
+    }
+}
+~~~
+
+~~~JAVA
+class MyVar {
+    public volatile Boolean isInit = Boolean.FALSE;
+    
+    AtomicReferenceFieldUpdater<MyVar,Boolean> atomicReferenceFieldUpdater = 
+        AtomicReferenceFieldUpdater.newUpdater(MyVar.class, Boolean.class, "isInit");
+
+
+    public void init(MyVar myVar) {
+        if(atomicReferenceFieldUpdater.compareAndSet(myVar, Boolean.FALSE, Boolean.TRUE)) {
+            System.out.println(Thread.currentThread().getName()+"\t"+"---init.....");
+            // 暂停几秒钟线程
+            try { TimeUnit.SECONDS.sleep(2); } catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println(Thread.currentThread().getName()+"\t"+"---init.....over");
+        } else {
+            System.out.println(Thread.currentThread().getName()+"\t"+"------其它线程正在初始化");
+        }
+    }
+}
+
+
+/**
+ * 多线程并发调用一个类的初始化方法，如果未被初始化过，将执行初始化工作，要求只能初始化一次
+ */
+public class AtomicIntegerFieldUpdaterDemo {
+    public static void main(String[] args) throws InterruptedException {
+        MyVar myVar = new MyVar();
+
+        for (int i = 1; i <=5; i++) {
+            new Thread(() -> {
+                myVar.init(myVar);
+            }, String.valueOf(i)).start();
+        }
+    }
+}
+~~~
+
+
+
+#### 6、原子操作增强类
+
+![image-20220624202139980](images/image-20220624202139980.png)
+
+![image-20220624203943603](images/image-20220624203943603.png)
+
+~~~JAVA
+class ClickNumberNet {
+    int number = 0;
+    public synchronized void clickBySync() {
+        number++;
+    }
+
+    AtomicLong atomicLong = new AtomicLong(0);
+    public void clickByAtomicLong() {
+        atomicLong.incrementAndGet();
+    }
+
+    LongAdder longAdder = new LongAdder();
+    public void clickByLongAdder() {
+        longAdder.increment();
+    }
+
+    LongAccumulator longAccumulator = new LongAccumulator((x,y) -> x + y,0);
+    public void clickByLongAccumulator() {
+        longAccumulator.accumulate(1);
+    }
+}
+
+/**
+ * 50个线程，每个线程100W次，总点赞数出来
+ */
+public class LongAdderDemo2 {
+    public static void main(String[] args) throws InterruptedException {
+        ClickNumberNet clickNumberNet = new ClickNumberNet();
+
+        long startTime;
+        long endTime;
+        CountDownLatch countDownLatch = new CountDownLatch(50);
+        CountDownLatch countDownLatch2 = new CountDownLatch(50);
+        CountDownLatch countDownLatch3 = new CountDownLatch(50);
+        CountDownLatch countDownLatch4 = new CountDownLatch(50);
+
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <=50; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=100 * 10000; j++) {
+                        clickNumberNet.clickBySync();
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }, String.valueOf(i)).start();
+        }
+        countDownLatch.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("----costTime: "+(endTime - startTime)
+                           +" 毫秒"+"\t clickBySync result: "+clickNumberNet.number);
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <=50; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=100 * 10000; j++) {
+                        clickNumberNet.clickByAtomicLong();
+                    }
+                } finally {
+                    countDownLatch2.countDown();
+                }
+            }, String.valueOf(i)).start();
+        }
+        countDownLatch2.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("----costTime: "+(endTime - startTime) 
+                           +" 毫秒"+"\t clickByAtomicLong result: "+clickNumberNet.atomicLong);
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <=50; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=100 * 10000; j++) {
+                        clickNumberNet.clickByLongAdder();
+                    }
+                } finally {
+                    countDownLatch3.countDown();
+                }
+            }, String.valueOf(i)).start();
+        }
+        countDownLatch3.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("----costTime: "+(endTime - startTime) 
+                           +" 毫秒"+"\t clickByLongAdder result: "+clickNumberNet.longAdder.sum());
+
+        startTime = System.currentTimeMillis();
+        for (int i = 1; i <=50; i++) {
+            new Thread(() -> {
+                try {
+                    for (int j = 1; j <=100 * 10000; j++) {
+                        clickNumberNet.clickByLongAccumulator();
+                    }
+                } finally {
+                    countDownLatch4.countDown();
+                }
+            }, String.valueOf(i)).start();
+        }
+        countDownLatch4.await();
+        endTime = System.currentTimeMillis();
+        System.out.println("----costTime: "+(endTime - startTime) 
+                           +" 毫秒"+"\t clickByLongAccumulator result:"
+                           +clickNumberNet.longAccumulator.longValue());
+    }
+}
+~~~
+
+**注意**：
+
+- sum方法不是强一致性的，其实最终一致性的，所以在并发的情况下不保证正确性
 
 
 
@@ -5904,17 +6409,239 @@ after t1.interrupt()--第3次---: false
 
  
 
+## 25、快速的LongAdder
+
+~~~java
+// Striped64中的变量
+
+/** Number of CPUS, to place bound on table size        
+* CPU数量，即cells数组的最大长度 
+*/
+static final int NCPU = Runtime.getRuntime().availableProcessors();
+
+/**
+ * Table of cells. When non-null, size is a power of 2.
+ * cells数组，为2的幂，2,4,8,16.....，方便以后位运算
+ * 重要
+ */
+transient volatile Cell[] cells;
+
+/**基础value值，当并发较低时，只累加该值主要用于没有竞争的情况，通过CAS更新。
+ * Base value, used mainly when there is no contention, but also as
+ * a fallback during table initialization races. Updated via CAS.
+ * 重要
+ */
+transient volatile long base;
+
+/** 创建或者扩容Cells数组时使用的自旋锁变量调整单元格大小（扩容），创建单元格时使用的锁。
+ * Spinlock (locked via CAS) used when resizing and/or creating Cells. 
+ */
+transient volatile int cellsBusy;
+~~~
+
+<img src="images/image-20220624202717123.png" alt="image-20220624202717123" style="zoom:80%;" />
+
+LongAdder的基本思路就是**分散热点**，将value值分散到一个Cell数组中，不同线程会命中到数组的不同槽中，各个线程只对自己槽中的那个值进行CAS操作，这样热点就被分散了，冲突的概率就小很多，如果要获取真正的long值，只要将各个槽中的变量值累加返回。
+
+sum()会将所有Cell数组中的value和base累加作为返回值，核心的思想就是将之前AtomicLong一个value的更新压力分散到多个value中去，从而降级更新热点。
+
+Value = Base + ![image-20220624202929424](images/image-20220624202929424.png)
+
+<img src="images/image-20220624202946564.png" alt="image-20220624202946564" style="zoom:80%;" />
+
+**add（1L）**:
+
+<img src="images/image-20220624203340648.png" alt="image-20220624203340648" style="zoom:80%;" />
+
+<img src="images/image-20220624203411802.png" alt="image-20220624203411802" style="zoom:80%;" />
+
+![image-20220624203527677`](images/image-20220624203527677.png)
+
+![image-20220624203601950](images/image-20220624203601950.png)
+
+~~~java
+~~~
+
+
+
+## 26、ThreadLocal内存泄露
+
+**内存泄漏**：不再会被使用的对象或者变量占用的内存不能被回收，就是内存泄露。
+
+ThreadLocalMap从字面上就可以看出这是一个保存ThreadLocal对象的map(其实是以它为Key)，不过是经过了两层包装的ThreadLocal对象：
+
+1. 第一层包装是使用 WeakReference<ThreadLocal<?>> 将ThreadLocal对象变成一个弱引用的对象
+2. 第二层包装是定义了一个专门的类 Entry 来扩展 WeakReference<ThreadLocal<?>>
+
+<img src="images/image-20220624215124495.png" alt="image-20220624215124495" style="zoom:67%;" />
+
+- 每个Thread对象维护着一个ThreadLocalMap的引用
+- ThreadLocalMap是ThreadLocal的内部类，用Entry来进行存储
+- 调用ThreadLocal的set()方法时，实际上就是往ThreadLocalMap设置值，key是ThreadLocal对象，值Value是传递进来的对象
+- 调用ThreadLocal的get()方法时，实际上就是往ThreadLocalMap获取值，key是ThreadLocal对象
+- ThreadLocal本身并不存储值，它只是自己作为一个key来让线程从ThreadLocalMap获取value，正因为这个原理，所以ThreadLocal能够实现数据隔离，获取当前线程的局部变量值，不受其他线程影响
 
 
 
 
 
+## 27、强引用、软引用、弱引用、虚引用
+
+**强引用**：
+
+- 强引用是我们最常见的普通对象引用，只要还有强引用指向一个对象，就能表明对象还活着，垃圾收集器不会碰这种对象。
+
+- 在 Java 中最常见的就是强引用，把一个对象赋给一个引用变量，这个引用变量就是一个强引用。
+
+- 当一个对象被强引用变量引用时，它处于可达状态，它是不可能被垃圾回收机制回收的，即使该对象以后永远都不会被用到JVM也不会回收，因此强引用是造成Java内存泄漏的主要原因之一。
+
+- 当内存不足，JVM开始垃圾回收，对于强引用的对象，就算是出现了OOM也不会对该对象进行回收，死都不收。
+
+- 对于一个普通的对象，如果没有其他的引用关系，只要超过了引用的作用域或者显式地将相应（强）引用赋值为 null，一般认为就是可以被垃圾收集的了(当然具体回收时机还是要看垃圾收集策略)。
 
 
+ ~~~java
+ public static void strongReference() {
+     MyObject myObject = new MyObject();
+     System.out.println("-----gc before: "+myObject);
+ 
+     myObject = null;
+     System.gc();
+     try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+ 
+     System.out.println("-----gc after: "+myObject);
+ }
+ ~~~
 
+**软引用**：
 
+- 软引用是一种相对强引用弱化了一些的引用，需要用java.lang.ref.SoftReference类来实现，可以让对象豁免一些垃圾收集。
 
+- 对于只有软引用的对象来说：
+  - 当系统内存充足时它不会被回收
+  - 当系统内存不足时它会被回收
 
+- 软引用通常用在对内存敏感的程序中，比如高速缓存就有用到软引用，内存够用的时候就保留，不够用就回收！
+
+~~~java
+class MyObject {
+    // 一般开发中不用调用这个方法，本次只是为了讲课演示
+    @Override
+    protected void finalize() throws Throwable {
+        System.out.println(Thread.currentThread().getName()+"\t"+"---finalize method invoked....");
+    }
+}
+
+public class ReferenceDemo {
+    public static void main(String[] args) {
+        // 当我们内存不够用的时候，soft会被回收的情况，设置我们的内存大小：-Xms10m -Xmx10m
+        SoftReference<MyObject> softReference = new SoftReference<>(new MyObject());
+
+        System.gc();
+        try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+        System.out.println("-----gc after内存够用: "+softReference.get());
+
+        try {
+            byte[] bytes = new byte[9 * 1024 * 1024];
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            System.out.println("-----gc after内存不够: "+softReference.get());
+        }
+    }
+}
+~~~
+
+**弱引用**：
+
+- 弱引用需要用java.lang.ref.WeakReference类来实现，它比软引用的生存期更短
+- 对于只有弱引用的对象来说，只要垃圾回收机制一运行，不管JVM的内存空间是否足够，都会回收该对象占用的内存。 
+
+~~~java
+class MyObject {
+    // 一般开发中不用调用这个方法，本次只是为了讲课演示
+    @Override
+    protected void finalize() throws Throwable {
+        System.out.println(Thread.currentThread().getName()+"\t"+"---finalize method invoked....");
+    }
+}
+
+public class ReferenceDemo {
+    public static void main(String[] args) {
+        WeakReference<MyObject> weakReference = new WeakReference<>(new MyObject());
+        System.out.println("-----gc before内存够用: "+weakReference.get());
+
+        System.gc();
+        try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        System.out.println("-----gc after内存够用: "+weakReference.get());
+    }
+}
+~~~
+
+软\弱引用适用场景：
+
+>假如有一个应用需要读取大量的本地图片:
+>
+>     *    如果每次读取图片都从硬盘读取则会严重影响性能,
+>     *    如果一次性全部加载到内存中又可能造成内存溢出。
+>
+>此时使用软引用可以解决这个问题。
+>
+>设计思路是：用一个HashMap来保存图片的路径和相应图片对象关联的软引用之间的映射关系，在内存不足时，JVM会自动回收这些缓存图片对象所占用的空间，从而有效地避免了OOM的问题。
+>
+>Map<String, SoftReference<Bitmap>> imageCache = new HashMap<String, SoftReference<Bitmap>>();
+
+**虚引用**：
+
+-  虚引用需要java.lang.ref.PhantomReference类来实现。
+- 顾名思义，就是形同虚设，与其他几种引用都不同，虚引用并不会决定对象的生命周期。
+- 如果一个对象仅持有虚引用，那么它就和没有任何引用一样，在任何时候都可能被垃圾回收器回收，它不能单独使用也不能通过它访问对象，虚引用必须和引用队列 (ReferenceQueue)联合使用。
+- 虚引用的主要作用是跟踪对象被垃圾回收的状态，仅仅是提供了一种确保对象被 finalize以后，做某些事情的机制，PhantomReference的get方法总是返回null，因此无法访问对应的引用对象。
+- 其意义在于：说明一个对象已经进入finalization阶段，可以被gc回收，用来实现比finalization机制更灵活的回收操作，换句话说，设置虚引用关联的唯一目的，就是在这个对象被收集器回收的时候收到一个系统通知或者后续添加进一步的处理。
+
+ ~~~java
+ class MyObject {
+     // 一般开发中不用调用这个方法，本次只是为了讲课演示
+     @Override
+     protected void finalize() throws Throwable {
+         System.out.println(Thread.currentThread().getName()+"\t"+"---finalize method invoked....");
+     }
+ }
+ 
+ public class ReferenceDemo {
+     public static void main(String[] args) {
+         ReferenceQueue<MyObject> referenceQueue = new ReferenceQueue();
+         PhantomReference<MyObject> phantomReference = new PhantomReference<>(new MyObject(),referenceQueue);
+         // System.out.println(phantomReference.get());
+ 
+         List<byte[]> list = new ArrayList<>();
+ 
+         new Thread(() -> {
+             while (true) {
+                 list.add(new byte[1 * 1024 * 1024]);
+                 try { TimeUnit.MILLISECONDS.sleep(600); } 
+                 catch (InterruptedException e) { e.printStackTrace(); }
+                 System.out.println(phantomReference.get());
+             }
+         }, "t1").start();
+ 
+         new Thread(() -> {
+             while (true) {
+                 Reference<? extends MyObject> reference = referenceQueue.poll();
+                 if (reference != null) {
+                     System.out.println("***********有虚对象加入队列了");
+                 }
+             }
+         }, "t2").start();
+ 
+         // 暂停几秒钟线程
+         try { TimeUnit.SECONDS.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+     }
+ }
+ ~~~
+
+![image-20220624214927450](images/image-20220624214927450.png)
 
 
 
