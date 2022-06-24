@@ -1301,7 +1301,9 @@ setPriority(int newPriority)
 
 ### 1.10、CAS算法
 
-CAS (Compare-And-Swap) 是一种硬件对并发的支持，针对多处理器操作而设计的处理器中的一种特殊指令，用于管理对共享数据的并 发访问。
+#### 1、基本概念
+
+CAS (Compare-And-Swap) 是一种硬件对并发的支持，其是一条CPU并发原语，针对多处理器操作而设计的处理器中的一种特殊指令，用于管理对共享数据的并 发访问。
 
 CAS 是一种无锁的非阻塞算法的实现。
 
@@ -1312,6 +1314,112 @@ CAS 包含了 3 个操作数：
 - 拟写入的新值B
 
 当且仅当 V 的值等于 A 时，CAS 通过原子方式用新值 B 来更新 V 的值，否则不会执行任何操作。
+
+CAS是一条CPU的原子指令（cmpxchg指令），不会造成所谓的数据不一致问题，Unsafe提供的CAS方法（如compareAndSwapXXX）底层实现即为CPU指令cmpxchg。
+
+执行cmpxchg指令的时候，会判断当前系统是否为多核系统，如果是就给总线加锁，只有一个线程会对总线加锁成功，加锁成功之后会执行CAS操作，也就是说CAS的原子性实际上是CPU实现的， 其实在这一点上还是有排他锁的，只是比起用synchronized， 这里的排他时间要短的多， 所以在多线程情况下性能会比较好。
+
+
+
+#### 2、底层原理
+
+1. Unsafe：
+   -  Unsafe是CAS的核心类，由于Java方法无法直接访问底层系统，需要通过本地（native）方法来访问，Unsafe相当于一个后门，基于该类可以直接操作特定内存的数据。
+   - Unsafe类存在于sun.misc包中，其内部方法操作可以像C的指针一样直接操作内存，因为Java中CAS操作的执行依赖于Unsafe类的方法。
+2. 变量valueOffset
+   - 表示该变量值在内存中的偏移地址，因为Unsafe就是根据内存偏移地址获取数据的。
+3. 变量value
+   - 用volatile修饰，保证了多线程之间的内存可见性。
+
+**注意**：
+
+- Unsafe类中的所有方法都是native修饰的，也就是说Unsafe类中的方法都直接调用操作系统底层资源执行相应任务 
+
+
+
+#### 3、问题
+
+由于自旋，CPU开销较大
+
+且会出现ABA问题（解决方法：版本号时间戳原子引用）
+
+~~~java
+package com.atguigu.Interview.study.thread;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicStampedReference;
+
+public class ABADemo {
+    static AtomicInteger atomicInteger = new AtomicInteger(100);
+    static AtomicStampedReference atomicStampedReference = new AtomicStampedReference(100, 1);
+
+    public static void main(String[] args) {
+        new Thread(() -> {
+            atomicInteger.compareAndSet(100, 101);
+            atomicInteger.compareAndSet(101, 100);
+        }, "t1").start();
+
+        new Thread(() -> {
+            // 暂停一会儿线程
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(atomicInteger.compareAndSet(100, 2019) + "\t" + atomicInteger.get());
+        }, "t2").start();
+
+        // 暂停一会儿线程,main彻底等待上面的ABA出现演示完成。
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("============以下是ABA问题的解决=============================");
+
+        new Thread(() -> {
+            int stamp = atomicStampedReference.getStamp();
+            System.out.println(Thread.currentThread().getName() + "\t 首次版本号:" + stamp);// 1
+            // 暂停一会儿线程,
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            atomicStampedReference.compareAndSet(100, 101, 
+atomicStampedReference.getStamp(), atomicStampedReference.getStamp() + 1);
+            
+            System.out.println(Thread.currentThread().getName() 
+                               + "\t 2次版本号:" + atomicStampedReference.getStamp());
+            
+            atomicStampedReference.compareAndSet(101, 100, 
+atomicStampedReference.getStamp(), atomicStampedReference.getStamp() + 1);
+            
+            System.out.println(Thread.currentThread().getName() 
+                               + "\t 3次版本号:" + atomicStampedReference.getStamp());
+        }, "t3").start();
+
+        new Thread(() -> {
+            int stamp = atomicStampedReference.getStamp();
+            System.out.println(Thread.currentThread().getName() + "\t 首次版本号:" + stamp);// 1
+            // 暂停一会儿线程，获得初始值100和初始版本号1，故意暂停3秒钟让t3线程完成一次ABA操作产生问题
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            boolean result = atomicStampedReference.compareAndSet(100, 2019, stamp, stamp + 1);
+            System.out.println(Thread.currentThread().getName() 
+                               + "\t" + result + "\t" + atomicStampedReference.getReference());
+        }, "t4").start();
+    }
+}
+~~~
+
+
+
+
 
 ### 1.12、并发三概念
 
@@ -1675,7 +1783,11 @@ public static void main(String[] args){
 
 <img src="images/DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1.jpg" alt="DPQuiatFjOk4aXHi2dnsGwc9b3cdbed87c210dbf07a3a13ad56cb1" style="zoom:67%;" />
 
-**注意**：为了保证内存可见性，java编译器会在生成指令序列的适当位置会插入内存屏障指令来禁止特定类型的处理器重排序。
+![image-20220624153329570](images/image-20220624153329570.png)
+
+**注意**：
+
+- 为了保证内存可见性，java编译器会在生成指令序列的适当位置会插入内存屏障指令来禁止特定类型的处理器重排序。
 
 
 
@@ -1996,7 +2108,64 @@ jstack 进程编号
 
 #### 6、自旋锁
 
-SpinLock
+SpinLock是指尝试获取锁的线程不会立即阻塞，而是采用循环的方式去尝试获取锁，当线程发现锁被占用时，会不断循环判断锁的状态，直到获取。
+
+这样的好处是减少线程上下文切换的消耗，缺点是循环会消耗CPU
+
+~~~java
+package com.atguigu.Interview.study.thread;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * 自旋锁好处：循环比较获取没有类似wait的阻塞。
+ * 通过CAS操作完成自旋锁，A线程先进来调用myLock方法自己持有锁5秒钟，B随后进来后发现
+ * 当前有线程持有锁，不是null，所以只能通过自旋等待，直到A释放锁后B随后抢到。
+ */
+public class SpinLockDemo {
+    AtomicReference<Thread> atomicReference = new AtomicReference<>();
+
+    public void myLock() {
+        Thread thread = Thread.currentThread();
+        System.out.println(Thread.currentThread().getName() + "\t come in");
+        while (!atomicReference.compareAndSet(null, thread)) {}
+    }
+
+    public void myUnLock() {
+        Thread thread = Thread.currentThread();
+        atomicReference.compareAndSet(thread, null);
+        System.out.println(Thread.currentThread().getName() + "\t myUnLock over");
+    }
+
+    public static void main(String[] args) {
+        SpinLockDemo spinLockDemo = new SpinLockDemo();
+
+        new Thread(() -> {
+            spinLockDemo.myLock();
+            try {
+                TimeUnit.SECONDS.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            spinLockDemo.myUnLock();
+        }, "A").start();
+
+        // 暂停一会儿线程，保证A线程先于B线程启动并完成
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        new Thread(() -> {
+            spinLockDemo.myLock();
+            spinLockDemo.myUnLock();
+        }, "B").start();
+
+    }
+}
+~~~
 
 
 
@@ -2212,7 +2381,10 @@ JMM定义了程序中变量的访问规则，也即定义了程序执行的次�
   - 因为 JMM 保证线程读操作读取到的值不会无中生有（out of thin air），为了实现最小安全性，JVM 在堆上分配对象时，首先会清零内存空间，然后才会在上面分配对象（JVM 内部会同步这两个操作），在为清零的内存空间（pre-zeroed memory）分配对象时，域的默认初始化已经完成了。
 - 为了获得较好的执行性能，JMM并没有限制执行引擎使用处理器的寄存器或者高速缓存来提升指令执行速度，也没有限制编译器对指令进行重排序，也就是说，在JMM中，也会存在缓存一致性问题和指令重排序的问题。
 
+>JMM定义的8种工作内存与主内存之间的原子操作
+>read(读取)→load(加载)→use(使用)→assign(赋值)→store(存储)→write(写入)→lock(锁定)→unlock(解锁)
 
+<img src="images/image-20220624154815780.png" alt="image-20220624154815780" style="zoom:80%;" />
 
 ### 2、主内存和本地/工作内存结构
 
@@ -2451,6 +2623,10 @@ volatile 关键字是 Java 提供的一种稍弱的同步机制，用来确保�
 
 <img src="images/image-20220415154815435.png" alt="image-20220415154815435" style="zoom:80%;" />
 
+<img src="images/image-20220624153553966.png" alt="image-20220624153553966" style="zoom:80%;" />
+
+
+
 **注意**：可以将 volatile 看做一个轻量级的锁，但是又与锁有些不同：
 
 - 对于多线程，不是一种互斥关系
@@ -2497,6 +2673,7 @@ class ThreadDemo implements Runnable {
 ### 2、懒汉式案例分析
 
 ~~~java
+// 也可以使用静态内部类实现
 public class Singleton {
     private static volatile Singleton singleton;
     private Singleton() {
@@ -2548,13 +2725,70 @@ singleton(memory); // 2.初始化对象
 
 ### 3、案例
 
+#### 1、开销较低的读，写锁策略
+
+~~~java
+public class UseVolatileDemo {
+    /**
+     * 使用：当读远多于写，结合使用内部锁和 volatile 变量来减少同步的开销
+     * 理由：利用volatile保证读取操作的可见性；利用synchronized保证复合操作的原子性
+     */
+    public class Counter {
+        private volatile int value;
+
+        public int getValue() {
+            return value;   //利用volatile保证读取操作的可见性
+        }
+        public synchronized int increment() {
+            return value++; //利用synchronized保证复合操作的原子性
+        }
+    }
+}
+~~~
+
+#### 2、状态标志，判断业务是否结束
+
+~~~java
+package com.atguigu.juc.prepare;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 使用：作为一个布尔状态标志，用于指示发生了一个重要的一次性事件，例如完成初始化或任务结束
+ * 理由：状态标志并不依赖于程序内任何其他状态，且通常只有一种状态转换
+ * 例子：判断业务是否结束
+ */
+public class UseVolatileDemo {
+    private volatile static boolean flag = true;
+
+    public static void main(String[] args) {
+        new Thread(() -> {
+            while (flag) {
+                //do something......
+            }
+        }, "t1").start();
+
+        //暂停几秒钟线程
+        try {
+            TimeUnit.SECONDS.sleep(2L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        new Thread(() -> {
+            flag = false;
+        }, "t2").start();
+    }
+}
+~~~
 
 
 
 
 
 
-## 4、原子变量
+
+## 4、原子类
 
 #### 1、概述
 
@@ -2567,6 +2801,10 @@ AtomicBoolean、AtomicInteger、AtomicLong 和 AtomicReference 的实例各自�
 AtomicIntegerArray、AtomicLongArray 和 AtomicReferenceArray 类进一步扩展了原子操作，对这些类型的数组提供了支持，这些类在为其数组元素提供 volatile 访问语义，这对于普通数组来说是不受支持的。
 
 **核心方法**：boolean compareAndSet(expectedValue, updateValue)
+
+
+
+
 
 ## 5、Synchronized 关键字
 
@@ -5660,7 +5898,55 @@ after t1.interrupt()--第3次---: false
 
 
 
+## 24、JMM中i++分三步，其中间隙的操作非原子性
+
+![image-20220624155232898](images/image-20220624155232898.png)
+
  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
