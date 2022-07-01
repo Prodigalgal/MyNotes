@@ -2460,6 +2460,109 @@ threadLocalMap实际上就是一个以threadLocal实例为key，任意对象为v
 
 
 
+#### 4、<a href="#ThreadLoacl内存泄漏">内存泄漏</a>
+
+
+
+### 1.24、对象内存布局与对象头
+
+#### 1、基本概念
+
+在HotSpot虚拟机中，对象在堆内存中存储布局可分为三个部份：对象头，实例数据，对齐填充
+
+<img src="images/image-20220701155303929.png" alt="image-20220701155303929" style="zoom:80%;" />
+
+
+
+- 对象头：分为对象标记（markOop）和类元信息（classOop），类元信息存储的是指向该对象类元数据（class）的首地址。
+- 对齐填充：保证8个字节的倍数
+
+
+
+#### 2、Mark Word
+
+<img src="images/image-20220701155728924.png" alt="image-20220701155728924" style="zoom:80%;" />
+
+<img src="images/image-20220701155923386.png" alt="image-20220701155923386" style="zoom:80%;" />
+
+<img src="images/image-20220701160001042.png" alt="image-20220701160001042" style="zoom:80%;" />
+
+
+
+#### 3、Object obj = new Object()
+
+使用JOL分析对象的分布与大小
+
+~~~xml
+<!--
+官网：http://openjdk.java.net/projects/code-tools/jol/
+定位：分析对象在JVM的大小和分布
+-->
+<dependency>
+    <groupId>org.openjdk.jol</groupId>
+    <artifactId>jol-core</artifactId>
+    <version>0.9</version>
+</dependency>
+~~~
+
+~~~java
+public class MyObject {
+    public static void main(String[] args) {
+        // VM的细节详细情况
+        System.out.println(VM.current().details());
+        // 所有的对象分配的字节都是8的整数倍。
+        System.out.println(VM.current().objectAlignment());
+        
+        Object o = new Object();
+        System.out.println( ClassLayout.parseInstance(o).toPrintable());
+    }
+}
+~~~
+
+<img src="images/image-20220701160532258.png" alt="image-20220701160532258" style="zoom:80%;" />
+
+| 字段名      | 含义                                       |
+| ----------- | ------------------------------------------ |
+| OFFSET      | 偏移量，也就是到这个字段位置所占用的byte数 |
+| SIZE        | 后面类型的字节大小                         |
+| TYPE        | 是Class中定义的类型                        |
+| DESCRIPTION | DESCRIPTION是类型的描述                    |
+| VALUE       | VALUE是TYPE在内存中的值                    |
+
+- GC年龄采用4位bit存储，最大为15，例如MaxTenuringThreshold参数默认值就是15
+
+~~~bash
+-XX:MaxTenuringThreshold=16
+~~~
+
+<img src="images/image-20220701161042272.png" alt="image-20220701161042272" style="zoom:50%;" />
+
+#### 4、尾巴参数
+
+~~~java
+java -XX:+PrintCommandLineFlags -version
+~~~
+
+默认开启压缩说明
+
+~~~bash
+-XX:+UseCompressedClassPointers
+~~~
+
+<img src="images/image-20220701161314528.png" alt="image-20220701161314528" style="zoom:80%;" />
+
+关闭压缩说明
+
+~~~bash
+-XX:-UseCompressedClassPointers
+~~~
+
+<img src="images/image-20220701161357127.png" alt="image-20220701161357127" style="zoom:80%;" />
+
+
+
+
+
 ## 2、JMM
 
 ### 1、基本概念
@@ -3320,6 +3423,10 @@ synchronized 是 Java 中的关键字，是一种同步锁。
 synchronized 实现同步的基础：Java 中的每一个对象都可以作为锁。
 
 每个对象都有一个锁，并且是唯一的，锁是针对对象的，所以也叫对象锁。
+
+
+
+synchronized锁：由对象头中的Mark Word根据锁标志位的不同而被复用及锁升级策略
 
 
 
@@ -6464,13 +6571,13 @@ Value = Base + ![image-20220624202929424](images/image-20220624202929424.png)
 
 
 
-## 26、ThreadLocal内存泄露
+## 26、<a name="ThreadLoacl内存泄漏">ThreadLocal内存泄露</a>
 
 **内存泄漏**：不再会被使用的对象或者变量占用的内存不能被回收，就是内存泄露。
 
 ThreadLocalMap从字面上就可以看出这是一个保存ThreadLocal对象的map(其实是以它为Key)，不过是经过了两层包装的ThreadLocal对象：
 
-1. 第一层包装是使用 WeakReference<ThreadLocal<?>> 将ThreadLocal对象变成一个弱引用的对象
+1. 第一层包装是使用 **WeakReference**<ThreadLocal<?>> 将ThreadLocal对象变成一个**弱引用**的对象
 2. 第二层包装是定义了一个专门的类 Entry 来扩展 WeakReference<ThreadLocal<?>>
 
 <img src="images/image-20220624215124495.png" alt="image-20220624215124495" style="zoom:67%;" />
@@ -6481,9 +6588,40 @@ ThreadLocalMap从字面上就可以看出这是一个保存ThreadLocal对象的m
 - 调用ThreadLocal的get()方法时，实际上就是往ThreadLocalMap获取值，key是ThreadLocal对象
 - ThreadLocal本身并不存储值，它只是自己作为一个key来让线程从ThreadLocalMap获取value，正因为这个原理，所以ThreadLocal能够实现数据隔离，获取当前线程的局部变量值，不受其他线程影响
 
+**使用弱引用的原因**：
 
+~~~java
+public void function01() {
+    ThreadLocal tl = new ThreadLocal<Integer>();    //line1
+    tl.set(2021);                                   //line2
+    tl.get();                                       //line3
+}
+~~~
 
+- line1新建了一个ThreadLocal对象，t1 是强引用指向这个对象
+- line2调用set()方法后新建一个Entry，通过源码可知Entry对象里的k是弱引用指向这个对象。
+- 当function01方法执行完毕后，栈帧销毁强引用 tl 也就没有了。
+- 但此时线程的ThreadLocalMap里某个entry的key引用还指向这个对象
+- 若这个key引用是强引用，就会导致key指向的ThreadLocal对象及v指向的对象不能被gc回收，造成内存泄漏。
+- 若这个key引用是弱引用就大概率会减少内存泄漏的问题(还有一个**key为null的雷**)。
+- 使用弱引用，就可以使ThreadLocal对象在方法执行完毕后顺利被回收且Entry的key引用指向为null。
 
+<img src="images/image-20220701151821577.png" alt="image-20220701151821577" style="zoom:80%;" />
+
+**泄露原因**：
+
+- 当我们为threadLocal变量赋值，实际上就是为当前Entry（threadLocal实例为key，值为value）往这个threadLocalMap中存放。
+- Entry中的key是弱引用，当threadLocal外部强引用被置为null（tl=null），那么系统 GC 的时候，根据可达性分析，这个threadLocal实例就没有任何一条链路能够引用到它，这个ThreadLocal势必会被回收。
+- 但是此时，ThreadLocalMap中就会出现key为null的Entry，就没有办法访问这些key为null的Entry的value。
+- 如果当前线程再迟迟不结束的话，这些key为null的Entry的value就会一直存在一条强引用链：
+  - Thread Ref -> Thread -> ThreaLocalMap -> Entry -> value永远无法回收，造成内存泄漏
+- 如果当前thread运行结束，threadLocal，threadLocalMap，Entry没有引用链可达，在垃圾回收的时候都会被系统进行回收。
+- 但在实际使用中会用线程池去维护线程，比如在Executors.newFixedThreadPool()时创建线程的时候，为了复用线程是不会结束的，所以容易threadLocal内存泄漏
+
+**解决方法**：
+
+ThreadLocal的set，getEntry，remove方法对于在threadLocal的生命周期里，有针对threadLocal存在的内存泄漏的问题的解决方法，
+其都会通过expungeStaleEntry，cleanSomeSlots，replaceStaleEntry这三个方法清理掉key为null的脏entry。
 
 ## 27、强引用、软引用、弱引用、虚引用
 

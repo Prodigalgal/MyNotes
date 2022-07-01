@@ -976,7 +976,7 @@ protected MessageListenerContainer createListenerContainer(RabbitListenerEndpoin
 
 表示消息队列**服务器实体**。
 
-![image-20210902171842258](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902171842258.png)
+![image-20210902171842258](images\SpringBoot高级.assets\image-20210902171842258.png)
 
 #### 3、运行机制
 
@@ -986,7 +986,7 @@ AMQP 中增加了 **Exchange** 和 **Binding** 的角色。
 
 生产者把消息发布到 Exchange 上，消息最终到达队列并被消费者接收，而 Binding 决定交换器的消息应该发送到那个队列。
 
-![image-20210902172014306](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902172014306.png)
+![image-20210902172014306](images\SpringBoot高级.assets\image-20210902172014306.png)
 
 ##### 2、Exchange类型
 
@@ -1002,7 +1002,7 @@ AMQP 中增加了 **Exchange** 和 **Binding** 的角色。
 
 - 它是**完全匹配**、**单播**的模式。
 
-![image-20210902172230802](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902172230802.png)
+![image-20210902172230802](images\SpringBoot高级.assets\image-20210902172230802.png)
 
 ###### 2、fanout
 
@@ -1012,7 +1012,7 @@ AMQP 中增加了 **Exchange** 和 **Binding** 的角色。
 
 - fanout 类型**转发消息是最快**的。
 
-![image-20210902172620647](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902172620647.png)
+![image-20210902172620647](images\SpringBoot高级.assets\image-20210902172620647.png)
 
 ###### 3、topic
 
@@ -1022,7 +1022,7 @@ AMQP 中增加了 **Exchange** 和 **Binding** 的角色。
 
 - 它同样也会识别两个通配符：符号“#”和符号“\*”。#匹配0个或多个单词，*匹配一个单词。
 
-![image-20210902172740187](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902172740187.png)
+![image-20210902172740187](images\SpringBoot高级.assets\image-20210902172740187.png)
 
 ###### 4、headers 
 
@@ -1042,9 +1042,9 @@ AMQP 中增加了 **Exchange** 和 **Binding** 的角色。
 
 ```properties
 spring.rabbitmq.host=xxx.xxx.xxx.xxx
-#默认账号
+# 默认账号
 spring.rabbitmq.username=guest
-#默认密码
+# 默认密码
 spring.rabbitmq.password=guest
 ```
 
@@ -1065,11 +1065,11 @@ spring.rabbitmq.password=guest
 ```java
 @Test
 public void createExchange(){
-	//创建交换机
+	// 创建交换机
     amqpAdmin.declareExchange(new DirectExchange("amqpadmin.exchange"));
-    //创建队列
+    // 创建队列
     amqpAdmin.declareQueue(new Queue("amqpadmin.queue",true));
-    //创建绑定规则
+    // 创建绑定规则
     amqpAdmin.declareBinding(new Binding("amqpadmin.queue", 
                                          Binding.DestinationType.QUEUE,
                                          "amqpadmin.exchange",
@@ -1085,19 +1085,18 @@ public void createExchange(){
 */
 @Test
 public void contextLoads() {
-    //Message需要自己构造一个，定义消息体内容和消息头
-    //rabbitTemplate.send(exchage,routeKey,message);
-
-    //object默认当成消息体，只需要传入要发送的对象，自动序列化发送给rabbitmq
-    //rabbitTemplate.convertAndSend(exchage,routeKey,object);
+    // Message需要自己构造一个，定义消息体内容和消息头
+    // rabbitTemplate.send(exchage,routeKey,message);
+    // object默认当成消息体，只需要传入要发送的对象，自动序列化发送给rabbitmq
+    // rabbitTemplate.convertAndSend(exchage,routeKey,object);
     Map<String,Object> map = new HashMap<>();
     map.put("msg","这是第一个消息");
     map.put("data", Arrays.asList("helloworld",123,true));
-    //对象被默认序列化以后发送出去
+    // 对象被默认序列化以后发送出去
     rabbitTemplate.convertAndSend("exchange.direct","atguigu.news",new Book("西游记","吴承恩"));
 }
 
-//接受数据
+// 接受数据
 @Test
 public void receive(){
     Object o = rabbitTemplate.receiveAndConvert("atguigu.news");
@@ -1139,7 +1138,7 @@ public MessageConverter messageConverter(){
 
 ### 7、扩展
 
-![image-20210902225431989](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210902225431989.png)
+![image-20210902225431989](images\SpringBoot高级.assets\image-20210902225431989.png)
 
 ## 3、检索
 
