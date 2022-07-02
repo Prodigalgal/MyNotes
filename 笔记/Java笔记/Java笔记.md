@@ -2178,7 +2178,121 @@ public class SpinLockDemo {
 
 #### 7、邮戳锁
 
-StampedLock
+##### 1、基本概念
+
+StampedLock是JDK1.8中新增的一个读写锁，也是对JDK1.5中的读写锁ReentrantReadWriteLock的优化。
+
+stamp（戳记，long类型）：代表了锁的状态，当stamp返回零时，表示线程获取锁失败，并且当释放锁或者转换锁的时候，都要传入最初获取的stamp值。
+
+StampedLock采取乐观获取锁后，其他线程尝试获取写锁时不会被阻塞，这其实是对读锁的优化，不过在获取乐观读锁后，还需要对结果进行校验。
+
+
+
+##### 2、特点
+
+- 所有获取锁的方法，都返回一个邮戳（Stamp），Stamp为零表示获取失败，其余都表示成功
+- 所有释放锁的方法，都需要一个邮戳（Stamp），这个Stamp必须是和成功获取锁时得到的Stamp一致
+
+**注意**：
+
+- StampedLock是**不可重入**的，如果一个线程已经持有了写锁，再去获取写锁的话就会造成死锁
+- StampedLock 的悲观读锁和写锁都不支持条件变量（Condition）
+- 使用 StampedLock一定不要调用中断操作，即不要调用interrupt() 方法
+  - 如果需要支持中断功能，一定使用可中断的悲观读锁 readLockInterruptibly()和写锁writeLockInterruptibly()
+
+
+
+##### 3、访问模式
+
+- Reading（读模式）：功能和ReentrantReadWriteLock的读锁类似
+- Writing（写模式）：功能和ReentrantReadWriteLock的写锁类似
+- Optimistic reading（乐观读模式）：无锁机制，类似于数据库中的乐观锁，支持读写并发，很乐观认为读取时无修改，假如被修改再升级为悲观读模式
+
+~~~java
+public class StampedLockDemo {
+    static int number = 37;
+    static StampedLock stampedLock = new StampedLock();
+
+    public void write() {
+        long stamp = stampedLock.writeLock();
+        System.out.println(Thread.currentThread().getName()+"\t"+"=====写线程准备修改");
+        try {
+            number = number + 13;
+        } catch (Exception e){
+            e.printStackTrace();
+        } finally {
+            stampedLock.unlockWrite(stamp);
+        }
+        System.out.println(Thread.currentThread().getName()+"\t"+"=====写线程结束修改");
+    }
+
+    // 悲观读
+    public void read() {
+        long stamp = stampedLock.readLock();
+        System.out.println(Thread.currentThread().getName()
+                           +"\t come in readlock block,4 seconds continue...");
+        // 暂停几秒钟线程
+        for (int i = 0; i <4 ; i++) {
+            try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println(Thread.currentThread().getName()+"\t 正在读取中......");
+        }
+        try {
+            int result = number;
+            System.out.println(Thread.currentThread().getName()+"\t"+" 获得成员变量值result：" + result);
+            System.out.println("写线程没有修改值，因为 stampedLock.readLock()读的时候，不可以写，读写互斥");
+        } catch (Exception e){
+            e.printStackTrace();
+        } finally {
+            stampedLock.unlockRead(stamp);
+        }
+    }
+
+    // 乐观读
+    public void tryOptimisticRead() {
+        long stamp = stampedLock.tryOptimisticRead();
+        int result = number;
+        // 间隔4秒钟，我们很乐观的认为没有其他线程修改过number值，实际靠判断。
+        System.out.println("4秒前stampedLock.validate值(true无修改，false有修改)"
+                           +"\t"+stampedLock.validate(stamp));
+        for (int i = 1; i<=4 ; i++) {
+            try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println(Thread.currentThread().getName()+"\t 正在读取中......"+i+
+                    "秒后stampedLock.validate值(true无修改，false有修改)"+"\t"
+                    +stampedLock.validate(stamp));
+        }
+        if(!stampedLock.validate(stamp)) {
+            System.out.println("有人动过--------存在写操作！");
+            stamp = stampedLock.readLock();
+            try {
+                System.out.println("从乐观读 升级为 悲观读");
+                result = number;
+                System.out.println("重新悲观读锁通过获取到的成员变量值result：" + result);
+            } catch (Exception e){
+                e.printStackTrace();
+            } finally {
+                stampedLock.unlockRead(stamp);
+            }
+        }
+        System.out.println(Thread.currentThread().getName()+"\t finally value: "+result);
+    }
+
+    public static void main(String[] args) {
+        StampedLockDemo resource = new StampedLockDemo();
+
+        new Thread(() -> {
+            resource.read();
+            // resource.tryOptimisticRead();
+        }, "readThread").start();
+
+        // 2秒钟时乐观读失败，6秒钟乐观读取成功resource.tryOptimisticRead();，修改切换演示
+        // try { TimeUnit.SECONDS.sleep(6); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        new Thread(() -> {
+            resource.write();
+        }, "writeThread").start();
+    }
+}
+~~~
 
 
 
@@ -2315,7 +2429,40 @@ JDK1.6之前synchronized使用的是重量级锁，JDK1.6之后进行了优化�
 
 
 
-#### 9、JIT对锁优化
+#### 9、锁降级
+
+锁的严苛程度变强叫做升级，反之叫做降级
+
+<img src="images/image-20220702152040477.png" alt="image-20220702152040477" style="zoom:67%;" />
+
+如果一个线程占有了写锁，在不释放写锁的情况下，它还能占有读锁，即写锁降级为读锁。
+
+锁降级是为了让当前线程感知到数据的变化，目的是保证数据可见性
+
+~~~java
+// 如果有线程在读，那么写线程是无法获取写锁的，是悲观锁的策略
+public class LockDownGradingDemo {
+    public static void main(String[] args) {
+        ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+        ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
+        ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
+
+        writeLock.lock();
+        System.out.println("-------正在写入");
+
+        readLock.lock();
+        System.out.println("-------正在读取");
+        
+        writeLock.unlock();
+    }
+}
+~~~
+
+
+
+
+
+#### 10、JIT对锁优化
 
 Just In Time Compiler，一般翻译为即时编译器
 
@@ -2766,6 +2913,139 @@ java -XX:+PrintCommandLineFlags -version
 ~~~
 
 <img src="images/image-20220701161357127.png" alt="image-20220701161357127" style="zoom:80%;" />
+
+
+
+### 1.25、AQS
+
+#### 1、基本概念
+
+抽象的队列同步器
+
+- AbstractOwnableSynchronizer
+- AbstractQueuedLongSynchronizer
+- AbstractQueuedSynchronizer                  
+
+通常地：AbstractQueuedSynchronizer简称为AQS
+
+<img src="images/image-20220701213536485.png" alt="image-20220701213536485" style="zoom: 67%;" />
+
+**作用**：用来构建锁或者其它同步器组件的重量级基础框架及整个JUC体系的基石，通过内置的FIFO队列来完成资源获取线程的排队工作，并通过一个int类变量，表示持有锁的状态。
+
+<img src="images/image-20220701213926095.png" alt="image-20220701213926095" style="zoom:67%;" />
+
+ **CLH**：Craig、Landin and Hagersten 队列，是一个单向链表，AQS中的队列是CLH变体的**虚拟双向队列FIFO**
+
+如果共享资源被占用，就需要一定的阻塞等待唤醒机制来保证锁分配，这个机制主要用的是CLH队列的变体实现的，将暂时获取不到锁的线程加入到队列中，这个队列就是AQS的抽象表现。
+
+它将请求共享资源的线程封装成队列的结点（Node），通过CAS、自旋以及LockSupport.park()的方式，维护state变量的状态（一个volatile原子int值，通过占用与释放方法修改），使并发达到同步的效果。
+
+<img src="images/图像.bmp" alt="图像" style="zoom:150%;" />
+
+
+
+#### 2、锁与同步器
+
+- 锁，面向锁的使用者，定义了开发者和锁交互的使用层API，隐藏了实现细节，调用即可。
+- 同步器，面向锁的实现者，比如Java并发大神DougLee，提出统一规范并简化了锁的实现，屏蔽了同步状态管理、阻塞线程排队和通知、唤醒机制等。
+
+
+
+#### 3、内部体系结构
+
+<img src="images/image-20220702144419273.png" alt="image-20220702144419273" style="zoom:67%;" />
+
+<img src="images/image-20220702144447468.png" alt="image-20220702144447468" style="zoom:67%;" />
+
+##### 1、自身
+
+- AQS的同步状态**State**成员变量，0就是空闲，1就是占用
+
+  ~~~java
+  private volatile int state;
+  ~~~
+
+- **CLH**队列，为一个双向队列
+
+##### 2、内部类
+
+- Node类在AQS类内部，Node的等待状态waitState成员变量，描述等待状态
+
+  ~~~java
+  volatile int waitStatus
+  ~~~
+
+<img src="images/image-20220702144941209.png" alt="image-20220702144941209" style="zoom:80%;" />
+
+<img src="images/image-20220702144959479.png" alt="image-20220702144959479" style="zoom:67%;" />
+
+#### 4、ReentrantLock分析
+
+Lock接口的实现类，基本都是通过【聚合】了一个【队列同步器】的子类完成线程访问控制的
+
+<img src="images/image-20220702145311147.png" alt="image-20220702145311147" style="zoom: 67%;" />
+
+对比公平锁和非公平锁的 tryAcquire()方法的实现代码，其实差别就在于非公平锁获取锁时比公平锁中少了一个判断 ：
+
+~~~java
+!hasQueuedPredecessors()
+~~~
+
+hasQueuedPredecessors() 中判断了是否需要排队，导致公平锁和非公平锁的差异具体如下：
+
+- 公平锁：公平锁讲究先来先到，线程在获取锁时，如果这个锁的等待队列中已经有线程在等待，那么当前线程就会进入等待队列中
+
+- 非公平锁：不管是否有等待队列，如果可以获取锁，则立刻占有锁对象，也就是说队列的第一个排队线程在unpark()，之后还是需要竞争锁（存在线程竞争的情况下）
+
+<img src="images/image-20220702145838611.png" alt="image-20220702145838611" style="zoom:80%;" />
+
+**源码解读**：
+
+lock方法：
+
+![image-20220702145938838](images/image-20220702145938838.png)
+
+acquire()方法：
+
+<img src="images/image-20220702150026473.png" alt="image-20220702150026473" style="zoom:80%;" />
+
+tryAcquire(arg)方法：
+
+- 返回真，结束
+- 返回假，推进条件，走下一个方法
+
+<img src="images/image-20220702150301389.png" alt="image-20220702150301389" style="zoom:67%;" />
+
+<img src="images/image-20220702150318002.png" alt="image-20220702150318002" style="zoom:67%;" />
+
+addWaiter(Node.EXCLUSIVE)方法：
+
+- 双向链表中，第一个节点为虚节点(也叫哨兵节点)，其实并不存储任何信息，只是占位。
+- 真正的第一个有数据的节点，是从第二个节点开始的。
+
+<img src="images/image-20220702150633469.png" alt="image-20220702150633469" style="zoom:67%;" />
+
+<img src="images/image-20220702150644431.png" alt="image-20220702150644431" style="zoom:67%;" />
+
+acquireQueued(addWaiter(Node.EXCLUSIVE), arg)方法：
+
+- 假如再抢抢失败就会进入，shouldParkAfterFailedAcquire 和 parkAndCheckInterrupt 方法中
+
+  - shouldParkAfterFailedAcquire  ----》 如果前驱节点的 waitStatus 是 SIGNAL状态，即 shouldParkAfterFailedAcquire 方法会返回 true 程序会继续向下执行 parkAndCheckInterrupt 方法，用于将当前线程挂起
+
+  
+
+<img src="images/image-20220702150746368.png" alt="image-20220702150746368" style="zoom:67%;" />
+
+<img src="images/image-20220702150854735.png" alt="image-20220702150854735" style="zoom:80%;" />
+
+![image-20220702150928786](images/image-20220702150928786.png)
+
+unlock方法：
+
+sync.release(1); -----》tryRelease(arg) ----》unparkSuccessor
+
+
 
 
 
@@ -5326,6 +5606,8 @@ public static void main(String[] args) throws Exception{
 
 针对这个场景，JDK提供了 **ReentrantReadWriteLock** 类，它表示两个锁，一个是读操作相关的锁，称为**共享锁**，一个是写相关的锁，称为**排他锁**。
 
+读写锁比传统的synchronized速度要快很多，原因就是在于ReentrantReadWriteLock支持读并发。
+
 线程进入读锁的前提条件：
 
 - 没有其他线程的写锁。
@@ -5341,6 +5623,12 @@ public static void main(String[] args) throws Exception{
 - 公平选择性：支持非公平（默认）和公平的锁获取方式，吞吐量还是非公平优于公平。 
 - 重进入：读锁和写锁都支持线程重进入。 
 - 锁降级：遵循获取写锁、获取读锁再释放写锁的次序，写锁能够降级成为读锁。
+- 互斥性：这里的互斥是指线程间的互斥，当前线程可以获取到写锁又获取到读锁，但是获取到了读锁不能继续获取写锁
+- 
+
+**注意**：
+
+- 线程获取读锁是不能直接升级为写入锁的，当读锁被使用时，如果有线程尝试获取写锁，该写线程会被阻塞，需要释放所有读锁，才可获取写锁。
 
 ### 2、ReentrantReadWriteLock
 
@@ -5430,6 +5718,88 @@ class MyCache {
     }
 }
 ~~~
+
+~~~java
+class MyResource {
+    Map<String,String> map = new HashMap<>();
+    // =====ReentrantLock 等价于 =====synchronized
+    Lock lock = new ReentrantLock();
+    // =====ReentrantReadWriteLock 一体两面，读写互斥，读读共享
+    ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+
+    public void write(String key,String value) {
+        rwLock.writeLock().lock();
+        try {
+            System.out.println(Thread.currentThread().getName()+"\t"+"---正在写入");
+            map.put(key,value);
+            // 暂停毫秒
+            try { TimeUnit.MILLISECONDS.sleep(500); } 
+            catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println(Thread.currentThread().getName()+"\t"+"---完成写入");
+        } finally {
+            rwLock.writeLock().unlock();
+        }
+    }
+    public void read(String key) {
+        rwLock.readLock().lock();
+        try {
+            System.out.println(Thread.currentThread().getName()+"\t"+"---正在读取");
+            String result = map.get(key);
+            // 后续开启注释修改为2000，演示一体两面，读写互斥，读读共享，读没有完成时候写锁无法获得
+            // try { TimeUnit.MILLISECONDS.sleep(200); } 
+            // catch (InterruptedException e) { e.printStackTrace(); }
+            System.out.println(Thread.currentThread().getName()+"\t"+"---完成读取result："+result);
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+}
+
+
+public class ReentrantReadWriteLockDemo {
+    public static void main(String[] args) {
+        MyResource myResource = new MyResource();
+
+        for (int i = 1; i <=10; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                myResource.write(finalI +"", finalI +"");
+            }, String.valueOf(i)).start();
+        }
+
+        for (int i = 1; i <=10; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                myResource.read(finalI +"");
+            }, String.valueOf(i)).start();
+        }
+
+        // 暂停几秒钟线程
+        try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        // 读全部over才可以继续写
+        for (int i = 1; i <=3; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                myResource.write(finalI +"", finalI +"");
+            }, "newWriteThread==="+String.valueOf(i)).start();
+        }
+    }
+}
+~~~
+
+
+
+**源码解读**：
+
+1. 
+   代码中声明了一个volatile类型的cacheValid变量，保证其可见性。
+2. 首先获取读锁，如果cache不可用，则释放读锁，获取写锁，在更改数据之前，再检查一次cacheValid的值，然后修改数据，将cacheValid置为true，然后在释放写锁前获取读锁，此时，cache中数据可用，处理cache中数据，最后释放读锁，这个过程就是一个完整的锁降级的过程，目的是保证数据可见性。
+
+- 如果违背锁降级的步骤：
+  - 如果当前的线程C在修改完cache中的数据后，没有获取读锁而是直接释放了写锁，那么假设此时另一个线程D获取了写锁并修改了数据，那么C线程无法感知到数据已被修改，则数据出现错误。
+- 如果遵循锁降级的步骤：
+  - 线程C在释放写锁之前获取读锁，那么线程D在获取写锁时将被阻塞，直到线程C完成数据处理过程，释放读锁，这样可以保证返回的数据是这次更新的数据，该机制是专门为了缓存设计的。
 
 
 
@@ -7033,6 +7403,22 @@ Monitor与java对象以及线程是的关联：
 - Monitor的Owner字段会存放拥有相关联对象锁的线程id
 
 
+
+## 29、锁饥饿问题
+
+ReentrantReadWriteLock实现了读写分离，但是一旦读操作比较多的时候，想要获取写锁就变得比较困难了
+
+假如当前1000个线程，999个读，1个写，有可能999个读取线程长时间抢到了锁，那1个写线程就悲剧了 
+
+因为当前有可能会一直存在读锁，而无法获得写锁，根本没机会写
+
+ **解决办法**：
+
+使用“公平”策略可以一定程度上缓解这个问题，但是“公平”策略是以牺牲系统吞吐量为代价的
+
+~~~java
+new ReentrantReadWriteLock(true);
+~~~
 
 
 
