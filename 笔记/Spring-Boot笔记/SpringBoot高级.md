@@ -19,7 +19,7 @@ Java Caching定义了5个核心接口
 - **Expiry**
   - 每一个存储在Cache中的条目有一个定义的有效期。一旦超过这个时间，条目为过期的状态。一旦过期，条目将不可访问、更新和删除。缓存有效期可以通过ExpiryPolicy设置。
 
-![image-20210901103453739](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210901103453739.png)
+![image-20210901103453739](images\SpringBoot高级.assets\image-20210901103453739.png)
 
 ### 2、Spring缓存抽象
 
@@ -1917,6 +1917,8 @@ public class EurekaServerApplication {
 
 5、引入Ribbon进行客户端负载均衡
 
+
+
 ## 7、监控管理
 
 ### 1、引入监控管理依赖
@@ -1969,7 +1971,6 @@ management.port=8181
 3、加入容器中
 
 ```java
-/
 @Component
 //			 名字要求                          实现接口
 public class MyAppHealthIndicator implements HealthIndicator {
@@ -1984,6 +1985,8 @@ public class MyAppHealthIndicator implements HealthIndicator {
 }
 ```
 
+
+
 ## 8、部署
 
 热部署，引入依赖即可
@@ -1995,4 +1998,140 @@ public class MyAppHealthIndicator implements HealthIndicator {
     <scope>runtime</scope>
 </dependency>
 ```
+
+
+
+## 9、杂项
+
+### 1、整合Swagger3
+
+引入依赖
+
+~~~xml
+<dependency>
+   <groupId>io.springfox</groupId>
+   <artifactId>springfox-boot-starter</artifactId>
+   <version>3.0.0</version>
+</dependency>
+~~~
+
+添加注解 **@EnableOpenApi**
+
+~~~java
+@EnableOpenApi
+@SpringBootApplication
+public class Swagger3Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Swagger3Application.class, args);
+    }
+}
+~~~
+
+配置Swagger3Config
+
+~~~java
+@Configuration
+public class Swagger3Config {
+    @Bean
+    public Docket createRestApi() {
+        return new Docket(DocumentationType.OAS_30)
+            .apiInfo(apiInfo())
+            .select()
+            .apis(RequestHandlerSelectors.withMethodAnnotation(ApiOperation.class))
+            .paths(PathSelectors.any())
+            .build();
+    }
+
+    private ApiInfo apiInfo() {
+        return new ApiInfoBuilder()
+            .title("Swagger3接口文档")
+            .description("简介")
+            .contact(new Contact("Ray。开发人员", "网址", "邮箱"))
+            .version("1.0")
+            .build();
+    }
+}
+~~~
+
+| 注解               | 作用                                                     | 属性                                                         |
+| ------------------ | -------------------------------------------------------- | ------------------------------------------------------------ |
+| @Api               | 用在请求的类上，表示对类的说明                           | tags="说明该类的作用，可以在UI界面上看到的注解"<br />value="该参数没什么意义，在UI界面上也看到，所以不需要配置" |
+| @ApiOperation      | 用在请求的方法上，说明方法的用途、作用                   | value="说明方法的用途、作用"<br/>notes="方法的备注说明"      |
+| @ApiImplicitParams | 用在请求的方法上，表示一组参数说明                       |                                                              |
+| @ApiImplicitParam  | 用在@ApiImplicitParams注解中，指定一个请求参数的各个方面 | name：参数名<br/> value：参数的汉字说明、解释<br/> required：参数是否必须传<br/> paramType：参数放在哪个地方<br />· header --> @RequestHeader<br/>· query --> @RequestParam<br/>· path(用于restful接口) --> @PathVariable<br/>· body（不常用）<br/>· form（不常用）<br />dataType：参数类型，默认String，其它值dataType="Integer"<br/>defaultValue：参数的默认值 |
+| @ApiResponses      | 用在请求的方法上，表示一组响应                           |                                                              |
+| @ApiResponse       | 用在@ApiResponses中，一般用于表达一个错误的响应信息      | code：数字，例如400<br/>message：信息，例如"请求参数没填好"<br/>response：抛出异常的类 |
+| @ApiModel          | 用于响应类上，表示一个返回响应数据的信息                 | 这种一般用在post创建的时候，使用@RequestBody这样的场景，请求参数无法使用@ApiImplicitParam注解进行描述的时候 |
+| @ApiModelProperty  | 用在属性上，描述响应类的属性                             |                                                              |
+
+例子：
+
+~~~java
+@Api(tags = "用户信息管理")
+@RestController
+@RequestMapping("userRecord")
+public class UserRecordController extends ApiController {
+    /**
+   * 服务对象
+   */
+    @Resource
+    private UserRecordService userRecordService;
+
+    /**
+   * 分页查询所有数据
+   * @param page    分页对象
+   * @param userRecord 查询实体
+   * @return 所有数据
+   */
+    @ApiOperation("分页查询所有数据")
+    @GetMapping("page")
+    public R selectAll(Page<UserRecord> page, UserRecord userRecord) {
+        return success(this.userRecordService.page(page, new QueryWrapper<>(userRecord)));
+    }
+
+    /**
+   * 通过主键查询单条数据
+   * @param id 主键
+   * @return 单条数据
+   */
+    @ApiOperation("通过主键查询单条数据")
+    @GetMapping("{id}")
+    public R selectOne(@PathVariable Serializable id) {
+        return success(this.userRecordService.getById(id));
+    }
+
+    /**
+   * 新增数据
+   * @param userRecord 实体对象
+   * @return 新增结果
+   */
+    @ApiOperation("新增数据")
+    @PostMapping("insert")
+    public R insert(@RequestBody UserRecord userRecord) {
+        return success(this.userRecordService.save(userRecord));
+    }
+
+    /**
+   * 修改数据
+   * @param userRecord 实体对象
+   * @return 修改结果
+   */
+    @ApiOperation("修改数据")
+    @PutMapping("update")
+    public R update(@RequestBody UserRecord userRecord) {
+        return success(this.userRecordService.updateById(userRecord));
+    }
+
+    /**
+   * 删除数据
+   * @param idList 主键结合
+   * @return 删除结果
+   */
+    @ApiOperation("删除数据")
+    @DeleteMapping("delete")
+    public R delete(@RequestParam("idList") List<Long> idList) {
+        return success(this.userRecordService.removeByIds(idList));
+    }
+}
+~~~
 

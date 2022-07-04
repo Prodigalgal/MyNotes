@@ -221,6 +221,8 @@ public ModelAndView addPrescription(
 	@RequestParam("dId") String[] dIds)   
 ```
 
+
+
 ## @RequestHeader注解
 
 ### 简介
@@ -232,6 +234,8 @@ public ModelAndView addPrescription(
 ```java
 @RequestHeader(value = "Accept-Language") String val
 ```
+
+
 
 ## @CookieValue注解
 
@@ -250,6 +254,8 @@ public ModelAndView addPrescription(
 ```java
 @CookieValue(value = "JSESSIONID") String val
 ```
+
+
 
 ## <a name="@SessionAttributes注解">@SessionAttributes注解</a> 
 
@@ -352,6 +358,11 @@ public class UserController {
 @RequestMapping(value = "user/login")
 @ResponseBody
 // 将ajax（datas）发出的请求写入 User 对象中
+// 注意：
+// 此时会根据Json的key进行配对
+// 如果json串中key对应的值为""，则String类型为”“，Double等为null
+// 如果为null，则值就为null
+// 如果没有值，切记不要写key，不然报错
 public User login(@RequestBody User user) {   
 // 这样就不会再被解析为跳转路径，而是直接将user对象写入 HTTP 响应正文中
     
@@ -368,7 +379,13 @@ public String testRequestBody(@RequestBody String requestBody){
 
 ### 说明
 
-request的body部分的数据编码格式由header部分的Content-Type指定
+- request的body部分的数据编码格式由header部分的Content-Type指定
+- 与@RequestParam可以同时使用，@RequestBody最多只能有一个，而@RequestParam可以有多个。
+- 当@RequestBody 与 @RequestParam 同时使用时，原SpringMVC接收参数的机制不变，只不过 @RequestBody 接收的是请求体里面的数据，而@RequestParam接收的是key-value里面的参数，所以它会被切面进行处理从而可以用普通元素、数组、集合、对象等接收。
+- 如果参数时放在请求体中，application/json传入后台的话，那么后台要用@RequestBody才能接收到，如果不是放在请求体中的话，那么后台接收前台传过来的参数时，要用@RequestParam来接收，或则形参前什么也不写也能接收。
+- 
+
+
 
 
 
@@ -703,7 +720,7 @@ public void a(WebDataBinder binder) {
 
 # 3、处理模型属性
 
-## 简介
+## 1、简介
 
 Spring-MVC提供了四种途径输出模型数据
 
@@ -716,7 +733,9 @@ Spring-MVC提供了四种途径输出模型数据
 - **@ModelAttribute**注解
   - 方法入参标注该注解后，入参的对象就会放到数据模型中，<a href="#@ModelAttribute注解">详见</a> 
 
-## ModelAndView
+
+
+## 2、ModelAndView
 
 **控制器处理方法**的**返回值**如果为ModelAndView，则既包含视图信息，也包含模型数据信息。
 
@@ -733,7 +752,9 @@ ModelAndView有**Model**和**View**的功能
   - **setView**(View view)
   - **setViewName**(String viewName)
 
-## Map以及Model
+
+
+## 3、Map以及Model
 
 Spring-MVC在内部使用了一个**org.springframework.ui.Model** 接口存储模型数据。
 
@@ -741,7 +762,9 @@ Spring-MVC在内部使用了一个**org.springframework.ui.Model** 接口存储�
   - Spring-MVC在调用方法前会创建一个**隐含的模型对象**作为模型数据的存储容器。
   - 如果**方法入参**为**Map**或**Model**类型，Spring-MVC会将隐含模型的引用传递给这些入参，在方法体内，开发者可以通过这个入参对象访问到模型中的所有数据，也可以添加新的属性数据。
 
-## Model、Map、ModelMap的关系
+
+
+## 4、Model、Map、ModelMap的关系
 
 Model、Map、ModelMap类型的参数其实本质上都是 **BindingAwareModelMap** 类型的。
 
@@ -755,7 +778,9 @@ public class ExtendedModelMap extends ModelMap implements Model {}
 public class BindingAwareModelMap extends ExtendedModelMap {}
 ```
 
-## 域对象共享数据
+
+
+## 5、域对象共享数据
 
 ### Request域
 
@@ -845,6 +870,8 @@ public String testApplication(HttpSession session){
 }
 ```
 
+
+
 # 4、视图和视图解析器
 
 ## 1、简介
@@ -855,6 +882,8 @@ public String testApplication(HttpSession session){
 3. **视图**：渲染模型数据，为了实现视图模型和具体实现技术的解耦，Spring 在 org.springframework.web.servlet 包中定义了一个高度抽象的 **View 接口**。视图对象由视图解析器负责实例化，视图无状态，所以不会有线程安全问题。
 4. **视图解析器**：在SpringWEB上下文中配置一种或多种解析策略，并指定他们之间的先后顺序。每一种映射策略对应一个具体的视图解析器实现类，将逻辑视图解析为一个具体的视图对象。所有的视图解析器都必须实现**ViewResolver接口**。
 5. 每个视图解析器都实现了**Ordered接口**并开放出一个**order属性**，可以通过order属性指定解析器的优先顺序，order越小优先级越高。Spring-MVC会按视图解析器顺序对逻辑视图名进行解析，直到成功，否则抛出ServletException异常。
+
+
 
 ## 2、常用的视图实现类
 
@@ -868,12 +897,16 @@ public String testApplication(HttpSession session){
 - JSON视图：
   - **MappingJacksonJsonView**：将模型数据通过Jackson开源框架的ObjectMapper以JSON方式输出
 
+
+
 ## 3、常用的视图解析器实现类
 
 - 解析为Bean的名字：
   - **BeanNameViewResolver**：将逻辑视图名解析为一个Bean，Bean的id等于逻辑视图名
 - 解析为URL文件：
   - **InternalResourceViewResolver**：将视图名解析为一个URL文件，一般使用该解析器将视图名映射为一个保存在WEN-INF目录下的程序文件
+
+
 
 ## 4、InternalResourceViewResolver解析器
 
@@ -888,6 +921,8 @@ public String testApplication(HttpSession session){
 ```
 
 可以通过\<property name="viewNames" value="html*"/>指定处理规则，此规则表示，只处理html开头的视图名，如html/aa。
+
+
 
 ## 5、转发向视图
 
@@ -909,6 +944,8 @@ public String testForward(){
 }
 ```
 
+
+
 ## 6、重定向视图
 
 SpringMVC中默认的重定向视图是**RedirectView**
@@ -925,6 +962,8 @@ public String testRedirect(){
 ```
 
 重定向视图在解析时，会先将redirect:前缀去掉，然后会判断剩余部分是否以/开头，若是则会自动拼接上下文路径
+
+
 
 ## 8、补充
 
@@ -1295,7 +1334,8 @@ spring:
 
 ### 4.4、POJO对象绑定请求参数
 
-1. Spring-MVC会按照**请求参数名**和**POJO的属性名**进行自动的匹配，自动为该对象填充属性值，**支持级联属性**如xxx.a，xxx.b。
+1. Spring-MVC会按照**请求参数名**和**POJO的属性名**进行自动的匹配，自动为该对象填充属性值
+1. **支持级联属性**，表单填写name时需要如xxx.a，xxx.b
 2. 其实是调用了POJO的**无参构造**，然后使用**set方法**填充属性
 3. 使用该方法POJO无**需使用注解修饰**，POJO的级联POJO也是
 
@@ -1857,9 +1897,18 @@ Spring-MVC可以使用拦截器对请求进行拦截处理，开发者可以自�
 - **preHandle()**：这个方法在**业务处理器处理请求之前**被调用，在该方法中对用户请求 request 进行处理。	
   - 如果程序员决定该拦截器对请求进行拦截处理后还要调用其他的拦截器，或者是业务处理器去进行处理，则返回true。
   - 如果程序员决定不需要再调用其他的组件去处理请求，则返回false。
-
 - **postHandle()**：这个方法在**业务处理器处理完请求后**，但是DispatcherServlet 向客户端**返回响应前**被调用，在该方法中对用户请求request进行处理。 
 - **afterCompletion()**：这个方法在 DispatcherServlet 完全处理完请求后被调用，可以在该方法中进行一些资源清理的操作。
+
+
+
+**注意**：
+
+- 放行静态资源
+- JSP不会被拦截
+- 通只针对Controller拦截
+
+
 
 ## 2、拦截器方法执行顺序
 
@@ -2400,7 +2449,7 @@ public Callable<String> async01(){
         }
     };
     System.out.println("主线程结束..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
-    //返回该Callable
+    // 返回该Callable
     return callable;
 }
 ```
