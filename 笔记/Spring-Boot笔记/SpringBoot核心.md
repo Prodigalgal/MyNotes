@@ -2830,15 +2830,40 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
 ```
 
-效果：
+**效果**：
 
-1、默认是用**org.apache.tomcat.jdbc.pool.DataSource**作为数据源
+1、默认是用**org.apache.tomcat.jdbc.pool.DataSource**作为数据源，新版本**HikariDataSource** 
 
 2、数据源的相关配置都在**DataSourceProperties**里面
 
-### 自动配置原理
+
+
+
+
+### 1、自动配置原理
 
 依靠**org.springframework.boot.autoconfigure.jdbc**
+
+~~~java
+@Configuration(proxyBeanMethods = false)
+@Conditional(PooledDataSourceCondition.class)
+@ConditionalOnMissingBean({ DataSource.class, XADataSource.class })
+@Import({ DataSourceConfiguration.Hikari.class, DataSourceConfiguration.Tomcat.class,
+         DataSourceConfiguration.Dbcp2.class, DataSourceConfiguration.OracleUcp.class,
+         DataSourceConfiguration.Generic.class, DataSourceJmxConfiguration.class })
+protected static class PooledDataSourceConfiguration
+~~~
+
+>- DataSourceTransactionManagerAutoConfiguration： 事务管理器的自动配置
+>- JdbcTemplateAutoConfiguration： **JdbcTemplate的自动配置，可以来对数据库进行crud**
+>
+>- - 可以修改这个配置项@ConfigurationProperties(prefix = **"spring.jdbc"**) 来修改JdbcTemplate
+>  - @Bean@Primary    JdbcTemplate；容器中有这个组件
+>
+>- JndiDataSourceAutoConfiguration： jndi的自动配置
+>- XADataSourceAutoConfiguration： 分布式事务相关的
+
+
 
 1、参考**DataSourceConfiguration**，根据配置创建数据源，默认使用Tomcat连接池，可以使用**spring.datasource.type**指定自定义的数据源类型
 
@@ -2863,7 +2888,7 @@ static class Generic {
 
    @Bean
    public DataSource dataSource(DataSourceProperties properties) {
-       //使用DataSourceBuilder创建数据源，利用反射创建响应type的数据源，并且绑定相关属性
+       // 使用DataSourceBuilder创建数据源，利用反射创建响应type的数据源，并且绑定相关属性
       return properties.initializeDataSourceBuilder().build();
    }
 
@@ -2890,6 +2915,8 @@ schema-*.sql、data-*.sql
 ```
 
 5、操作数据库：自动配置了**JdbcTemplate**操作数据库。
+
+
 
 ## 2、整合Druid
 
@@ -2951,16 +2978,16 @@ spring.datasource.druid.connectionProperties=druid.stat.mergeSql=true;druid.stat
 ```java
 @Configuration
 public class DruidConfig {
-    //配置Druid的监控需要一个后台Servlet以及一个Web监控filter
+    // 配置Druid的监控需要一个后台Servlet以及一个Web监控filter
     
-    //配置一个管理后台的Servlet
+    // 配置一个管理后台的Servlet
     @Bean
     public ServletRegistrationBean statViewServlet(){
         ServletRegistrationBean bean = new ServletRegistrationBean(new StatViewServlet(), "/druid/*");
         Map<String,String> initParams = new HashMap<>();
         initParams.put("loginUsername","admin");
         initParams.put("loginPassword","123456");
-        initParams.put("allow","");//默认就是允许所有访问
+        initParams.put("allow","");// 默认就是允许所有访问
         initParams.put("deny","192.168.15.21");
 
         bean.setInitParameters(initParams);
@@ -2968,7 +2995,7 @@ public class DruidConfig {
     }
 
 
-    //配置一个web监控的filter
+    // 配置一个web监控的filter
     @Bean
     public FilterRegistrationBean webStatFilter(){
         FilterRegistrationBean bean = new FilterRegistrationBean();
@@ -2983,6 +3010,8 @@ public class DruidConfig {
 }
 ```
 
+
+
 ## 3、整合MyBatis
 
 引入的依赖
@@ -2995,13 +3024,15 @@ public class DruidConfig {
 </dependency>
 ```
 
-![搜狗截图20180305194443](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\搜狗截图20180305194443.png)
+![搜狗截图20180305194443](images\SpringBoot.assets\搜狗截图20180305194443.png)
 
 1、配置数据源相关属性
 
 2、给数据库建表
 
 3、创建JavaBean
+
+
 
 ### 4、注解版
 
@@ -3060,11 +3091,17 @@ public class SpringBoot06DataMybatisApplication {
 
 ### 5、配置文件版
 
+**注意**：
+
+- 可以不写全局配置文件，所有全局配置文件的配置都放在configuration配置项中即可
+
 ```yml
 mybatis:
   config-location: classpath:mybatis/mybatis-config.xml 指定全局配置文件的位置
   mapper-locations: classpath:mybatis/mapper/*.xml  指定sql映射文件的位置
 ```
+
+
 
 ## 4、整合SpringData JPA
 
@@ -3079,23 +3116,23 @@ JPA:ORM（Object Relational Mapping）
 1、编写一个实体类（bean）和数据表进行映射，并且配置好映射关系
 
 ```java
-//使用JPA注解配置映射关系
-//告诉JPA这是一个实体类（和数据表映射的类）
+// 使用JPA注解配置映射关系
+// 告诉JPA这是一个实体类（和数据表映射的类）
 @Entity 
-//@Table来指定和哪个数据表对应，如果省略默认表名就是user
+// @Table来指定和哪个数据表对应，如果省略默认表名就是user
 @Table(name = "tbl_user") 
 public class User {
-	//表明这是一个主键
+	// 表明这是一个主键
     @Id 
-    //自增主键
+    // 自增主键
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     
-	//这是和数据表对应的一个列
+	// 这是和数据表对应的一个列
     @Column(name = "last_name",length = 50) 
     private String lastName;
     
-    //省略默认列名就是属性名
+    // 省略默认列名就是属性名
     @Column 
     private String email;
 ```
@@ -3103,9 +3140,8 @@ public class User {
 2、编写一个Dao接口来操作实体类对应的数据表（Repository）
 
 ```java
-//继承JpaRepository来完成对数据库的操作
+// 继承JpaRepository来完成对数据库的操作
 public interface UserRepository extends JpaRepository<User,Integer> {}
-
 ```
 
 3、直接使用UserRepository进行增删改查
@@ -3143,6 +3179,8 @@ spring:
 #    控制台显示SQL
     show-sql: true
 ```
+
+
 
 # 7、自动配置流程
 
@@ -3238,6 +3276,8 @@ META-INF/spring.factories中配置
 ```factories
 org.springframework.context.ApplicationContextInitializer=org.springframework.boot.demo.common.MyApplicationContextInitializer
 ```
+
+
 
 ## 2、SpringApplicationRunListener
 
@@ -3373,7 +3413,7 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 - EventPublishingRunListener的initialMulticaster成员变量是SimpleApplicationEventMulticaster类型。
 
 - **initialMulticaster**是在构造函数中初始化的，见上面的代码片段。
-- <img src="H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\SpringBoot.assets\image-20210830205101023.png" alt="image-20210830205101023" style="zoom:200%;" />
+- <img src="images\SpringBoot.assets\image-20210830205101023.png" alt="image-20210830205101023" style="zoom:200%;" />
 
 #### 3、**multicastEvent()方法** 
 
@@ -3631,6 +3671,8 @@ public class HelloCommandLineRunner implements CommandLineRunner {
 }
 ```
 
+
+
 # 8、自定义Starter
 
 ## 1、前提
@@ -3873,6 +3915,14 @@ public class HelloServiceAutoConfiguration {
     }
 }
 ```
+
+
+
+## 9、单元测试
+
+
+
+
 
 # 问题
 
