@@ -370,6 +370,13 @@ location [= | ~ | ~* | ^~] uri {
 
 1. 首先在本机hosts文件中添加映射，将www.123.com 映射到127.0.0.1，这样即可通过www.123.com:8080 访问到Tomcat首页
 
+   ~~~bash
+   vim /etc/hosts
+   
+   ~~~
+
+   
+
 2. 在Nginx的配置文件中添加如下配置
 
    ```text
