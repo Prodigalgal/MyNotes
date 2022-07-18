@@ -2544,6 +2544,8 @@ SELECT * FROM information_schema.table_constraints
 WHERE table_name = '表名称';
 ~~~
 
+
+
 ## 3、非空约束
 
 **作用**：限定某个字段/某列的值不允许为空
@@ -2580,6 +2582,8 @@ alter table 表名称 modify 字段名 数据类型;
 **注意**： 
 
 - MySQL不支持 CHECK 约束，但可以使用 CHECK 约束，而没有任何效果
+
+
 
 ## 4、唯一性约束
 
@@ -2655,6 +2659,8 @@ show index from 表名称;
 
 ALTER TABLE USER DROP INDEX uk_name_pwd;
 ~~~
+
+
 
 ## 5、PRIMARY KEY 约束
 
@@ -2737,7 +2743,9 @@ create table 表名称(
 alter table 表名称 drop primary key;
 ~~~
 
-## 6、自增列
+
+
+## 6、AUTO_INCREMENT 约束
 
 **作用**：某个字段的值自增
 
@@ -2788,6 +2796,8 @@ alter table 表名称 modify 字段名 数据类型;
 
 MySQL 8.0将自增主键的计数器持久化到**重做日志**中，每次计数器发生改变，都会将其写入重做日志中，如果数据库重启，InnoDB会根据重做日志中的信息来初始化计数器的内存值。
 
+
+
 ## 7、FOREIGN KEY 约束
 
 **作用**：限定某个表的某个字段的引用完整性
@@ -2803,26 +2813,320 @@ MySQL 8.0将自增主键的计数器持久化到**重做日志**中，每次计�
 
 **特点**：
 
-- 从表的外键列，必须引用/参考主表的主键或唯一约束的列
-- 
+- 从表的外键列，必须引用/参考主表的**主键**或**唯一约束**的列，因为被依赖/被参考的值必须是唯一的
+- 在创建外键约束时，如果不给外键约束命名，默认自动产生一个外键名，也可以指定外键约束名。
+- 创建(CREATE)表时就指定外键约束的话，先创建主表，再创建从表
+- 删表时，先删从表（或先删除外键约束），再删除主表
+- 当主表的记录被从表参照时，主表的记录将不允许删除，需要先删除从表中依赖该记录的数据，然后才可以删除主表的数据
+- 在从表中指定外键约束，并且一个表可以建立多个外键约束
+- 从表的外键列与主表被参照的列名字可以不相同，但是数据类型必须一样。如果类型不一样，创建子表时，就会出现错误“ERROR 1005 (HY000): Can't create table'database.tablename'(errno: 150)”。
+- 当创建外键约束时，系统默认会在所在的列上建立对应的普通索引，但是索引名是外键的约束名（因此根据外键查询效率很高）
+- 删除外键约束后，必须手动删除对应的索引
+
+**添加外键约束**：
+
+~~~sql
+# 建表时
+create table 主表名称(
+    字段1 数据类型 primary key,
+    字段2 数据类型
+);
+create table 从表名称(
+    字段1 数据类型 primary key,
+    字段2 数据类型,
+    [CONSTRAINT <外键约束名称>] FOREIGN KEY（从表的某个字段) references 主表名(被参考字段)
+);
+
+# (从表的某个字段)的数据类型必须与主表名(被参考字段)的数据类型一致，逻辑意义也一样
+# (从表的某个字段)的字段名可以与主表名(被参考字段)的字段名一样，也可以不一样
+-- FOREIGN KEY: 在表级指定子表中的列
+-- REFERENCES: 标示在父表中的列
+
+
+create table dept( # 主表
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp( # 从表
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid int, # 员工所在的部门
+    foreign key (deptid) references dept(did) # 在从表中指定外键约束
+    # emp表的deptid和和dept表的did的数据类型一致，意义都是表示部门的编号
+);
+# 说明：
+#（1）主表dept必须先创建成功，然后才能创建emp表，指定外键成功。
+#（2）删除表时，先删除从表emp，再删除主表dept
+
+# 建表后
+ALTER TABLE 从表名 
+ADD [CONSTRAINT 约束名] 
+FOREIGN KEY (从表的字段) 
+REFERENCES 主表名(被引用字段) 
+[on update xx][on delete xx];
+
+ALTER TABLE emp1
+ADD [CONSTRAINT emp_dept_id_fk] 
+FOREIGN KEY(dept_id) 
+REFERENCES dept(dept_id);
+~~~
+
+**问题**：
+
+~~~sql
+# 失败：不是键列
+create table dept(
+    did int , # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid int, # 员工所在的部门
+    foreign key (deptid) references dept(did)
+);
+# ERROR 1215 (HY000): Cannot add foreign key constraint 原因是dept的did不是键列
+
+# 失败：数据类型不一致
+create table dept(
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid char, # 员工所在的部门
+    foreign key (deptid) references dept(did)
+);
+# ERROR 1215 (HY000): Cannot add foreign key constraint 
+# 原因是从表的deptid字段和主表的did字段的数据类型不一致，并且要它俩的逻辑意义一致
+
+# 字段重名问题
+create table dept(
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    did int, # 员工所在的部门
+    foreign key (did) references dept(did)
+    # emp表的deptid和和dept表的did的数据类型一致，意义都是表示部门的编号
+    # 重名没问题，因为两个did在不同的表中
+);
+~~~
+
+**总结**：
+
+- 添加了外键约束后，主表的修改和删除数据受约束
+- 添加了外键约束后，从表的添加和修改数据受约束
+- 在从表上建立外键，要求主表必须存在
+- 删除主表时，要求从表从表先删除，或将从表中外键引用该主表的关系先删除
+
+**约束等级**：
+
+- **Cascade**：在父表上update/delete记录时，同步update/delete掉子表的匹配记录
+- **Set null**：在父表上update/delete记录时，将子表上匹配记录的列设为null，注意子表的外键列不能设置为not null
+- **No action**：如果子表中有匹配的记录，则不允许对父表对应候选键进行update/delete操作
+- **Restrict**：同no action， 都是立即检查外键约束，如果没有指定等级，**默认**
+- **Set default**（在可视化工具SQLyog中可能显示空白）：父表有变更时，子表将外键列设置成一个默认的值，但Innodb不能识别
+
+对于外键约束，最好是采用: ON UPDATE CASCADE ON DELETE RESTRICT 的方式
+
+简单演示1：
+
+~~~sql
+# 建表，数据准备
+create table dept(
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid int, # 员工所在的部门
+    foreign key (deptid) references dept(did) on update cascade on delete set null
+    # 把修改操作设置为级联修改等级，把删除操作设置为set null等级
+);
+insert into dept values(1001,'教学部');
+insert into dept values(1002, '财务部');
+insert into dept values(1003, '咨询部');
+insert into emp values(1,'张三',1001); # 在添加这条记录时，要求部门表有1001部门
+insert into emp values(2,'李四',1001);
+insert into emp values(3,'王五',1002);
+
+# 修改主表成功，从表也跟着修改，修改了主表被引用的字段1002为1004，从表的引用字段就跟着修改为1004了
+update dept set did = 1004 where did = 1002;
+# 删除主表的记录成功，从表对应的字段的值被修改为null
+delete from dept where did = 1001;
+~~~
+
+简单演示2：
+
+~~~sql
+create table dept(
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid int, # 员工所在的部门
+    foreign key (deptid) references dept(did) on update set null on delete cascade
+    # 把修改操作设置为set null等级，把删除操作设置为级联删除等级
+);
+insert into dept values(1001,'教学部');
+insert into dept values(1002, '财务部');
+insert into dept values(1003, '咨询部');
+insert into emp values(1,'张三',1001); # 在添加这条记录时，要求部门表有1001部门
+insert into emp values(2,'李四',1001);
+insert into emp values(3,'王五',1002);
+
+# 修改主表，从表对应的字段设置为null
+update dept set did = 1004 where did = 1002;
+# 删除主表的记录成功，主表的1001行被删除了，从表相应的记录也被删除了
+delete from dept where did=1001;
+~~~
+
+简单演示3：
+
+~~~sql
+create table dept(
+    did int primary key, # 部门编号
+    dname varchar(50) # 部门名称
+);
+create table emp(
+    eid int primary key, # 员工编号
+    ename varchar(5), # 员工姓名
+    deptid int, # 员工所在的部门
+    foreign key (deptid) references dept(did) on update cascade on delete cascade
+    # 把修改操作设置为级联修改等级，把删除操作也设置为级联删除等级
+);
+insert into dept values(1001,'教学部');
+insert into dept values(1002, '财务部');
+insert into dept values(1003, '咨询部');
+insert into emp values(1,'张三',1001); # 在添加这条记录时，要求部门表有1001部门
+insert into emp values(2,'李四',1001);
+insert into emp values(3,'王五',1002);
+
+# 修改主表，从表对应的字段自动修改
+update dept set did = 1004 where did = 1002;
+#删除主表的记录成功，主表的1001行被删除了，从表相应的记录也被删除了
+delete from dept where did=1001;
+
+~~~
+
+**删除约束**：
+
+~~~sql
+# 第一步先查看约束名和删除外键约束
+SELECT * FROM information_schema.table_constraints WHERE table_name = '表名称'; # 查看某个表的约束名
+ALTER TABLE 从表名 DROP FOREIGN KEY 外键约束名;
+
+# 第二步查看索引名和删除索引（注意，只能手动删除）
+SHOW INDEX FROM 表名称; # 查看某个表的索引名
+ALTER TABLE 从表名 DROP INDEX 索引名;
+~~~
 
 
 
+## 8、CHECK 约束
+
+**作用**：检查某个字段的值是否符号xx要求，一般指的是值的范围
+
+**关键字**：CHECK
+
+例子：
+
+~~~sql
+# 例子1
+create table employee(
+    eid int primary key,
+    ename varchar(5),
+    gender char check ('男' or '女')
+);
+
+insert into employee values(1,'张三','妖');
+
+# 例子2
+CREATE TABLE temp(
+    id INT AUTO_INCREMENT,
+    NAME VARCHAR(20),
+    age INT CHECK(age > 20),
+    PRIMARY KEY(id)
+);
+
+# 例子3
+age tinyint check(age >20) 或 sex char(2) check(sex in(‘男’,’女’))
+
+~~~
 
 
 
+## 9、DEFAULT 约束
 
+**作用**：给某个字段/某列指定默认值，一旦设置默认值，在插入数据时，如果此字段没有显式赋值，则赋值为默认值。
 
+**关键字**：DEFAULT
 
+**说明**：
 
+- 默认值约束一般不在唯一键和主键列上加
+- 如果这个字段原来有非空约束，并且还想保留非空约束，那么在加默认值约束时，得显示写非空约束，否则非空约束就被删除了，同理，默认约束也是一样
 
+**创建约束**：
 
+~~~sql
+# 建表前
+create table 表名称(
+    字段名 数据类型 primary key,
+    字段名 数据类型 unique key not null,
+    字段名 数据类型 unique key,
+    字段名 数据类型 not null default 默认值,
+);
 
+create table 表名称(
+    字段名 数据类型 default 默认值 ,
+    字段名 数据类型 not null default 默认值,
+    字段名 数据类型 not null default 默认值,
+    primary key(字段名),
+    unique key(字段名)
+);
 
+# 建表后
+alter table 表名称 modify 字段名 数据类型 default 默认值;
+alter table 表名称 modify 字段名 数据类型 default 默认值 not null;
 
+~~~
 
+**删除约束**：
 
+~~~sql
+# 删除默认值约束，也不保留非空约束
+alter table 表名称 modify 字段名 数据类型 ;
+# 删除默认值约束，保留非空约束
+alter table 表名称 modify 字段名 数据类型 not null; 
+~~~
 
+例子：
+
+~~~sql
+create table employee(
+    eid int primary key,
+    ename varchar(20) not null,
+    gender char default '男',
+    tel char(11) not null default '' #默认是空字符串
+);
+
+# 给tel字段增加默认值约束，并保留非空约束
+alter table employee modify tel char(11) default '' not null;
+
+# 删除gender字段默认值约束，如果有非空约束，也一并删除
+alter table employee modify gender char; 
+# 删除tel字段默认值约束，保留非空约束
+alter table employee modify tel char(11) not null;
+
+~~~
 
 
 
@@ -3140,6 +3444,44 @@ TIMESTAMP存储空间比较小，表示的日期时间范围也比较小，底�
 两个日期比较大小或日期计算时，TIMESTAMP更方便、更快。 
 
 TIMESTAMP和时区有关，TIMESTAMP会根据用户的时区不同，显示不同的结果，而DATETIME则只能反映出插入时当地的时区，其他时区查看数据时必然会有误差的。
+
+
+
+## 13、外键约束和查询的关系
+
+在 MySQL 里，外键约束是有成本的，需要消耗系统资源
+
+对于大并发的 SQL 操作，有可能会不适合，比如大型网站的中央数据库，可能会因为外键约束的系统开销而变得非常慢
+
+所以， MySQL 允许你不使用系统自带的外键约束，在应用层面完成检查数据一致性的逻辑
+
+
+
+## 14、建表时添加默认值与非空约束的好处
+
+提高效率，提高索引效果
+
+避免null值，null值较为特殊需要使用 is null或者 is not null 比较，碰到运算符，通常返回null
+
+
+
+## 15、AUTO_INCREMENT约束的起始值
+
+在MySQL中，默认AUTO_INCREMENT的初始值是1，每新增一条记录，字段值自动加1
+
+设置AUTO_INCREMENT的时候，可以指定第一条插入记录的自增字段的值，这样新插入的记录的自增字段值从设置值开始递增
+
+如在表中插入第一 条记录，同时指定id值为5，则以后插入的记录的id值就会从6开始往上增加
+
+添加主键约束时，往往需要设置字段自动增加属性
+
+
+
+## 16、表不可以随意选择储存引擎
+
+外键约束（FOREIGN KEY）不能跨引擎使用
+
+首先MySQL支持多种存储引擎，每一个表都可以指定一个不同的存储引擎，但是需要注意，外键约束是用来保证数据的参照完整性的，如果表之间需要关联外键，却指定了不同的存储引擎，那么这些表之间是不能创建外键约束的
 
 
 

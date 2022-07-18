@@ -714,6 +714,39 @@ func main() {
 
 ## sync
 
+### 基本概念
+
+提供了常见的并发编程同步原语，包括常见的互斥锁 Mutex 与读写互斥锁 RWMutex 以及 Once、WaitGroup
+
+
+
+### Mutex
+
+它由两个字段 **state** 和 **sema** 组成，**state** 表示当前互斥锁的状态，而 **sema** 真正用于控制锁状态的信号量，这两个加起来只占8个字节空间的结构体就表示了 Go 语言中的互斥锁
+
+```go
+type Mutex struct {
+    state int32
+    sema  uint32
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
