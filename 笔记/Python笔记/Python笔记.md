@@ -808,11 +808,12 @@ os.system('notepad')
 
 ### 比较对象
 
-**== !=  is is not**
+**== != 和 is is not**
 
-== != 比较的是对象的**值**是否相等 
+- == != 比较的是对象的**值**是否相等 
 
-is is not 比较的是对象的**id**是否相等（比较两个对象是否是同一个对象）
+- is is not 比较的是对象的**id**是否相等（比较两个对象是否是同一个对象）
+
 
 ## 1.2、流程控制语句
 
@@ -1202,7 +1203,7 @@ d = {}  # 创建了一个空字典
 
 #### 1.3.3.3、方法
 
-使用 **dict()**函数来创建字典
+**dict()** 函数来创建字典
 
 每一个参数都是一个键值对，参数名就是键，参数名就是值（这种方式创建的字典，key都是字符串）
 
@@ -1274,11 +1275,12 @@ d.setdefault('name','猪八戒')
 d.update(d2)
 ```
 
-删除，可以使用 **del** 来删除字典中的 key-value
+**del** 来删除字典中的 key-value
 
 ````python
 del d['a']
 del d['z'] # z不存在，报错
+del d # 删除整个字典
 ````
 
 **popitem() **随机删除字典中的一个键值对，一般都会删除**最后一个键值对**
@@ -1299,7 +1301,7 @@ result = d.popitem()
 result = d.pop('z','这是默认值')
 ```
 
-**clear()**用来清空字典
+**clear()** 用来清空字典
 
 ```python
 d.clear()
@@ -1372,13 +1374,13 @@ s = set({'a': 1, 'b': 2, 'c': 3})
 
 #### 1.3.4.3、方法
 
-使用**in**和**not in**来检查集合中的元素
+**in**和**not in** 来检查集合中的元素
 
 ```python
 print('c' in s)
 ```
 
-使用**len()**来获取集合中元素的数量
+**len()** 来获取集合中元素的数量
 
 ```python
 print(len(s))
@@ -1400,25 +1402,25 @@ s.update((10, 20, 30, 40, 50))
 s.update({10: 'ab', 20: 'bc', 100: 'cd', 1000: 'ef'})
 ```
 
-**pop()**随机删除并返回一个集合中的元素
+**pop()** 随机删除并返回一个集合中的元素
 
 ```python
 result = s.pop()
 ```
 
-**remove()**删除集合中的指定元素
+**remove()** 删除集合中的指定元素
 
 ```python
 s.remove(100)
 ```
 
-**clear()**清空集合
+**clear()** 清空集合
 
 ```python
 s.clear()
 ```
 
-**copy()**对集合进行浅复制
+**copy()** 对集合进行浅复制
 
 ```python
 ```
@@ -3757,19 +3759,421 @@ class MysqlPipeline:
 
 
 
+# 3、Python数据科学
+
+## 1、pandas
+
+### 其他函数
+
+#### 1、reset_index
+
+重置索引
+
+- drop：真或假，真不保留原来索引，假将原来索引作为新列保留
 
 
 
+#### 2、dropna
+
+~~~python
+dropna(axis=0，how=‘any’，thresh=None，subset=None，inplace=False)
+~~~
+
+- axis：确定过滤的行或列，取值可以为
+  - 0或index：删除包含缺失值的行，默认为0
+  - 1或columns：删除包含缺失值的列
+- how：确定过滤的标准，取值可以为
+  - any：默认值，如果存在NaN值，就删除该行或该列
+  - all：如果所有值都是NaN值，就删除该行或该列
+- thresh：表示有效数据量的最小要求，比如thresh=3，要求该行或该列至少有三个不是NaN值时将其保留。
+- subset：表示在特定的字集中寻找NaN值
+- inplace：表示是否在原数据上操作，如果设为True，则表示直接修改原数据，如果设为False，则表示修改原数据的副本，返回新数据
 
 
 
+### 1、数据合并与拼接
+
+#### 1、concat
+
+~~~python
+concat(objs, axis=0, join='outer', join_axes=None, 
+       ignore_index=False, keys=None, levels=None, names=None, 
+       verify_integrity=False, copy=True):
+~~~
+
+- objs：需要连接的对象集合，一般是列表或字典
+- axis：0代表纵向合并，1代表横向合并
+- join：参数为outer或inner，outer全保留，inner只保留双方都存在的索引
+- ignore_index：是否重建索引
+
+![image-20220904102723830](images/image-20220904102723830.png)
+
+#### 2、merge
+
+~~~python
+merge(left, right, how='inner', on=None, 
+      left_on=None, right_on=None,left_index=False, right_index=False, 
+      sort=True, suffixes=('_x', '_y'), copy=True, indicator=False)
+~~~
+
+常用于根据一个或多个键将不同的DatFrame连接起来
+
+- left、right：两个不同的DataFrame
+- how：连接方式，有inner、left、right、outer，默认为inner
+- on：指的是用于连接的列索引名称，必须存在于左右两个DataFrame中，如果没有指定且其他参数也没有指定，则以两个DataFrame列名交集作为连接键
+- left_on：左侧DataFrame中用于连接键的列名，用于左右列名不同但代表的含义相同
+- right_on：右侧DataFrame中用于连接键的列名
+- left_index：使用左侧DataFrame中的行索引作为连接键
+- right_index：使用右侧DataFrame中的行索引作为连接键
+- sort：默认为True，将合并的数据进行排序，设置为False可以提高性能
+- suffixes：字符串值组成的元组，用于指定当左右DataFrame存在相同列名时在列名后面附加的后缀名称，默认为('_x', '_y')
+- copy：默认为True，总是将数据复制到数据结构中，设置为False可以提高性能
+- indicator：显示合并数据中数据的来源情况
+
+![image-20220904104209047](images/image-20220904104209047.png)
+
+![image-20220904104228642](images/image-20220904104228642.png)
+
+![image-20220904104250140](images/image-20220904104250140.png)
 
 
 
+#### 3、join
+
+主要用于索引上的合并，参数意义和merge类似
+
+~~~python
+join(self, other, on=None, how='left', lsuffix='', rsuffix='',sort=False)
+~~~
 
 
 
+#### 4、append
 
+~~~python
+# 纵向追加DataFrame
+(self, other, ignore_index=False, verify_integrity=False, sort=False)
+# 纵向追加Series
+(self, to_append, ignore_index=False, verify_integrity=False)
+~~~
+
+- ignore_index：重建索引
+
+
+
+### 2、数据排序与排名
+
+#### 1、sort_index
+
+按标签排序
+
+- ascending：进行倒序或正序排序
+- axis：默认0，按行索引排序，1则为按列索引排序
+
+
+
+#### 2、sort_values
+
+根据某些列的值进行排序
+
+- by：根据传入的列表排序
+- kind：指定排序算法mergesort、heapsort、quicksort
+
+
+
+#### 3、rank
+
+排名是指对数组从1到有效数据点总数分配名次的操作
+
+~~~python
+rank(axis=0, method: 
+     str = 'average', 
+     numeric_only: Union[bool, NoneType] = None, 
+     na_option: str = 'keep', 
+     ascending: bool = True, 
+     pct: bool = False)
+
+~~~
+
+| method  | 说明                                                         |
+| ------- | ------------------------------------------------------------ |
+| average | 默认：在每个组中分配平均排名，例如90分有三个分别排2，3，4则这三个90分排名为（2+3+4）/ 3 = 3，之后从5排 |
+| min     | 对整个组使用最小排名，例如90分有三个分别排2，3，4则这三个90分排名为2，之后从5排 |
+| max     | 对整个组使用最大排名，例如90分有三个分别排2，3，4则这三个90分排名为4，之后从5排 |
+| first   | 按照值在数据中出现的次序分配排名，例如90分有三个分别排2，3，4则这三个90分排名为2，3，4，按靠前排，之后从5排 |
+| dense   | 类似于method=min，但组件排名总是加1，而不是一个组中的相等元素的数量，例如90分有三个分别排2，3，4则这三个90分排名为2，之后从3排 |
+
+- method：可以为average、first、min、max、dense用来打破排名中的平级关系的
+
+
+
+### 3、批量修改数据
+
+#### 1、iloc
+
+~~~python
+# 第2、3、4行的第四列到最后都赋值为0
+data.iloc[2:5,4:] = 0
+~~~
+
+
+
+#### 2、where
+
+~~~python
+where(cond, other=nan, inplace=False, axis=None, level=None, errors='rais',...)
+~~~
+
+cond为真则保持，为假则替换为other
+
+~~~python
+data.where(data>25, data+5,inplace=True)
+~~~
+
+
+
+#### 3、mask
+
+~~~python
+mask(cond, other=nan)
+~~~
+
+与where相反
+
+~~~python
+data.mask(data<25, data+5, inplace=True)
+~~~
+
+
+
+#### 4、replace
+
+可以使用字符串、字典、正则替换
+
+~~~python
+data.replace('wange', 'sheng', inplace=True)
+data.replace({1:0,0:1},inplace=True)
+data.replace('[a-zA-Z]+','Anonymous',regex=True,inplace=True)
+~~~
+
+
+
+### 4、新增列
+
+#### 1、insert
+
+~~~python
+insert(loc, column, value,allow_duplicates = False)
+~~~
+
+- loc：int类型数据，表示插入新列的列位置，原来在该位置的列将向右移
+- column：插入新列的列名
+- value：新列插入的值。如果仅提供一个值，将为所有行设置相同的值。可以是int，string，float等，甚至可以是series /值列表
+- allow_duplicates：用于检查是否存在具有相同名称的列。默认为False，不允许与已有的列名重复
+
+~~~python
+data.insert(loc=2, column='c', value=3)
+# 插入新列为C，全部值为3
+~~~
+
+
+
+#### 2、直接赋值
+
+~~~python
+data['新列'] = [值列]
+~~~
+
+
+
+#### 3、reindex
+
+~~~python
+reindex(columns=[原来所有的列名,新增列名],fill_value=值)
+~~~
+
+~~~python
+df = df.reindex(columns=['a', 'b', 'c', 'd', 'e'])  # 不加fill_value参数，默认值为Nan
+~~~
+
+
+
+#### 4、loc
+
+~~~python
+loc[:,新列名]=值
+~~~
+
+~~~python
+data.loc[:, 'g'] = 0
+# 新增列为g，值为0
+~~~
+
+
+
+### 5、筛选数据
+
+#### 1、isin
+
+~~~python
+data[(data[列名].isin ([列值1，列值2]))]
+# 取反
+data[~(data[列名].isin ([列值1，列值2]))]
+# 多条件
+data[(data[列名1].isin ([列值1，列值2])) & (data[列名2].isin ([列值1，列值2]))]
+~~~
+
+
+
+#### 2、contains
+
+~~~python
+data[data[列名].str.contains("列值1|列值2",na=False)]
+# 取反
+data[~data[列名].str.contains("列值1|列值2",na=False)]
+# 多条件
+data[(data[列名1].str.contains("列值1|列值2",na=False)) & (data[列名2].str.contains("列值1|列值2",na=False))]
+~~~
+
+
+
+## 2、matplotlib
+
+### 1、清空绘图
+
+~~~python
+clf() # 清图。
+cla() # 清坐标轴。
+close() # 关窗口
+~~~
+
+
+
+### 2、绘制多条曲线与子图
+
+~~~python
+# 在一张图上绘制多条曲线
+for i in range(10):
+    ...
+    plt.plot()
+    ...
+plt.legend()
+plt.show()
+
+# 设置图片为2行2列，该子图放置在第一位
+plt.subplot(2, 2, 1)
+plt.plot(x,y)
+plt.title("subplot 2")
+...
+plt.suptitle("multi subplot test")
+plt.legend()
+plt.show()
+~~~
+
+
+
+### 3、中文乱码
+
+~~~python
+plt.rcParams["font.sans-serif"]=["SimHei"] # 设置字体
+plt.rcParams["axes.unicode_minus"]=False # 该语句解决图像中的“-”负号的乱码问题
+~~~
+
+
+
+### 4、添加图例和标题
+
+#### 1、默认参数
+
+~~~python
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+
+mpl.rcParams["font.sans-serif"] = ["SimHei"]
+mpl.rcParams["axes.unicode_minus"] = False
+
+x = np.linspace(-2*np.pi,2*np.pi,200)
+y = np.sin(x)
+y1 = np.cos(x)
+
+# 使用label参数添加图例
+plt.plot(x,y,label = r"$\sin(x)$")
+plt.plot(x,y1,label = r"$\cos(x)$")
+
+# 显示图例
+plt.legend()
+# 添加标题
+plt.title("正弦函数和余弦函数的折线图")
+plt.show()
+~~~
+
+
+
+#### 2、调整图例
+
+修改legend的参数来改变图例的显示位置，展示样式（包括图例的外边框、图例中的文本标签的排列位置和图例的投影效果等方面）
+
+~~~python
+import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.arange(0,2.1,0.1)
+y = np.power(x,3)
+y1 = np.power(x,2)
+y2 = np.power(x,1)
+
+plt.plot(x,y,ls = "-",lw = 2,label="$x^{3}$")
+plt.plot(x,y1,c = "r",ls = "-",lw = 2,label="$x^{2}$")
+plt.plot(x,y2,c = "y",ls = "-",lw = 2,label="$x^{1}$")
+
+plt.legend(loc = "upper left",bbox_to_anchor=(0.05,0.95),
+           ncol = 3,title = "power function",shadow=True,
+           fancybox=True)
+plt.show()
+~~~
+
+- loc：设定图例的位置，也可以直接传入一个0-1的元组（0.5，0.5）
+
+  - | 位置参数值   | 位置数值 | 位置参数值   | 位置数值 | 位置参数值   | 位置数值 |
+    | ------------ | -------- | ------------ | -------- | ------------ | -------- |
+    | upper right  | 1        | upper left   | 2        | lower left   | 3        |
+    | lower right  | 4        | center left  | 6        | center right | 7        |
+    | lower center | 2        | upper center | 9        | center       | 10       |
+
+    <img src="images/image-20220905105519140.png" alt="image-20220905105519140" style="zoom:70%;" />
+
+- bbox_to_anchor：线框位置，参数值是一个四元元组，使用Axes坐标系统
+  - 第一个元素代表距离画布左侧的x轴长度的倍数的距离
+  - 第二个元素代表距离画布底部的y轴长度的倍数的距离
+  - 第三个元素代表元素x轴长度的倍数的线框长度
+  - 第四个元素代表y轴长度的倍数的线框宽度
+- shadow：控制线框是否添加阴影
+- fancybox：控制线框是直角还是圆角
+
+
+
+#### 3、调整标题
+
+~~~python
+plt.title("center demo")
+
+plt.title("Left Demo",loc = "left",
+          fontdict={"size":"xx-large",
+                    "color":"r",
+                    "family":"Times New Roman"})
+
+plt.title("Right Demo",loc = "right",
+          size = 20,color = "c",
+          style = "oblique",
+          family = "Comic Sans MS")
+~~~
+
+- loc：可以选择left、center、right
+- family：字体类别
+- size：字体大小
+- color：字体颜色
+- style：字体风格
 
 
 

@@ -143,11 +143,12 @@ public class K_means {
     }
 
 
-    static class Point {
+    public static class Point {
         int id;
-        double x, y;
+        public double x;
+        public double y;
 
-        int cent_id;
+        public int cent_id;
 
         public Point(int id, double x, double y) {
             this.id = id;
@@ -159,10 +160,10 @@ public class K_means {
         }
     }
 
-    static class Center {
+    public static class Center {
         Point point = new Point();
 
-        int id;
+        public int id;
 
         boolean changed = true;
 
@@ -200,7 +201,7 @@ public class K_means {
             flag = isChang(centers);
             System.out.println("第 " + iter++ +" 次迭代");
             System.out.println("中心点数量 " + centers.size());
-            if(centers .size() == 200) break;
+            if(centers .size() == 1) break;
         }
 
     }

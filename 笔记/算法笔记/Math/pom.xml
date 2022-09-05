@@ -15,6 +15,37 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-io</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-core</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-plot</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-core</artifactId>
+            <version>1.0.0-M1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>nd4j-native-platform</artifactId>
+            <version>1.0.0-M1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-all</artifactId>
+            <version>4.2.1</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
             <groupId>tech.tablesaw</groupId>
             <artifactId>tablesaw-core</artifactId>
             <version>0.43.1</version>
@@ -40,6 +71,30 @@
             <version>5.11</version>
             <type>pom</type>
         </dependency>
+        <dependency>
+            <groupId>read-config</groupId>
+            <artifactId>read-config</artifactId>
+            <version>0.1.0</version>
+        </dependency>
     </dependencies>
+
+
+    <repositories>
+        <repository>
+            <id>aliyun</id>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>clojars</id>
+            <name>Clojars</name>
+            <url>https://repo.clojars.org/</url>
+        </repository>
+    </repositories>
 
 </project>
