@@ -6,6 +6,8 @@
 
 持久化的主要作用是将内存中的数据存储在关系型数据库中，当然也可以存储在磁盘文件、XML数据文件中。
 
+
+
 ## 1.2、基本概念
 
 **DB**：数据库（Database） 即存储数据的“仓库”，其本质是一个文件系统。它保存了一系列有组织的数据。 
@@ -27,6 +29,8 @@
 “mysql”数据库保存了 MySQL 数据库服务器运行时需要的系统信息，比如数据文件夹、当前使用的
 字符集、约束检查信息，等等
 ```
+
+
 
 ## 1.3、SQL语言
 
@@ -108,6 +112,8 @@ SQL语言在功能上主要分为如下3大类：
 
 <img src="images/image-20220312163655231.png" alt="image-20220312163655231" style="zoom:50%;" />
 
+
+
 ## 1.5、卸载
 
 先在任务管理器停止Mysql服务。
@@ -127,6 +133,8 @@ HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\MySQL服务 删除
 ```
 
 删除环境变量配置，找到path环境变量，将其中关于mysql的环境变量删除，删除这一部分\MySQLServer8.0.26\bin; 
+
+
 
 ## 1.6、安装
 
@@ -184,6 +192,8 @@ cmd登陆Mysql
 
 mysql -h 主机名 -P 端口号 -u 用户名 -p密码
 
+
+
 ## 1.7、基本操作
 
 ```sql
@@ -233,6 +243,23 @@ show variables like 'character_%';
 在mysql里导入
 source d:\mysqldb.sql
 ```
+
+
+
+## 1.8、常见对象
+
+| 对象                 | 描述                                                         |
+| -------------------- | ------------------------------------------------------------ |
+| 表(TABLE)            | 表是存储数据的逻辑单元，以行和列的形式存在，列就是字段，行就是记录 |
+| 数据字典             | 就是系统表，存放数据库相关信息的表，其数据通常由数据库系统维护， 程序员通常不应该修改，只可查看 |
+| 约束 (CONSTRAINT)    | 执行数据校验的规则，用于保证数据完整性的规则                 |
+| 视图(VIEW)           | 一个或者多个数据表里的数据的逻辑显示，视图并不存储数据       |
+| 索引(INDEX)          | 用于提高查询性能，相当于书的目录                             |
+| 存储过程 (PROCEDURE) | 用于完成一次完整的业务处理，没有返回值，但可通过传出参数将多个值传给调用环境 |
+| 存储函数 (FUNCTION)  | 用于完成一次特定的计算，具有一个返回值                       |
+| 触发器 (TRIGGER)     | 相当于一个事件监听器，当数据库发生特定事件后，触发器被触发，完成相应的处理 |
+
+​                
 
 # 2、MySQL之基础查询
 
@@ -3130,13 +3157,1373 @@ alter table employee modify tel char(11) not null;
 
 
 
+# 11、MySQL之视图
+
+## 1、视图概述
+
+- 视图一方面可以使用表的一部分而不是所有的表，另一方面也可以针对不同的用户制定不同的查询视图
+- 视图是一种**虚拟表** ，本身是不具有数据的，占用很少的内存空间
+- 视图建立在已有表的基础上, 视图赖以建立的这些表称为**基表**
+- 视图的创建和删除只影响视图本身，不影响对应的基表
+- 视图中的数据增加、删除和修改时，基表中的数据会相应地发生变化，反之亦然
+- 向视图提供数据内容的语句为 SELECT 语句, 可以将视图理解为存储起来的 SELECT 语句
+
+<img src="images/image-20220905133756660.png" alt="image-20220905133756660" style="zoom:50%;" />
+
+
+
+## 2、创建视图
+
+~~~sql
+CREATE [OR REPLACE]
+[ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
+VIEW 视图名称 [(字段列表)]
+AS 查询语句
+[WITH [CASCADED|LOCAL] CHECK OPTION]
+
+# 精简版
+CREATE VIEW 视图名称
+AS 查询语句
+~~~
+
+~~~sql
+CREATE VIEW emp_year_salary (ename, year_salary)
+AS
+SELECT ename, salary*12*(1+IFNULL(commission_pct, 0))
+FROM t_employee;
+
+CREATE VIEW empview
+AS
+SELECT employee_id emp_id,last_name NAME,department_name
+FROM employees e,departments d
+WHERE e.department_id = d.department_id;
+
+CREATE VIEW emp_dept
+AS
+SELECT ename,dname
+FROM t_employee LEFT JOIN t_department
+ON t_employee.did = t_department.did;
+
+CREATE VIEW dept_sum_vu
+(name, minsal, maxsal, avgsal)
+AS
+SELECT d.department_name, MIN(e.salary), MAX(e.salary),AVG(e.salary)
+FROM employees e, departments d
+WHERE e.department_id = d.department_id
+GROUP BY d.department_name;
+~~~
+
+**注意**：
+
+- 在创建视图时，没有在视图名后面指定字段列表，则视图中字段列表默认和SELECT语句中的字段列表一致，如果SELECT语句中给字段取了别名，那么视图中的字段名和别名相同。
+- 字段别名与查询出来的字段要对应
+
+
+
+## 3、查看视图
+
+语法1：查看数据库的表对象、视图对象 
+
+~~~sql
+SHOW TABLES;
+~~~
+
+
+
+语法2：查看视图的结构 
+
+~~~sql
+DESC / DESCRIBE 视图名称;
+~~~
+
+
+
+语法3：查看视图的属性信息，执行结果显示，注释Comment为VIEW，说明该表为视图，其他的信息为NULL，说明这是一个虚表
+
+~~~sql
+# 查看视图信息（显示数据表的存储引擎、版本、数据行数和数据大小等）
+SHOW TABLE STATUS LIKE '视图名称'\G
+~~~
+
+
+
+语法4：查看视图的详细定义信息
+
+~~~sql
+SHOW CREATE VIEW 视图名称;
+~~~
+
+
+
+## 4、视图的更新
+
+视图支持SELECT、DELETE、UPDATE、INSERT
+
+要使视图可更新，视图中的行和底层基本表中的行之间必须存在 一对一 的关系
+
+视图不可更新的情况：
+
+- 在定义视图的时候指定了 ALGORITHM = TEMPTABLE，视图将不支持INSERT和DELETE操作
+- 视图中不包含基表中所有被定义为非空又未指定默认值的列，视图将不支持INSERT操作
+- 在定义视图的SELECT语句中使用了 JOIN联合查询 ，视图将不支持INSERT和DELETE操作
+- 在定义视图的SELECT语句后的字段列表中使用了 数学表达式 或 子查询 ，视图将不支持INSERT，也不支持UPDATE使用了数学表达式、子查询的字段值
+- 在定义视图的SELECT语句后的字段列表中使用 DISTINCT、 聚合函数、 GROUP BY、 HAVING、 UNION等，视图将不支持INSERT、UPDATE、DELETE
+- 在定义视图的SELECT语句中包含了子查询，而子查询中引用了FROM后面的表，视图将不支持 INSERT、UPDATE、DELETE
+- 视图定义基于一个不可更新视图
+- 常量视图
+
+~~~sql
+CREATE OR REPLACE VIEW emp_dept (ename,salary,birthday,tel,email,hiredate,dname)
+AS 
+SELECT ename,salary,birthday,tel,email,hiredate,dname
+FROM t_employee INNER JOIN t_department
+ON t_employee.did = t_department.did ;
+~~~
+
+**注意**：
+
+- 视图一般只用于SELECT操作，对其中数据的更新一般从基表更新
+
+
+
+## 5、修改视图
+
+使用 CREATE OR REPLACE VIEW 、ALTER VIEW修改
+
+~~~sql
+CREATE OR REPLACE VIEW empvu80 (id_number, name, sal, department_id)
+AS
+SELECT employee_id, first_name || ' ' || last_name, salary, department_id
+FROM employees
+WHERE department_id = 80;
+
+ALTER VIEW 视图名称
+AS
+查询语句
+~~~
+
+
+
+## 6、删除视图
+
+删除视图只是删除视图的定义，并不会删除基表的数据
+
+~~~sql
+DROP VIEW IF EXISTS 视图名称;
+DROP VIEW IF EXISTS 视图名称1,视图名称2,视图名称3,...;
+~~~
+
+**注意**：
+
+- 基于视图a、b创建了新的视图c，如果将视图a或者视图b删除，会导致视图c的查询失败，c视图需要手动修改或者删除
+
+
+
+# 12、MySQL之存储过程与函数
+
+## 1、存储过程的概述
+
+含义：
+
+- 存储过程的英文是Stored Procedure ，它就是一组经过**预先编译**的SQL语句的封装
+
+执行过程：
+
+- 存储过程预先存储在 MySQL 服务器上，需要执行的时候，客户端只需要向服务器端发出调用存储过程的命令，服务器端就可以把预先存储好的这一系列 SQL 语句全部执行。 
+
+优点：
+
+- 简化操作，提高了sql语句的重用性
+- 减少操作过程中的失误，提高效率 
+- 减少网络传输量
+- 提高了数据查询的安全性 
+
+缺点：
+
+- 可移植性差
+- 不适合高并发
+- 调试困难
+- 版本管理难度高
+
+视图、函数、存储的对比： 
+
+- 相较于视图有着同样的优点，清晰、安全，还可以减少网络传输量，不过它和视图不同，视图是虚拟表，通常不对底层数据表直接操作，而存储过程是程序化的 SQL，可以直接操作底层数据表 ，相比于面向集合的操作方式，能够实现一些更复杂的数据处理，一旦存储过程被创建出来，使用它就像使用函数一样简单，我们直接通过调用存储过程名即可。
+
+- 相较于函数，存储过程是没有返回值的。
+
+
+
+## 2、存储过程的分类
+
+分类：存储过程的参数类型可以是IN、OUT、INOUT
+
+- 没有参数（无参数无返回） 
+- 仅仅带 IN 类型（有参数无返回）
+- 仅仅带 OUT 类型（无参数有返回）
+- 既带 IN 又带 OUT（有参数有返回）
+- 带 INOUT（有参数有返回）
+
+
+
+## 3、存储过程的创建
+
+~~~sql
+CREATE PROCEDURE 存储过程名(IN|OUT|INOUT 参数名 参数类型,...)
+[characteristics ...]
+BEGIN
+	存储过程体
+END
+~~~
+
+说明：
+
+- **参数修饰符**：
+
+  - IN ：当前参数为输入参数，也就是表示入参，存储过程只是读取这个参数的值。
+
+  - OUT ：当前参数为输出参数，也就是表示出参，执行完成之后，调用这个存储过程的客户端或者应用程序就可以读取这个参数返回的值了。
+
+  - INOUT ：当前参数既可以为输入参数，也可以为输出参数
+  - 如果没有定义参数种类， 默认就是 IN ，表示输入参数
+
+- **参数类型**：
+  - MySQL数据库中的任意类型
+
+- **characteristics** 表示创建存储过程时指定的对存储过程的约束条件，其取值信息如下：
+  - LANGUAGE SQL ：说明存储过程执行体是由SQL语句组成的，当前系统支持的语言为SQL
+  - [NOT] DETERMINISTIC ：指明存储过程执行的结果是否确定
+    - DETERMINISTIC表示结果是确定的，每次执行存储过程时，相同的输入会得到相同的输出
+    - NOT DETERMINISTIC表示结果是不确定的，相同的输入可能得到不同的输出
+    - 如果没有指定任意一个值，默认为NOT DETERMINISTIC
+  - { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA } ：指明子程序使用SQL语句的限制
+    - CONTAINS SQL表示当前存储过程的子程序包含SQL语句，但是并不包含读写数据的SQL语句
+    - NO SQL表示当前存储过程的子程序中不包含任何SQL语句
+    - READS SQL DATA表示当前存储过程的子程序中包含读数据的SQL语句
+    - MODIFIES SQL DATA表示当前存储过程的子程序中包含写数据的SQL语句。
+    - 默认情况下，系统会指定为CONTAINS SQL
+  - SQL SECURITY { DEFINER | INVOKER } ：执行当前存储过程的权限，即指明哪些用户能够执行当前存储过程
+    - DEFINER 表示只有当前存储过程的创建者或者定义者才能执行当前存储过程
+    - INVOKER 表示拥有当前存储过程的访问权限的用户能够执行当前存储过程
+    - MySQL默认指定值为DEFINER
+  - COMMENT 'string' ：注释信息，可以用来描述存储过程。
+- **BEGIN**…**END**：
+  - 中间包含了多个语句，每个语句都以（;）号为结束符
+- **DECLARE**：
+  - 用来声明变量，使用的位置在于 BEGIN…END 语句中间，而且需要在其他语句使用之前进行变量的声明
+- **SET**：
+  - 赋值语句，用于对变量进行赋值
+- **SELECT**… **INTO**：
+  - 把从数据表中查询的结果存放到变量中，也就是为变量赋值
+- **DELIMITER**：
+  - 设置新的结束标记，因为MySQL默认的语句结束符号为分号，为了避免与存储过程中SQL语句结束符相冲突，需要DELIMITER改变存储过程的结束符
+- 
+
+~~~sql
+LANGUAGE SQL
+| [NOT] DETERMINISTIC
+| { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+| SQL SECURITY { DEFINER | INVOKER }
+| COMMENT 'string
+~~~
+
+~~~sql
+DELIMITER $
+CREATE PROCEDURE 存储过程名(IN|OUT|INOUT 参数名 参数类型,...)
+[characteristics ...]
+BEGIN
+    sql语句1;
+    sql语句2;
+END $
+~~~
+
+~~~sql
+DELIMITER $
+CREATE PROCEDURE select_all_data()
+BEGIN
+	SELECT * FROM emps;
+END $
+DELIMITER ;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE show_max_salary()
+LANGUAGE SQL
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT '查看最高薪资'
+
+BEGIN
+	SELECT MAX(salary) FROM emps;
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+# 输入员工姓名获取其工资
+DELIMITER //
+
+CREATE PROCEDURE show_someone_salary(IN empname VARCHAR(20))
+BEGIN
+	SELECT salary FROM emps WHERE ename = empname;
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+# 输入员工姓名获取其工资并返回
+DELIMITER //
+
+CREATE PROCEDURE show_someone_salary2(IN empname VARCHAR(20), OUT empsalary DOUBLE)
+BEGIN
+	SELECT salary INTO empsalary FROM emps WHERE ename = empname;
+END //
+
+DELIMITER ; 
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE show_mgr_name(INOUT empname VARCHAR(20))
+BEGIN
+		SELECT ename INTO empname FROM emps
+		WHERE eid = (SELECT MID FROM emps WHERE ename=empname);
+END //
+
+DELIMITER ;
+~~~
+
+
+
+**注意**：
+
+- 存储过程体中可以有多条 SQL 语句，如果仅仅一条SQL 语句，则可以省略 BEGIN 和 END
+- 当使用DELIMITER命令时，应该避免使用反斜杠（‘\’）字符，因为反斜杠是MySQL的转义字符
+
+
+
+## 4、存储过程的调用
+
+存储过程必须使用CALL语句调用，并且存储过程和数据库相关，如果要执行其他数据库中的存储过程，需要指定数据库名称
+
+例如：CALL dbname.procname
+
+~~~sql
+CALL 存储过程名(实参列表)
+~~~
+
+~~~sql
+# 参数只有IN
+CALL sp1('值');
+~~~
+
+~~~sql
+# 参数有OUT或者INOUT
+SET @name;
+CALL sp1(@name);
+SELECT @name;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE CountProc(IN sid INT,OUT num INT)
+BEGIN
+	SELECT COUNT(*) INTO num FROM fruits
+	WHERE s_id = sid;
+END //
+
+DELIMITER ;
+
+SET @num
+CALL CountProc (101, @num);
+SELECT @num
+~~~
+
+
+
+## 5、存储函数的使用
+
+~~~sql
+CREATE FUNCTION 函数名(参数名 参数类型,...)
+RETURNS 返回值类型
+[characteristics ...]
+BEGIN
+	函数体 #函数体中肯定有 RETURN 语句
+END
+~~~
+
+说明：
+
+- 参数修饰符：
+  - 指定参数为IN、OUT或INOUT只对PROCEDURE是合法的，FUNCTION中总是默认为IN参数
+
+- **RETURNS**：
+  - 类型语句表示函数返回数据的类型，RETURNS子句只能对FUNCTION做指定，对函数而言这是**强制**的
+  - 它用来指定函数的返回类型，而且函数体必须包含一个 RETURN value 语句
+- **characteristic**：
+  - 创建函数时指定的对函数的约束。取值与创建存储过程时相同，这里不再赘述
+- BEGIN…END：
+  - 来表示SQL代码的开始和结束，如果函数体只有一条语句，也可以省略 BEGIN…END。
+
+
+
+## 6、调用存储函数
+
+~~~sql
+SELECT 函数名(实参列表)
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE FUNCTION email_by_name()
+RETURNS VARCHAR(25)
+DETERMINISTIC
+CONTAINS SQL
+BEGIN
+	RETURN (SELECT email FROM employees WHERE last_name = 'Abel');
+END //
+
+DELIMITER ;
+
+SELECT email_by_name();
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE FUNCTION email_by_id(emp_id INT)
+RETURNS VARCHAR(25)
+DETERMINISTIC
+CONTAINS SQL
+BEGIN
+	RETURN (SELECT email FROM employees WHERE employee_id = emp_id);
+END //
+
+DELIMITER ;
+
+SET @emp_id = 102;
+SELECT email_by_id(102);
+~~~
+
+
+
+**注意**：
+
+- 若在创建存储函数中报错“ you might want to use the less safe log_bin_trust_function_creators variable ”，有两种处理方法：
+  - 加上必要的函数特性“[NOT] DETERMINISTIC”和“{CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA}”
+  - SET GLOBAL log_bin_trust_function_creators = 1;
+
+
+
+## 7、存储函数与存储过程的对比
+
+| 关键字                | 调用语法        | 返回值            | 应用场景                         |
+| --------------------- | --------------- | ----------------- | -------------------------------- |
+| 存储过程（PROCEDURE） | CALL 存储过程() | 理解为有0个或多个 | 一般用于更新                     |
+| 存储函数（FUNCTION）  | SELECT 函数()   | 只能是一个        | 一般用于查询结果为一个值并返回时 |
+
+
+
+## 8、存储函数与过程的查询
+
+使用SHOW CREATE语句查看存储过程和函数的创建信息
+
+~~~sql
+SHOW CREATE {PROCEDURE | FUNCTION} 存储过程名或函数名
+~~~
+
+使用SHOW STATUS语句查看存储过程和函数的状态信息
+
+~~~sql
+# 返回子程序的特征，如数据库、名字、类型、创建者及创建和修改日期
+# [LIKE 'pattern']匹配存储过程或函数的名称，可以省略，当省略不写时，会列出MySQL数据库中存在的所有存储过程或函数的信息
+SHOW {PROCEDURE | FUNCTION} STATUS [LIKE 'pattern']
+~~~
+
+从information_schema.Routines表中查看存储过程和函数的信息
+
+~~~sql
+SELECT * 
+FROM information_schema.Routines
+WHERE ROUTINE_NAME='存储过程或函数的名' 
+[AND ROUTINE_TYPE = {'PROCEDURE|FUNCTION'}];
+~~~
+
+
+
+**注意**：
+
+- 如果在MySQL数据库中存在存储过程和函数名称相同的情况，最好指定ROUTINE_TYPE查询条件来指明查询的是存储过程还是函数
+
+
+
+## 9、存储函数与过程的修改
+
+~~~sql
+ALTER {PROCEDURE | FUNCTION} 存储过程或函数的名 [characteristic ...]
+
+# characteristic取值
+{ CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+| SQL SECURITY { DEFINER | INVOKER }
+| COMMENT 'string'
+~~~
+
+~~~sql
+ALTER PROCEDURE CountProc
+MODIFIES SQL DATA
+SQL SECURITY INVOKER ;
+~~~
+
+
+
+## 10、存储函数与过程的删除
+
+~~~sql
+DROP {PROCEDURE | FUNCTION} [IF EXISTS] 存储过程或函数的名
+~~~
+
+- IF EXISTS：如果程序或函数不存储，它可以防止发生错误，产生一个用SHOW WARNINGS查看的警告
+
+
+
+# 13、MySQL之变量
+
+## 1、概述
+
+在 MySQL 数据库的存储过程和函数中，可以使用变量来存储查询或计算的中间结果数据，或者输出最终的结果数据
+
+在 MySQL 数据库中，变量分为 **系统变量** 以及 **用户自定义变量** 
+
+
+
+## 2、系统变量
+
+### 2.1、概述
+
+1. 变量由系统定义，不是用户定义，属于服务器层面
+2. 启动MySQL服务实例期间， MySQL将为MySQL服务器内存中的系统变量赋值，这些系统变量定义了当前MySQL服务实例的属性、特征
+3. 这些系统变量的值要么是编译MySQL时参数的默认值，要么是配置文件（例如my.ini等）中的参数值
+4. [查看MySQL文档的系统变量](https://dev.mysql.com/doc/refman/8.0/en/server-systemvariables.html)
+5. 系统变量分为**全局系统变量**(需要添加global关键字)(简称：全局变量)以及**会话系统变量**(需要添加session关键字)(简称：会话变量）
+6. 静态变量（在 MySQL 服务实例运行期间它们的值不能使用 set 动态修改）属于特殊的全局系统变量
+7. 每一个MySQL客户机成功连接MySQL服务器后，都会产生与之对应的会话，会话期间，MySQL服务实例会在MySQL服务器内存中生成与该会话对应的会话系统变量，这些会话系统变量的初始值是全局系统变量值的复制
+8. 全局系统变量针对于所有会话（连接）有效，但不能跨重启
+9. 会话系统变量仅针对于当前会话（连接）有效，会话期间，当前会话对某个会话系统变量值的修改，不会影响其他会话同一个会话系统变量的值
+10. 会话1对某个全局系统变量值的修改会导致会话2中同一个全局系统变量值的修改
+
+<img src="images/image-20220905163056058.png" alt="image-20220905163056058" style="zoom:80%;" />
+
+
+
+### 2.2、查看变量
+
+~~~sql
+#查看所有全局变量
+SHOW GLOBAL VARIABLES;
+
+#查看所有会话变量
+SHOW SESSION VARIABLES;
+SHOW VARIABLES;
+
+#查看满足条件的部分系统变量。
+SHOW GLOBAL VARIABLES LIKE '%标识符%';
+
+#查看满足条件的部分会话变量
+SHOW SESSION VARIABLES LIKE '%标识符%';
+
+#查看指定的系统变量的值
+SELECT @@global.变量名;
+
+#查看指定的会话变量的值
+SELECT @@session.变量名;
+
+SELECT @@变量名;
+~~~
+
+
+
+### 2.3、修改变量
+
+方式1：修改MySQL配置文件 ，继而修改MySQL系统变量的值（该方法需要重启MySQL服务） 
+
+方式2：在MySQL服务运行期间，使用“set”命令重新设置系统变量的值
+
+~~~sql
+#为某个系统变量赋值
+#方式1：
+SET @@global.变量名=变量值;
+#方式2：
+SET GLOBAL 变量名=变量值;
+
+#为某个会话变量赋值
+#方式1：
+SET @@session.变量名=变量值;
+#方式2：
+SET SESSION 变量名=变量值;
+~~~
+
+
+
+### 2.4、全局变量持久化
+
+使用SET GLOBAL语句设置的变量值只会临时生效，数据库重启后，服务器又会从MySQL配置文件中读取变量的默认值
+
+MySQL 8.0版本新增了 SET PERSIST 命令
+
+~~~sql
+SET PERSIST global max_connections = 1000;
+~~~
+
+MySQL会将该命令的配置保存到数据目录下的 **mysqld-auto.cnf** 文件中，下次启动时会用其中的配置来覆盖默认的配置文件
+
+
+
+## 3、用户变量
+
+### 1、概述
+
+用户变量是用户自己定义的，作为 MySQL 编码规范，MySQL 中的用户变量以一个“@” 开头。根据作用范围不同，又分为**会话用户变量** 和 **局部变量** 
+
+会话用户变量：
+
+- 作用域和会话变量一样，只对 当前连接 会话有效
+
+局部变量：
+
+- 只在 BEGIN 和 END 语句块中有效
+- 局部变量只能在 存储过程和函数 中使用
+
+
+
+### 2、定义会话用户变量
+
+~~~sql
+#方式1：“=”或“:=”
+SET @用户变量 = 值;
+SET @用户变量 := 值;
+
+#方式2：“:=” 或 INTO关键字
+SELECT @用户变量 := 表达式 [FROM 等子句];
+SELECT 表达式 INTO @用户变量 [FROM 等子句];
+~~~
+
+
+
+### 3、查看会话用户变量
+
+~~~sql
+SELECT @用户变量
+~~~
+
+~~~sql
+SELECT @num := COUNT(*) FROM employees;
+SELECT @num;
+~~~
+
+
+
+**注意**：
+
+- 查看某个未声明的变量时，将得到NULL值
+
+
+
+### 4、定义局部变量
+
+定义：可以使用 DECLARE 语句定义一个局部变量 
+
+作用域：仅仅在定义它的 BEGIN ... END 中有效 
+
+位置：只能放在 BEGIN ... END 中，而且只能放在第一句
+
+~~~sql
+BEGIN
+	#声明局部变量
+	DECLARE 变量名1 变量数据类型 [DEFAULT 变量默认值];
+	DECLARE 变量名2,变量名3,... 变量数据类型 [DEFAULT 变量默认值];
+	
+	#为局部变量赋值
+	SET 变量名1 = 值;
+	SELECT 值 INTO 变量名2 [FROM 子句];
+	
+	#查看局部变量的值
+	SELECT 变量1,变量2,变量3;
+END
+~~~
+
+
+
+**注意**：
+
+- 如果没有DEFAULT子句，初始值为NULL
+
+
+
+### 5、赋值局部变量
+
+~~~sql
+SET 变量名=值;
+SET 变量名:=值;
+
+SELECT 字段名或表达式 INTO 变量名 FROM 表;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE add_value()
+BEGIN
+	#局部变量
+	DECLARE m INT DEFAULT 1;
+	DECLARE n INT DEFAULT 3;
+	DECLARE SUM INT;
+
+	SET SUM = m+n;
+	SELECT SUM;
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+#声明
+DELIMITER //
+
+CREATE PROCEDURE different_salary(IN emp_id INT, OUT dif_salary DOUBLE)
+BEGIN
+	#声明局部变量
+	DECLARE emp_sal,mgr_sal DOUBLE DEFAULT 0.0;
+	DECLARE mgr_id INT;
+
+	SELECT salary INTO emp_sal FROM employees WHERE employee_id = emp_id;
+	SELECT manager_id INTO mgr_id FROM employees WHERE employee_id = emp_id;
+	SELECT salary INTO mgr_sal FROM employees WHERE employee_id = mgr_id;
+
+	SET dif_salary = mgr_sal - emp_sal;
+END //
+DELIMITER ;
+
+#调用
+SET @emp_id = 102;
+CALL different_salary(@emp_id, @diff_sal);
+
+#查看
+SELECT @diff_sal;
+~~~
+
+
+
+# 14、MySQL之定义条件与处理程序
+
+## 1、概述
+
+定义条件：
+
+- 事先定义程序执行过程中可能遇到的问题
+
+处理程序：
+
+- 定义了在遇到问题时应当采取的处理方式，并且保证存储过程或函数在遇到警告或错误时能继续执行。这样可以增强存储程序处理问题的能力，避免程序异常停止运行
+
+ 说明：定义条件和处理程序在存储过程、存储函数中都是支持的
+
+
+
+## 2、定义条件
+
+定义条件就是给MySQL中的错误码命名，这有助于存储的程序代码更清晰
+
+它将一个错误名字和指定的错误条件关联起来，这个名字可以随后被用在定义处理程序的 DECLARE HANDLER 语句中
+
+~~~sql
+DECLARE 错误名称 CONDITION FOR 错误码（或错误条件）
+~~~
+
+错误码的说明： 
+
+- MySQL_error_code 和 sqlstate_value 都可以表示MySQL的错误
+- MySQL_error_code是数值类型错误代码
+- sqlstate_value是长度为5的字符串类型错误代码
+  - 例如：在ERROR 1418 (HY000)中，1418是MySQL_error_code，'HY000'是sqlstate_value
+  - 例如：在ERROR 1142 (42000)中，1142是MySQL_error_code，'42000'是sqlstate_value。
+
+~~~sql
+#使用MySQL_error_code
+DECLARE Field_Not_Be_NULL CONDITION FOR 1048;
+
+#使用sqlstate_value
+DECLARE Field_Not_Be_NULL CONDITION FOR SQLSTATE '23000';
+~~~
+
+
+
+## 3、处理程序
+
+可以为SQL执行过程中发生的某种类型的错误定义特殊的处理程序
+
+~~~sql
+DECLARE 处理方式 HANDLER FOR 错误类型 处理语句
+~~~
+
+处理方式：
+
+- 处理方式有3个取值：CONTINUE、EXIT、UNDO
+- CONTINUE ：表示遇到错误不处理，继续执行
+- EXIT ：表示遇到错误马上退出
+- UNDO ：表示遇到错误后撤回之前的操作，MySQL中暂时不支持这样的操作
+
+错误类型： 
+
+- SQLSTATE '字符串错误码' ：表示长度为5的sqlstate_value类型的错误代码
+- MySQL_error_code ：匹配数值类型错误代码
+- 错误名称 ：表示DECLARE ... CONDITION定义的错误条件名称
+- SQLWARNING ：匹配所有以01开头的SQLSTATE错误代码
+- NOT FOUND ：匹配所有以02开头的SQLSTATE错误代码
+- SQLEXCEPTION ：匹配所有没有被SQLWARNING或NOT FOUND捕获的SQLSTATE错误代码
+
+处理语句：
+
+- SET 变量 = 值 简单语句
+- BEGIN ... END 复合语句
+
+~~~sql
+#方法1：捕获sqlstate_value
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42S02' SET @info = 'NO_SUCH_TABLE';
+
+#方法2：捕获mysql_error_value
+DECLARE CONTINUE HANDLER FOR 1146 SET @info = 'NO_SUCH_TABLE';
+
+#方法3：先定义条件，再调用
+DECLARE no_such_table CONDITION FOR 1146;
+DECLARE CONTINUE HANDLER FOR NO_SUCH_TABLE SET @info = 'NO_SUCH_TABLE';
+
+#方法4：使用SQLWARNING
+DECLARE EXIT HANDLER FOR SQLWARNING SET @info = 'ERROR';
+
+#方法5：使用NOT FOUND
+DECLARE EXIT HANDLER FOR NOT FOUND SET @info = 'NO_SUCH_TABLE';
+
+#方法6：使用SQLEXCEPTION
+DECLARE EXIT HANDLER FOR SQLEXCEPTION SET @info = 'ERROR';
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE UpdateDataNoCondition()
+BEGIN
+	#定义处理程序
+	DECLARE CONTINUE HANDLER FOR 1048 SET @proc_value = -1;
+
+	SET @x = 1;
+	UPDATE employees SET email = NULL WHERE last_name = 'Abel';
+	SET @x = 2;
+	UPDATE employees SET email = 'aabbel' WHERE last_name = 'Abel';
+	SET @x = 3;
+	
+END //
+
+DELIMITER ;
+
+# 调用
+CALL UpdateDataWithCondition();
+
+SELECT @x, @proc_value;
++------+-------------+
+| @x   | @proc_value |
++------+-------------+
+| 3    | -1          |
++------+-------------+
+~~~
+
+~~~sql
+#准备工作
+CREATE TABLE departments
+AS SELECT * FROM atguigudb.`departments`;
+
+ALTER TABLE departments
+ADD CONSTRAINT uk_dept_name UNIQUE(department_id);
+
+# 定义
+DELIMITER //
+
+CREATE PROCEDURE InsertDataWithCondition()
+BEGIN
+	DECLARE duplicate_entry CONDITION FOR SQLSTATE '23000' ;
+	DECLARE EXIT HANDLER FOR duplicate_entry SET @proc_value = -1;
+
+	SET @x = 1;
+	INSERT INTO departments(department_name) VALUES('测试');
+	SET @x = 2;
+	INSERT INTO departments(department_name) VALUES('测试');
+	SET @x = 3;
+END //
+
+DELIMITER ;
+
+# 调用
+CALL InsertDataWithCondition();
+
+
+SELECT @x,@proc_value;
++------+-------------+
+| @x   | @proc_value |
++------+-------------+
+| 2    | -1          |
++------+-------------+
+~~~
+
+
+
+# 14、MySQL之流程控制
+
+## 1、概述
+
+解决复杂问题不可能通过一个 SQL 语句完成，我们需要执行多个 SQL 操作
+
+流程控制语句的作用就是控制存储过程中 SQL 语句的执行顺序，是我们完成复杂操作必不可少的一部分
+
+针对于MySQL 的流程控制语句主要有 3 类
+
+- 条件判断语句 ：IF 语句和 CASE 语句 
+- 循环语句 ：LOOP、WHILE 和 REPEAT 语句 
+- 跳转语句 ：ITERATE 和 LEAVE 语句
+
+
+
+**注意**：
+
+- 只能用于存储程序
+
+
+
+## 2、IF
+
+~~~sql
+IF 表达式1 
+THEN 操作1
+[ELSEIF 表达式2 THEN 操作2]……
+[ELSE 操作N]
+END IF
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_by_eid2(IN emp_id INT)
+BEGIN
+	DECLARE emp_salary DOUBLE;
+	DECLARE hire_year DOUBLE;
+
+	SELECT salary INTO emp_salary FROM employees WHERE employee_id = emp_id;
+	SELECT DATEDIFF(CURDATE(),hire_date)/365 INTO hire_year FROM employees WHERE employee_id = emp_id;
+
+	IF emp_salary < 8000 AND hire_year > 5
+	THEN UPDATE employees SET salary = salary + 500 WHERE employee_id = emp_id;
+	ELSE
+	UPDATE employees SET salary = salary + 100 WHERE employee_id = emp_id;
+	END IF;
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 3、CASE
+
+~~~sql
+#情况一：类似于switch
+CASE 表达式
+WHEN 值1 THEN 结果1或语句1(如果是语句，需要加分号)
+WHEN 值2 THEN 结果2或语句2(如果是语句，需要加分号)
+...
+ELSE 结果n或语句n(如果是语句，需要加分号)
+END [case]（如果是放在begin end中需要加上case，如果放在select后面不需要）
+~~~
+
+~~~sql
+#情况二：类似于多重if
+CASE
+WHEN 条件1 THEN 结果1或语句1(如果是语句，需要加分号)
+WHEN 条件2 THEN 结果2或语句2(如果是语句，需要加分号)
+...
+ELSE 结果n或语句n(如果是语句，需要加分号)
+END [case]（如果是放在begin end中需要加上case，如果放在select后面不需要）
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_by_eid4(IN emp_id INT)
+BEGIN
+	DECLARE emp_sal DOUBLE;
+	DECLARE bonus DECIMAL(3,2);
+
+	SELECT salary INTO emp_sal FROM employees WHERE employee_id = emp_id;
+	SELECT commission_pct INTO bonus FROM employees WHERE employee_id = emp_id;
+
+	CASE
+	WHEN emp_sal<9000
+		THEN UPDATE employees SET salary=9000 WHERE employee_id = emp_id;
+	WHEN emp_sal<10000 AND bonus IS NULL
+		THEN UPDATE employees SET commission_pct=0.01 WHERE employee_id = emp_id;
+	ELSE
+		UPDATE employees SET salary=salary+100 WHERE employee_id = emp_id;
+	END CASE;
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_by_eid5(IN emp_id INT)
+BEGIN
+	DECLARE emp_sal DOUBLE;
+	DECLARE hire_year DOUBLE;
+
+	SELECT salary INTO emp_sal FROM employees WHERE employee_id = emp_id;
+	SELECT ROUND(DATEDIFF(CURDATE(),hire_date)/365) INTO hire_year FROM employees WHERE employee_id = emp_id;
+
+	CASE hire_year
+		WHEN 0 THEN UPDATE employees SET salary=salary+50 WHERE employee_id = emp_id;
+		WHEN 1 THEN UPDATE employees SET salary=salary+100 WHERE employee_id = emp_id;
+		WHEN 2 THEN UPDATE employees SET salary=salary+200 WHERE employee_id = emp_id;
+		WHEN 3 THEN UPDATE employees SET salary=salary+300 WHERE employee_id = emp_id;
+		WHEN 4 THEN UPDATE employees SET salary=salary+400 WHERE employee_id = emp_id;
+	ELSE UPDATE employees SET salary=salary+500 WHERE employee_id = emp_id;
+	END CASE;
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 4、LOOP
+
+```SQL
+[loop_label:] LOOP
+	循环执行的语句
+END LOOP [loop_label]
+```
+
+- loop_label：表示LOOP语句的标注名称，该参数可以省略
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_loop(OUT num INT)
+BEGIN
+
+	DECLARE avg_salary DOUBLE;
+	DECLARE loop_count INT DEFAULT 0;
+
+SELECT AVG(salary) INTO avg_salary FROM employees;
+
+label_loop:LOOP
+	IF avg_salary >= 12000 THEN LEAVE label_loop;
+	END IF;
+
+	UPDATE employees SET salary = salary * 1.1;
+
+	SET loop_count = loop_count + 1;
+	
+	SELECT AVG(salary) INTO avg_salary FROM employees;
+
+END LOOP label_loop;
+
+SET num = loop_count;
+
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 5、WHILE
+
+~~~sql
+[while_label:] WHILE 循环条件 DO
+	循环体
+END WHILE [while_label];
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_while(OUT num INT)
+BEGIN
+	
+	DECLARE avg_sal DOUBLE ;
+	DECLARE while_count INT DEFAULT 0;
+
+	SELECT AVG(salary) INTO avg_sal FROM employees;
+	
+	WHILE avg_sal > 5000 DO
+		UPDATE employees SET salary = salary * 0.9;
+		SET while_count = while_count + 1;
+		SELECT AVG(salary) INTO avg_sal FROM employees;
+	END WHILE;
+
+	SET num = while_count;
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 6、REPEAT
+
+REPEAT 与 WHILE的区别就像是do while 与 while do
+
+~~~sql
+[repeat_label:] REPEAT
+	循环体的语句
+UNTIL 结束循环的条件表达式
+END REPEAT [repeat_label]
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE update_salary_repeat(OUT num INT)
+BEGIN
+
+	DECLARE avg_sal DOUBLE ;
+	DECLARE repeat_count INT DEFAULT 0;
+
+	SELECT AVG(salary) INTO avg_sal FROM employees;
+	
+	REPEAT
+		UPDATE employees SET salary = salary * 1.15;
+		SET repeat_count = repeat_count + 1;
+		SELECT AVG(salary) INTO avg_sal FROM employees;
+	UNTIL avg_sal >= 13000
+	END REPEAT;
+
+	SET num = repeat_count;
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 7、LEAVE
+
+LEAVE语句：可以用在循环语句内，或者以 BEGIN 和 END 包裹起来的程序体内，表示跳出循环或者跳出程序体的操作，就像是break
+
+~~~sql
+LEAVE 标记名
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE leave_begin(IN num INT)
+# 给BEGIN起别名
+begin_label: BEGIN
+
+	IF num<=0
+	# 跳出BEGIN
+	THEN LEAVE begin_label;
+	ELSEIF num=1
+	THEN SELECT AVG(salary) FROM employees;
+	ELSEIF num=2
+	THEN SELECT MIN(salary) FROM employees;
+	ELSE
+	SELECT MAX(salary) FROM employees;
+	END IF;
+		
+	SELECT COUNT(*) FROM employees;
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE leave_while(OUT num INT)
+BEGIN
+
+	DECLARE avg_sal DOUBLE;#记录平均工资
+	DECLARE while_count INT DEFAULT 0; #记录循环次数
+
+	SELECT AVG(salary) INTO avg_sal FROM employees; #① 初始化条件
+	
+	while_label:WHILE TRUE DO #② 循环条件
+		#③ 循环体
+		IF avg_sal <= 10000 THEN LEAVE while_label;
+		END IF;
+		
+		UPDATE employees SET salary = salary * 0.9;
+		SET while_count = while_count + 1;
+	
+		#④ 迭代条件
+		SELECT AVG(salary) INTO avg_sal FROM employees;
+	END WHILE;
+#赋值
+SET num = while_count;
+
+END //
+
+DELIMITER ;
+~~~
+
+
+
+## 8、ITERATE
+
+ITERATE语句：只能用在循环语句（LOOP、REPEAT和WHILE语句）内，表示重新开始循环，将执行顺序转到语句段开头处，就像continue
+
+~~~sql
+ITERATE label
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE test_iterate()
+BEGIN
+	DECLARE num INT DEFAULT 0;
+
+	my_loop:LOOP
+		SET num = num + 1;
+		IF num < 10 THEN ITERATE my_loop;
+		ELSEIF num > 15 THEN LEAVE my_loop;
+		END IF;
+		
+		SELECT 'xxxx';
+	
+	END LOOP my_loop;
+
+END //
+
+DELIMITER ;
+~~~
+
+
+
+# 15、MySQL之游标
+
+## 1、概述
+
+游标，提供了一种灵活的操作方式，其作为一种临时的数据库对象，可以指向存储在数据库表中的数据行指针，让我们能够对结果集中的每一条记录进行定位，并对指向的记录中的数据进行操作的数据结构
+
+游标让 SQL 这种面向集合的语言有了面向过程开发的能力
+
+游标可以在存储过程和函数中使用
+
+
+
+## 2、使用步骤
+
+1. 使用DECLARE声明游标，这里 select_statement 代表的是 SELECT 语句
+
+   - ~~~sql
+     # 适用于MYSQL SQL SERVER DB2 MARIADB
+     DECLARE cursor_name CURSOR FOR select_statement;
+     
+     # ORACLE POSTGRESQL
+     DECLARE cursor_name CURSOR IS select_statement;
+     ~~~
+
+2. 使用 SELECT 语句来获取数据结果集，而此时还没有开始遍历数据，返回了一个用于创建游标的结果集
+
+   - ~~~sql
+     DECLARE cur_emp CURSOR FOR SELECT employee_id,salary FROM employees;
+     ~~~
+
+3. 打开游标，打开游标的时候 SELECT 语句的查询结果集就会送到游标工作区，为后面游标的逐条读取结果集中的记录做准备
+
+   - ~~~sql
+     OPEN cursor_nam
+     ~~~
+
+4. 从游标中获取数据
+
+   - ~~~sql
+     FETCH cursor_name INTO var_name [, var_name] ...
+     # 使用 cursor_name 这个游标来读取当前行，并且将数据保存到 var_name 这个变量中
+     # 游标指针指到下一行
+     # 如果游标读取的数据行有多个列名，则在 INTO 关键字后面赋值给多个变量名即可
+     ~~~
+
+5. 关闭游标
+
+   - ~~~sql
+     CLOSE cursor_name
+     # 使用完游标后需要关闭掉该游标
+     # 因为游标会占用系统资源
+     # 如果不及时关闭，游标会一直保持到存储过程结束，影响系统运行的效率
+     # 而关闭游标的操作，会释放游标占用的系统资源。
+     ~~~
+
+~~~sql
+DELIMITER //
+
+CREATE PROCEDURE get_count_by_limit_total_salary
+(IN limit_total_salary DOUBLE,OUT total_count INT)
+
+BEGIN
+	
+	DECLARE sum_salary DOUBLE DEFAULT 0; #记录累加的总工资
+	DECLARE cursor_salary DOUBLE DEFAULT 0; #记录某一个工资值
+	DECLARE emp_count INT DEFAULT 0; #记录循环个数
+
+	#定义游标
+	DECLARE emp_cursor CURSOR FOR SELECT salary FROM employees ORDER BY salary DESC;
+	
+	#打开游标
+	OPEN emp_cursor;
+	
+	REPEAT
+		#使用游标（从游标中获取数据）
+		FETCH emp_cursor INTO cursor_salary;
+		SET sum_salary = sum_salary + cursor_salary;
+		SET emp_count = emp_count + 1;
+	UNTIL sum_salary >= limit_total_salary
+	END REPEAT;
+	
+	SET total_count = emp_count;
+	
+	#关闭游标
+	CLOSE emp_cursor;
+
+END //
+
+DELIMITER ; 
+~~~
 
 
 
 
 
+**注意**：
+
+- 第四步，var_name必须在声明游标之前就定义好
+- 第四步，游标的查询结果集中的字段数，必须跟 INTO 后面的变量数一致，否则在存储过程执行的时候，MySQL 会提示错误
+- 第五步，关闭游标之后，就不能再检索查询结果中的数据行，如果需要检索只能再次打开游标
 
 
+
+**注意**：
+
+- 使用游标的过程中，会对数据行进行加锁
+- 高并发下，影响业务效率，消耗内存
 
 
 
