@@ -4527,6 +4527,132 @@ DELIMITER ;
 
 
 
+# 16.、MySQL之触发器
+
+## 1、概述
+
+MySQL的触发器和存储过程一样，都是嵌入到MySQL服务器的一段程序
+
+触发器是由 **事件** 来触发某个操作，这些事件包括 INSERT 、 UPDATE 、 DELETE 事件
+
+- 所谓事件就是指用户的动作或者触发某项行为
+
+如果定义了触发程序，当数据库执行这些语句时候，就相当于事件发生了，就会自动激发触发器执行相应的操作
+
+
+
+**优点**：
+
+- 保证数据完整性
+- 校验数据合法性
+- 记录操作日志
+
+**缺点**：
+
+- 可读性差
+- 相关变更会引发错误
+
+
+
+**注意**：
+
+- 子表外键约束，设置为ON UPDATE/DELETE CASCADE/SET NULL，父表修改会引发子表修改，但是不会引发子表的触发器
+
+
+
+## 2、触发器的创建
+
+~~~sql
+CREATE TRIGGER 触发器名称
+{BEFORE|AFTER} {INSERT|UPDATE|DELETE} ON 表名
+FOR EACH ROW
+触发器执行的语句块;
+~~~
+
+说明：
+
+- **表名** ：
+  - 表示触发器监控的对象
+- **BEFORE**|**AFTER** ：
+  - 表示触发的时间，BEFORE 表示在事件之前触发，AFTER 表示在事件之后触发
+- **INSERT**|**UPDATE**|**DELETE** ：
+  - 表示触发的事件
+  - INSERT 表示插入记录时触发
+  - UPDATE 表示更新记录时触发
+  - DELETE 表示删除记录时触发
+
+- **触发器执行的语句块** ：
+  - 可以是单条SQL语句，也可以是由BEGIN…END结构组成的复合语句块
+
+~~~sql
+DELIMITER //
+
+CREATE TRIGGER after_insert
+AFTER INSERT ON test_trigger
+FOR EACH ROW
+
+BEGIN
+	INSERT INTO test_trigger_log (t_log) VALUES('after_insert');
+
+END //
+
+DELIMITER ;
+~~~
+
+~~~sql
+DELIMITER //
+
+CREATE TRIGGER salary_check_trigger
+BEFORE INSERT ON employees FOR EACH ROW
+
+BEGIN
+	DECLARE mgrsalary DOUBLE;
+	
+	# NEW关键字代表的是INSERT插入的新纪录值
+	SELECT salary INTO mgrsalary FROM employees WHERE employee_id = NEW.manager_id;
+
+	IF NEW.salary > mgrsalary THEN
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = '薪资高于领导薪资错误';
+	END IF;
+
+END //
+DELIMITER ;
+~~~
+
+
+
+## 3、触发器的查看
+
+方式1：查看当前数据库的所有触发器的定义
+
+~~~sql
+SHOW TRIGGERS\G
+~~~
+
+方式2：查看当前数据库中某个触发器的定义
+
+~~~sql
+SHOW CREATE TRIGGER 触发器名
+~~~
+
+方式3：从系统库information_schema的TRIGGERS表中查询“salary_check_trigger”触发器的信息。
+
+~~~sql
+SELECT * FROM information_schema.TRIGGERS;
+~~~
+
+
+
+## 4、删除触发器
+
+~~~sql
+DROP TRIGGER IF EXISTS 触发器名称;
+~~~
+
+
+
+
+
 # MySQL之配置文件
 
 Mysql的优化：一般分为配置的优化、sql语句的优化、表结构的优化、索引的优化。
