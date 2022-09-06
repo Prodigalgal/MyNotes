@@ -1348,19 +1348,19 @@ protected void doFilterInternal(HttpServletRequest request,
 public CorsConfigurationSource corsConfigurationSource(){
     CorsConfiguration corsConfiguration = new CorsConfiguration();
 
+    // 设置为True,不建议使用setAllowedOrigis,也不能在其内使用*
     corsConfiguration.setAllowCredentials(true);
     corsConfiguration.setAllowedMethods(List.of("POST", "GET", "DELETE", "PUT", "OPTIONS"));
-
-    List<String> domain = new ArrayList<>();
-    for (int i = 1; i < 65525; i++) {
-        String s = "http://localhost:";
-        domain.add(s+i);
-    }
-    corsConfiguration.setAllowedOrigins(domain);
+    // corsConfiguration.setAllowedOrigins(Collections.singletonList("*"));
     corsConfiguration.setAllowedOriginPatterns(Collections.singletonList("*"));
     corsConfiguration.setMaxAge(3600L);
 
-    List<String> head = List.of("Content-Type", "Cookie", "X-PINGOTHER");
+    List<String> head = List.of("Content-Type", 
+                                "Cookie", 
+                                "X-PINGOTHER", 
+                                "Origin", 
+                                "Accept", 
+                                "X-Requested-With");
     corsConfiguration.setExposedHeaders(head);
     corsConfiguration.setAllowedHeaders(head);
 
@@ -2022,6 +2022,8 @@ public class TokenAuthenticationFilter extends BasicAuthenticationFilter {
 如果不自定义投票器也可以通过自定义AccessDecisionManager实现，不过我认为AccessDecisionManager不应该改变其原本的唱票者身份，所以选择自定义AccessDecisionVoter。
 
 **流程**：当用户登录后，获取用户访问路径并对其进行解析，查看数据库中访问该路径所需要的用户角色，并对比当前用户所拥有的角色，如果相匹配则可以访问，还有一些路径，只需要用户登录即可访问，无关用户角色，则可以在解析路径时返回默认标识或者空值以表示该路径无需用户角色。
+
+
 
 ## 2、实现流程
 
@@ -3629,6 +3631,8 @@ public int vote(Authentication authentication, Object object,
 
 ## 10、SpringSecurity 三个configure方法
 
+### 1、旧版本
+
 ```java
 // 用于通过允许AuthenticationProvider容易地添加来建立认证机制。
 // 也就是说用来记录账号，密码，角色信息。
@@ -3683,6 +3687,40 @@ public void configure(WebSecurity web) throws Exception {
         .antMatchers("/resources/**");
 }
 ```
+
+
+
+### 2、新版本
+
+新版本均使用@Bean方式注入
+
+~~~java
+// 使用WebSecurityCustomizer配置WebSecurity
+@Bean
+public WebSecurityCustomizer ignoringCustomizer() {
+    return (web) -> web.ignoring().antMatchers("/ignore1", "/ignore2");
+}
+
+// 使用SecurityFilterChain配置HttpSecurity
+@Bean
+public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Exception {
+    return http.authorizeRequests()
+                .anyRequest()
+                .authenticated()
+}
+
+@Bean
+public AuthenticationManagerBuilder authenticationManagerBuilder
+    (ObjectPostProcessor<Object> objectPostProcessor, PasswordEncoder passwordEncoder) {
+    customDaoAuthenticationProvider.setUserDetailsService(vistorUserDetailsService);
+    customDaoAuthenticationProvider.setPasswordEncoder(passwordEncoder);
+    AuthenticationManagerBuilder managerBuilder = new AuthenticationManagerBuilder(objectPostProcessor);
+    managerBuilder.authenticationProvider(customDaoAuthenticationProvider);
+    return managerBuilder;
+}
+~~~
+
+
 
 
 
