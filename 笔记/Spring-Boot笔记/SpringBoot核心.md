@@ -279,6 +279,8 @@ public class Person {
 }
 ~~~
 
+
+
 ## 9、@PropertySource 注解
 
 加载指定的配置文件
@@ -525,9 +527,11 @@ person.dog.age=15
 
 ### 1、多Profile文件
 
-我们在主配置文件编写的时候，文件名可以是   application-{profile}.properties/yml
+默认使用application.properties的配置，任何时候都会被加载
 
-默认使用application.properties的配置；
+我们在主配置文件编写的时候，文件名可以是 application-{profile}.properties/yml
+
+
 
 ### 2、yml支持多文档块方式
 
@@ -537,7 +541,7 @@ server:
   
 spring:
   profiles:
-    active: prod  #激活需要的配置块
+    active: prod  # 激活需要的配置块
 
 ---
 server:
@@ -549,7 +553,7 @@ spring:
 server:
   port: 8084
 spring:
-  profiles: prod  #指定属于哪个环境
+  profiles: prod  # 指定属于哪个环境
 ```
 
 ### 3、激活指定Profile
@@ -564,37 +568,71 @@ spring:
 
 
 
+**注意**：
+
+- 命令行相比配置文件优先级较高
+
+
+
+### 4、@Profile
+
+~~~java
+// 条件装配
+@Configuration(proxyBeanMethods = false)
+@Profile("production")
+public class ProductionConfiguration {
+    // ...
+}
+~~~
+
+
+
 ## 7、配置文件加载位置
 
 springboot 启动会扫描以下位置的application.properties或者application.yml文件作为Spring boot的默认配置文件。
 
 - file:./config/
+  - jar包当前目录的config文件夹下的直接子目录
 
 
-- file:./
+
+- file:./config
+
+  - jar包当前目录的config文件夹
+
 
 
 - classpath:/config/
 
+  - classpathg根路径的config文件夹
+
+
 
 - classpath:/
 
+  - classpath根路径
 
 
 
-优先级由高到底，高优先级的配置会覆盖低优先级的配置
-
-SpringBoot会从这四个位置全部加载主配置文件并互补配置
-
-我们还可以通过spring.config.location来改变默认的配置文件位置。
 
 **注意**：
 
-项目打包好以后，可以使用命令行参数的形式，启动项目的时候来指定配置文件的新位置。
+- 
+  优先级由高到底，高优先级的配置会覆盖低优先级的配置
 
-指定配置文件和默认加载的这些配置文件共同起作用形成互补配置。
 
-java -jar spring-boot-02-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=G:/application.properties
+- SpringBoot会从这四个位置全部加载主配置文件并互补配置
+
+
+- 可以通过spring.config.location来改变默认的配置文件位置
+
+
+**注意**：
+
+1. 项目打包好以后，可以使用命令行参数的形式，启动项目的时候来指定配置文件的新位置
+2. 指定的配置文件和默认加载的这些配置文件共同起作用形成互补配置
+   - java -jar spring-boot-02-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=G:/application.properties
+
 
 
 
@@ -742,12 +780,16 @@ public class HttpEncodingProperties {
 3. **再来看这个自动配置类中到底配置了哪些组件（只要要用的组件有，就不需要再来配置了）**
 4. **给容器中自动配置类添加组件的时候，会从properties类中获取某些属性，我们就可以在配置文件中指定这些属性的值**
 
+
+
 ## 10、修改默认配置
 
 1. SpringBoot在自动配置很多组件的时候，先看容器中有没有用户自己配置的（@Bean、@Component）如果有就用用户配置的，如果没有，才自动配置，如果有些组件可以有多个（ViewResolver）将用户配置的和自己默认的组合起来。
 2. 在SpringBoot中会有非常多的xxxConfigurer帮助我们进行扩展配置。
 
 3. 在SpringBoot中会有很多的xxxCustomizer帮助我们进行定制配置。
+
+
 
 # 4、日志框架
 
@@ -3678,26 +3720,27 @@ public class HelloCommandLineRunner implements CommandLineRunner {
 ## 1、前提
 
 ```java
-//指定这个类是一个配置类
+// 准备一个配置类
+// 指定这个类是一个配置类
 @Configuration  
-//在指定条件成立的情况下自动配置类生效
+// 在指定条件成立的情况下自动配置类生效
 @ConditionalOnXXX  
-//指定自动配置类的顺序
+// 指定自动配置类的顺序
 @AutoConfigureAfter  
-//给容器中添加组件
-@Bean  
-//结合相关xxxProperties类来绑定相关的配置
+// 结合相关xxxProperties类来绑定相关的配置
 @ConfigurationPropertie
-//让xxxProperties生效加入到容器中
+// 让xxxProperties生效加入到容器中
 @EnableConfigurationProperties 
+// 给容器中添加组件
+@Bean  
 ```
 
 **@ConfigurationPropertie注解**可以放在类上也可以放在方法上
 
-当将该注解作用于方法上时，如果想要有效的绑定配置，那么该方法需要有@Bean注解且所属Class需要有@Configuration注解。
+当将该注解作用于方法上时，如果想要有效的绑定配置，那么该方法需要有@Bean注解且所属Class需要有@Configuration注解
 
 ```properties
-#数据源
+# 数据源
 spring.datasource.druid.write.url=jdbc:mysql://localhost:3306/jpa
 spring.datasource.druid.write.username=root
 spring.datasource.druid.write.password=1
@@ -3736,15 +3779,36 @@ public class DruidDataSourceConfig {
 }
 ```
 
-
-
-自动配置类要能加载，将需要启动就加载的自动配置类，配置在META-INF/spring.factories
+自动配置类要能加载，就需要配置在resource下建立的META-INF/spring.factories文件里
 
 ```properties
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration,\
-org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
+xxx.xxx.xxx.xxxConfiguration
 ```
+
+
+
+也可以通过自定义Enablexxx注解，注入不同的Bean，不过一般此注解用来实现热拔插功能
+
+对于一来说，需要使用到 **ImportSelector** 或者 **ImportBeanDefinitionRegistrar**
+
+对于二来说，可以注入一个标记类，在xxxConfiguration设置条件
+
+~~~java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Inherited
+@Import({MyImportSelector.class,MyImportBeanDefinitionRegistrar.class})
+public @interface EnableMyTest {
+    // 可以根据传入值选择注入不同的Bean
+    boolean value() default true;
+}
+~~~
+
+
+
+
 
 ## 2、模式
 
@@ -3755,7 +3819,11 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
 
 - 命名：自定义启动器名-spring-boot-starter
 
-### 2、专门来写一个自动配置模块
+
+
+### 2、专门写一个自动配置模块
+
+
 
 ## 3、步骤
 
@@ -3768,8 +3836,8 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.atguigu.starter</groupId>
-    <artifactId>atguigu-spring-boot-starter</artifactId>
+    <groupId>com.xxx.starter</groupId>
+    <artifactId>xxx-spring-boot-starter</artifactId>
     <version>1.0-SNAPSHOT</version>
 	
     <!--启动器-->
@@ -3778,8 +3846,8 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
         <!--引入自动配置模块-->
         <!--*************-->
         <dependency>
-            <groupId>com.atguigu.starter</groupId>
-            <artifactId>atguigu-spring-boot-starter-autoconfigurer</artifactId>
+            <groupId>com.xxx.starter</groupId>
+            <artifactId>xxx-spring-boot-starter-autoconfigurer</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
         
@@ -3788,7 +3856,13 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
 </project>
 ```
 
+
+
 ### 2、自动配置模块
+
+**注意**：
+
+- 作为服务提供模块无需启动器，删除默认的start，新建服务提供类和配置类
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -3796,12 +3870,12 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
    <modelVersion>4.0.0</modelVersion>
 
-   <groupId>com.atguigu.starter</groupId>
-   <artifactId>atguigu-spring-boot-starter-autoconfigurer</artifactId>
+   <groupId>com.xxx.starter</groupId>
+   <artifactId>xxx-spring-boot-starter-autoconfigurer</artifactId>
    <version>0.0.1-SNAPSHOT</version>
    <packaging>jar</packaging>
 
-   <name>atguigu-spring-boot-starter-autoconfigurer</name>
+   <name>xxx-spring-boot-starter-autoconfigurer</name>
    <description>Demo project for Spring Boot</description>
 
    <parent>
@@ -3827,21 +3901,16 @@ org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\
       </dependency>
 
    </dependencies>
-
-
-
 </project>
-
 ```
 
+新建配置获取类，用于接收配置文件中的属性
+
 ```java
-package com.atguigu.starter;
-
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
-//设置属性配置前缀
-//配置文件中atguigu.hello.prefix=xxxx会绑定到prefix属性上
-@ConfigurationProperties(prefix = "atguigu.hello")
+// 新建配置获取类，从配置文件中读取属性
+// 设置属性配置前缀
+// 配置文件中xxx.hello.prefix=xxxx会绑定到prefix属性上
+@ConfigurationProperties(prefix = "xxx.hello")
 public class HelloProperties {
 
     private String prefix;
@@ -3863,12 +3932,12 @@ public class HelloProperties {
         this.suffix = suffix;
     }
 }
-
 ```
 
-```java
-package com.atguigu.starter;
+新建服务提供类
 
+```java
+// 服务类
 public class HelloService {
 
     HelloProperties helloProperties;
@@ -3887,20 +3956,14 @@ public class HelloService {
 }
 ```
 
+新建最终配置类，用于完成Bean创建等工作
+
 ```java
-package com.atguigu.starter;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-//指定这个类是一个配置类
+// 指定这个类是一个配置类
 @Configuration
-//web应用才生效
+// web应用才生效
 @ConditionalOnWebApplication 
-//HelloProperties生效加入到容器中
+// HelloProperties生效加入到容器中
 @EnableConfigurationProperties(HelloProperties.class)
 public class HelloServiceAutoConfiguration {
 
@@ -3916,11 +3979,37 @@ public class HelloServiceAutoConfiguration {
 }
 ```
 
+~~~properties
+# 写入resource/META-INF/spring.factories
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=xxx.xxx.HelloServiceAutoConfiguration
+~~~
+
+之后引用该模块，注入服务类即可使用
 
 
-## 9、单元测试
 
+### 3、实现热拔插
 
+创建标记类，Enablexxx注解注入该标记类
+
+~~~java
+public class mark{}
+~~~
+
+Enable注解注入
+
+~~~java
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Import({mark.class})
+public @interface EnableXXX {}
+~~~
+
+Configuration类添加条件
+
+~~~java
+@ConditionalOnBean(mark.class)
+~~~
 
 
 
