@@ -1149,6 +1149,8 @@ redis-cli --cluster reshard 138.2.46.254:6381
 redis-cli --cluster del-node ip:端口 6387节点ID
 ```
 
+
+
 ## 4、安装MariaDB
 
 ```shell
@@ -1158,6 +1160,8 @@ docker pull mariadb
 ```shell
 docker run -itd -p 3306:3306 --name mariadb --env MARIADB_USER=wolong --env MARIADB_PASSWORD=m --env MARIADB_ROOT_PASSWORD=admin mariadb:latest
 ```
+
+
 
 ## 5、安装RabbitMQ
 
@@ -1174,6 +1178,8 @@ docker run -itd -p 5672:5672 \
 -e RABBITMQ_DEFAULT_PASS=mnnuwolong \
 rabbitmq:management
 ```
+
+
 
 ## 6、安装CentOS7
 
@@ -1221,6 +1227,97 @@ nginx
 ~~~
 
 
+
+## 8、安装Jupyter
+
+方法一：选择DockerHub上官方包
+
+方法二：自定义
+
+~~~bash
+# 启动一个oraclelinux容器，OL9
+
+#1、安装python3
+yum install python
+
+#2、安装pip
+yum install pip
+
+#3、安装依赖，否则报错ERROR: Failed building wheel for psutil
+搜索python3-dev
+yum search python3
+安装python3-dev
+yum install python3-devel.aarch64
+安装DevTools
+yum groupinstall "Development Tools"
+
+#4、安装jupyter
+pip install jupyter
+pip install jupyterlab
+
+#5、将jupyter添加到环境变量中
+find -name jupyter
+vi /etc/profile
+
+export JUPYTER_PATH=/usr/local/bin
+export PATH=$PATH:$JUPYTER_PATH
+
+重启环境变量
+source /etc/profile
+
+#6、生成jupyter密码，如果是notebook则将lab修改为notebook
+jupyter-lab password
+mnnuadmin
+生成一个密码文件进入查看得到hash
+
+#7、生成并修改jupyterlab或者notebook的配置文件
+jupyter-lab--generate-config --allow-root
+jupyter-notebook --generate-config --allow-root
+
+#允许跨域
+c.ServerApp.allow_origin = '*'
+#不可随意更改密码
+c.ServerApp.allow_password_change = False
+#允许远程访问
+c.ServerApp.allow_remote_access = True
+#允许局域网本地访问
+c.ServerApp.ip = '0.0.0.0'
+#设置端口
+c.ServerApp.port = 8888
+#设置工作路径，确保文件夹存在
+c.ServerApp.notebook_dir = '/usr/local/bin/work'
+#开始服务时不启动浏览器
+c.ServerApp.open_browser = False
+#密码的hash
+c.ServerApp.password = 'argon2:$argon2id$v=19$m=10240,t=10,p=8$DlJ5O6/O8+8DYu9WZXJqxg$Dd4rLTCldQGeEzQy/GXXsenPrQRDnR1SPGfnBcMwKrM'
+
+#8、启动jupyter
+前台启动
+jupyter lab --allow-root
+后台启动
+nohup jupyter notebook --allow-root > /jupyter/jupyter.log 2>&1 &
+~~~
+
+附带安装R内核
+
+~~~bash
+#1、安装依赖
+yum install make gcc gcc-c++ libcurl-devel libxml2-devel openssl-devel texlive-*
+
+#2、前往该网站下载缺失的依赖
+http://rpmfind.net/linux/rpm2html/search.php
+下载依赖
+wget [url] 
+rpm添加强制安装参数
+rpm -i *.rpm --force --nodeps
+
+#3、在R控制台中安装devtools与内核
+install.packages('devtools')
+install.packages('IRkernel')
+
+#4、在R控制台中激活内核
+IRkernel::installspec()
+~~~
 
 
 
