@@ -2007,7 +2007,7 @@ public class TokenAuthenticationFilter extends BasicAuthenticationFilter {
 
 ## 1、基本概念
 
-原本的权限授予是在SpringSecurity的配置中写死，不能动态的根据需求修改权限。
+原本的权限授予是在SpringSecurity的配置中写死，不能动态的根据需求修改权限
 
 ```java
 .antMatchers("/", "/index", "/user/register", "/user/login", "/user/authentication/register").permitAll()
@@ -2017,15 +2017,17 @@ public class TokenAuthenticationFilter extends BasicAuthenticationFilter {
 .antMatchers("/admin/**").hasAnyRole("root")
 ```
 
-而动态权限就是将url与角色写入数据库中，使用自定义的**FilterInvocationSecurityMetadataSource**与**AccessDecisionVoter**实现。
+而动态权限就是将url与角色写入数据库中，使用自定义的**FilterInvocationSecurityMetadataSource**从数据库或者缓存中读取所需信息，再自定义**AccessDecisionVoter**进行投票实现
 
-如果不自定义投票器也可以通过自定义AccessDecisionManager实现，不过我认为AccessDecisionManager不应该改变其原本的唱票者身份，所以选择自定义AccessDecisionVoter。
+如果不自定义投票器也可以通过自定义AccessDecisionManager实现，不过我认为AccessDecisionManager不应该改变其原本的唱票者身份，所以选择自定义AccessDecisionVoter
 
-**流程**：当用户登录后，获取用户访问路径并对其进行解析，查看数据库中访问该路径所需要的用户角色，并对比当前用户所拥有的角色，如果相匹配则可以访问，还有一些路径，只需要用户登录即可访问，无关用户角色，则可以在解析路径时返回默认标识或者空值以表示该路径无需用户角色。
+**流程**：当用户登录后，获取用户访问路径并对其进行解析，查看数据库中访问该路径所需要的用户角色，并对比当前用户所拥有的角色，如果相匹配则可以访问，还有一些路径，只需要用户登录即可访问，无关用户角色，则可以在解析路径时返回默认标识或者空值以表示该路径无需用户角色
 
 
 
 ## 2、实现流程
+
+### 1、FilterInvocationSecurityMetadataSource
 
 首先是自定义的**FilterInvocationSecurityMetadataSource** 
 
@@ -2061,6 +2063,8 @@ public class CustomizeSecurityMetadataSource implements FilterInvocationSecurity
                     String[] roles = roleList.toArray(new String[0]);
                     // 返回所需的角色
                     return SecurityConfig.createList(roles);
+                } else {
+                    return null;
                 }
             }
         }
@@ -2080,6 +2084,10 @@ public class CustomizeSecurityMetadataSource implements FilterInvocationSecurity
     }
 }
 ```
+
+
+
+### 2、AccessDecisionVoter
 
 接着自定义**AccessDecisionVoter** 
 
@@ -2117,14 +2125,21 @@ public class DynamicAccessDecisionVoter implements AccessDecisionVoter<Object> {
                 for (GrantedAuthority authority : authorities) {
                     if (attribute.getAttribute().equals(authority.getAuthority())) {
                         result = ACCESS_GRANTED;
+                        log.info("自定义投票器投了 {}", result);
+                        return result;
                     }
                 }
             }
+            log.info("自定义投票器投了 {}", result);
             return result;
         }
     }
 }
 ```
+
+
+
+### 3、注册
 
 最后注册到配置中，与之前相比无需配置众多的antMatchers和hasRole等
 
@@ -2145,7 +2160,40 @@ public class DynamicAccessDecisionVoter implements AccessDecisionVoter<Object> {
         return fsi;
     }
 })
+    
+    
+@NotNull
+private List<AccessDecisionVoter<?>> getDecisionVoters() {
+    return List.of(new CustomizeDynamicAccessDecisionVoter());
+}
 ```
+
+
+
+### 4、前端发送请求
+
+~~~javascript
+function login() {
+    $.ajax({
+        url:"http://localhost:8190/api/auth/login",
+        type:'post',
+        data:{
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            type: document.getElementById('type').value
+        },
+        // 携带cookie以及接收cookie
+        xhrFields:{
+            withCredentials:true
+        },
+        success:function (data, status) {
+            alert("数据: \n" + data + "\n状态: " + status);
+        }
+    });
+}
+~~~
+
+
 
 
 
@@ -3459,6 +3507,8 @@ AccessDecisionManager本身并不完成相关的逻辑，全部交由其管理�
 - UnanimousBased 一票否决
 - ConsensusBased 少数服从多数
 
+
+
 接口源码：
 
 ```java
@@ -3477,17 +3527,29 @@ public interface AccessDecisionManager {
 - **ConfigAttribute**负责表述规则
 - **AccessDecisionVoter**负责为规则表决
 
-**注意**：最终的访问授权是否通过是由AccessDecisionManager进行决策的。
 
-在框架中AccessDecisionManager是AccessDecisionVoter的集合类，管理对于不同规则进行判断与表决的AccessDecisionVoter们。
 
-但是，AccessDecisionVoter分别都只会对自己支持的规则进行表决，如一个资源的访问规则存在多个并行时，便不能以某一个AccessDecisionVoter的表决作为最终的访问授权结果。
+**注意**：
 
-AccessDecisionManager的职责便是在这种场景下，汇总所有AccessDecisionVoter的表决结果后给出一个最终的决策。
+- 最终的访问授权是否通过是由AccessDecisionManager进行决策的
 
-从而导致框架中预设了三种不同决策规则的AccessDecisionManager的实现类。
+
+
+在框架中AccessDecisionManager是AccessDecisionVoter的集合类，管理对于不同规则进行判断与表决的AccessDecisionVoter们
+
+但是，AccessDecisionVoter分别都只会对自己支持的规则进行表决，如一个资源的访问规则存在多个并行时，便不能以某一个AccessDecisionVoter的表决作为最终的访问授权结果
+
+AccessDecisionManager的职责便是在这种场景下，汇总所有AccessDecisionVoter的表决结果后给出一个最终的决策
+
+从而导致框架中预设了三种不同决策规则的AccessDecisionManager的实现类
+
+
 
 ![image-20211122085632086](images/image-20211122085632086.png)
+
+
+
+
 
 ### 2、AccessDecisionVoter 接口
 
@@ -3505,13 +3567,19 @@ AccessDecisionVoter 是一个投票器，负责对授权决策进行表决，然
 - **ACCESS_DENIED：** 拒绝访问
 - **ACCESS_GRANTED：** 允许访问
 
-**PS**：**当所有voter都弃权时使用变量allowIfEqualGrantedDeniedDecisions来判断，true为通过，false抛出AccessDeniedException。** 
+
+
+**注意：**
+
+- **当所有voter都弃权时使用变量allowIfEqualGrantedDeniedDecisions来判断，true为通过，false抛出AccessDeniedException**
 
 
 
 #### 1、WebExpressionVoter 类
 
-**Spring Security** 框架<u>默认</u> **FilterSecurityInterceptor** 实例中 **AccessDecisionManager** 默认的投票器 **WebExpressionVoter**。其实，就是对使用 **http.authorizeRequests()** 基于 Spring-EL进行控制权限的的授权决策类。
+**Spring Security** 框架<u>默认</u> **FilterSecurityInterceptor** 实例中 **AccessDecisionManager** 默认的投票器 **WebExpressionVoter**
+
+其实，就是对使用 **http.authorizeRequests()** 基于 Spring-EL进行控制权限的的授权决策类
 
 ```java
 http
@@ -3522,6 +3590,8 @@ http
     .antMatchers().hasRole()
     .antMatchers().hasAuthority()
 ```
+
+
 
 #### 2、AuthenticatedVoter 类
 
@@ -3564,6 +3634,8 @@ public int vote(Authentication authentication, Object object,
 }
 ```
 
+
+
 #### 3、PreInvocationAuthorizationAdviceVoter 类
 
 用于处理基于注解 **@PreFilter** 和 **@PreAuthorize** 生成的 **PreInvocationAuthorizationAdvice**，来处理授权决策的实现。
@@ -3589,9 +3661,13 @@ public int vote(Authentication authentication, MethodInvocation method,
 }
 ```
 
+
+
 #### 4、RoleVoter 类
 
-角色投票器。用于 **ConfigAttribute#getAttribute()** 中配置为角色的授权决策。其默认前缀为 ROLE_，可以自定义，也可以设置为空，直接使用角色标识进行判断。这就意味着，任何属性都可以使用该投票器投票，也就偏离了该投票器的本意，是不可取的。
+角色投票器。用于 **ConfigAttribute#getAttribute()** 中配置为角色的授权决策
+
+其默认前缀为 ROLE_，可以自定义，也可以设置为空，直接使用角色标识进行判断，这就意味着，任何属性都可以使用该投票器投票，也就偏离了该投票器的本意，是不可取的
 
 ```java
 public int vote(Authentication authentication, Object object,
@@ -3619,13 +3695,40 @@ public int vote(Authentication authentication, Object object,
 }
 ```
 
-**注意：决策策略比较简单，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**。
+**注意：决策策略比较简单，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**
+
+
 
 #### 5、RoleHierarchyVoter 类
 
-基于 RoleVoter，唯一的不同就是该投票器中的角色是**附带上下级关系的**。也就是说，角色A包含角色B，角色B包含角色C，此时，如果用户拥有角色A，那么理论上可以同时拥有角色B、角色C的全部资源访问权限。
+基于 RoleVoter，唯一的不同就是该投票器中的角色是**附带上下级关系的**
 
-**注意：同 RoleVoter 的决策策略，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**。
+也就是说，角色A包含角色B，角色B包含角色C，此时，如果用户拥有角色A，那么理论上可以同时拥有角色B、角色C的全部资源访问权限
+
+**注意：同 RoleVoter 的决策策略，用户只需拥有任一当前请求需要的角色即可，不必全部拥有**
+
+
+
+### 3、默认注入
+
+位于AbstractInterceptUrlConfigurer
+
+~~~java
+private AccessDecisionManager createDefaultAccessDecisionManager(H http) {
+    AffirmativeBased result = new AffirmativeBased(getDecisionVoters(http));
+    return postProcess(result);
+}
+
+@Override
+@SuppressWarnings("rawtypes")
+List<AccessDecisionVoter<?>> getDecisionVoters(H http) {
+    List<AccessDecisionVoter<?>> decisionVoters = new ArrayList<>();
+    WebExpressionVoter expressionVoter = new WebExpressionVoter();
+    expressionVoter.setExpressionHandler(getExpressionHandler(http));
+    decisionVoters.add(expressionVoter);
+    return decisionVoters;
+}
+~~~
 
 
 
@@ -3649,7 +3752,11 @@ void configure(WebSecurity web) throws Exception
 
 1、configure(AuthenticationManagerBuilder auth)实例
 
-**注意**：此代码不从数据库读取，直接手动赋予。记录在内存中
+**注意**：
+
+- 此代码不从数据库读取，直接手动赋予
+
+- 记录在内存中
 
 ```java
 AuthenticationManagerBuilder allows 
