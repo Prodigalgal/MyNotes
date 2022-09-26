@@ -212,6 +212,8 @@ events {
 
 上述例子就表示每个 work process 支持的最大连接数为 1024。
 
+
+
 ## 4、http块
 
 这算是 Nginx 服务器配置中最频繁的部分。
@@ -246,9 +248,13 @@ http {
 }
 ```
 
+
+
 ### 1、http全局块
 
 http 全局块配置的指令包括文件引入、MIME-TYPE 定义、日志自定义、连接超时时间、单链接请求数上限等。
+
+
 
 ### 2、server块
 
@@ -340,25 +346,89 @@ location / {
 语法如下：
 
 ```text
-location [= | ~ | ~* | ^~] uri {
+location [= | ~ | ~* | ^~ | ] uri {
 
 }
 ```
 
-1.  = ：用于不含正则表达式的 uri 前缀，要求请求字符串与 uri 严格匹配，如果匹配成功，就停止继续向下搜索并立即处理该请求。
-2.  ~：用于表示 uri 包含正则表达式，并且区分大小写。
-3.  ~*：用于表示 uri 包含正则表达式，并且不区分大小写。
-4.  ^~：用于不含正则表达式的 uri 前缀，要求 Nginx 服务器找到标识 uri 和请求字符串匹配度最高的 location 后，立即使用此 location 处理请求，而不再使用 location  块中的正则 uri 和请求字符串做匹配。
-4.  /：通用匹配，任何请求都会匹配到。
+1.  = ：用于不含正则表达式的 uri 前缀，要求请求字符串与 uri 严格匹配，如果匹配成功，就停止继续向下搜索并立即处理该请求
 
-**注意**：如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识。
+    - ~~~json
+      location =/abc{
+      	....
+      }
+      可以匹配到
+      http://192.168.200.133/abc
+      http://192.168.200.133/abc?p1=TOM
+      匹配不到
+      http://192.168.200.133/abc/
+      http://192.168.200.133/abcdef
+      ~~~
+
+2.  ~ ：用于表示 uri 包含正则表达式，并且区分大小写
+
+3.  ~* ：用于表示 uri 包含正则表达式，并且不区分大小写
+
+4.  ^~ ：用于不含正则表达式的 uri 前缀，要求 Nginx 服务器找到标识 uri 和请求字符串匹配度最高的 location 后，立即使用此 location 处理请求，而不再使用 location  块中的正则 uri 和请求字符串做匹配。
+
+5.  / ：通用匹配，任何请求都会匹配到
+
+6.  空：必须以指定模式开始
+
+    - ~~~json
+      location /abc{
+          .....
+      }
+      
+      以下访问都是正确的
+      http://192.168.200.133/abc
+      http://192.168.200.133/abc?p1=TOM
+      http://192.168.200.133/abc/
+      http://192.168.200.133/abcdef
+
+
+**注意**：
+
+- 如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识
 
 **匹配顺序**：
 
-- 多个正则location直接按书写顺序匹配，成功后就不会继续往后面匹配。
-- 普通（非正则）location会一直往下，直到找到匹配度最高的（最大前缀匹配）。
-- 当普通location与正则location同时存在，如果正则匹配成功，则不会再执行普通匹配。
-- 所有类型location存在时，“=”匹配 > “^~”匹配 > 正则匹配 > 普通（最大前缀匹配。
+- 多个正则location直接按书写顺序匹配，成功后就不会继续往后面匹配
+- 普通（非正则）location会一直往下，直到找到匹配度最高的（最大前缀匹配）
+- 当普通location与正则location同时存在，如果正则匹配成功，则不会再执行普通匹配
+- 所有类型location存在时，“=”匹配 > “^~”匹配 > 正则匹配 > 普通（最大前缀匹配）
+
+
+
+#### 3、proxy_pass
+
+~~~bash
+proxy_pass url
+~~~
+
+| 访问URL                        | location配置 | proxy_pass配置        | 后端接收的请求                 |
+| :----------------------------- | :----------- | :-------------------- | :----------------------------- |
+| http://test.com/user/test.html | /user/       | http://test.com/      | http://test.com/test.html      |
+| http://test.com/user/test.html | /user/       | http://test.com       | http://test.com/user/test.html |
+| http://test.com/user/test.html | /user        | http://test.com       | http://test.com/user/test.html |
+| http://test.com/user/test.html | /user        | http://test.com/      | http://test.com//test.html     |
+| http://test.com/user/test.html | /user/       | http://test.com/haha/ | http://test.com/haha/test.html |
+| http://test.com/user/test.html | /user/       | http://test.com/haha  | http://test.com/hahatest.html  |
+
+
+
+**注意**：
+
+- nginx 官网中把proxy_path后的path分为两种
+  - 不带uri，即 http://ip:port，不会把匹配的路径部分给代理走
+  - 带uri，即 http://ip:port/ 或 http://ip:port/xxx，会把 location 中匹配的路径部分代理走，但是参数依然可以传递
+
+
+
+**注意**：（以下情况最好不要携带uri）
+
+- location 使用了正则
+- location块内使用了 rewrite
 
 
 
@@ -372,11 +442,10 @@ location [= | ~ | ~* | ^~] uri {
 
    ~~~bash
    vim /etc/hosts
-   
    ~~~
-
    
-
+   
+   
 2. 在Nginx的配置文件中添加如下配置
 
    ```text
@@ -1156,13 +1225,17 @@ SLEEPTIME=$(awk 'BEGIN{srand(); print int(rand()*(3600+1))}'); echo "0 0,12 * * 
 
 ```text
 location ^~ /t/ {
-     root /www/root/html/;
+     root /www/root/html;
 }
 ```
 
 如果一个请求的URI是 /t/a.html，web服务器将会返回服务器上的/www/root/html/t/a.html的文件。
 
-root指定的目录是location匹配访问的path目录的上一级目录，这个path目录一定要是真实存在root指定目录下。
+root指定的目录是location匹配访问的path目录的上一级目录，这个path目录一定要是真实存在root指定目录下
+
+**注意**：
+
+- root会忽视路径最后面的 /
 
 
 
@@ -1184,13 +1257,15 @@ location ^~ /t/ {
 2. alias在使用正则匹配时，必须捕捉要匹配的内容并在指定的内容处使用。
 3. alias只能位于location块中（root可以不放在location中）。
 
-**注意**：使用alias标签的目录块中不能使用rewrite的break
+**注意**：
+
+- 使用alias标签的目录块中不能使用rewrite的break
 
 **注意**：
 
-- alias虚拟目录配置中，location匹配的path目录如果后面不带 /，那么访问的url地址中这个path目录后面加不加 / 不影响访问，访问时它会自动加上 / 。
-
-- 如果location匹配的path目录后面加上 / ，那么访问的url地址中这个path目录必须要加上 / ，访问时它不会自动加上 / ，如果不加上 / ，访问就会失败。
+- alias虚拟目录配置中，location匹配的path目录如果后面不带 /，那么访问的url地址中这个path目录后面加不加 / 不影响访问，访问时它会自动加上 / 
+- 如果location匹配的path目录后面加上 / ，那么访问的url地址中这个path目录必须要加上 / ，访问时它不会自动加上 / ，如果不加上 / ，访问就会失败
+- alias对于location以及path路径最后的 / 必须两个同时存在或同时不存在
 
 ## 3、UrlRewrite
 

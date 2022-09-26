@@ -546,6 +546,21 @@ chkconfig --list
 chkconfig tomcat on
 ```
 
+
+
+~~~bash
+docker run -itd \
+-p 9099:8080 \
+--name tomcat \
+-v /data/docker/tomcat/webapps:/usr/local/tomcat/webapps \
+--privileged=true \
+tomcat
+~~~
+
+
+
+
+
 ## 2、安装MySQL
 
 ### 2.1、单机版MySQL
@@ -1223,8 +1238,14 @@ docker run -itd  --name nginx \
 -v /data/docker/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
 -v /data/docker/nginx/conf/conf.d:/etc/nginx/conf.d  \
 -v /data/docker/nginx/logs:/var/log/nginx \
+-v /data/docker/nginx/etc/html:/etc/nginx/html \
+--privileged=true \
 nginx
 ~~~
+
+**问题**：
+
+- 似乎静态文件应该放在 /etc/nginx/html 而非 /usr/share/nginx/html，从error.log文件中看出
 
 
 
@@ -1428,12 +1449,16 @@ Dockerfile、Docker镜像与Docker容器分别代表软件的三个不同阶段�
 
 - 每条指令都是独立运行的，并会创建一个新镜像，因此RUN cd /tmp不会对下一条指令产生任何影响。
 
+
+
 ## 2、基本规则
 
 1. 每条**保留字指令**都必须为**大写字母**且后面要跟随**至少一个参数**。
 2. 指令按照从上到下，顺序执行。
 3. #表示注释。
 4. 每条指令都会创建一个**新的镜像层**并对镜像进行提交。
+
+
 
 ## 3、执行流程
 
@@ -1442,6 +1467,8 @@ Dockerfile、Docker镜像与Docker容器分别代表软件的三个不同阶段�
 3. 执行类似docker commit的操作提交一个新的镜像层
 4. docker再基于刚提交的镜像运行一个新容器
 5. 执行dockerfile中的下一条指令直到所有指令都执行完成
+
+
 
 ## 4、保留字指令
 
@@ -1470,6 +1497,7 @@ ENTRYPOINT例子：
 | ---------- | ------------------------------ | --------------------------------------------- |
 | Docker命令 | docker run  nginx:test         | docker run  nginx:test -c /etc/nginx/new.conf |
 | 实际命令   | nginx -c /etc/nginx/nginx.conf | nginx -c /etc/nginx/new.conf                  |
+| 解释       | ENTRYPOINT + CMD               | ENTRYPOINT + 外部传参                         |
 
 ## 5、实例
 

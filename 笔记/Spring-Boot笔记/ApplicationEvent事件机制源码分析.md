@@ -2,31 +2,41 @@
 
 ## 1、三点重要概念
 
-### **1、事件源：**
+### 1、事件源：
 
 ​	事件对象的产生者，任何一个EventObject都有一个来源
 
-### **2、事件监听器注册表：**
+
+
+### 2、事件监听器注册表：
 
 ​	当事件框架或组件收到一个事件后，需要通知所有相关的事件监听器来进行处理，这个时候就需要有个存储监听器的地方，也就是事件监听器注册表。事件源与事件监听器关联关系的存储。
 
-### **3、事件广播器：**
+
+
+### 3、事件广播器：
 
 ​	事件广播器在整个事件机制中扮演一个中介的角色，当事件发布者发布一个事件后，就需要通过广播器来通知所有相关的监听器对该事件进行处理。
 
-![image-20210830232136946](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\ApplicationEvent事件机制源码分析.assets\image-20210830232136946.png)
+![image-20210830232136946](images\ApplicationEvent事件机制源码分析.assets\image-20210830232136946.png)
+
+
 
 ## 2、Spring中的监听器模式
 
-### **1、三个主要角色**
+### 1、三个主要角色
 
 Spring在事件处理机制中使用了监听器模式，其中有三个主要角色
+
+
 
 #### 1、事件，ApplicationEvent
 
 - 该抽象类继承了EventObject
 
 - EventObject是JDK中的类，并建议所有的事件都应该继承自EventObject
+
+
 
 #### 2、事件监听器，ApplicationListener
 
@@ -48,21 +58,31 @@ Spring在事件处理机制中使用了监听器模式，其中有三个主要�
   }
   ```
 
+
+
 #### 3、事件发布，ApplicationEventPublisher
 
 - ApplicationContext继承了该接口，在ApplicationContext的抽象实现类AbstractApplicationContext中做了实现。
 
+
+
 ## 3、Spring事件发布机制
 
-事件机制如下图，具体的实现采用观察者模式。
+事件机制如下图，具体的实现采用观察者模式
 
-<img src="H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\ApplicationEvent事件机制源码分析.assets\image-20210830233029587.png" alt="image-20210830233029587" style="zoom:200%;" />
+<img src="images\ApplicationEvent事件机制源码分析.assets\image-20210830233029587.png" alt="image-20210830233029587" style="zoom:200%;" />
+
+
 
 ## 4、Spring事件异步机制流程
+
+
 
 ### 1、ApplicationEventPublisher
 
 **ApplicationEventPublisher**是Spring的事件发布接口，事件源通过该接口的pulishEvent方法发布事件。
+
+
 
 ### 2、ApplicationEventMulticaster
 
@@ -70,13 +90,19 @@ Spring在事件处理机制中使用了监听器模式，其中有三个主要�
 
 它通过父类AbstractApplicationEventMulticaster的getApplicationListeners方法从事件注册表（事件-监听器关系保存）中获取事件监听器，并且通过invokeListener方法执行监听器的具体逻辑。
 
+
+
 ### 3、ApplicationListener
 
 **ApplicationListener**就是Spring的事件监听器接口，所有的监听器都实现该接口，本图中列出了典型的几个子类。其中RestartApplicationListnener在SpringBoot的启动框架中就有使用。
 
+
+
 ### 4、ApplicationContext
 
 在Spring中通常是**ApplicationContext**本身担任监听器注册表的角色，在其子类AbstractApplicationContext中就聚合了**事件广播器**ApplicationEventMulticaster和**事件监听器**ApplicationListnener，并且提供注册监听器的addApplicationListener方法。
+
+
 
 ## 5、Spring中观察者模式的四个角色
 
@@ -86,17 +112,25 @@ ApplicationEvent 是所有事件对象的父类。ApplicationEvent 继承自 jdk
 
 Spring 也为我们提供了很多内置事件，`ContextRefreshedEvent`、`ContextStartedEvent`、`ContextStoppedEvent`、`ContextClosedEvent`、`RequestHandledEvent`。
 
+
+
 ### 2、事件监听器
 
 ApplicationListener，也就是观察者，继承自 jdk 的 EventListener，该类中只有一个方法 onApplicationEvent。当监听的事件发生后该方法会被执行。
+
+
 
 ### 3、事件源
 
 ApplicationContext，`ApplicationContext` 是 Spring 中的核心容器，在事件监听中 ApplicationContext 可以作为事件的发布者，也就是事件源。因为 ApplicationContext 继承自 ApplicationEventPublisher。在 `ApplicationEventPublisher` 中定义了事件发布的方法：`publishEvent(Object event)`
 
+
+
 ### 4、事件管理
 
 ApplicationEventMulticaster，用于事件监听器的注册和事件的广播。监听器的注册就是通过它来实现的，它的作用是把 ApplicationContext 发布的 Event 广播给它的监听器列表。 
+
+
 
 ## 6、如何根据事件找到对应的监听器
 
@@ -174,6 +208,8 @@ protected void registerListeners() {
 
 Spring使用**反射机制**，通过方法getBeansOfType()获取所有继承了**ApplicationListener接口**的监听器，然后把监听器放到注册表中，所以我们可以在Spring配置文件中配置自定义监听器，在Spring初始化的时候，会把监听器自动注册到注册表中去。
 
+
+
 ### 1、getBeansOfType(Class<T> type)
 
 **ApplicationContext**.java中的**getBeansOfType(Class<T> type)**的实现：
@@ -214,6 +250,8 @@ public <T> Map<String, T> getBeansOfType(Class<T> type, boolean includeNonSingle
     return matches;
 }
 ```
+
+
 
 ### 2、getApplicationListeners()
 
@@ -266,6 +304,8 @@ protected Collection<ApplicationListener> getApplicationListeners(ApplicationEve
 }
 ```
 
+
+
 ### 3、supportsEvent(listener, eventType, sourceType)
 
 根据事件类型，事件源类型获取所需要的监听器**supportsEvent(listener, eventType, sourceType)**：
@@ -277,6 +317,8 @@ protected boolean supportsEvent(ApplicationListener<?> listener, ResolvableType 
         return (smartListener.supportsEventType(eventType) && smartListener.supportsSourceType(sourceType));
     }
 ```
+
+
 
 ### 4、supportsEventType(eventType)
 
@@ -308,6 +350,8 @@ public boolean supportsSourceType(Class<?> sourceType) {
 ```
 
 定义自己的监听器要明确指定参数泛型，表明该监听器支持的事件，如果不指明具体的泛型，则没有监听器监听事件。
+
+
 
 ## 7、示例
 

@@ -4651,6 +4651,371 @@ DROP TRIGGER IF EXISTS 触发器名称;
 
 
 
+# 17、MySQL之索引
+
+## 1、概述
+
+索引是对数据库表中一列或多列的值进行排序的一种结构
+
+MySQL中常用的索引结构有：B-TREE、B+TREE、HASH
+
+
+
+存储引擎为MyISAM：
+
+- *.frm：与表相关的元数据信息都存放在frm文件，包括表结构的定义信息等
+- *.MYD：MyISAM DATA，用于存储MyISAM表的数据
+- *.MYI：MyISAM INDEX，用于存储MyISAM表的索引相关信息
+
+
+
+存储引擎为InnoDB：
+
+- *.frm：与表相关的元数据信息都存放在frm文件，包括表结构的定义信息等
+- *.ibd：InnoDB DATA，表数据和索引的文件。该表的索引(B+树)的每个非叶子节点存储索引，叶子节点存储索引和索引对应的数
+
+
+
+**优点**：
+
+- 减小数据库扫描的数据量，大幅提升数据检索速度
+- 避免数据库产生临时表以及排序
+- 将随机IO转变为顺序IO
+- 使得InnoDB的查询锁锁住更少元组，提高表并发
+  - 关于InnoDB、索引和锁：InnoDB在二级索引上使用共享锁（读锁），但访问主键索引需要排他锁（写锁）
+- 通过创建唯一性索引，可以保证数据库表中每一行数据的唯一性
+- 可以加速表和表之间的连接，特别是在实现数据的参考完整性方面特别有意义
+- 可以显著减少查询中分组子句和排序子句的时间
+- 通过使用索引，可以在查询的过程中，使用优化隐藏器，提高系统的性能
+
+**缺点**：
+
+- 创建索引和维护索引要耗费时间，并随数据量的增加而增加
+- 索引需要占物理空间，如果需要建立聚簇索引，那么需要占用的空间会更大
+- 对表中的数据进行增、删、改的时候，索引也要动态的维护，这就降低了整体的维护速度
+- 如果某个数据列包含许多重复的内容，为它建立索引就没有太大的实际效果
+- 对于非常小的表，大部分情况下简单的全表扫描更高效
+
+
+
+## 2、索引创建准则
+
+**需要**：
+
+- 在经常需要搜索的列上，可以加快搜索的速度
+- 在作为主键的列上，强制该列的唯一性和组织表中数据的排列结构
+- 在经常用在连接（JOIN）的列上，这些列主要是连接外键，可以加快连接的速度
+- 在经常需要根据范围（<，<=，=，>，>=，BETWEEN，IN）进行搜索的列上创建索引，因为索引已经排序，其指定的范围是连续的
+- 在经常需要排序（order by）的列上创建索引，因为索引已经排序，这样查询可以利用索引的排序，加快排序查询时间
+- 在经常使用在WHERE子句中的列上面创建索引，加快条件的判断速度
+
+**不需要**：
+
+- 对于那些在查询中很少使用或者参考的列不应该创建索引
+  - 若列很少使用到，因此有索引或者无索引，并不能提高查询速度，相反，由于增加了索引，反而降低了系统的维护速度和增大了空间需求
+- 对于那些只有很少数据值或者重复值多的列也不应该增加索引
+  - 列的取值很少，例如性别列
+- 行的比例很大，增加索引，并不能明显加快检索速度
+  - 在查询的结果中，结果集的数据行占了表中数据行的很大比例，即需要在表中搜索的数据
+- 对于那些定义为text、image、bit数据类型的列不应该增加索引
+  - 这些列的数据量要么相当大，要么取值很少
+- 当该列修改性能要求远远高于检索性能时，不应该创建索引
+  - 修改性能和检索性能是互相矛盾的
+
+
+
+## 1、逻辑分类
+
+有多种逻辑划分的方式，比如按功能划分，按组成索引的列数划分等
+
+
+
+**主键索引**：一张表只能有一个主键索引，不允许重复、不允许为 NULL
+
+~~~sql
+ALTER TABLE TableName ADD PRIMARY KEY(column_list);
+~~~
+
+
+
+**唯一索引**：数据列不允许重复，允许为 NULL 值，一张表可有多个唯一索引，如果是组合索引，则列值的组合必须唯一
+
+~~~sql
+CREATE UNIQUE INDEX IndexName ON TableName(字段名(length));;
+# 或者
+ALTER TABLE TableName ADD UNIQUE (column_list);
+~~~
+
+
+
+**普通索引**：一张表可以创建多个普通索引，一个普通索引可以包含多个字段，允许数据重复，允许 NULL 值插入
+
+~~~sql
+CREATE INDEX IndexName ON TableName(字段名(length));
+# 或者
+ALTER TABLE TableName ADD INDEX IndexName(字段名(length));
+~~~
+
+
+
+**全文索引**：它查找的是文本中的关键词，主要用于全文检索
+
+通过建立倒排索引，可以极大的提升检索效率，解决判断字段是否包含的问题
+
+~~~sql
+# 建表的时候
+# 创建联合全文索引列
+FULLTEXT KEY IndexName(colume1,colume2)
+
+# 在已存在的表上创建
+CREATE FULLTEXT INDEX IndexName ON TableName(colume1,colume2);
+
+ALTER TABLE tablename ADD FULLTEXT INDEX IndexName(colume1,colume2);
+
+
+# 由于不支持中文日文等分词，需要使用mysql内置的ngram
+FULLTEXT (title, body) WITH PARSER ngram
+ALTER TABLE articles ADD FULLTEXT INDEX ft_index (title,body) WITH PARSER ngram;
+CREATE FULLTEXT INDEX ft_index ON articles (title,body) WITH PARSER ngram;
+
+~~~
+
+全文索引有独特的语法格式，需要配合match 和 against 关键字使用：~
+
+- match()：指定的列必须是设置为全文索引的列
+- against()：标识需要模糊查找的关键字
+
+~~~sql
+select * from fulltext_test where match(words,artical) against('a'); # 无效
+select * from fulltext_test where match(words,artical) against('aa'); # 无效
+select * from fulltext_test where match(words,artical) against('aaa');
+select * from fulltext_test where match(words,artical) against('aaaa'); # 无效
+~~~
+
+全文索引关键词长度阈值：
+
+- ~~~sql
+  show variables like '%ft%';
+  # InnoDB的全文索引的关键词最小索引长度为3
+  ~~~
+
+在mysql的配置文件中追加
+
+~~~
+[mysqld]
+innodb_ft_min_token_size = 5
+ft_min_word_len = 5
+~~~
+
+全文搜索的模式：
+
+- 自然语言的全文搜索，IN NATURAL LANGUAGE MODE，默认
+
+  - 自然语言搜索引擎将计算每一个文档对象和查询的相关度
+    - 相关度是基于匹配的关键词的个数，以及关键词在文档中出现的次数
+    - 在整个索引中出现次数越少的词语，匹配时的相关度就越高
+    - 如果一个词语的在超过 50% 的记录中都出现了，那么自然语言的搜索将不会搜索这类词语
+  - 例如前面查询的aaa与aaaa，查询到两条记录，aaa均出现素以不会被查询，而是进行精确查询
+
+- 布尔的全文索引，IN BOOLEAN MODE
+
+  - 可以在查询中自定义某个被搜索的词语的相关性，可以通过一些操作符来指定搜索词在结果中的包含情况
+
+    - \+（AND）全文索引列必须包含该词且全文索引列（之一）有且仅有该词
+    - \-（NOT）表示必须不包含，默认为误操作符，如果只有一个关键词且使用了- ，会将这个当成错误操作，相当于没有查询关键词，如果有多个关键词，关键词集合中不全是负能符（~ -），那么 - 则强调不能出现
+    - \> 提高该词的相关性，查询的结果靠前
+    - \< 降低该词的相关性，查询的结果靠后
+    - ~ 异或，如果包含则降低关键词整体的相关性
+    - \* 通配符，表示关键词后面可以跟任意字符
+    - 空格 表示OR
+    - "" 双引号，效果类似like '%some words%'
+
+  - ~~~sql
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('+apple -banana' IN BOOLEAN MODE);
+    
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('+apple +(>banana <orange)' IN BOOLEAN MODE);   
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('+apple ~banana' IN BOOLEAN MODE);
+    
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('apple*' IN BOOLEAN MODE);
+    
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('apple banana' IN BOOLEAN MODE); 
+    
+    SELECT * FROM articles WHERE MATCH(title,body) AGAINST('"apple banana"' IN BOOLEAN MODE);  
+    ~~~
+
+
+
+
+
+**单例索引**：一个索引只包含一个列，一个表可以有多个单例索引
+
+**组合索引**：一个组合索引包含两个或两个以上的列，查询的时候遵循 mysql 组合索引的最左前缀原则
+
+
+
+## 2、物理分类
+
+分为聚簇索引（主键索引）和非聚簇索引（有时也称辅助索引或二级索引）
+
+InnoDB和MyISAM存储引擎都默认使用B+树结构存储索引，但是只有InnoDB的主键索引才是聚簇索引，InnoDB以及MyISAM中的辅助索引使用的都是非聚簇索引
+
+
+
+**聚簇索引**：
+
+- 聚簇是为了提高某个属性(或属性组)的查询速度，把这个或这些属性(称为聚簇码)上具有相同值的元组集中存放在连续的物理块
+- 聚簇索引不是单独的一种索引类型，而是一种数据存储方式，这种存储方式是依靠B+树来实现的，根据表的主键构造一棵B+树且B+树的叶子节点存放的都是表的行记录数据时，可称该主键索引为聚簇索引
+- 聚簇索引也可理解为将数据存储与索引放到了一块，找到索引也就找到了数据
+- 每张表最多只能拥有一个聚簇索引
+
+**优点**：
+
+- 数据访问更快，因为聚簇索引将索引和数据保存在同一个B+树中，因此从聚簇索引中获取数据比非聚簇索引更快
+- 对主键的排序查找和范围查找速度非常快
+
+**缺点**：
+
+- 插入速度严重依赖于插入顺序，按照主键的顺序插入是最快的方式，否则将会出现页分裂，严重影响性能
+  - 对于InnoDB表，一般都会定义一个自增的ID列为主键（主键列不要选没有意义的自增列，选经常查询的条件列才好，不然无法体现其主键索引性能）
+- 更新主键的代价很高，因为将会导致被更新的行移动，因此，对于InnoDB表，一般定义主键为不可更新
+
+
+
+**非聚簇索引**：
+
+- 非聚簇索引则是数据和索引是分开的，B+树叶子节点存放的不是数据表的行记录
+- 二级索引访问需要两次索引查找，第一次找到主键值，第二次根据主键值找到行数据
+
+
+
+**区别**：
+
+- 聚簇索引的叶子节点存放的是数据行(主键值也是行内数据)，支持覆盖索引
+- 二级索引的叶子节点存放的是主键值或指向数据行的指针
+- 由于叶子节点(数据页)只能按照一棵B+树排序，故一张表只能有一个聚簇索引
+- 辅助索引的存在不影响聚簇索引中数据的组织，所以一张表可以有多个辅助索引
+
+
+
+## 3、InnoDB索引实现
+
+InnoDB使用B+TREE存储数据，除了主键索引为聚簇索引，其它索引均为非聚簇索引
+
+一个表中只能存在一个聚簇索引（主键索引），但可以存在多个非聚簇索引
+
+
+
+**聚簇索引**：
+
+<img src="images/image-20220926091320473.png" alt="image-20220926091320473" style="zoom: 67%;" />
+
+- 叶子节点包含了完整的数据记录
+- 因为InnoDB的数据文件.idb按主键聚集，所以InnoDB必须有主键，MyISAM可以没有
+- 如果没有显示指定主键，则选取首个唯一、非空约束的列作为主键索引，如果还没具备，则MySQL自动为InnoDB表生成一个隐含字段作为主键，这个字段长度为6个字节，类型为长整形
+- B+树单个叶子节点内的行数据按主键顺序排列，物理空间是连续的，聚簇索引的数据的物理存放顺序与索引顺序是一致的
+- 叶子节点之间是通过指针连接，相邻叶子节点的数据在逻辑上也是连续的(根据主键值排序)，实际存储时的数据页(叶子节点)可能相距甚远
+
+
+
+**非聚簇索引**：
+
+<img src="images/image-20220926092438087.png" alt="image-20220926092438087" style="zoom:67%;" />
+
+不是根据主键创建的索引称之为辅助索引
+
+辅助索引访问数据总是需要二次查找，因为辅助索引叶子节点存储的不再是行数据记录，而是主键值，需要先通过辅助索引找到主键值，然后到主键索引树中通过主键值找到数据行
+
+
+
+**优化**：
+
+- InnoDB中主键不宜定义太大，因为辅助索引也会包含主键列，如果主键定义的比较大，其他索引也将很大
+- 如果想在表上定义很多索引，则争取尽量把主键定义得小一些，因为InnoDB不会压缩索引
+- InnoDB中尽量不使用非单调字段作主键（不使用多列），因为InnoDB数据文件本身是一颗B+Tree，非单调的主键会造成在插入新记录时数据文件为了维持B+Tree的特性而频繁的分裂调整，十分低效，而使用自增字段作为主键则是一个很好的选择
+
+
+
+## 4、MyISAM索引实现
+
+MyISAM使用的都是非聚簇索引
+
+在主键索引中，叶子节点的存放的是数据记录的地址，因此主键索引也是非聚簇索引
+
+在MyISAM中，主索引和辅助索引（Secondary key）在结构上没有任何区别，只是主索引要求key是唯一的，而辅助索引的key可以重复
+
+
+
+<img src="images/image-20220926105043122.png" alt="image-20220926105043122" style="zoom:67%;" />
+
+<img src="images/image-20220926110103384.png" alt="image-20220926110103384" style="zoom:67%;" />
+
+
+
+## 5、操作索引
+
+~~~sql
+-- 创建普通索引 
+CREATE INDEX index_name ON table_name(col_name);
+
+-- 创建唯一索引
+CREATE UNIQUE INDEX index_name ON table_name(col_name);
+
+-- 创建普通组合索引
+CREATE INDEX index_name ON table_name(col_name_1,col_name_2);
+
+-- 创建唯一组合索引
+CREATE UNIQUE INDEX index_name ON table_name(col_name_1,col_name_2);
+
+-- 修改索引
+ALTER TABLE table_name ADD INDEX index_name(col_name);
+
+-- 创建表时指点索引
+CREATE TABLE table_name (
+    ID INT NOT NULL,
+    col_name VARCHAR (16) NOT NULL,
+    INDEX index_name (col_name)
+);
+
+-- 直接删除索引
+DROP INDEX index_name ON table_name;
+
+-- 修改表结构删除索引
+ALTER TABLE table_name DROP INDEX index_name;
+
+-- 查看索引信息（包括索引结构等）
+show index from  table_name;
+
+-- 查看SQL执行时间（精确到小数点后8位）
+set profiling = 1;
+SQL...
+show profiles;
+~~~
+
+
+
+## 6、索引失效
+
+- \> < 范围查询
+  - mysql 会一直向右匹配直到遇到索引搜索键使用>、<就停止匹配
+  - 一旦权重最高的索引搜索键使用>、<范围查询，那么其它>、<搜索键都无法用作索引，即索引最多使用一个>、<范围列，因此如果查询条件中有两个>、<范围列则无法全用到索引
+- like %xx
+  - 若搜索键值以通配符%开头（如：like '%abc'），则索引失效，直接全表扫描
+  - 若只是以%结尾，则不影响索引构建
+- 对索引列进行运算
+  - 如果查询条件中含有函数或表达式，将导致索引失效而进行全表扫描 where YEAR(birthday) < 1990
+- or 条件索引问题
+  - or 的条件列除了同时是主键的时候，索引才会生效
+  - 其他情况下的，无论条件列是什么，索引都失效
+- 数据类型不一致（隐式类型转换导致的索引失效）
+  - 如果列是字符串类型，传入条件是必须用引号引起来，不然报错或索引失效
+- != 问题
+  - 普通索引使用 !=索引失效，主键索引没影响
+  - where语句中索引列使用了负向查询，可能会导致索引失效，负向查询包括：NOT、!=、<>、NOT IN、NOT LIKE等
+- 联合索引违背最左匹配原则
+  - 联合索引中，where中索引列违背最左匹配原则，一定会导致索引失效，<a href="#最左前缀匹配原则">详见</a> 
+- order by问题
+  - order by 对主键索引排序会用到索引，其他的索引失效
+
 
 
 # MySQL之配置文件
@@ -4746,7 +5111,7 @@ Mysql的优化：一般分为配置的优化、sql语句的优化、表结构的
 
 ![image-20220314103248300](images/image-20220314103248300.png)
 
-## SELECT执行过程
+## 1、SELECT执行过程
 
 ### 查询的结构
 
@@ -4810,20 +5175,272 @@ LIMIT 2 # 顺序 7
 
 在 SELECT 语句执行这些步骤的时候，每个步骤都会产生一个 **虚拟表** ，然后将这个虚拟表传入 下一个步 骤中作为输入。需要注意的是，这些步骤隐含在 SQL 的执行过程中，对于用户来说是不可见的。
 
-## SQL的执行原理
+## 2、SQL的执行原理
 
-1. SELECT 是先执行 **FROM** 这一步的。
+1. SELECT 是先执行 **FROM** 这一步的
    1. 在这个阶段，如果是**多张表联查**，还会经历下面的几个步骤： 
-      1. 首先先通过 **CROSS JOIN** 求笛卡尔积，相当于得到虚拟表 vt（virtual table）1-1。 
-      2. 通过 **ON** 进行筛选，在虚拟表 vt 1-1 的基础上进行筛选，得到虚拟表 vt 1-2。
-      3. **添加外部行**。如果我们使用的是左连接、右链接或者全连接，就会涉及到外部行，也就是在虚拟表 vt 1-2 的基础上增加外部行，得到虚拟表 vt 1-3。 当然如果我们操作的是两张以上的表，还会重复上面的步骤，直到所有表都被处理完为止。这个过程得到是我们的原始数据。 
-2. 当我们拿到了查询数据表的原始数据，也就是最终的虚拟表 vt1 ，就可以在此基础上再进行 **WHERE** 阶段 。在这个阶段中，会根据 vt1 表的结果进行筛选过滤，得到虚拟表 vt2 。
-3. 然后进入第三步和第四步，也就是 **GROUP** 和 **HAVING** 阶段 。在这个阶段中，实际上是在虚拟表 vt2 的基础上进行分组和分组过滤，得到中间的虚拟表 vt3 和 vt4 。
-4. 当我们完成了条件筛选部分之后，就可以筛选表中提取的字段，也就是进入到 **SELECT** 和 **DISTINCT** 阶段 。
+      1. 首先先通过 **CROSS JOIN** 求笛卡尔积，相当于得到虚拟表 vt（virtual table）1-1
+      2. 通过 **ON** 进行筛选，在虚拟表 vt 1-1 的基础上进行筛选，得到虚拟表 vt 1-2
+      3. **添加外部行**。如果我们使用的是左连接、右链接或者全连接，就会涉及到外部行，也就是在虚拟表 vt 1-2 的基础上增加外部行，得到虚拟表 vt 1-3。 当然如果我们操作的是两张以上的表，还会重复上面的步骤，直到所有表都被处理完为止。这个过程得到是我们的原始数据
+2. 当我们拿到了查询数据表的原始数据，也就是最终的虚拟表 vt1 ，就可以在此基础上再进行 **WHERE** 阶段 。在这个阶段中，会根据 vt1 表的结果进行筛选过滤，得到虚拟表 vt2
+3. 然后进入第三步和第四步，也就是 **GROUP** 和 **HAVING** 阶段 。在这个阶段中，实际上是在虚拟表 vt2 的基础上进行分组和分组过滤，得到中间的虚拟表 vt3 和 vt4 
+4. 当我们完成了条件筛选部分之后，就可以筛选表中提取的字段，也就是进入到 **SELECT** 和 **DISTINCT** 阶段 
    1. 首先在 **SELECT** 阶段会提取想要的字段
-   2. 然后在 **DISTINCT** 阶段过滤掉重复的行，分别得到中间的虚拟表 vt5-1 和 vt5-2 。
-5. 当我们提取了想要的字段数据之后，就可以按照指定的字段进行排序，也就是 **ORDER BY** 阶段 ，得到 虚拟表 vt6 。
+   2. 然后在 **DISTINCT** 阶段过滤掉重复的行，分别得到中间的虚拟表 vt5-1 和 vt5-2 
+5. 当我们提取了想要的字段数据之后，就可以按照指定的字段进行排序，也就是 **ORDER BY** 阶段 ，得到 虚拟表 vt6 
 6. 最后在 vt6 的基础上，取出指定行的记录，也就是 **LIMIT** 阶段 ，得到最终的结果，对应的是虚拟表 vt7 。
+
+
+
+## 3、Expalin
+
+ 使用EXPLAIN关键字可以模拟优化器执行SQL查询语句，从而知道MySQL是如何处理SQL语句
+
+| 列名          | 作用                                                  |
+| ------------- | ----------------------------------------------------- |
+| id            | 选择标识符，即为sql语句执行的顺序                     |
+| select_type   | 表示查询的类型                                        |
+| table         | 输出结果集所需要的表                                  |
+| partitions    | 匹配的分区                                            |
+| type          | 表示表的连接类型                                      |
+| possible_keys | 表示查询时，可能使用的索引                            |
+| key           | 表示实际使用的索引                                    |
+| key_len       | 索引字段的长度，                                      |
+| ref           | 列与索引的比较，使用哪个列或常数与key一起从表中选择行 |
+| rows          | 扫描出的行数(估算的行数)，越大越不好                  |
+| filtered      | 按表条件过滤的行百分比                                |
+| Extra         | 执行情况的描述和说明                                  |
+
+
+
+**select_type**：
+
+- simple：表示简单的select，没有union和子查询
+- primary：在有子查询的语句中，最外面的select查询就是primary
+- union：union语句的第二个或者说是后面那一个
+- dependent union：union中的第二个或后面的SELECT语句，取决于外面的查询
+- union result：union的结果
+
+
+
+**type**：
+
+- system：表仅有一行，这是const类型的特列，一般不会出现
+- const：表最多有一个匹配行，const用于比较primary key或者unique索引，因为只匹配一行数据，所以很快
+  - 一定要用到primary key或者unique，并且只检索出一条数据的情况下才会是const
+  - MySQL对查询的某部分进行优化并把其转化成一个常量
+- eq_ref：使用的索引是UNIQUE或PRIMARY KEY，并且对于每个来自于前面的表的行组合，只从该表中读取一行符合
+  - 这可能是最好的联接类型，除了const类型
+- ref：使用的索引不是UNIQUE或PRIMARY KEY，而是普通索引或者唯一索引的部份前缀
+  - 对于每个来自于前面的表的行组合，所有有匹配索引值的行将从这张表中读取，先比eq_ref来说就是匹配值不只一行
+  - 如果使用的键仅仅匹配少量行，该联接类型是不错的
+- ref_or_null：该联接类型如同ref，但是添加了MySQL可以专门搜索包含NULL值的行，在解决子查询中经常使用该联接类型的优化
+
+=====以上五种都是较为良好的联接=====
+
+-  index_merge：该联接类型表示使用了索引合并优化方法
+  - 在这种情况下，key列包含了使用的索引的清单，key_len包含了使用的索引的最长的关键元素
+- unique_subquery
+- index_subquery
+- range：给定范围内的检索，使用一个索引来检查行，where uid in (1,2) -> range， where groupid in (1,2) -> all
+- index：该联接类型与ALL相同，但是index只有索引树被扫描
+  - 这通常比ALL快，因为索引文件通常比数据文件小
+  - 也就是说虽然all和Index都是读全表，但index是从索引中读取的，而all是从硬盘中读的
+- ALL：对于每个来自于先前的表的行组合，进行完整的表扫描
+  - 如果在执行计划中第一个不是const，则通常很差
+  - 通常可以增加更多的索引而不要使用 ALL，使得行能基于前面的表中的常数值或列值被检索出
+
+
+
+**key_len**：
+
+- 此列显示MySQL在索引里使用的字节数，通过此列可以算出具体使用了索引中的那些列（列创建时设置的长度或者具体的长度）
+
+- 索引最大长度为768字节，当长度过大时，MySQL会做一个类似最左前缀处理，将前半部分字符提取出做索引
+
+- 当字段可以为null时，还需要1个字节去记录
+
+- 计算规则：
+
+  ```text
+  字符串：
+  char(n)：n个数字或者字母占n个字节，汉字占3n个字节
+  varchar(n)：n个数字或者字母占n个字节，汉字占3n+2个字节，+2字节用来存储字符串长度
+  
+  数字类型：
+  tinyint：1字节      
+  smallint：2字节               
+  int：4字节             
+  bigint：8字节
+  
+  时间类型：
+  date：3字节        
+  timestamp：4字节          
+  datetime：8字节
+  ```
+
+
+
+**Extra**：
+
+- Using index：使用覆盖索引（如果select后面查询的字段都可以从这个索引的树中获取，不需要通过辅助索引树找到主键，再通过主键去主键索引树里获取其它字段值，这种情况一般可以说是用到了覆盖索引）
+
+- Using where：使用 where 语句来处理结果，并且查询的列未被索引覆盖
+
+- Using index condition：查询的列不完全被索引覆盖，where条件中是一个查询的范围
+
+- Using temporary：MySQL需要创建一张临时表来处理查询，出现这种情况一般是要进行优化的
+
+- Using filesort：将使用外部排序而不是索引排序，数据较小从内存排序，否则需要在磁盘完成排序
+
+- Select tables optimized away：使用某些聚合函数（比如 max、min）来访问存在索引的某个字段时
+
+
+
+## 4、<a name="最左前缀匹配原则">最左前缀匹配原则</a>
+
+在MySQL建立联合索引时会遵守最左前缀匹配原则，即最左优先（查询条件精确匹配索引的左边连续一列或几列，则构建对应列的组合索引树），在检索数据时也从联合索引的最左边开始匹配
+
+索引的底层是一颗B+树，因此联合索引的底层也是一颗B+树，不过联合索引的B+树节点中存储的是键值，由于构建一棵B+树只能根据一个值来确定关系，所以数据库依赖联合索引最左的字段来构建
+
+例子：构建一颗（a,b）的联合索引树，可以看出a的值是有顺序的，b的值无序，但是在a值固定的情况下，b值是有序的，这是因为MySQL创建联合索引的规则是首先会对联合索引的最左边第一个字段排序，在第一个字段的排序基础上，然后在对第二个字段进行排序，所以b=2这种查询条件没有办法利用索引
+
+<img src="images/image-20220926154407068.png" alt="image-20220926154407068" style="zoom:80%;" />
+
+- **全值匹配**：
+  - a_b
+  - where a=1 and b=1 或者 where b=1 and a=1
+    - 列排序与创建联合索引时的排序无关，因为有explain查询优化器，自动判断何种顺序效率最高，然后生成最终的查询计划
+- **匹配最左列**：
+  - a_b_c_d
+  - where a=1 and b=1 或者 where a=1 and b=1 and c=1
+    - 均使用到了联合索引，因为查询字段的符合最左匹配
+  - where a=1 and c=1
+    - 也使用到了联合索引，但是只用了a，因为c相对于a是无序的
+  - where c=1 and d=1
+    - 没有使用到联合索引，但是全索引index
+    - 在某字段属于联合索引，但又不符合最左匹配时，都可能会采用index扫描的方式，效率不如最左匹配，但快于all
+- **匹配前缀**：
+  - 如果id是字符型的，那么前缀匹配用的是索引，中缀和后缀用的是全表扫描
+  - where id like 'A%'
+    - 前缀都是排好序的，使用的都是联合索引
+  - where id like '%A%' 或者 where id like '%A'
+    - 全表查询
+- **匹配范围值**：
+  - a_b_c_d
+  - where a > 1 and a < 4
+    - a是有序的，因此使用到了联合索引a，并且range扫描
+  - where a >1 and c < 5 and c > 1
+    - 不遵循最左匹配，a有序，c无序，使用index扫描
+  - where a < 2 and c < 5 and c > 1
+    - 不遵循最左匹配，但是a只有一条，在此范围内c有序，使用range扫描
+  - where c < 5 and c > 1
+    - 不遵勖最左匹配，使用index扫描
+- **准确匹配第一列并范围匹配其他某一列**：
+  - a_b_c_d
+  - where a = 1 and c < 5
+    - 使用了联合索引a，因为a范围内c无序
+
+
+
+## 5、前缀索引
+
+对文本的前几个字符建立索引（具体是几个字符在建立索引时指定）
+
+**索引选择性**：
+
+- 指不重复的索引值（也称为基数 cardinality)和数据表的记录总数的比值，取值范围在 [0,1] 之间
+
+- 索引的选择性越高则查询效率越高，因为选择性高的索引可以让 MySQL 在查找时过滤掉更多的行
+
+- 索引选择性为1时就是唯一索引，但是唯一索引消耗大，与前缀匹配初衷相违
+
+- 计算：
+
+  - ~~~sql
+    # 全列选择性
+    SELECT COUNT(DISTINCT column_name) / COUNT(*) FROM table_name;
+    ~~~
+
+  - ~~~sql
+    # 某一长度的选择性，修改length直到计算结果约等于全列选择性即可
+    SELECT COUNT(DISTINCT LEFT(column_name, prefix_length)) / COUNT(*) FROM table_name;
+    ~~~
+
+**注意**：
+
+- 用了前缀索引，就用不了覆盖索引了
+
+
+
+## 6、覆盖索引
+
+搜索的索引键中的字段恰好是查询的字段（或是组合索引键中的其它字段）
+
+覆盖索引的查询效率极高，原因在于其不用做回表查询
+
+extra 里一般都有 using index
+
+覆盖索引一般针对的是辅助索引，整个査询结果只通过辅助索引就能拿到结果，不需要回表去拿其他字段的值
+
+- a_b_c_d
+
+  - ~~~sql
+    select b from table where a=1
+    ~~~
+
+  - 由于ab联合索引，获取到主键后不需要回表查询b值
+
+
+
+## 7、LIMIT分页配合主键
+
+普通的分页，弊端就是每次都要从头遍历，如果要跳转到第100页，需要遍历每页数量*页数
+
+~~~sql
+# 第一页
+SELECT * FROM table_name LIMIT 0,10;
+# 第二页
+SELECT * FROM table_name LIMIT 10,10;
+# 第三页
+SELECT * FROM table_name LIMIT 20,10;
+~~~
+
+可以使用主键快速定位
+
+~~~sql
+# 下一页
+SELECT * FROM table 
+WHERE id in (SELECT id FROM table WHERE id > max_id LIMIT 10);
+
+# 上一页
+SELECT * FROM table 
+WHERE id in (SELECT id FROM table WHERE id < min_id ORDER BY id DESC LIMIT 10);
+
+# 当前页之后的某一页
+SELECT * FROM table 
+WHERE id in 
+(SELECT id FROM 
+ (SELECT id FROM 
+  (SELECT id FROM table 
+   WHERE id < min_id 
+   ORDER BY id desc 
+   LIMIT (页数差*10)) 
+  AS N ORDER BY N.id ASC LIMIT 10)
+ AS P ORDER BY P.id ASC);
+
+# 当前页之前的某一页
+SELECT * FROM table 
+WHERE id in 
+(SELECT id FROM 
+ (SELECT id FROM 
+  (SELECT id FROM table 
+   WHERE id > max_id LIMIT (页数差*10)) AS N 
+  ORDER BY N.id DESC LIMIT 10) AS P) 
+  ORDER BY id ASC;
+~~~
+
+
 
 
 

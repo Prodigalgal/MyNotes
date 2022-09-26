@@ -4700,6 +4700,7 @@ CompletableFuture 类实现了 Future，CompletionStage 接口，被用于异步
 - CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等main线程结束，程序退出，也就会导致CompletableFuture线程中断，避免的方法可以调用get或者使用回调。
 
 
+
 #### 2、基本使用
 
 主线程里面创建一个 CompletableFuture，然后主线程**调用 get 方法会阻塞**，最后我们在一个子线程中使其终止。
@@ -4912,6 +4913,8 @@ public static void main(String[] args) throws Exception{
     System.out.println("主线程结束, 子线程的结果为 " + integer);
 }
 ~~~
+
+
 
 #### 4、消费处理结果
 
@@ -5308,7 +5311,7 @@ public static void main(String[] args) throws Exception{
 
     // 多任务合并
     List<Integer> collect = list.stream()
-        .map(CompletableFuture  join)
+        .map(CompletableFuture::join)
         .collect(Collectors.toList());
 
     System.out.println(collect);
@@ -6037,7 +6040,7 @@ LinkedTransferQueue 采用一种**预占模式**，意思就是消费者线程�
 
 #### AbortPolicy
 
-- 丢弃任务，并抛出拒绝执行。
+- 丢弃任务，并抛出拒绝执行
 
 #### RejectedExecutionException
 
@@ -6045,7 +6048,7 @@ LinkedTransferQueue 采用一种**预占模式**，意思就是消费者线程�
 
 #### DiscardPolicy
 
-- 直接丢弃，其他啥都没有。
+- 直接丢弃，其他啥都没有
 
 #### DiscardOldestPolicy
 
