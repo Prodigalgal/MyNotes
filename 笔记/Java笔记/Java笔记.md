@@ -1,5 +1,213 @@
 Version1.0
 
+# Java基础
+
+## 内部类
+
+### 1、概述
+
+- 每个内部类都能**独立地继承**一个(接口的)实现，所以无论外围类是否已经继承了某个(接口的)实现，对于内部类都没有影响
+- **内部类可以用多个实例**，每个实例都有自己的状态信息，并且与其他外围对象的信息相互独立
+- 在单个外围类中，可以让多个内部类以不同的方式实现同一个接口，或者继承同一个类
+- 创建内部类对象的时刻并不依赖于外围类对象的创建
+- 内部类并没有令人迷惑的is-a关系，他就是一个独立的实体
+- 内部类提供了更好的封装，除了该外围类，其他类都不能访问
+- 内部类可以**对外围类的属性进行无缝的访问**，即使它是private修饰的
+  - 这是因为当我们在创建某个外围类的内部类对象时，此时内部类对象必定会捕获一个指向那个外围类对象的引用，只要我们在访问外围类的成员时，就会用这个引用来选择外围类的成员
+
+- 引用内部类需要指明这个对象的类型：Outer.Inner
+- 同时如果需要创建某个内部类对象，必须要利用外部类的**对象**通过**.new**来创建内部类： Outer.Inner i = outer.new Inner();
+
+~~~java
+package Question;
+
+public class Outer {
+    private String name;
+    
+    public static void main(String[] args) {
+        Outer o = new Outer();
+        Outer.Inner i = o.new Inner("Tom", "X1");
+        Outer.Inner i2 = o.new Inner("Jerry", "X2");
+        i.show();
+        i2.show();
+    }
+    
+    public class Inner {
+        String realName;
+        
+        public Inner(String n, String n2) {
+            name = n;
+            realName = n2;
+        }
+        public void show() {System.out.println("Outer:"+name+"realName:"+realName);}
+    }
+
+}
+
+Outer:JerryrealName:X1
+Outer:JerryrealName:X2
+~~~
+
+
+
+### 2、成员内部类
+
+成员内部类是最普通的内部类，它是外围类的一个成员，所以其可以无限制的访问外围类的所有**成员属性**和**方法**，即使是private修饰的
+
+但是外围类要访问内部类的成员属性和方法则需要通过内部类实例来访问
+
+**注意**：
+
+- 成员内部类中不能存在任何static的变量和方法
+- 成员内部类是依附于外围类的，所以只有先创建了外围类才能够创建内部类
+
+
+
+### 3、局部内部类
+
+- 局部内部类嵌套在方法和作用域内的，只能在该方法和属性中被使用，且不能写修饰符，但是可以使用 final 或者 abstract 修饰
+- 局部内部类的使用主要是应用与解决比较复杂的问题，想创建一个类来作为辅助的解决方案，但又不希望这个类是公共可用的
+- 局部内部类和成员内部类一样被编译，只是它的作用域发生了改变，其超出了该方法和属性就会失效
+
+~~~java
+修饰符 class 外部类名称{
+    
+    修饰符 返回值类型 外部类方法名称(参数列表){
+    		 class 内部类名称{
+                
+            }
+    }
+    
+}
+
+// 方法内
+public class Outer{
+
+    public void what(){
+        class Inner{
+            int num = 100;
+            
+            public void inner(){
+                System.out.println(num);
+            }
+        }
+        // 创建内部类对象进行使用
+        Inner in = new Inner();
+        in.inner();
+    }
+}
+
+// 作用域内
+public class Outer {
+    
+    public void what(boolean flag) {
+        if (flag) {
+            class Inner{
+                int num = 100;
+
+                public void inner(){
+                    System.out.println(num);
+                }
+            }
+            // 创建内部类对象进行使用
+            Inner in = new Inner();
+            in.inner();
+        }
+    }
+}
+~~~
+
+
+
+### 4、匿名内部类
+
+- 匿名内部类必须要且也只能继承一个父类或者实现一个接口
+- 匿名内部类是没有class关键字，因为匿名内部类是直接使用new来生成一个对象的隐式引用
+- 匿名内部类不能是抽象类或者接口，所以它必须要实现它的抽象父类或者接口里面所有的抽象方法
+
+~~~java
+new 父类构造器(参数列表) | 实现接口 {
+    ...
+}
+
+
+// 实现接口
+public interface face {
+    void show();
+}
+
+// 重写父类
+public abstract class face {
+    abstract void show();
+}
+
+// 在Outer类中，show方法接受一个face类型的参数
+// 由于一个抽象类或者接口是没有办法直接new的，必须要先有实现类才能new出来类实例
+// 所以直接使用匿名内部类来创建一个face实例，并实现抽象方法或者接口
+public class Outer {
+    private String name;
+
+    public static void main(String[] args) {
+        Outer o = new Outer();
+        o.name = "Tom";
+        o.show(new face() {
+            @Override
+            public void show() {
+                System.out.println(o.name);
+            }
+        });
+    }
+
+    public void show(face face) {
+        face.show();
+    }
+}
+~~~
+
+**注意**：
+
+- 不论是继承父类，还是实现接口，实际上拿到的是父类或接口的引用，该引用实际指向的是一个由匿名内部类定义的类实例，因此使用前一定到存在这个父类或接口
+- 匿名内部类中是**不能定义构造函数**
+- 匿名内部类中**不能存在任何的静态成员变量和静态方法**
+- 匿名内部类属于局部内部类，所以局部内部类的所有限制同样对匿名内部类生效
+- 匿名内部类不能是抽象的，它必须要实现继承的类或者实现的接口的所有抽象方法
+- 匿名内部类中的方法都是通过父类引用访问的，若是调用了父类不存在的方法，则报错
+- 匿名内部类中如果希望使用一个外部定义的对象，那么编译器会要求其参数引用是**final**的
+
+利用构造代码块初始化匿名内部类：
+
+一般都是利用构造器来完成某个实例的初始化工作的，但是匿名内部类是没有构造器的，可以使用构造代码块达到为匿名内部类创建一个构造器的效果
+
+~~~java
+public void show(String face) {
+    class Inner{
+        String name;
+        // 构造代码块
+        {
+            name=face;
+        }
+        public void say() {
+            System.out.println(face);
+        }
+    }
+}
+~~~
+
+
+
+### 5、静态内部类
+
+使用static修饰的内部类称之为静态内部类(嵌套内部类)
+
+静态内部类与非静态内部类之间存在一个最大的区别：
+
+- 非静态内部类在编译完成之后会隐含地保存着一个引用，该引用是指向创建它的外围类
+- 静态内部类却没有该引用，没有这个引用就意味着：
+  - 它的创建是不需要依赖于外围类的
+  - 它只能使用任何外围类的static成员变量和方法
+
+
+
 # JDK8新特性
 
 ## Lambda表达式
@@ -742,12 +950,6 @@ private int size;
 // 数组的最大上限
 private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 ~~~
-
-
-
-
-
-
 
 
 
@@ -7427,13 +7629,128 @@ new ReentrantReadWriteLock(true);
 
 
 
+## 30、为什么匿名内部类使用外部成员需要final修饰
+
+当外部类传入的参数需要被内部类调用时，从java程序的角度来看是直接被调用：
+
+~~~java
+public class Outer {
+    private String name;
+
+    public static void main(String[] args) {
+        Outer o = new Outer();
+        o.name = "Tom";
+        o.show(o.name);
+    }
+
+    public void show(String face) {
+        class Inner{
+            public void say() {
+                System.out.println(face);
+            }
+        }
+    }
+}
+~~~
+
+其实在编译为字节码文件后：
+
+~~~java
+public class Outer {
+    private String name;
+
+    public Outer() {
+    }
+
+    public static void main(String[] args) {
+        Outer o = new Outer();
+        o.name = "Tom";
+        o.show(o.name);
+    }
+
+    public void show(String face) {
+        class Inner {
+            Inner(String var2) {
+                this.val$face = var2;
+            }
+
+            public void say() {
+                System.out.println(this.val$face);
+            }
+        }
+    }
+}
+~~~
+
+所以从上面代码来看，内部类并不是直接调用方法传递的参数，而是利用自身的构造器对传入的参数进行备份，然后在自己的内部方法调用实际上是自身属性而不是外部方法传递进来的参数
+
+所以在内部类中的属性和外部方法的参数两者从外表上看是同一个东西，但实际上却不是，所以二者是可以任意变化的，也就是说在内部类中对属性的改变并不会影响到外部的形参，为此使用final限制，更深入查阅<a href="#局部变量与匿名内部类实例生命周期问题">问题31</a>
 
 
 
+## 31、<a name="局部变量与匿名内部类实例生命周期问题">局部变量与匿名内部类实例生命周期问题</a> 
 
+成员方法中的局部变量是在运行期进行定义和初始化的
 
+局部内部类(包括匿名内部类)虽然是在方法中定义的，但是会在编译期实现从java文件到class文件的转化，即编译成class文件
 
+编译期在前，运行期在后，局部内部类却要在编译期使用运行期定义的变量
 
+只有两个关键字能在编译期就能取得常量：static、final，但是static无法定义局部变量，所以只能用final
+
+final能带来一个永不改变的编译时常量，常量池(此常量池为class文件常量池，非运行时常量池，两者最大的区别是后者具有动态性)
+中主要存放两大类常量：字面量和符号引用，字面量比较接近于Java语言层面的常量概念，如文本字符串、声明为final的常量值等
+
+匿名内部类被编译成了class文件，它将final定义的局部变量编译进了class文件的常量池中，因此：
+
+~~~java
+public interface Love {
+    void say();
+}
+
+public class Outer {
+    public static void main(String[] args) {
+        Outer o = new Outer();
+        Love love = o.how("One Night");
+        love.say();
+    }
+
+    public Love how(String time){
+        // 1.8之后可省略final
+        final String t = time;
+        return new Love() {
+            @Override
+            public void say() {
+                System.out.println(t);
+            }
+        };
+    }
+}
+~~~
+
+可以看到在how方法执行完毕之后结束了其自身生命周期，但在后续love引用调用say方法依旧可以输出常量t
+
+说明这该常量并没有受到外部类方法执行完毕而导致局部变量生命周期结束的问题，实际上常量t已经存在于匿名内部类对应的class文件中的常量池中
+
+虽然final修饰的常量解决了在编译期拿到运行期的变量的问题，但是final带来的副作用是，这个值无法改变
+
+对于需要改变局部变量值的情况，可以通过在匿名内部类中使用引用拷贝，来接管局部变量的值，然后就可以随意更改了
+
+~~~java
+public Love how(Integer time){
+    final Integer date = time;
+    return new Love() {
+        @Override
+        public void say() {
+            System.out.println(date);
+            Integer change = date;
+            System.out.println(change);
+            change *= 10;
+            System.out.println(change);
+        }
+    };
+}
+~~~
 
 
 
