@@ -766,79 +766,95 @@ public DataSourceTransactionManager getDSTM(Datasource dataSource){
 
 ### 1、@Autowired
 
-**自动装配**：Spring利用**依赖注入**（DI），完成对IOC容器中中各个组件的依赖关系赋值。
+**自动装配**：Spring利用**依赖注入**（DI），完成对IOC容器中中各个组件的依赖关系赋值
 
 **寻找原则**：
 
-1. 默认**优先按照类型**去容器中找对应的组件：applicationContext.getBean(BookDao.class)；找到就赋值
-2. 如果找到多个相同类型的组件，再将**属性的名称**作为组件的id去容器中查找：applicationContext.getBean("bookDao")；
-3. 自动装配默认**一定要将属性赋值好**，没有就会报错。可以使用@Autowired(**required**=false)取消必须装配。
+1. 默认**优先按照类型**去容器中找对应的组件，找到就赋值，applicationContext.getBean(BookDao.class)；
+2. 如果找到多个相同类型的组件，再将**属性的名称**作为组件的id去容器中查找，applicationContext.getBean("bookDao")；
+3. 自动装配默认**一定要找到对应的Bean并赋值属性**，没有就会报错，可以使用@Autowired(**required**=false)取消必须装配
 
 **使用方法**：
 
-可以注释在**构造器**，**参数**，**方法**，**成员变量**。都是从容器中获取参数组件的值。
+可以标注在：**构造器**、**参数**、**普通方法**、**成员变量**
 
-1. [标注在方法位置]：（@Bean 方法参数），参数从容器中获取，默认不写@Autowired效果是一样的，都能自动装配。
-2. [标在构造器上]：如果组件只有一个有参构造器，这个有参构造器的@Autowired可以省略，参数位置的组件还是可以自动从容器中获取。
-3. 放在参数位置：
+1. [**标注在普通方法上**]：
 
-根据**属性类型**进行自动装配，标注在成员变量上。
+   Spring容器创建当前对象，就会调用方法，完成赋值。方法使用的参数，自定义类型的值从ioc容器中获取
 
-```java
-@Autowired
-Controller ct;
-```
+   ~~~java
+   // 标注在方法上，Spring容器在创建当前对象的时候，就会调用当前方法完成赋值
+   // 方法使用的参数从IOC容器里面进行获取
+   @Autowired
+   public void getName(User user){
+       System.out.println("主动注入的User："+user.getName());
+   }
+   ~~~
 
-- **标注在普通方法上**，Spring容器创建当前对象，就会调用方法，完成赋值。方法使用的参数，自定义类型的值从ioc容器中获取。
+   **注意**：
 
-```java
-//标注在方法上，Spring容器在创建当前对象的时候，就会调用当前方法完成赋值
-//方法使用的参数，自定义类型的值从IOC容器里面进行获取
-@Autowired 
-public void setCar(Car car) {
-    this.car = car;
-}
-```
+   - 在注入Bean后会自动执行一次方法
+   - @Bean标注的方法参数从容器中获取，和默认不写@Autowired效果是一样的，都能自动装配
 
-- **标注在构造器上**
+   
 
-```java
-//可以省略
-@Autowired
-public TextEditor(SpellChecker spellChecker){
-    this.spellChecker = spellChecker;
-}
-```
+2. [**标注在构造器上**]：
 
-```java
-//自定义查询数据库用户名密码和权限信息
-private UserDetailsService userDetailsService;
-//token 管理工具类（生成 token）
-private TokenManager tokenManager;
-//密码管理工具类
-private DefaultPasswordEncoder defaultPasswordEncoder;
-//redis 操作工具类
-private RedisTemplate redisTemplate;
-//只有一个有参g
-@Autowired
-public TokenWebSecurityConfig(UserDetailsService userDetailsService, 
-                              DefaultPasswordEncoder defaultPasswordEncoder,
-                              TokenManager tokenManager, 
-                              RedisTemplate redisTemplate) {
-    this.userDetailsService = userDetailsService;
-    this.defaultPasswordEncoder = defaultPasswordEncoder;
-    this.tokenManager = tokenManager;
-    this.redisTemplate = redisTemplate;
-}
-```
+   如果组件只有一个有参构造器，这个有参构造器的@Autowired即使省略了，参数对应的组件还是可以自动从容器中获取
 
-- **标注在参数上**，和标注在普通方法上一样，
+   ~~~java
+   // 可以省略
+   @Autowired
+   public TextEditor(SpellChecker spellChecker){
+       this.spellChecker = spellChecker;
+   }
+   
+   // 自定义查询数据库用户名密码和权限信息
+   private UserDetailsService userDetailsService;
+   // token 管理工具类（生成 token）
+   private TokenManager tokenManager;
+   // 密码管理工具类
+   private DefaultPasswordEncoder defaultPasswordEncoder;
+   // redis 操作工具类
+   private RedisTemplate redisTemplate;
+   @Autowired
+   public TokenWebSecurityConfig(UserDetailsService userDetailsService, 
+                                 DefaultPasswordEncoder defaultPasswordEncoder,
+                                 TokenManager tokenManager, 
+                                 RedisTemplate redisTemplate) {
+       this.userDetailsService = userDetailsService;
+       this.defaultPasswordEncoder = defaultPasswordEncoder;
+       this.tokenManager = tokenManager;
+       this.redisTemplate = redisTemplate;
+   }
+   ~~~
 
-```java
-public void setName(@Autowired String name) {
-    this.name = name;
-}
-```
+   
+
+3. [**标注在参数上**]：
+
+   ~~~java
+   public void setStudent(@Autowired Student stu) {
+       this.stu = stu;
+   }
+   ~~~
+   
+   
+   
+4. [**标注在成员变量上**]：
+
+   ~~~java
+   @Autowired
+   Controller ct;
+   ~~~
+
+   **注意**：
+
+   - @Autowired会让private变为public，而标注在setter处则不会
+
+<img src="images/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz.png" alt="aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz" style="zoom:90%;" />
+
+
 
 ### 2、@Qualifier
 
@@ -925,7 +941,7 @@ JSR330规范的注解。
 
 需要导入**javax.inject**的包，和Autowired的功能一样。
 
-**注意**：没有required=false的功能。
+**注意**：没有required=false的功能，没有使用的必要
 
 ## 操作与管理Bean
 

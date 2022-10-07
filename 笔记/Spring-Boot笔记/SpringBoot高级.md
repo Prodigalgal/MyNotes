@@ -1147,14 +1147,14 @@ public MessageConverter messageConverter(){
 Elasticsearch是一个分布式搜索服务，提供Restful API，底层基于Lucene，采用多shard（分片）的方式保证数据安全，并且提供自动resharding的功能，github
 等大型的站点也是采用了ElasticSearch作为其搜索服务。
 
-### 2、概念
+### 2、检索概念
 
 以 `员工文档` 的形式存储为例：一个文档代表一个员工数据。存储数据到ElasticSearch 的行为叫做 `索引 `，但在索引一个文档之前，需要确定将文档存
 储在哪里。
 
 一个 ElasticSearch 集群可以 包含多个 `索引` ，相应的每个索引可以包含多个` 类型` 。 这些不同的类型存储着多个 `文档` ，每个文档又有 多个 `属性` 。
 
-![image-20210903132235732](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210903132235732.png)
+<img src="images\SpringBoot高级.assets\image-20210903132235732.png" alt="image-20210903132235732" style="zoom:50%;" />
 
 ### 3、Elasticsearch整合
 
@@ -1386,7 +1386,7 @@ public void hello(){
 
 ### 2、定时任务
 
-#### 1、注解
+#### 1、注解版
 
 ```java
 
@@ -1445,6 +1445,9 @@ public void hello(){
 - 在使用 L 参数时，不要指定列表或范围，因为这会导致问题
 - 5W，如果5日是星期六，则将在最近的工作日星期五，即4日触发，如果5日是星期天，即6日(周一)触发
 - W的最近寻找不会跨过月份
+- 
+
+#### 2、接口版
 
 
 
@@ -1463,7 +1466,9 @@ public void hello(){
 
 #### 2、自动配置MailSenderAutoConfiguration
 
-#### 3、配置在application.yml
+#### 3、配置文件
+
+properties版本
 
 定义**MailProperties**内容
 
@@ -1475,6 +1480,25 @@ spring.mail.host=smtp.qq.com
 #某些邮箱要求SLL安全连接
 spring.mail.properties.mail.smtp.ssl.enable=true
 ```
+
+yml版本
+
+~~~yml
+spring:
+  mail:
+    username: xxxxx@qq.com
+    password: 安全码
+    host: smtp.qq.com
+    properties:
+      '[mail.smtp.ssl.enable]': true
+      '[mail.smtp.auth]': true
+      '[mail.smtp.timeout]': "5000"
+      '[mail.smtp.socketFactory.port]': "465"
+      '[mail.smtp.socketFactory.fallback]': false
+      '[mail.smtp.socketFactory.class]': "javax.net.ssl.SSLSocketFactory"
+~~~
+
+
 
 #### 4、自动装配JavaMailSender
 
@@ -1493,7 +1517,7 @@ public void contextLoads() {
 	// 邮件接受者
     message.setTo("17512080612@163.com");
     // 邮件来源
-    message.setFrom("534096094@qq.com");
+    message.setFrom("金城武<xxxxxx@qq.com>");
 	// 发送邮件
     mailSender.send(message);
 }

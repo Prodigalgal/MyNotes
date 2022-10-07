@@ -4899,7 +4899,7 @@ CompletableFuture 类实现了 Future，CompletionStage 接口，被用于异步
 
 **注意**：
 
-- CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等main线程结束，程序退出，也就会导致CompletableFuture线程中断，避免的方法可以调用get或者使用回调。
+- CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等main线程结束，程序退出，也就会导致CompletableFuture线程中断，避免的方法可以调用get或者使用回调
 
 
 
@@ -5088,9 +5088,9 @@ System.out.println(completableFuture.complete(444) + "\t" + completableFuture.ge
 
 ##### thenApply
 
-当一个线程依赖另一个线程时，可以使用 **thenApply** 方法来把这两个线程**串行化**。
+当一个线程依赖另一个线程时，可以使用 **thenApply** 方法来把这两个线程**串行化**
 
-由于存在依赖关系(当前步错，不走下一步)，当前步骤有异常的话就叫停。
+由于存在依赖关系(当前步错，不走下一步)，当前步骤有异常的话就叫停
 
 ~~~java
 private static Integer num = 10;
@@ -5118,11 +5118,11 @@ public static void main(String[] args) throws Exception{
 
 
 
-#### 4、消费处理结果
+#### 4、处理结果
 
 ##### thenAccept
 
-消费处理结果，接收任务的处理结果，并消费处理，无返回结果
+接收任务的处理结果，并消费，无返回
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5163,11 +5163,11 @@ System.out.println(CompletableFuture.supplyAsync(() -> "resultA").thenRun(() -> 
 
 ##### whenComplete
 
-当某个任务执行完成后执行的回调方法，会将执行结果或者执行期间抛出的异常传递给回调方法。
+当某个任务执行完成后执行的回调方法，会将执行结果或者执行期间抛出的异常传递给回调方法
 
-如果是正常执行则异常为null，回调方法对应的CompletableFuture的result和该任务一致。
+如果是正常执行则异常为null，回调方法对应的CompletableFuture的result和该任务一致
 
-如果该任务正常执行，则get方法返回执行结果，如果是执行异常，则get方法抛出异常。
+如果该任务正常执行，则get方法返回执行结果，如果是执行异常，则get方法抛出异常
 
 ~~~java
 // 创建异步执行任务 
@@ -5189,25 +5189,25 @@ CompletableFuture<Double> cf = CompletableFuture.supplyAsync(()->{
         // Thread.sleep(400);
 
 // cf执行完成后会将执行结果和执行过程中抛出的异常传入回调方法，如果是正常执行的则传入的异常为null
-CompletableFuture<Double> cf2=cf.whenComplete((a,b)->{
+CompletableFuture<Double> cf2 = cf.whenComplete((a, b)->{
     System.out.println(Thread.currentThread()+"job2 start,time->"+System.currentTimeMillis());
     try {
         Thread.sleep(600);
     } catch (InterruptedException e) {
     }
-    if(b!=null){
+    if (b != null) {
         System.out.println("error stack trace->");
         b.printStackTrace();
-    }else{
+    } else {
         System.out.println("run succ,result->"+a);
     }
     System.out.println(Thread.currentThread()+"job2 exit,time->"+System.currentTimeMillis());
 });
 
-//等待子任务执行完成
+// 等待子任务执行完成
 System.out.println("main thread start wait,time->"+System.currentTimeMillis());
-//如果cf是正常执行的，cf2.get的结果就是cf执行的结果
-//如果cf是执行异常，则cf2.get会抛出异常
+// 如果cf是正常执行的，cf2.get的结果就是cf执行的结果
+// 如果cf是执行异常，则cf2.get会抛出异常
 System.out.println("run result->"+cf2.get());
 System.out.println("main thread exit,time->"+System.currentTimeMillis());
 ~~~
@@ -5279,17 +5279,19 @@ public static void main(String[] args) throws Exception{
 
 #### 6、结果合并
 
-**thenCompose** 合并两个有依赖关系的 CompletableFutures 的执行结果。
+**thenCompose** 合并两个有依赖关系的 CompletableFutures 的执行结果
 
-**thenCombine** 合并两个没有依赖关系的 CompletableFutures 任务。
+**thenCombine** 合并两个没有依赖关系的 CompletableFutures 任务
 
-**allOf** 与 **anyOf** 合并多个任务的结果，
+**allOf** 与 **anyOf** 合并多个任务的结果
+
+
 
 ##### thenCompose
 
-在某个任务执行完成后，将该任务的执行结果作为方法入参然后执行指定的方法，该方法会返回一个新的CompletableFuture实例。
+在某个任务执行完成后，将该任务的执行结果作为方法入参然后执行指定的方法，该方法会返回一个新的CompletableFuture实例
 
-如果上一个CompletableFuture实例的result不为null，则返回一个基于该result的新CompletableFuture实例。
+如果上一个CompletableFuture实例的result不为null，则返回一个基于该result的新CompletableFuture实例
 
 如果上一个CompletableFuture实例的result为null，则执行任务时抛出异常
 
@@ -5315,20 +5317,20 @@ public static void main(String[] args) throws Exception{
 }
 ~~~
 
+
+
 ##### thenCombine/thenAcceptBoth/runAfterBoth
 
-类似还有
-
-这三个方法都是将两个CompletableFuture组合起来，只有这**两个都正常执行完了才会执行某个任务**。
+这三个方法都是将两个CompletableFuture组合起来，只有这**两个都正常执行完了才会执行某个任务**
 
 区别在于：
 
-- thenCombine 会将两个任务都完成的执行结果作为方法入参传递到指定方法中，且该方法有返回值，先完成的den
+- thenCombine 会将两个任务都完成的执行结果作为方法入参传递到指定方法中，且该方法有返回值，先完成的等待
 
-- thenAcceptBoth 同样将两个任务的执行结果作为方法入参，但是无返回值。
-- runAfterBoth 没有入参，也没有返回值。
+- thenAcceptBoth 同样将两个任务的执行结果作为方法入参，但是无返回值
+- runAfterBoth 没有入参，也没有返回值
 
-注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果。
+注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5349,8 +5351,7 @@ public static void main(String[] args) throws Exception{
     });
     
     // 合并两个结果
-    CompletableFuture<Object> future = job1.thenCombine(job2, 
-                                                        new BiFunction<Integer, Integer, List<Integer>>() {
+    CompletableFuture<Object> future = job1.thenCombine(job2, new BiFunction<Integer, Integer, List<Integer>>() {
         @Override
         public List<Integer> apply(Integer a, Integer b) {
             List<Integer> list = new ArrayList<>();
@@ -5361,7 +5362,7 @@ public static void main(String[] args) throws Exception{
     });
     System.out.println("合并结果为 " + future.get());
     
-    CompletableFuture cf4=cf.thenAcceptBoth(cf2, (a,b)->{
+    CompletableFuture cf4 = cf.thenAcceptBoth(cf2, (a,b)->{
         System.out.println(Thread.currentThread()+" start job4,time->"+System.currentTimeMillis());
         System.out.println("job4 param a->"+a+",b->"+b);
         try {
@@ -5371,7 +5372,7 @@ public static void main(String[] args) throws Exception{
         System.out.println(Thread.currentThread()+" exit job4,time->"+System.currentTimeMillis());
     });
 
-    CompletableFuture cf4=cf.runAfterBoth(cf2, ()->{
+    CompletableFuture cf4 = cf.runAfterBoth(cf2, ()->{
         System.out.println(Thread.currentThread()+" start job5,time->"+System.currentTimeMillis());
         try {
             Thread.sleep(1000);
@@ -5384,17 +5385,19 @@ public static void main(String[] args) throws Exception{
 }
 ~~~
 
+
+
 ##### applyToEither/acceptEither/runAfterEither
 
-这三个方法都是将两个CompletableFuture组合起来，只要**其中一个执行完了就会执行某个任务**。
+这三个方法都是将两个CompletableFuture组合起来，只要**其中一个执行完了就会执行某个任务**
 
 其区别在于：
 
-- applyToEither 会将先执行完成的任务的执行结果作为方法入参，并有返回值。
-- acceptEither 同样将已经执行完成的任务的执行结果作为方法入参，但是没有返回值。
-- runAfterEither 没有方法入参，也没有返回值。
+- applyToEither 会将先执行完成的任务的执行结果作为方法入参，并有返回值
+- acceptEither 同样将已经执行完成的任务的执行结果作为方法入参，但是没有返回值
+- runAfterEither 没有方法入参，也没有返回值
 
-注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果。
+注意两个任务中只要有一个执行异常，则将该异常信息作为指定任务的执行结果
 
 ~~~java
 // 创建异步执行任务 
@@ -5464,7 +5467,9 @@ System.out.println("main thread exit,time->"+System.currentTimeMillis());
 
 ##### allOf
 
-返回的CompletableFuture是**多个任务都执行完成后才会执行**，只要有一个任务执行异常，则返回的CompletableFuture执行get方法时会抛出异常，如果都是正常执行，则get返回null。
+返回的CompletableFuture是**多个任务都执行完成后才会执行**，只要有一个任务执行异常，则返回的CompletableFuture执行get方法时会抛出异常，如果都是正常执行，则get返回null
+
+由于无法明确每个线程所返回的类型，所以allOf返回的CompleteFuture范型是Void
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5510,11 +5515,15 @@ public static void main(String[] args) throws Exception{
             System.out.println("run succ,result->"+a);
         }
     });
+    
+    cf4.thenApply(x -> {
+        // 获取结果
+        return list.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList());
+    })
 
-    // 多任务合并
-    List<Integer> collect = list.stream()
-        .map(CompletableFuture::join)
-        .collect(Collectors.toList());
+    
 
     System.out.println(collect);
     System.out.println("cf4 run result->"+cf4.get());
@@ -5525,7 +5534,11 @@ public static void main(String[] args) throws Exception{
 
 ##### anyOf
 
-返回的CompletableFuture是**多个任务只要其中一个执行完成就会执行**，其get返回的是已经执行完成的任务的执行结果，如果该任务执行异常，则抛出异常。
+返回的CompletableFuture是**多个任务只要其中一个执行完成就会执行**
+
+其get返回的是已经执行完成的任务的执行结果，如果该任务执行异常，则抛出异常
+
+由于无法确定每个CompletableFuture的返回类型，因此anyOf返回的CompletableFuture的范型是Object
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5581,6 +5594,7 @@ public static void main(String[] args) throws Exception{
     futures[3] = job4;
     
     // 多任务合并
+    // 使用whenComplete可以直接获取，也可以不使用whenComplete，直接get/join，也可以同时使用
     CompletableFuture<Object> cf4 = CompletableFuture.anyOf(futures).whenComplete((a, b)->{
         if(b != null){
             System.out.println("error stack trace->");
@@ -5590,8 +5604,6 @@ public static void main(String[] args) throws Exception{
         }
     });
     
-    CompletableFuture<Object> future = CompletableFuture.anyOf(futures);
-    System.out.println(future.get());
     System.out.println("cf4 run result->"+cf4.get());
 }
 ~~~
@@ -5672,6 +5684,30 @@ static class NetMall {
         return netMallName;
     }
 }
+~~~
+
+~~~java
+// allOf获取结果
+List<CompletableFuture<String>> list = new ArrayList<>();
+
+for (int i = 0; i < 20; i++) {
+    list.add(CompletableFuture.supplyAsync(() -> {
+        try {
+            TimeUnit.SECONDS.sleep(new Random().nextInt(0,10));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return Thread.currentThread().getName();
+    }));
+}
+
+CompletableFuture<Void> allFutures = CompletableFuture.allOf(list.toArray(CompletableFuture[]::new));
+CompletableFuture<List<String>> resultFuture = allFutures
+    .thenApply(x -> list.stream()
+               .map(CompletableFuture::join)
+               .toList());
+
+System.out.println(resultFuture.join());
 ~~~
 
 
@@ -6399,6 +6435,8 @@ Fork/Join 它可以将一个大的任务拆分成多个子任务进行并行处�
 - ForkJoinTask 需要通过 ForkJoinPool 来执行
 
 - **实现原理**：ForkJoinPool 由 **ForkJoinTask** **数组**和 **ForkJoinWorkerThread** **数组**组成， ForkJoinTask 数组负责存放以及将任务提交给 ForkJoinPool，而 ForkJoinWorkerThread 负责执行这些任务。
+
+
 
 ### 3、fork/join方法
 

@@ -3147,11 +3147,13 @@ mybatis:
 
 ## 4、整合SpringData JPA
 
-### 1、SpringData简介
+### 1、简介
 
-![搜狗截图20180306105412](images\SpringBoot.assets\搜狗截图20180306105412.png)
+<img src="images\SpringBoot.assets\搜狗截图20180306105412.png" alt="搜狗截图20180306105412" style="zoom:67%;" />
 
-### 2、整合SpringData JPA
+
+
+### 2、整合
 
 JPA:ORM（Object Relational Mapping）
 
@@ -3183,6 +3185,7 @@ public class User {
 
 ```java
 // 继承JpaRepository来完成对数据库的操作
+// 第一个范型是POJO类，第二个范型是该POJO类对应主键的类型
 public interface UserRepository extends JpaRepository<User,Integer> {}
 ```
 
@@ -3221,6 +3224,16 @@ spring:
 #    控制台显示SQL
     show-sql: true
 ```
+
+
+
+### 3、注解大全
+
+| 名称 | 作用 |
+| ---- | ---- |
+|      |      |
+|      |      |
+|      |      |
 
 
 
