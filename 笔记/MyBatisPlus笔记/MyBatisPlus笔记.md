@@ -981,7 +981,7 @@ Integer selectCount(@Param(Constants.WRAPPER) Wrapper<T> queryWrapper);
 |        Map<String， Object>        |  columnMap   |             表字段 map 对象              |
 |             IPage\<T>              |     page     | 分页查询条件（可以为 RowBounds.DEFAULT） |
 
-## mapper 层 选装件
+## mapper 层选装件
 
 ### 说明
 

@@ -3969,7 +3969,7 @@ public class HelloService {
 }
 ```
 
-新建最终配置类，用于完成Bean创建等工作
+新建配置类，用于完成Bean创建等工作
 
 ```java
 // 指定这个类是一个配置类
