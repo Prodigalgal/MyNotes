@@ -4706,25 +4706,45 @@ MySQL中常用的索引结构有：B-TREE、B+TREE、HASH
 
 **需要**：
 
-- 在经常需要搜索的列上，可以加快搜索的速度
-- 在作为主键的列上，强制该列的唯一性和组织表中数据的排列结构
-- 在经常用在连接（JOIN）的列上，这些列主要是连接外键，可以加快连接的速度
-- 在经常需要根据范围（<，<=，=，>，>=，BETWEEN，IN）进行搜索的列上创建索引，因为索引已经排序，其指定的范围是连续的
-- 在经常需要排序（order by）的列上创建索引，因为索引已经排序，这样查询可以利用索引的排序，加快排序查询时间
-- 在经常使用在WHERE子句中的列上面创建索引，加快条件的判断速度
+- 在**经常搜索**的列上，可以加快搜索的速度
+- 字段值有**唯一性**的限制
+  - 索引本身可以起到约束的作用，如果某个字段是唯一的，就可以直接创建唯一性索引，或者主键索引，以此快速定位
+
+- 在作为**主键**的列上，强制该列的唯一性和组织表中数据的排列结构
+- 在经常用在连接**JOIN列**上，这些列主要是连接外键，可以加快连接的速度，该字段在多张表中的类型必须一致
+- **DISTINCT**字段需要创建索引
+- 在经常需要根据**范围搜索**（<，<=，=，>，>=，BETWEEN，IN）的列上创建索引，因为索引已经排序，其指定的范围是连续的
+- 在经常需要**ORDER BY**、**GROUP BY**的列上创建索引，因为索引已经排序，这样查询可以利用索引的排序，加快排序查询时间
+- 在经常使用在**WHERE**子句中的列上面创建索引，加快条件的判断速度
+- 使用**字符串前缀**创建索引
+- 使用**最频繁的列**放到联合索引的左侧，符合最左前缀原则加快速度
+- 在多个字段都要创建索引的情况下，联合索引优于单值索引
+- 
+- 
 
 **不需要**：
 
-- 对于那些在查询中很少使用或者参考的列不应该创建索引
+- 对于那些在查询中**很少使用/参考**的列不应该创建索引
   - 若列很少使用到，因此有索引或者无索引，并不能提高查询速度，相反，由于增加了索引，反而降低了系统的维护速度和增大了空间需求
-- 对于那些只有很少数据值或者重复值多的列也不应该增加索引
+- 对于那些只有**很少数据值**或者**重复值多**的列也不应该增加索引
   - 列的取值很少，例如性别列
-- 行的比例很大，增加索引，并不能明显加快检索速度
+- **结果集数据行占全表比例很大**，增加索引，并不能明显加快检索速度
   - 在查询的结果中，结果集的数据行占了表中数据行的很大比例，即需要在表中搜索的数据
-- 对于那些定义为text、image、bit数据类型的列不应该增加索引
+- 对于那些定义为**text、image、bit**数据类型的列不应该增加索引
   - 这些列的数据量要么相当大，要么取值很少
-- 当该列修改性能要求远远高于检索性能时，不应该创建索引
+- 当该列**修改性能要求远远高于检索性能**时，不应该创建索引
   - 修改性能和检索性能是互相矛盾的
+- 
+
+
+
+**注意**：
+
+- 具有唯一特性的字段，即使是组合字段，也必须建成唯一索引，唯一索引对于INSERT的速度影响相较于提高查找速度几乎可以忽略
+- 使用索引列前缀的方式无法支持使用索引排序，只能使用文件排序
+- 在 varchar 字段上建立索引时，根据实际文本区分度决定索引长度，通常长度为 20 的索引，区分度会高达 90% 以上
+- 建议单张表索引数量不超过6个
+- 不建议用无序的值作为索引
 
 
 
@@ -4736,13 +4756,19 @@ MySQL中常用的索引结构有：B-TREE、B+TREE、HASH
 
 **主键索引**：一张表只能有一个主键索引，不允许重复、不允许为 NULL
 
+特殊的唯一性索引，在唯一索引的基础上增加了不为空的约束，也就是NOT NULL+UNIQUE
+
 ~~~sql
 ALTER TABLE TableName ADD PRIMARY KEY(column_list);
 ~~~
 
 
 
-**唯一索引**：数据列不允许重复，允许为 NULL 值，一张表可有多个唯一索引，如果是组合索引，则列值的组合必须唯一
+**唯一索引**：在创建唯一性索引时，数据列不允许重复，允许为 NULL 值
+
+一张表可有多个唯一索引，如果是组合索引，则列值的组合必须唯一
+
+使用UNIQUE参数可以设置索引为唯一性索引
 
 ~~~sql
 CREATE UNIQUE INDEX IndexName ON TableName(字段名(length));;
@@ -4753,6 +4779,10 @@ ALTER TABLE TableName ADD UNIQUE (column_list);
 
 
 **普通索引**：一张表可以创建多个普通索引，一个普通索引可以包含多个字段，允许数据重复，允许 NULL 值插入
+
+在创建普通索引时，不附加任何限制条件，只是用于提高查询效率
+
+这类索引可以创建在任何数据类型中，其值是否唯一和非空，要由字段本身的完整性约束条件决定
 
 ~~~sql
 CREATE INDEX IndexName ON TableName(字段名(length));
@@ -4852,6 +4882,10 @@ ft_min_word_len = 5
 
 
 **单例索引**：一个索引只包含一个列，一个表可以有多个单例索引
+
+在表中的单个字段上创建索引，单列索引只根据该字段进行索引
+
+单列索引可以是普通索引，也可以是唯一性索引，还可以是全文索引，只要保证该索引只对应一个字段即可
 
 **联合索引**：一个组合索引包含两个或两个以上的列，查询的时候遵循 mysql 组合索引的最左前缀原则，本质上也是一个二级索引
 
@@ -5288,6 +5322,22 @@ ALTER TABLE tablename ALTER INDEX index_name VISIBLE;
 
 
 
+## 9、不同引擎支持的索引类型对比
+
+- InnoDB:支持B-tree、Full-text等索引，不支持 Hash 索引
+- MyISAM:支持B-tree、Full-text等索引，不支持Hash索引
+- Memory :支持B-tree、Hash 等索引，不支持Full-text索引
+- NDB:支持Hash索引，不支持B-tree、Full-text等索引
+- Archive :不支持B-tree、Hash、Full-text等索引
+
+
+
+
+
+
+
+
+
 # 18、MySQL之逻辑架构
 
 ## 1、概览
@@ -5697,61 +5747,497 @@ select department_id,job_id,avg(salary) from employees group by department_id;
 
 
 
+# 19、MySQL之查询分析
+
+## 1、概述
+
+数据库优化整个流程划分成了 观察（Show status） 和 行动（Action） 两个部分
+
+- 字母 S 的部分代表观察（会使用相应的分析工具）
+- 字母 A 代表的部分是行动（对应分析可以采取的行动）
+
+<img src="images/image-20221011171532802.png" alt="image-20221011171532802" style="zoom:50%;" />
+
+<img src="images/image-20221011171611627.png" alt="image-20221011171611627" style="zoom:50%;" />
+
+<img src="images/image-20221011171710242.png" alt="image-20221011171710242" style="zoom:50%;" />
+
+首先在S1部分，需要观察服务器的状态是否存在周期性的波动
+
+- 如果存在周期性波动，可能是周期性波动的原因，比如双十一、促销活动等，通过A1这步骤解决，加缓存或者更改缓存失效策略
+- 如果缓存策略没有解决，或者不是周期性波动的原因，就需要进一步分析查询延迟和卡顿的原因，接下来进入S2这步，开启慢查询
+
+慢查询可以定位执行慢的SQL语句，通过设置long_query_time参数定义慢的阈值，如果SQL执行时间超过了long_query_time，则会认为是慢查询，当收集上来这些慢查询之后，通过分析工具对慢查询日志进行分析
+
+在S3这步中，可以知道执行慢的SQL，针对性地用EXPLAIN查看对应SQL语句的执行计划，或者使用show profile查看SQL中每一个步骤的时间成本，获知SQL查询慢是因为执行时间长，还是等待时间长
+
+- 如果SQL等待时间长，进入A2步骤，调优服务器的参数，比如适当增加数据库缓冲池等
+- 如果SQL执行时间长，进入A3步骤，考虑是索引设计的问题、还是查询关联的数据表过多、还是因为数据表的字段设计问题
+
+如果A2和A3都不能解决问题，需要考虑数据库自身的SQL查询性能是否已经达到了瓶颈，如果确认没有达到性能瓶颈，就需要重新检查，重复以上的步骤
+
+如果已经达到了性能瓶颈，进入A4阶段，考虑增加服务器，采用读写分离的架构，或者考虑对数据库进行分库分表，比如垂直分库、垂直分表和水平分表等
+
+如果发现执行SQL存在不规则延迟或卡顿的时候，可以采用分析工具定位有问题的SQL
+
+以下三种分析工具可以理解是SQL调优的三个步骤：慢查询、EXPLAIN、SHOW PROFILING
 
 
 
+## 2、查看系统性能参数
+
+在MySQL中，可以使用 SHOW STATUS 语句查询一些MySQL数据库服务器的性能参数 、执行频率 
+
+SHOW STATUS语句语法如下：
+
+~~~sql
+SHOW [GLOBAL|SESSION] STATUS LIKE '参数';
+~~~
+
+- Connections：连接MySQL服务器的次数
+- Uptime：MySQL服务器的上线时间
+- Slow_queries：慢查询的次数
+- Innodb_rows_read：Select查询返回的行数
+- Innodb_rows_inserted：执行INSERT操作插入的行数
+- Innodb_rows_updated：执行UPDATE操作更新的行数
+- Innodb_rows_deleted：执行DELETE操作删除的行数
+- Com_select：查询操作的次数
+- Com_insert：插入操作的次数，对于批量插入的 INSERT 操作，只累加一次
+- Com_update：更新操作的次数
+- Com_delete：删除操作的次数
 
 
 
+## 3、统计查询/执行成本
+
+**查询成本**：
+
+一条SQL查询语句在执行前需要确定查询执行计划，如果存在多种执行计划的话，MySQL会计算每个执行计划所需要的成本，从中选择成本最小的一个作为最终执行的执行计划
+
+想要查看某SQL语句的查询成本，可以在执行完这条SQL语句之后，通过查看当前会话中的last_query_cost变量值来得到当前查询的成本
+
+它通常也是评价一个查询的执行效率的一个常用指标，这个查询成本对应的是SQL语句所需要读取的页的数量
+
+~~~sql
+SHOW STATUS LIKE 'last_query_cost';
+~~~
+
+使用场景：它对于比较开销是非常有用的，特别是有好几种查询方式可选的时候
+
+> SQL查询是一个动态的过程，从页加载的角度来看，可以得到以下两点结论：
+>
+> - 位置决定效率：
+>   - 如果页就在数据库缓冲池中，那么效率是最高的，否则还需要从内存或者磁盘中进行读取，当然针对单个页的读取来说，如果页存在于内存中，会比在磁盘中读取效率高很多
+> - 批量决定效率：
+>   - 如果从磁盘中对单一页进行随机读，那么效率很低（差不多10ms），而采用顺序读取的方式，批量对页进行读取，平均一页的读取效率就会提升很多，甚至要快于单个页面在内存中的随机读取
+>
+> 所以说遇到I/O问题不用担心，方法找对了，效率还是很高的，需要首先要考虑数据存放的位置，如果是经常使用的数据就要尽量放到缓冲池中，其次可以充分利用磁盘的吞吐能力，一次性批量读取数据，这样单个页的读取效率也就得到了提升
 
 
 
+**执行成本**：
+
+~~~sql
+show variables like 'profiling';
+
+#开启
+set profiling = 'ON';
+
+#查看
+show profiles;
+show profile cpu, block io for query 2;
+~~~
+
+- ALL：显示所有的开销信息
+- BLOCK IO：显示块IO开销
+- CONTEXT SWITCHES：上下文切换开销
+- CPU：显示CPU开销信息
+- IPC：显示发送和接收开销信息
+- MEMORY：显示内存开销信息
+- PAGE FAULTS：显示页面错误开销信息
+- SOURCE：显示和Source_function，Source_file，Source_line相关的开销信息
+- SWAPS：显示交换次数开销信息
 
 
 
+## 4、慢查询日志
+
+MySQL的慢查询日志，用来记录在MySQL中响应时间超过慢阈值的语句，具体指运行时间超过long_query_time的值的SQL，会被记录到慢查询日志中，long_query_time的默认值为10，意思是运行10秒以上（不含10秒）的语句，认为是超出了最大忍耐时间值
+
+慢查询日志的主要作用是，帮助用户发现那些执行时间特别长的SQL查询，并且有针对性地进行优化，从而提高系统的整体效率，当数据库服务器发生阻塞、运行变慢的时候，检查一下慢查询日志，找到那些慢查询，对解决问题很有帮助
+
+慢查询日志支持将日志记录写入文件，也就是说可以收集超过慢阈值的sql，之后用户结合explain进行全面分析
+
+默认情况下，MySQL数据库没有开启慢查询日志，需要手动来设置这个参数
 
 
 
+**开启slow_query_log**：
+
+~~~sql
+set global slow_query_log='ON';
+~~~
+
+**查看慢查询日志是否开启以及日志文件位置**：
+
+~~~sql
+show variables like `%slow_query_log%`;
+~~~
+
+**修改long_query_time阈值**：
+
+~~~sql
+show variables like '%long_query_time%';
+# 可以同时执行这两句，详见注意
+set global long_query_time = 1; 
+set long_query_time=1; 
+~~~
+
+**查看慢查询数目**：
+
+~~~sql
+SHOW GLOBAL STATUS LIKE '%Slow_queries%';
+~~~
+
+**关闭慢查询日志**：
+
+~~~sql
+# 永久关闭
+# 修改mysql配置文件
+[mysqld] 
+slow_query_log=OFF
+#或
+[mysqld] 
+#slow_query_log =OFF
+
+# 临时关闭
+SET GLOBAL slow_query_log=off;
+~~~
+
+**删除慢查询日志**：
+
+~~~sql
+# 使用命令mysqladmin flush-logs来重新生成查询日志文件，执行完毕会在数据目录下重新生成慢查询日志文件
+mysqladmin -uroot -p fush-logs slow
+~~~
 
 
 
+**注意**：
+
+- 如果不是调优需要的话，一般不建议启动该参数，因为开启慢查询日志会或多或少带来一定的性能影响
+
+- 设置global的方式对当前session的long_query_time失效，对新连接的客户端有效，去掉即可对当前session也有效
 
 
 
+## 5、分析工具mysqldumpslow 
+
+在生产环境中，MySQL提供了日志分析工具mysqldumpslow 
+
+**查看mysqldumpslow的帮助信息**：
+
+~~~sql
+mysqldumpslow --help
+~~~
+
+- -a：不将数字抽象成N，字符串抽象成S
+- -s：是表示按照何种方式排序
+  - c：访问次数
+  - l：锁定时间
+  - r：返回记录
+  - t：查询时间
+  - al：平均锁定时间
+  - ar：平均返回记录数
+  - at：平均查询时间 （默认方式）
+  - ac：平均查询次数
+- -t：即为返回前面多少条的数据
+- -g：后边搭配一个正则匹配模式，大小写不敏感的
+
+~~~sql
+# 按照查询时间排序，查看前五条 SQL 语句
+mysqldumpslow -s t -t 5 /var/lib/mysql/atguigu01-slow.log
+
+Reading mysql slow query log from /var/lib/mysql/atguigu01-slow.log 
+Count: 1 Time=2.39s (2s) Lock=0.00s (0s) Rows=13.0 (13), root[root]@localhost SELECT * FROM student WHERE name = 'S' 
+Count: 1 Time=2.09s (2s) Lock=0.00s (0s) Rows=2.0 (2), root[root]@localhost SELECT * FROM student WHERE stuno = N 
+Died at /usr/bin/mysqldumpslow line 162, <> chunk 2.
+
+# 得到返回记录集最多的10个SQL 
+mysqldumpslow -s r -t 10 /var/lib/mysql/atguigu-slow.log
+
+# 得到访问次数最多的10个SQL 
+mysqldumpslow -s c -t 10 /var/lib/mysql/atguigu-slow.log
+
+# 得到按照时间排序的前10条里面含有左连接的查询语句 
+mysqldumpslow -s t -t 10 -g "left join" /var/lib/mysql/atguigu-slow.log
+
+# 另外建议在使用这些命令时结合 | 和more 使用 ，否则有可能出现爆屏情况
+mysqldumpslow -s r -t 10 /var/lib/mysql/atguigu-slow.log | more
+~~~
 
 
 
+## 3、分析查询语句Expalin
+
+### 1、概述
+
+定位了查询慢的SQL之后，就可以使用EXPLAIN或DESCRIBE工具做针对性的分析，DESCRIBE语句的使用方法与EXPLAIN语句是一样的，并且分析结果也是一样的
+
+MySQL中有专门负责优化SELECT语句的优化器模块，主要通过计算分析系统中收集到的统计信息，为客户端请求的Query提供它认为最优的执行计划（优化器认为最优的数据检索方式，不见得是DBA认为是最优的，同时这部分也是最耗费时间)
+
+这个执行计划展示了接下来具体执行查询的方式，比如多表连接的顺序是什么，对于每个表采用什么访问方法来具体执行查询等
+
+MySQL为提供了EXPLAIN语句来查看某个查询语句的具体执行计划，了解EXPLAIN语句的各个输出项，可以有针对性的提升询语句的性能
+
+ 使用EXPLAIN关键字可以模拟优化器执行SQL查询语句，从而知道MySQL是如何处理SQL语句
+
+~~~sql
+EXPLAIN SELECT select_options 
+# 或者
+DESCRIBE SELECT select_options
+~~~
 
 
 
+**注意**：
+
+- EXPLAIN不考虑各种cache
+- EXPLAIN不能显示MySQL在执行查询时所作的优化工作
+- EXPLAN不会显示关于触发器、存储过程的信息、用户自定义函数对查询的影响情况
+- EXPLAN部分统计信息是估算的，并非精确值
 
 
 
+### 2、结果解释
+
+| 列名          | 作用                                                         |
+| ------------- | ------------------------------------------------------------ |
+| id            | 选择标识符，即为sql语句执行的顺序，每个SELECT关键字都对应一个唯一的id |
+| select_type   | 表示查询的类型                                               |
+| table         | 无论查询多复杂，到最后都需要对单表进行查询，而expalin输出的每行对应对某个单表的操作，有时候会出现中间表 |
+| partitions    | 匹配的分区信息                                               |
+| type          | 表示表的连接类型/针对单表的访问方法                          |
+| possible_keys | 表示查询时，可能使用的索引                                   |
+| key           | 表示实际使用的索引                                           |
+| key_len       | 索引字段的长度，                                             |
+| ref           | 当使用索引列等值查询时，与索引列进行等值匹配的对象信息       |
+| rows          | 需要检索的行数(估算的行数)，越少越好                         |
+| filtered      | 某个表经过搜索条件过滤后剩余记录条数的百分比，对于单表查询来说，这个filtered列的值没什么意义，更应关注在连接查询中驱动表对应的执行计划记录的filtered值，它决定了被驱动表要执行的次数(即: rows * filtered) |
+| Extra         | 执行情况的描述和说明                                         |
+
+**id**：
+
+- id如果相同，可以认为是一组，从上往下顺序执行
+- 在所有组中，id值越大，优先级越高，越先执行
+- 每个id号码表示一趟独立的查询一个sql的查询趟数越少越好
 
 
 
+**select_type**：
+
+- SIMPLE：表示简单的select，查询不包含union和子查询
+- PRIMARY：包含任何复杂子查询的语句中，最外面的select查询就是primary
+- DERIVED：在 FROM 列表中包含的子查询被标记为 DERIVED(衍生) MySQL 会递归执行这些子查询，把结果放在临时表里
+- SUBQUERY：在SELECT或WHERE列表中包含了子查询
+- DEPEDENT SUBQUERY：在SELECT或WHERE列表中包含了子查询，子查询基于外层
+- UNCACHEABLE SUBQUERY：无法使用缓存的子查询
+- UNION：若第二个SELECT出现在UNION之后，则被标记为UNION，若UNION包含在FROM子句的子查询中，外层SELECT将被标记为：DERIVED
+- DEPEDENT UNION中的第二个或后面的SELECT语句，取决于外面的查询
+- UNION RESULT：从UNION表获取结果的SELECT
+
+**注意**：
+
+- 查询语句中不包含UNION或者子查询的查询都算作是SIMPLE类型，连接查询也算是SIMPLE类型
 
 
 
+**type**：
+
+- system：表仅有一行，这是const类型的特列，一般不会出现
+- const：表最多有一个匹配行，const用于比较primary key或者unique索引，因为只匹配一行数据，所以很快
+  - 一定要用到primary key或者unique，并且只检索出一条数据的情况下才会是const
+  - MySQL对查询的某部分进行优化并把其转化成一个常量
+- eq_ref：使用的索引是UNIQUE或PRIMARY KEY，并且对于每个来自于前面的表的行组合，只从该表中读取一行符合
+  - 这可能是最好的联接类型，除了const类型
+  - 如果该主键或者唯一二级索引是联合索引的话，所有的索引列都必须进行等值比较
+- ref：使用的索引不是UNIQUE或PRIMARY KEY，而是普通索引或者唯一索引的部份前缀
+  - 对于每个来自于前面的表的行组合，所有有匹配索引值的行将从这张表中读取，先比eq_ref来说就是匹配值不只一行
+  - 如果使用的键仅仅匹配少量行，该联接类型是不错的
+- ref_or_null：该联接类型如同ref，但是添加了MySQL可以专门搜索包含NULL值的行，在解决子查询中经常使用该联接类型的优化
+
+=====以上五种都是较为良好的联接=====
+
+-  index_merge：该联接类型表示使用了索引合并优化方法
+   - 在这种情况下，key列包含了使用的索引的清单，key_len包含了使用的索引的最长的关键元素
+-  unique_subquery：针对查询语句中包含IN子查询，优化器将IN子查询转换为EXISTS子查询，并且子查询使用到主键进行等值匹配
+-  index_subquery：利用索引来关联子查询，不再全表扫描
+-  range：给定范围内的检索，使用一个索引来检查行，where uid in (1,2) -> range， where groupid in (1,2) -> all
+-  index：该联接类型与ALL相同，但是index只有索引树被扫描
+   - 这通常比ALL快，因为索引文件通常比数据文件小
+   - 也就是说虽然all和Index都是读全表，但index是从索引中读取的，而all是从硬盘中读的
+-  ALL：对于每个来自于先前的表的行组合，进行完整的表扫描
+   - 如果在执行计划中第一个不是const，则通常很差
+   - 通常可以增加更多的索引而不要使用 ALL，使得行能基于前面的表中的常数值或列值被检索出
+
+**注意**：
+
+- system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > range > index >ALL
+- SQL性能优化的目标：至少要达到 range级别，要求是ref级别，最好是const级
 
 
 
+**key_len**：
+
+- 此列显示MySQL在索引里使用的字节数，通过此列可以算出具体使用了索引中的那些列（列创建时设置的长度或者具体的长度）
+
+- 索引最大长度为768字节，当长度过大时，MySQL会做一个类似最左前缀处理，将前半部分字符提取出做索引
+
+- 当字段可以为null时，还需要1个字节去记录
+
+- ken_len越长，说明索引使用的越充分，主要针对于联合索引，有一定的参考意义
+
+- 计算规则：
+
+  ```text
+  字符串：
+  char(n)：n个数字或者字母占n个字节，汉字占3n个字节
+  varchar(n)：n个数字或者字母占n个字节，汉字占3n+2个字节，+2字节用来存储字符串长度
+  
+  数字类型：
+  tinyint：1字节  
+  smallint：2字节         
+  int：4字节    
+  bigint：8字节
+  
+  时间类型：
+  date：3字节
+  timestamp：4字节
+  datetime：8字节
+  
+  varchar(10)变长字段且允许NULL = 10 * ( character set： utf8=3,gbk=2,latin1=1)+1(NULL)+2(变长字段) 
+  varchar(10)变长字段且不允许NULL = 10 * ( character set：utf8=3,gbk=2,latin1=1)+2(变长字段)
+  char(10)固定字段且允许NULL = 10 * ( character set：utf8=3,gbk=2,latin1=1)+1(NULL)
+  char(10)固定字段且不允许NULL = 10 * ( character set：utf8=3,gbk=2,latin1=1)
+  ```
 
 
 
+**Extra**：
+
+- Using index：使用覆盖索引（如果select后面查询的字段都可以从这个索引的树中获取，不需要通过辅助索引树找到主键，再通过主键去主键索引树里获取其它字段值，这种情况一般可以说是用到了覆盖索引）
+- Using where：使用 where 语句来处理结果，并且查询的列未被索引覆盖
+- Using index condition：查询的列不完全被索引覆盖，where条件中是一个查询的范围
+- Using temporary：MySQL需要创建一张临时表来处理查询，出现这种情况一般是要进行优化的
+- Using filesort：将使用外部排序而不是索引排序，数据较小从内存排序，否则需要在磁盘完成排序
+- Select tables optimized away：使用某些聚合函数（比如 max、min）来访问存在索引的某个字段时
+- No tables used：当一个查询没有FROM子句的时候
+- Using join buffer：被驱动表不能有效的利用索引加快访问速度，MySQL会为其分配一块名叫join buffer的内存块来加快查询速度，也就是基于块的嵌套循环算法
+- Not exists：使用左（外）连接时，如果WHERE子句中包含要求被驱动表的某个列等于NULL值的搜索条件，而且那个列又是不允许存储NOLL值的，那么在该表的执行计划的Extra列就会提示Not exists
+- Zero limit：LIMITT子句的参数为0时，表示不打算从表中读出任何记录，将会提示
 
 
 
+### 3、输出格式化
+
+EXPLAIN可以输出四种格式：传统格式，JSON格式，TREE格式以及可视化输出。用户可以根据需要选择适用于自己的格式
+
+- 传统格式：简单明了，输出是一个表格形式，概要说明查询计划
+- JSON格式：在EXPLAIN单词和真正的查询语句中间加上FORMAT=JSON。用于查看执行成本cost_info
+- TREE格式：8.0.16版本之后引入的新格式，主要根据查询的各个部分之间的关系和各部分的执行顺序来描述如何查询
+- 可视化输出：可以通过MySQL Workbench可视化查看MySQL的执行计划
 
 
 
+## 4、分析优化器执行计划trace
+
+~~~sql
+# 开启
+SET optimizer_trace="enabled=on",end_markers_in_json=on; 
+
+# 设置大小
+set optimizer_trace_max_mem_size=1000000;
+
+# 使用
+select * from student where id < 10;
+select * from information_schema.optimizer_trace\G
+~~~
 
 
 
+## 5、监控分析视图sys schema
+
+**索引**：
+
+~~~sql
+# 1. 查询冗余索引 
+select * from sys.schema_redundant_indexes; 
+
+# 2. 查询未使用过的索引 
+select * from sys.schema_unused_indexes;
+
+# 3. 查询索引的使用情况 
+select index_name,rows_selected,rows_inserted,rows_updated,rows_deleted 
+from sys.schema_index_statistics where table_schema='dbname';
+~~~
 
 
 
+**表**：
 
+~~~sql
+# 1. 查询表的访问量 
+select table_schema,table_name,sum(io_read_requests+io_write_requests) as io 
+from sys.schema_table_statistics group by table_schema,table_name order by io desc;
+
+# 2. 查询占用bufferpool较多的表 
+select object_schema,object_name,allocated,data
+from sys.innodb_buffer_stats_by_table order by allocated limit 10;
+
+# 3. 查看表的全表扫描情况 
+select * from sys.statements_with_full_table_scans where db='dbname';
+~~~
+
+
+
+**语句**：
+
+~~~sql
+# 1. 监控SQL执行的频率 
+select db,exec_count,query from sys.statement_analysis order by exec_count desc;
+
+# 2. 监控使用了排序的SQL 
+select db,exec_count,first_seen,last_seen,query
+from sys.statements_with_sorting limit 1;
+
+# 3. 监控使用了临时表或者磁盘临时表的SQL 
+select db,exec_count,tmp_tables,tmp_disk_tables,query
+from sys.statement_analysis 
+where tmp_tables>0 or tmp_disk_tables >0 order by (tmp_tables+tmp_disk_tables) desc;
+~~~
+
+
+
+**IO**：
+
+~~~sql
+# 1. 查看消耗磁盘IO的文件 
+select file,avg_read,avg_write,avg_read+avg_write as avg_io
+from sys.io_global_by_file_by_bytes order by avg_read limit 10;
+~~~
+
+
+
+**Innodb**：
+
+~~~sql
+# 1. 行锁阻塞情况 
+select * from sys.innodb_lock_waits;
+~~~
+
+
+
+# 20、MySQL之优化
 
 
 
@@ -5913,109 +6399,6 @@ LIMIT 2 # 顺序 7
 在 SELECT 语句执行这些步骤的时候，每个步骤都会产生一个 **虚拟表** ，然后将这个虚拟表传入 下一个步 骤中作为输入。需要注意的是，这些步骤隐含在 SQL 的执行过程中，对于用户来说是不可见的
 
 
-
-## 3、Expalin
-
- 使用EXPLAIN关键字可以模拟优化器执行SQL查询语句，从而知道MySQL是如何处理SQL语句
-
-| 列名          | 作用                                                  |
-| ------------- | ----------------------------------------------------- |
-| id            | 选择标识符，即为sql语句执行的顺序                     |
-| select_type   | 表示查询的类型                                        |
-| table         | 输出结果集所需要的表                                  |
-| partitions    | 匹配的分区                                            |
-| type          | 表示表的连接类型                                      |
-| possible_keys | 表示查询时，可能使用的索引                            |
-| key           | 表示实际使用的索引                                    |
-| key_len       | 索引字段的长度，                                      |
-| ref           | 列与索引的比较，使用哪个列或常数与key一起从表中选择行 |
-| rows          | 扫描出的行数(估算的行数)，越大越不好                  |
-| filtered      | 按表条件过滤的行百分比                                |
-| Extra         | 执行情况的描述和说明                                  |
-
-
-
-**select_type**：
-
-- simple：表示简单的select，没有union和子查询
-- primary：在有子查询的语句中，最外面的select查询就是primary
-- union：union语句的第二个或者说是后面那一个
-- dependent union：union中的第二个或后面的SELECT语句，取决于外面的查询
-- union result：union的结果
-
-
-
-**type**：
-
-- system：表仅有一行，这是const类型的特列，一般不会出现
-- const：表最多有一个匹配行，const用于比较primary key或者unique索引，因为只匹配一行数据，所以很快
-  - 一定要用到primary key或者unique，并且只检索出一条数据的情况下才会是const
-  - MySQL对查询的某部分进行优化并把其转化成一个常量
-- eq_ref：使用的索引是UNIQUE或PRIMARY KEY，并且对于每个来自于前面的表的行组合，只从该表中读取一行符合
-  - 这可能是最好的联接类型，除了const类型
-- ref：使用的索引不是UNIQUE或PRIMARY KEY，而是普通索引或者唯一索引的部份前缀
-  - 对于每个来自于前面的表的行组合，所有有匹配索引值的行将从这张表中读取，先比eq_ref来说就是匹配值不只一行
-  - 如果使用的键仅仅匹配少量行，该联接类型是不错的
-- ref_or_null：该联接类型如同ref，但是添加了MySQL可以专门搜索包含NULL值的行，在解决子查询中经常使用该联接类型的优化
-
-=====以上五种都是较为良好的联接=====
-
--  index_merge：该联接类型表示使用了索引合并优化方法
-  - 在这种情况下，key列包含了使用的索引的清单，key_len包含了使用的索引的最长的关键元素
-- unique_subquery
-- index_subquery
-- range：给定范围内的检索，使用一个索引来检查行，where uid in (1,2) -> range， where groupid in (1,2) -> all
-- index：该联接类型与ALL相同，但是index只有索引树被扫描
-  - 这通常比ALL快，因为索引文件通常比数据文件小
-  - 也就是说虽然all和Index都是读全表，但index是从索引中读取的，而all是从硬盘中读的
-- ALL：对于每个来自于先前的表的行组合，进行完整的表扫描
-  - 如果在执行计划中第一个不是const，则通常很差
-  - 通常可以增加更多的索引而不要使用 ALL，使得行能基于前面的表中的常数值或列值被检索出
-
-
-
-**key_len**：
-
-- 此列显示MySQL在索引里使用的字节数，通过此列可以算出具体使用了索引中的那些列（列创建时设置的长度或者具体的长度）
-
-- 索引最大长度为768字节，当长度过大时，MySQL会做一个类似最左前缀处理，将前半部分字符提取出做索引
-
-- 当字段可以为null时，还需要1个字节去记录
-
-- 计算规则：
-
-  ```text
-  字符串：
-  char(n)：n个数字或者字母占n个字节，汉字占3n个字节
-  varchar(n)：n个数字或者字母占n个字节，汉字占3n+2个字节，+2字节用来存储字符串长度
-  
-  数字类型：
-  tinyint：1字节      
-  smallint：2字节               
-  int：4字节             
-  bigint：8字节
-  
-  时间类型：
-  date：3字节        
-  timestamp：4字节          
-  datetime：8字节
-  ```
-
-
-
-**Extra**：
-
-- Using index：使用覆盖索引（如果select后面查询的字段都可以从这个索引的树中获取，不需要通过辅助索引树找到主键，再通过主键去主键索引树里获取其它字段值，这种情况一般可以说是用到了覆盖索引）
-
-- Using where：使用 where 语句来处理结果，并且查询的列未被索引覆盖
-
-- Using index condition：查询的列不完全被索引覆盖，where条件中是一个查询的范围
-
-- Using temporary：MySQL需要创建一张临时表来处理查询，出现这种情况一般是要进行优化的
-
-- Using filesort：将使用外部排序而不是索引排序，数据较小从内存排序，否则需要在磁盘完成排序
-
-- Select tables optimized away：使用某些聚合函数（比如 max、min）来访问存在索引的某个字段时
 
 
 
