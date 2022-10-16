@@ -716,7 +716,7 @@ public void a(WebDataBinder binder) {
   - 在**方法入参前**使用该注解，并写明value或name值，Spring-MVC会自动从模型数据中获取。且只获取一个，否则似乎按照类型全部获取。
   - 在方法入参前无该注解，key默认为POJO类名第一个字母小写。
   - 最终目标处理方法处的实体**形参名**与注解标注**的value或name无关**，只与**类型有关**。
-  - 在implicitModel中查找key对应的对象，若存在，作为入参传入，在@ModelAttribute注解修饰过的方法中的Map存入过该key相同对象，则可以获取到。
+  - 在implicitModel中查找key对应的对象，若存在，作为入参传入，在@ModelAttribute注解修饰过的方法中的Map存入过该key相同对象，则可以获取到
 
 # 3、处理模型属性
 
@@ -1014,7 +1014,7 @@ public class HelloView implements View
 
 - 将在 SpringMVC 上下文中定义一个 **DefaultServletHttpRequestHandler**，它会对进入 DispatcherServlet 的请求进行筛查，如果发现是没有经过映射的请求，就将该请求交由 WEB 应用服务器默认的 Servlet 处理，如果不是静态资源的请求，才由 DispatcherServlet 继续处理。
 
-- 一般 WEB 应用服务器默认的 Servlet 的名称都是 default。若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定。
+- 一般 WEB 应用服务器默认的 Servlet 的名称都是 default。若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定
 
 
 
@@ -3069,6 +3069,8 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
      8. 渲染视图完毕执行拦截器的afterCompletion(…)方法【逆向】。
      9. 将渲染结果返回给客户端。
 
+
+
 ## 2、@ModelAttribute源码流程分析
 
 1. 首先调用@ModelAttribute注解修饰的方法，若采用通过入参处使用**Model类型或者Map类型**写入数据，会把Map中的数据放入implicitModel中。
@@ -3079,6 +3081,8 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
    2. Spring-MVC把表单的请求参数赋给WebDataBinder的target对应的属性。
    3. Spring-MVC把WebDataBinder的attrName和target给到implicitModel，进而传到request域对象中。
    4. 把WebDataBinder的target作为参数传递给目标方法的入参。
+
+
 
 ## 3、\<mvc:annotation-driven/>
 
@@ -3091,6 +3095,8 @@ protected void exposeModelAsRequestAttributes(Map<String, Object> model,
   - 支持使用 @RequestBody 和 @ResponseBody 注解
 
 ![image-20210923105518249](images\Spring-MVC.assets\image-20210923105518249.png)
+
+
 
 ## 4、隐含模型
 
@@ -3366,6 +3372,8 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 }
 ```
 
+
+
 ## 6、返回值解析器原理
 
 **HandlerMethodReturnValueHandler**：
@@ -3373,7 +3381,7 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 - 返回值处理器判断是否支持这种类型返回值 supportsReturnType
 - 返回值处理器调用 handleReturnValue 进行处理
 - RequestResponseBodyMethodProcessor 可以处理返回值标了@ResponseBody 注解的。
-  - 利用 MessageConverters 进行处理 将数据写为json
+  - 利用 MessageConverters 进行处理将数据写为json
     - 内容协商（浏览器默认会以请求头的方式告诉服务器他能接受什么样的内容类型）
     - 服务器最终根据自己自身的能力，决定服务器能生产出什么样内容类型的数据，
     - SpringMVC会挨个遍历所有容器底层的 HttpMessageConverter ，看谁能处理？
@@ -3585,9 +3593,13 @@ public User getUser( ) {
 @ModelAttribute("xxx") User user
 ```
 
+
+
 ## 3、@ModelAttribute为什么放在返回值是空的方法上要以Map作为参数
 
 @ModelAttribute主要作用是将数据存入模型对象中，等价于model.addAttribute（“xx”，“yy”），所以如果被该注解修饰的方法的入参含有map或者model，可以void返回，因为map已经put了，如果没有map或者model，则需要返回。
+
+
 
 ## 4、addViewControllers不支持POST请求
 

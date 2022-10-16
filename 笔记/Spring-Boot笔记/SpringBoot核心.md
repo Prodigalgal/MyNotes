@@ -3266,6 +3266,8 @@ https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot
 - 通常用于需要对应用程序上下文进行编程初始化的web应用程序中。例如，**根据上下文环境注册属性源或激活配置文件等**。
 - 可排序的（实现Ordered接口，或者添加@Order注解）
 
+
+
 ### 2、源码
 
 ```java
@@ -3291,6 +3293,8 @@ protected void applyInitializers(ConfigurableApplicationContext context) {
     }
 }
 ```
+
+
 
 ### 3、实现自定义(三种方法)
 
@@ -3338,7 +3342,7 @@ org.springframework.context.ApplicationContextInitializer=org.springframework.bo
 
 ### 1、介绍
 
-- 主要作用就是在Spring Boot 启动初始化的过程中可以通过SpringApplicationRunListener接口回调来让用户在启动的各个流程中可以加入自己的逻辑。
+- 主要作用就是在Spring Boot 启动初始化的过程中可以通过SpringApplicationRunListener接口回调来让用户在启动的各个流程中可以加入自己的逻辑
 
 - 在整个启动流程中接收不同执行点事件通知的监听者，SpringApplicationRunListener接口规定了SpringBoot的生命周期，在各个生命周期广播相应的事件，调用实际的ApplicationListener类。
 - Spring的事件触发过程是交由SpringApplicationRunListener接口的实现类EventPublishingRunListener来代理实现的。
@@ -3401,6 +3405,8 @@ public interface SpringApplicationRunListener {
    run方法结束之前调用
 
    对应事件的类型是ApplicationReadyEvent()或ApplicationFailedEvent()：通知监听器，SpringBoot启动完成
+
+
 
 ### 3、实现自定义
 

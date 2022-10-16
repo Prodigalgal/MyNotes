@@ -1,40 +1,69 @@
-# Spring简介
+# 1、Spring
+
+## 1、简介
 
 [文档](https://docs.spring.io/spring-boot/docs/)
 
-## Spring组成
 
-### 1、IOC容器
+
+## 1、IOC
 
 **IOC**：控制反转，创建对象的过程交给Spring管理
 
-### 2、AOP
+
+
+## 2、AOP
 
 **AOP**：面向切面，不修改源代码实现增强代码
 
-### 3、JDBCTemplate
+作用：
 
-### 4、事务管理
+- Spring声明式事务管理配置
 
-# IOC介绍
+- Controller层的参数校验
+
+- 使用Spring AOP实现MySQL数据库读写分离案例分析
+
+- 在执行方法前，判断是否具有权限
+
+- 对部分函数的调用进行日志记录
+- 监控部分重要函数，若抛出指定的异常，可以以短信或邮件方式通知相关人员
+- 信息过滤，页面转发等等功能
+
+
+
+## 3、JDBCTemplate
+
+
+
+## 4、事务管理
+
+
+
+# 2、IOC
 
 ## 1、底层原理
 
-1、**XML解析** 2、**工厂模式**：IOC底层就是对象工厂 3、**反射**
+- **XML解析** 
+- **工厂模式**：IOC底层就是对象工厂 
+- **反射**
 
-实例：
+例子：
 
-配置xml文件
+1. 配置xml文件
 
-![image-20210907172410568](images\Spring-Framework.assets\image-20210907172410568.png)     
+   - ![image-20210907172410568](images\Spring-Framework.assets\image-20210907172410568.png)     
 
-解析xml文件
+2. 解析xml文件
 
-![image-20210907172430766](images\Spring-Framework.assets\image-20210907172430766.png)
+   - ![image-20210907172430766](images\Spring-Framework.assets\image-20210907172430766.png) 
 
-通过反射创建对象
+3. 通过反射创建对象
 
-![image-20210907172440062](images\Spring-Framework.assets\image-20210907172440062.png)
+   - ![image-20210907172440062](images\Spring-Framework.assets\image-20210907172440062.png) 
+
+
+
 
 ## 2、两个重要接口
 
@@ -42,169 +71,173 @@ Spring提供的IOC容器实现俩种方式（俩个接口）
 
 ### 1、BeanFactory
 
-IOC容器的基本实现，其内部使用的接口，加载配置文件时候不会创建对象，**在获取的时候才创建**。
+IOC容器的基本实现，其内部使用的接口，加载配置文件时候不会创建对象，**在获取的时候才创建** 
+
+
 
 ### 2、ApplicationContext
 
-BeanFactory的子接口，**加载配置文件的时候会把对象创建**。
+BeanFactory的子接口，**加载配置文件的时候会把对象创建** 
 
-# IOC操作与管理Bean
 
-## 过程
 
-1、**创建对象 ** 2、**注入属性**
+## 3、注入Bean
 
-## 操作Bean方式
+### 1、流程
 
-### 1、基于XML配置文件的方法 
+1. **创建对象 ** 
+2. **注入属性**
 
-#### 1、配置XML的bean标签
 
-- 使用bean标签
 
-![image-20210907173928598](images\Spring-Framework.assets\image-20210907173928598.png)
+### 1、基于XML
 
-- 往bean标签内添加对应的属性，实现对象的创建。
+#### 1、配置bean标签
+
+- 使用bean标签，指定要创建的类
+
+- 往bean标签内添加对应的属性，实现对象的创建
   - bean标签的常用属性：
     - **Id**：唯一标识
     - **Class**：类全路径
-- 创建对象时默认**执行无参的构造方法**。
+
+![image-20210907173928598](images/image-20210907173928598.png)
+
+**注意**：
+
+- 创建对象时默认**执行无参的构造方法** 
+
+
 
 #### 2、注入属性
 
-DI：依赖注入
+使用DI：依赖注入
 
-##### 1、 对应类的set方法进行注入
+- 对应类的set方法进行注入
 
-![image-20210907174339877](images\Spring-Framework.assets\image-20210907174339877.png)
+  - ![image-20210907174339877](images/image-20210907174339877.png) 
 
-##### 2、有参数的构造进行注入
+- 有参数的构造进行注入
 
-![image-20210907174405239](images\Spring-Framework.assets\image-20210907174405239.png)
+  - <img src="images/image-20210907174405239.png" alt="image-20210907174405239" style="zoom:67%;" /> 
 
-##### 3、p名称空间注入
+- p名称空间注入
 
-其实最后注入时使用的是set方法：
+  - ![image-20210907174441655](images/image-20210907174441655.png) 
+  - ![image-20210907174448733](images/image-20210907174448733.png) 
 
-![image-20210907174441655](images\Spring-Framework.assets\image-20210907174441655.png)
+- null值
 
-![image-20210907174448733](images\Spring-Framework.assets\image-20210907174448733.png)
+  - <img src="images/image-20210907174537283.png" alt="image-20210907174537283" style="zoom:67%;" /> 
 
-#### 3、注入特殊属性
+- 特殊符号
 
-##### 1、 null值
+  - ~~~xml
+    <![CDATA[  <<xxxx>>  ]]>
+    ~~~
 
-![image-20210907174537283](images\Spring-Framework.assets\image-20210907174537283.png)
+- 注入外部bean
 
-##### 2、特殊符号
+  - 需要在property内写ref属性
+    - **Ref**属性：对应所要注入的外部bean的ID
+    - **Name**属性：对应类里面属性名称
+  - <img src="images/image-20210907174902533.png" alt="image-20210907174902533" style="zoom:67%;" /> 
 
-```xml
-<![CDATA[  <<xxxx>>  ]]>
-```
+- 注入内部bean
 
-##### 3、注入外部bean
+  - 在property标签内部写bean标签，无需写ref属性
+  - <img src="images/image-20210907174947728.png" alt="image-20210907174947728" style="zoom:67%;" /> 
 
-- 需要在property内写ref属性
-  - **Ref**属性：对应所要注入的外部bean的ID
-  - **Name**属性：对应类里面属性名称
+- 注入数组集合类型属性
 
-![image-20210907174902533](images\Spring-Framework.assets\image-20210907174902533.png)
+  - 在属性标签内使用**array**标签，在其内部使用**value**标签注入
+  - <img src="images/image-20210907175145038.png" alt="image-20210907175145038" style="zoom:67%;" /> 
 
-##### 4、注入内部bean
+- 注入List类型属性
 
-在property标签内部写bean标签，无需写ref属性
+  - 在属性标签内部使用**list**标签，在其内部使用**value**标签注入
+  - <img src="images/image-20210907175224488.png" alt="image-20210907175224488" style="zoom:67%;" /> 
 
-![image-20210907174947728](images\Spring-Framework.assets\image-20210907174947728.png)
+- 注入map类型属性
 
-#### 4、注入集合属性
+  - 在属性标签内部使用**map**标签，在其内部使用**entry**标签注入
+  - <img src="images/image-20210907175310816.png" alt="image-20210907175310816" style="zoom:67%;" /> 
 
-##### 1、注入数组集合类型属性
+- 注入set类型属性
 
-- 在属性标签内使用**array**标签，在其内部使用**value**标签注入
+  - 在属性标签内部使用**set**标签，在其内部使用**value**标签注入
+  - <img src="images/image-20210907175334565.png" alt="image-20210907175334565" style="zoom:67%;" /> 
 
-![image-20210907175145038](images\Spring-Framework.assets\image-20210907175145038.png)
+- 在集合中注入bean类型
+  - 使用**ref**标签，使用其**bean**属性注入
+  - <img src="images/image-20210907175353870.png" alt="image-20210907175353870" style="zoom:67%;" /> 
 
-##### 2、注入List类型属性
 
-- 在属性标签内部使用**list**标签，在其内部使用**value**标签注入
+- 抽取集合注入部份
+  - 引入**util名称空间**，使用**id**属性标记，再属性标签内使用**ref**注入
+  -  <img src="images/image-20210907175416322.png" alt="image-20210907175416322" style="zoom:80%;" /><img src="images/image-20210907175419985.png" alt="image-20210907175419985" style="zoom:80%;" />
 
-![image-20210907175224488](images\Spring-Framework.assets\image-20210907175224488.png)
 
-##### 3、注入map类型属性
 
-- 在属性标签内部使用**map**标签，在其内部使用**entry**标签注入
 
-![image-20210907175310816](images\Spring-Framework.assets\image-20210907175310816.png)
+**注意**：
 
-##### 4、注入set类型属性
+- 其实最后注入时使用的是**set方法** 
 
-- 在属性标签内部使用**set**标签，在其内部使用**value**标签注入
 
-![image-20210907175334565](images\Spring-Framework.assets\image-20210907175334565.png)
 
-##### 5、在集合中注入bean类型
 
-- 使用**ref**标签，使用其**bean**属性注入
 
-![image-20210907175353870](images\Spring-Framework.assets\image-20210907175353870.png)
+### 2、基于注解
 
-##### 6、抽取集合注入部份
-
-- 引入**util名称空间**，使用**id**属性标记，再属性标签内使用**ref**注入
-
-![image-20210907175416322](images\Spring-Framework.assets\image-20210907175416322.png)
-
-![image-20210907175419985](images\Spring-Framework.assets\image-20210907175419985.png)
-
-### 2、基于注解方式实现
-
-#### 1、在xml中开启组件扫描
+#### 1、xml开启组件扫描
 
 ![image-20210907181905495](images\Spring-Framework.assets\image-20210907181905495.png)
 
-#### 2、在类上面创建对象注解
+
+
+#### 2、类上标记注解
 
 在类上面创建**对象注解**，注解内的**value**可以省略不写的，**默认值时类名首字母小写**。
 
-![image-20210907182037653](images\Spring-Framework.assets\image-20210907182037653.png)
+![image-20210907182037653](images\Spring-Framework.assets\image-20210907182037653.png) ![image-20210907182044913](images/image-20210907182044913.png)
 
-![image-20210907182044913](images\Spring-Framework.assets\image-20210907182044913.png)
+ 
 
 #### 3、开启组件扫描细节
 
-1、**use-default-filters="false"** 表示现在不使用默认 filter
+- **use-default-filters="false"**：表示现在不使用默认 filter
+- 自己配置filter
+  - **context:include-filter** ：设置扫描哪些内容
+    - <img src="images/image-20210907193705595.png" alt="image-20210907193705595" style="zoom:150%;" /> 
 
-2、自己配置filter
-
-- **context:include-filter** ，设置扫描哪些内容
-
-![image-20210907193705595](images\Spring-Framework.assets\image-20210907193705595.png)
-
-- **context:exclude-filter**： 设置哪些内容不进行扫描
-
-![image-20210907193732647](images\Spring-Framework.assets\image-20210907193732647.png)
+  - **context:exclude-filter**： 设置哪些内容不进行扫描
+    - <img src="images/image-20210907193732647.png" alt="image-20210907193732647" style="zoom:150%;" /> 
 
 
 
-## 管理Bean
 
-### 基于XML
+## 4、管理Bean
+
+### 1、基于XML
 
 #### 1、普通bean
 
 在配置文件中定义的bean类型，就是返回类型
 
-![image-20210907175749602](images\Spring-Framework.assets\image-20210907175749602.png)
+![image-20210907175749602](images\Spring-Framework.assets\image-20210907175749602.png) 
+
+
 
 #### 2、工厂bean
 
 - 创建一个类继承**FactoryBean**类，实现接口内方法。
 
 ```java
-//创建一个Spring定义的FactoryBean
+// 创建一个Spring定义的FactoryBean
 public class ColorFactoryBean implements FactoryBean<Color> {
 
-	//返回一个Color对象，这个对象会添加到容器中
+	// 返回一个Color对象，这个对象会添加到容器中
 	@Override
 	public Color getObject() throws Exception {
 		return new Color();
@@ -215,24 +248,27 @@ public class ColorFactoryBean implements FactoryBean<Color> {
 		return Color.class;
 	}
 
-	//true：这个bean是单实例，在容器中保存一份
-	//false：多实例，每次获取都会创建一个新的bean
+	// true：这个bean是单实例，在容器中保存一份
+	// false：多实例，每次获取都会创建一个新的bean
 	@Override
 	public boolean isSingleton() {
 		return false;
 	}
 
 }
-//要获取工厂Bean本身，我们需要给id前面加一个&
+
+// 要获取工厂Bean本身，我们需要给id前面加一个&
 @Bean
 public ColorFactoryBean colorFactoryBean(){
     return new ColorFactoryBean();
 }
 ```
 
+
+
 #### 3、Bean的作用域
 
-1、Spring内默认情况下**bean是单实例对象**。
+1、Spring内默认情况下**bean是单实例对象** 
 
 2、在bean标签内使用**scope属性**可设置单实例还是多实例
 
@@ -240,121 +276,233 @@ public ColorFactoryBean colorFactoryBean(){
   - 设置单实例时，加载配置文件就会创建单实例对象
   - 设置多实例时，调用**getBean()方法**时创建多实例对象
 
-#### 4、Bean生命周期
 
-1、通过构造器创建bean实例
 
-2、为bean的属性设值和对其他bean引用
+#### 4、Beand的生命周期
 
-3、调用bean的初始化方法，（需设置）
+1. 通过**构造器**创建bean实例
+2. 注入bean的属性值和对其他bean引用
+3. 把bean实例传递bean前置处理器的方法**postProcessBeforeInitialization**（需设置）
+4. 调用bean的初始化方法（需设置）
+5. 把bean实例传递bean后置处理器的方法**postProcessAfterInitialization**（需设置）
+6. 获取bean对象
+7. 关闭容器，调用销毁bean的销毁方法（需设置）
+   - ![image-20210907180043936](images\Spring-Framework.assets\image-20210907180043936.png) 
 
-4、获取bean对象
+8. 在bean标签内使用**init-method**属性设置初始化方法，使用**destroy-method**属性设置销毁方法
 
-5、关闭容器，调用销毁bean的销毁方法，（需设置）
 
-![image-20210907180043936](images\Spring-Framework.assets\image-20210907180043936.png)
 
-6、在bean标签内使用**init-method**属性设置初始化方法，使用**destroy-method**属性设置销毁方法
+**注意**：
 
-#### 5、添加后置处理器
+- 添加后置处理器，在xml中配置，创建类实现接口
+  - ![image-20210907180512222](images/image-20210907180512222.png) 
+  - ![image-20210907180516882](images/image-20210907180516882.png) 
 
-添加后置处理器后，bena的生命周期为七步
 
-- 把bean实例传递bean前置处理器的方法**postProcessBeforeInitialization**。
 
-- 把bean实例传递bean后置处理器的方法**postProcessAfterInitialization**。
 
-- 添加后置处理，创建类实现接口，在xml中配置
 
-![image-20210907180512222](images\Spring-Framework.assets\image-20210907180512222.png)
 
-![image-20210907180516882](images\Spring-Framework.assets\image-20210907180516882.png)
 
-#### 6、Bean自动装配
+
+
+#### 5、Bean的自动装配
 
 - 根据**指定装配规则**（属性名或者属性类型）
 
 - 在bean标签内使用**autowire**属性自动注入
   - **byName**：通过属性名注入
+    - ![image-20210907180633589](images/image-20210907180633589.png) 
   - **byType**：通过属性类型注入
+    - ![image-20210907180637140](images/image-20210907180637140.png) 
 
-![image-20210907180633589](images\Spring-Framework.assets\image-20210907180633589.png)
 
-![image-20210907180637140](images\Spring-Framework.assets\image-20210907180637140.png)
 
-#### 7、管理外部属性文件
+#### 6、管理外部属性文件
 
-1、引入context名称空间
+1. 引入context名称空间
+   - <img src="images\Spring-Framework.assets\image-20210907180729733.png" alt="image-20210907180729733" style="zoom: 150%;" /> 
+2. 引入外部文件
+   - ![image-20210907180733986](images\Spring-Framework.assets\image-20210907180733986.png) 
 
-![image-20210907180729733](images\Spring-Framework.assets\image-20210907180729733.png)
+3. 创建bean，配置连接池
+   - ![image-20210907180738173](images\Spring-Framework.assets\image-20210907180738173.png) 
 
-2、引入外部文件
 
-![image-20210907180733986](images\Spring-Framework.assets\image-20210907180733986.png)
 
-3、创建bean，配置连接池
 
-![image-20210907180738173](images\Spring-Framework.assets\image-20210907180738173.png)
+# 3、AOP
 
-# AOP介绍
+## 1、简介
 
-## 简介
+- 面向切面编程，对业务逻辑的各个部分隔离，降低耦合度
+- 不改变源代码，添加新功能
+- AOP要做的三件事是在哪里切入，什么时候切入，切入后做什么事
+- AOP是方法级别的
+- AOP是基于动态代理模式
 
-1、面向切面编程，对业务逻辑的各个部分隔离，降低耦合度
-2、不改变源代码，添加新功能
+<img src="images/image-20221016212502969.png" alt="image-20221016212502969" style="zoom:33%;" /><img src="images/image-20221016212515442.png" alt="image-20221016212515442" style="zoom:33%;" /><img src="images/image-20221016212438747.png" alt="image-20221016212438747" style="zoom: 33%;" />
 
-## 底层原理
 
-1、使用JDK的动态代理
 
-- 创建InvocationHandler接口的实现类，增强方法
+## 2、体系结构
 
-- ```java
-  public class MyInvocationHandler implements InvocationHandler{
-      Object object;
-      public MyInvocationHandler(Object o){this.obect = o;}
-      @Override
-      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-          Objct invokeval = method.invoke(object, args);
-          return invokeval;
+- Pointcut：**切点**
+  - **决定处理**如权限校验、日志记录等在何处切入业务代码中（即织入切面）
+  - 切点分为**execution**方式和**annotation**方式
+  - 前者可以用路径表达式指定哪些类织入切面，后者可以指定被哪些注解修饰的代码织入切面
+- Advice：**处理**
+  - **处理时机**和**处理内容**
+  - 处理时机就是在什么时机执行处理内容，分为前置、后置、环绕、异常、返回
+  - 处理内容就是要做什么事，比如校验权限和记录日志
+- Aspect：**切面**
+  - 即Pointcut + Advice
+- Joint point：**连接点**
+  - 是程序执行的一个点
+  - 例如，一个方法的执行或者一个异常的处理。在 Spring AOP 中，一个连接点总是代表一个方法执行。
+- Weaving：**织入**
+  - 就是通过**动态代理**，在目标对象方法中执行处理内容的过程
+
+>**术语**
+>
+>1、**连接点**：可增强方法
+>
+>2、**切入点**：实际被增强的方法
+>
+>3、**增强（通知）**：实际增强的逻辑部分
+>
+>-  通知有多种类型：前置、后置、环绕、异常、返回
+>
+>4、**切面**：动作，把通知应用到切入点的过程
+
+<img src="images/image-20221016212613714.png" alt="image-20221016212613714" style="zoom: 67%;" />
+
+
+
+## 2、底层原理
+
+AOP底层原理是**动态代理**，动态代理即在程序运行期间通过JVM反射等机制动态生成，代理类和委托类的关系是运行时才确定的
+
+1. Spring创建容器对象的时候，根据切入点表达式拦截的类，生成代理对象
+
+   - 如果目标对象有实现接口，使用JDK代理
+
+   - 如果目标对象没有实现接口，则使用CGLIB代理
+
+2. 然后从容器获取代理后的对象，调用在运行期植入的"切面"类的方法
+
+Sping中实现动态代理有两种方式：**JDK动态代理、CGLIB** 
+
+- 使用**JDK的动态代理**（目标类必须有实现的接口）
+
+  - 创建接口
+
+    - ~~~java
+      public interface Human {
+          void say();
       }
-  }
-  ```
+      ~~~
 
-- 创建接口实现类的代理对象 
+  - 创建类继承接口
 
-- ```java
-  Human o = (Human)Proxy.newProxyInstance(user.getClass().getClassLoader(), user.getCLass().getInterfaces(), mHandler);
-  ```
+    - ~~~java
+      class User implements Human{
+          @Override
+          public void say() {
+              System.out.println("Ha");
+          }
+      }
+      ~~~
 
-2、使用CGLIB动态代理
+    - 
 
-- 创建子类代理对象，增强方法
+  - 创建**InvocationHandler**接口的实现类，增强方法
 
-## 术语
+    - ~~~java
+      public class MyInvocationHandler implements InvocationHandler {
+          // 
+          Object object;
+      
+          public MyInvocationHandler(Object o){this.obect = o;}
+      
+          // 代理
+          @Override
+          public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+              // 获取当前执行的方法的方法名
+              String methodName = method.getName();
+              // 方法返回值
+              Objct result = method.invoke(object, args);
+              return result;
+          }
+      
+      }
+      ~~~
 
-1、**连接点**：可增强方法
 
-2、**切入点**：实际被增强的方法
+  - 创建接口实现类的代理对象 
 
-3、**增强（通知）**：实际增强的逻辑部分
+    - ~~~java
+      // 创建增强方法类
+      MyInvocationHandler mHandler = new MyInvocationHandler();
+      
+      // 创建代理类
+      Human o = (Human) Proxy.newProxyInstance(
+          // 目标对象使用的类加载器
+          user.getClass().getClassLoader(), 
+          // 目标对象实现的所有接口                          
+          user.getCLass().getInterfaces(), 
+          // 执行代理对象方法时候触发
+          mHandler);
+      
+      // 调用方法
+      o.say();
+      ~~~
 
--  通知有多种类型：
-  - 前置
-  - 后置
-  - 环绕
-  - 异常
-  - 最终
 
-4、**切面**：动作，把通知应用到切入点的过程
 
-# AOP操作
 
-## 基于XML配置文件
+**说明**：
 
-1、创建增强类与被增强类，创建方法
-2、在XML中配置这俩个Bean
-3、在XML中配置切入点
+- 其实是JDK动态生成了一个类去实现接口，隐藏了这个过程
+
+  - ~~~java
+    class $jdkProxy implements Human{}
+    ~~~
+
+
+
+- 使用**CGLIB动态代理**
+
+  - 创建子类代理对象，增强方法
+
+
+
+
+**说明**：
+
+- CGLIB动态生成的**子类继承目标类**的方式实现，在运行期动态的在内存中构建一个子类，程序执行时，隐藏了下面的过程
+
+  - ~~~java
+    public class Human{}
+    public class $Cglib_Proxy_class extends Human{}
+    ~~~
+
+
+
+**注意**：
+
+- 如果目标类没有实现接口，且class被 final 修饰的，则不能进行Spring AOP编程
+
+
+
+## 3、具体实现
+
+### 1、基于XML
+
+1. 创建增强类与被增强类
+2. 在XML中配置Bean
+3. 在XML中配置切入点
 
 ```xml
 <!-- 配置AOP -->
@@ -369,127 +517,261 @@ public ColorFactoryBean colorFactoryBean(){
 </aop:config>
 ```
 
-## 基于注解
 
-1、创建类、定义方法
 
-```java
-public class UserAOP{
- .....   
-}
-```
+### 1、基于注解
 
-2、创建增强类，编写增强逻辑，创建不同方法，代表不同通知类型
+1. 使用**@EnableAspectJAutoProxy (proxyTargetclass = true)**开启AOP注解
 
-```java
-public class UserAOPPro {
-public void before() { system.out.println("before");}
-public void after() { system.out.println("after");}
-public void afterReturning() { system.out.println("afterReturning");}
-public void around() { system.out.printin("around");}
-public void afterThrowing() { system.out.println("afterThrowing");}
+2. 创建类、定义方法
 
-```
+   - ~~~java
+     public class UserAOP{
+      	.....   
+     }
+     ~~~
 
-3、使用注解注册被增强对象和增强对象
+3. 创建增强类，编写增强逻辑，创建不同方法，代表不同通知类型
 
-```java
-@Component
-public class UserAOP {
-    ....
-}
-@Component
-public class UserAOPPro {
-	.....
-}
-```
+   - ~~~java
+     public class UserAOPPro {
+         public void before() { system.out.println("before");}
+         public void after() { system.out.println("after");}
+         public void afterReturning() { system.out.println("afterReturning");}
+         public void around() { system.out.printin("around");}
+         public void afterThrowing() { system.out.println("afterThrowing");}
+     }
+     ~~~
 
-4、在增强类上添加注解@Aspect
+4. 使用注解注册被增强对象和增强对象
 
-```java
-@Aspect
-@Component
-public class UserAOPPro {
-	.....
-}
-```
+   - ~~~java
+     @Component
+     public class UserAOP {
+         ....
+     }
+     
+     @Component
+     public class UserAOPPro {
+     	.....
+     }
+     ~~~
 
-5、在增强类内，在通知方法上使用不同的通知注解，使用切入点表达式配置
+5. 在增强类上添加注解@Aspect
 
-- Around通知中的proceed()方法表示调用被截方法，相当于method.invoke
+   - ~~~java
+     @Aspect
+     @Component
+     public class UserAOPPro {
+     	.....
+     }
+     ~~~
 
-```java
-Before( "execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void before(){
-	system.out.printLn("before");
-}
-@After("execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void after({
-	system.out.println("after");
-}
-@AfterReturning("execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void afterReturning(){
-	system.out.println("afterReturning");
-}
-@Anound("execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void around(ProceedingJoinPoint pjp) throws Throwable{
-	system.out.println( "around---before");
-	pjp.proceed(;
-	system.out.println("around---after");
-}
-@AfterThrowing("execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void afterThrowing(){
-	system.out.println("afterThrowing" );
-}
+6. 在增强类内的通知方法上使用不同的通知注解，并编写切入点表达式，表明增强哪些方法
 
-```
+   - ~~~java
+     @Before( "execution(* SpringAOPTest.UserAOP.speakName(..))")
+     public void before(){
+         system.out.printLn("before");
+     }
+     
+     @After("execution(* SpringAOPTest.UserAOP.speakName(..))")
+     public void after(){
+         system.out.println("after");
+     }
+     
+     // @AfterReturning注解可以用来捕获切入方法执行完之后的返回值，对返回值进行业务逻辑上的增强处理
+     @AfterReturning("execution(* SpringAOPTest.UserAOP.speakName(..))", returning = "result")
+     public void afterReturning(JoinPoint joinPoint, Object result){
+         Signature signature = joinPoint.getSignature();
+         String classMethod = signature.getName();
+         log.info("方法{}执行完毕，返回参数为：{}", classMethod, result);
+         // 实际项目中可以根据业务做具体的返回值增强
+         system.out.println("afterReturning");
+         log.info("对返回参数进行业务上的增强：{}", result + "增强版");
+     }
+     
+     // Around通知中的proceed()方法表示调用被截方法，相当于method.invoke
+     // Around可以改变执行目标方法的参数值，也可以改变执行目标方法之后的返回值
+     @Anound("execution(* SpringAOPTest.UserAOP.speakName(..))")
+     public void around(ProceedingJoinPoint pjp) throws Throwable{
+         system.out.println( "around---before");
+         pjp.proceed();
+         system.out.println("around---after");
+     }
+     
+     @AfterThrowing("execution(* SpringAOPTest.UserAOP.speakName(..))", throwing = "ex")
+     public void afterThrowing() {
+         Signature signature = joinPoint.getSignature();
+         String method = signature.getName();
+         // 处理异常的逻辑
+         log.info("执行方法{}出错，异常为：{}", method, ex);
+         system.out.println("afterThrowing" );
+     }
+     ~~~
 
-6、相同的切入点抽取
+7. 相同的切入点抽取
 
-- 第一行为pointcut表达式，第二行为pointcut的签名
-- 其他l类引用：全面类名
+   - 第一行为pointcut表达式，第二行为pointcut的签名，其他类引用：全面类名
 
-```java
-@Pointcut(value = "execution(* SpringAOPTest.UserAOP.speakName(..))")
-public void pointcopy(){}
-```
+   - ~~~java
+     @Aspect
+     @Component
+     public class LogAdvice {
+         // 定义一个切点：所有被GetMapping注解修饰的方法会织入advice
+         @Pointcut("@annotation(org.springframework.web.bind.annotation.GetMapping)")
+         private void logAdvicePointcut() {}
+     
+         // Before表示logAdvice将在目标方法执行前执行
+         @Before("logAdvicePointcut()")
+         public void logAdvice(){
+             // 这里只是一个示例，你可以写任何处理逻辑
+             System.out.println("get请求的advice触发了");
+         }
+     }
+     ~~~
 
-```java
-//本类引用，直接方法名
-@Before("pointCut()")
-//JoinPointr
-public void logStart(JoinPoint joinPoint){
-    //获取参数
-    Object[] args = joinPoint.getArgs();
-}
-```
+
 
 **扩展**：
 
-1、args和argNames属性
+- args和argNames属性
 
-目标方法和args()通过参数顺序一 一进行匹配
-
- args()和argNames通过参数名称一致进行匹配
-
-argNames和增强方法通过参数顺序一 一对应。
+  - 目标方法和args()通过参数顺序进行匹配
 
 
+  - args()和argNames通过参数名称进行匹配
 
-7、使用@Order（数字），设置增强类的优先级
+
+  - argNames和增强方法通过参数顺序进行匹配
+
+
+- 使用@Order（数字），设置增强类的优先级
 
 ```java
 @order(1)
-public class UserAOPPro { }
+public class UserAOPPro {}
 ```
 
-8、使用@EnableAspectJAutoProxy (proxyTargetclass = true)开启AOP注解
+
+
+**注意**：
+
+- @Anound修饰的方法中，第一个形参必须是ProceedingJoinPoint
+- @Around的ProceedingJoinPoint必须调用proceed方法，目标方法才会执行
+- @Around调用ProceedingJoinPoint的proceed方法时，还可以传入一个Object[ ]对象，该数组中的值将被传入目标方法作为实参，这是改变目标方法参数值的关键，如果传入的Object[ ]数组长度与目标方法所需要的参数个数不相等，或者Object[ ]数组元素与目标方法所需参数的类型不匹配，程序就会出现异常
+- @Around但通常需要在线程安全的环境下使用，如果需要目标方法执行之前和之后共享某种状态数据，则应该考虑使用Around，尤其是需要使用增强处理阻止目标的执行，或需要改变目标方法的返回值时，则只能使用Around增强处理了
+- @AfterReturning 属性 returning 的值必须要和参数保持一致，否则会检测不到
+- @AfterReturning修饰的方法中的第二个入参就是被切方法的返回值
+- @AfterThrowing 属性 throwing 的值必须要和参数一致，否则会报错
+- @AfterThrowing修饰的方法中的第二个入参即为抛出的异常
+
+
+
+## 4、实例
+
+### 1、被注解A标注的类都被增强
+
+~~~java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface PermissionAnnotation{}
+~~~
+
+~~~java
+@Aspect
+@Component
+@Order(1)
+public class PermissionFirstAdvice {
+
+    // 定义一个切面，括号内写入第1步中自定义注解的路径
+    @Pointcut("@annotation(com.mu.demo.annotation.PermissionAnnotation)")
+    private void permissionCheck() {
+    }
+
+    @Around("permissionCheck()")
+    public Object permissionCheckFirst(ProceedingJoinPoint joinPoint) throws Throwable {
+        System.out.println("===================第一个切面===================：" + System.currentTimeMillis());
+
+        // 获取请求参数，详见接口类
+        Object[] objects = joinPoint.getArgs();
+        Long id = ((JSONObject) objects[0]).getLong("id");
+        String name = ((JSONObject) objects[0]).getString("name");
+        System.out.println("id1->>>>>>>>>>>>>>>>>>>>>>" + id);
+        System.out.println("name1->>>>>>>>>>>>>>>>>>>>>>" + name);
+
+        // id小于0则抛出非法id的异常
+        if (id < 0) {
+            return JSON.parseObject("{\"message\":\"illegal id\",\"code\":403}");
+        }
+        return joinPoint.proceed();
+    }
+}
+~~~
+
+~~~java
+@RestController
+@RequestMapping(value = "/permission")
+public class TestController {
+    
+    // 添加这个注解
+    @PermissionsAnnotation()
+    @RequestMapping(value = "/check", method = RequestMethod.POST)
+    public JSONObject getGroupList(@RequestBody JSONObject request) {
+        return JSON.parseObject("{\"message\":\"SUCCESS\",\"code\":200}");
+    }
+}
+~~~
+
+
+
+### 2、被多个切面增强
+
+在例1的基础上增加
+
+一个自定义的AOP注解可以对应多个切面类，这些切面类执行顺序由@Order注解管理，该注解后的数字越小，所在切面类越先执行
+
+~~~java
+@Aspect
+@Component
+@Order(0)
+public class PermissionSecondAdvice {
+
+    @Pointcut("@annotation(com.mu.demo.annotation.PermissionAnnotation)")
+    private void permissionCheck() {}
+
+    @Around("permissionCheck()")
+    public Object permissionCheckSecond(ProceedingJoinPoint joinPoint) throws Throwable {
+        System.out.println("===================第二个切面===================：" + System.currentTimeMillis());
+
+        // 获取请求参数，详见接口类
+        Object[] objects = joinPoint.getArgs();
+        Long id = ((JSONObject) objects[0]).getLong("id");
+        String name = ((JSONObject) objects[0]).getString("name");
+        System.out.println("id->>>>>>>>>>>>>>>>>>>>>>" + id);
+        System.out.println("name->>>>>>>>>>>>>>>>>>>>>>" + name);
+
+        // name不是管理员则抛出异常
+        if (!name.equals("admin")) {
+            return JSON.parseObject("{\"message\":\"not admin\",\"code\":403}");
+        }
+        return joinPoint.proceed();
+    }
+}
+~~~
+
+
+
+
 
 # JDBCTemplate
 
 ## 1、简介
 
 Spring对JDBC的封装
+
+
 
 ## 2、准备
 
@@ -532,6 +814,8 @@ public class dao {
 }
 
 ```
+
+
 
 ## 3、操作
 
@@ -577,6 +861,8 @@ public class dao {
 
 - 同上
 
+
+
 # 事务
 
 ## 1、操作准备
@@ -589,30 +875,36 @@ public class service{
 	@Autowired
 	dao dao;
 }
+
 @Repository
 public class dao {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 }
-
 ```
 
-## 2、事务管理
 
-1、方式：
+
+## 2、事务管理
 
 - 基于注解
 - 基于XML
 
+
+
 ## 3、原理
 
-底层使用AOP原理。
+底层使用AOP原理
+
+
 
 ## 4、事务管理器
 
-提供一个接口，代表事务管理器，这个接口针对不同的框架提供不同的实现类。
+提供一个接口，代表事务管理器，这个接口针对不同的框架提供不同的实现类
 
-![image-20210910190736147](C:\Users\zzp84\Desktop\Spring-Framework笔记\images\Spring-Framework.assets\image-20210910190736147.png)
+![image-20210910190736147](images\Spring-Framework.assets\image-20210910190736147.png)
+
+
 
 ## 5、半注解式事务管理
 
@@ -646,6 +938,8 @@ public class dao {
 @Transactional
 public class service {.....}
 ```
+
+
 
 ##  6、@Transational参数
 
@@ -693,6 +987,8 @@ public class service {.....}
 
 - 设置出现那些异常不会回滚
 
+
+
 ## 7、XML声明事务管理
 
 1、配置事务管理器
@@ -719,6 +1015,8 @@ public class service {.....}
 </aop:config>
 
 ```
+
+
 
 ## 8、完全注解事务管理器
 
@@ -759,6 +1057,8 @@ public DataSourceTransactionManager getDSTM(Datasource dataSource){
 	return new DataSourceTransactionManager(dataSource);
 }
 ```
+
+
 
 # 完全注解开发
 
@@ -921,6 +1221,8 @@ private String nickName;
 
 <img src="images\Spring-Framework.assets\image-20210907194417702.png" alt="image-20210907194417702" style="zoom:200%;" />
 
+
+
 ### 7、@PropertySource
 
 使用@PropertySource读取外部配置文件中的k/v保存到运行的环境变量中。
@@ -942,6 +1244,8 @@ JSR330规范的注解。
 需要导入**javax.inject**的包，和Autowired的功能一样。
 
 **注意**：没有required=false的功能，没有使用的必要
+
+
 
 ## 操作与管理Bean
 
@@ -1228,6 +1532,8 @@ public DataSource dataSourceDev(....) throws Exception{
 }
 ```
 
+
+
 ## 生命周期
 
 ### 简介
@@ -1288,9 +1594,9 @@ public class Cat implements InitializingBean, DisposableBean {
 
 在bean初始化前后进行一些处理工作。
 
-**postProcessBeforeInitialization**：在bean任何初始化方法之前工作。
+**postProcessBeforeInitialization**：在bean任何初始化方法之前工作
 
-**postProcessAfterInitialization**：在bean任何初始化方法之后工作。
+**postProcessAfterInitialization**：在bean任何初始化方法之后工作
 
 ```java
 @Component
@@ -1313,7 +1619,8 @@ public class MyBeanPostProcessor implements BeanPostProcessor {
 
 **BeanPostProcessor.postProcessBeforeInitialization()**:
 初始化：
-    对象创建完成，并赋值好，调用初始化方法。
+
+- 对象创建完成，并赋值好，调用初始化方法。
 
 **BeanPostProcessor.postProcessAfterInitialization()**:
 
@@ -1341,6 +1648,8 @@ initializeBean
 
 bean赋值，注入其他组件，@Autowired，生命周期注解功能，@Async,xxx等等，都是通过BeanPostProcessor来完成;
 
+
+
 ## 注解事务
 
 ### 1、@EnableTransactionManagement 
@@ -1354,6 +1663,8 @@ bean赋值，注入其他组件，@Autowired，生命周期注解功能，@Async
 public class TxConfig {....}
 ```
 
+
+
 ### 2、配置事务管理器来控制事务
 
 ```java
@@ -1361,15 +1672,17 @@ public class TxConfig {....}
 public PlatformTransactionManager transactionManager(){...}
 ```
 
+
+
 ### 3、标注@Transactional
 
-# 扩展与原理解析
+
+
+# 扩展
 
 ## Spring容器流程解析
 
 1、Spring容器的**refresh();**【创建刷新】
-
-
 
 ```java
 @Override
@@ -1435,7 +1748,7 @@ public PlatformTransactionManager transactionManager(){...}
 			}
 		}
 	}
-//以下为BeanFactory的创建以及准备工作
+// 以下为BeanFactory的创建以及准备工作
 ```
 
 1. **prepareRefresh()；** 
@@ -1839,6 +2152,8 @@ public PlatformTransactionManager transactionManager(){...}
 - ApplicationListener，事件监听
   ApplicationEventMulticaster，事件派发
 
+
+
 ## **AbstractAutoProxyCreator横切逻辑的加载与解析**
 
 SpringAOP总流程：
@@ -1850,8 +2165,6 @@ SpringAOP总流程：
 Spring Aop主要是通过**AbstractAutoProxyCreator**实现的**BeanPostProcessor**、**InstantiationAwareBeanPostProcessor**以及**SmartInstantiationAwareBeanPostProcessor**接口里面的**后置处理器方法**，来介入到Spring IOC容器的Bean的实例化以及初始化的过程中对Bean进行AOP的处理的。
 
 横切逻辑的加载主要是在AbstractAutoProxyCreator类中的的**postProcessBeforeInstantiation**方法中，该方法是在Bean的**实例化之前**被调用的。
-
-
 
 ```java
 public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
@@ -2559,6 +2872,8 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 1. 先创建所有的单实例Bean，**getBean();**
 2. 获取所有创建好的单实例Bean，判断是否是SmartInitializingSingleton类型的。如果是就调用**afterSingletonsInstantiated();**
 
+
+
 ## ApplicationListener原理
 
 **ApplicationListener**：监听容器中发布的事件。事件驱动模型开发。
@@ -2665,6 +2980,8 @@ String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true
 getApplicationEventMulticaster().addApplicationListenerBean(listenerBeanName);
 ```
 
+
+
 ## BeanFactoryPostProcessor原理
 
 **介绍**：
@@ -2750,6 +3067,8 @@ public class MyBeanDefinitionRegistryPostProcessor implements BeanDefinitionRegi
 }
 ```
 
+
+
 ## 事务原理
 
 1、**@EnableTransactionManagement**
@@ -2777,6 +3096,8 @@ public class MyBeanDefinitionRegistryPostProcessor implements BeanDefinitionRegi
        3. 执行目标方法
           - 如果异常，获取到事务管理器，利用事务管理回滚操作
           - 如果正常，利用事务管理器，提交事务               
+
+
 
 ## AOP原理
 
@@ -3097,6 +3418,8 @@ List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(me
       - 正常执行：前置通知-》目标方法-》后置通知-》返回通知
       - 出现异常：前置通知-》目标方法-》后置通知-》异常通知
 
+
+
 ## 自定义组件使用Spring容器底层组件
 
 自定义组件使用Spring容器底层的一些组件，例如（**ApplicationContext**，**BeanFactory**，xxx）。
@@ -3149,6 +3472,8 @@ public class Red implements ApplicationContextAware,BeanNameAware,EmbeddedValueR
 	}
 }
 ```
+
+
 
 ## 自动装配原理解析
 
@@ -4081,6 +4406,8 @@ public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry, Environmen
 
 <img src="images\Spring-Framework.assets\image-20210907173458585.png" alt="image-20210907173458585" style="zoom:150%;" />
 
+
+
 ## 2、关于Bean标签的id属性与name属性
 
 1、设置了id属性不设置name属性，表明beanName为此id，无别名
@@ -4093,6 +4420,8 @@ public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry, Environmen
 
 5、注意：**name可以设置多个，单id不能配置多个**
 
+
+
 ## 3、单实例？多实例
 
 Spring创建Bean默认是单实例的
@@ -4104,9 +4433,11 @@ org.springframework.web.context.WebApplicationContext#SCOPE_SESSION	 sesssion
 
 单实例bean：默认在容器启动的时候创建对象。
 
+
+
 ## 4、什么时候产生代理对象？
 
-ICO容器创建Bean的时候，会触发AOP，产生代理对象，放入AOP
+IOC容器创建Bean的时候，会触发AOP，产生代理对象，放入AOP
 
 
 
