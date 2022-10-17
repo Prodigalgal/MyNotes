@@ -2,7 +2,7 @@
 
 ## 1、简介
 
-[文档](https://docs.spring.io/spring-boot/docs/)
+[文档]([Index of /spring-framework/docs](https://docs.spring.io/spring-framework/docs/))
 
 
 
@@ -216,6 +216,200 @@ BeanFactory的子接口，**加载配置文件的时候会把对象创建**
 
 
 
+#### 4、注解大全
+
+##### 1、@Autowired
+
+**自动装配**：Spring利用**依赖注入**（DI），完成对IOC容器中中各个组件的依赖关系赋值
+
+**寻找原则**：
+
+1. 默认**优先按照类型**去容器中找对应的组件，找到就赋值，applicationContext.getBean(BookDao.class)；
+2. 如果找到多个相同类型的组件，再将**属性的名称**作为组件的id去容器中查找，applicationContext.getBean("bookDao")；
+3. 自动装配默认**一定要找到对应的Bean并赋值属性**，没有就会报错，可以使用@Autowired(**required**=false)取消必须装配
+
+**使用方法**：
+
+可以标注在：**构造器**、**参数**、**普通方法**、**成员变量**
+
+1. [**标注在普通方法上**]：
+
+   Spring容器创建当前对象，就会调用方法，完成赋值。方法使用的参数，自定义类型的值从ioc容器中获取
+
+   ~~~java
+   // 标注在方法上，Spring容器在创建当前对象的时候，就会调用当前方法完成赋值
+   // 方法使用的参数从IOC容器里面进行获取
+   @Autowired
+   public void getName(User user){
+       System.out.println("主动注入的User："+user.getName());
+   }
+   ~~~
+
+   **注意**：
+
+   - 在注入Bean后会自动执行一次方法
+   - @Bean标注的方法参数从容器中获取，和默认不写@Autowired效果是一样的，都能自动装配
+
+   
+
+2. [**标注在构造器上**]：
+
+   如果组件只有一个有参构造器，这个有参构造器的@Autowired即使省略了，参数对应的组件还是可以自动从容器中获取
+
+   ~~~java
+   // 可以省略
+   @Autowired
+   public TextEditor(SpellChecker spellChecker){
+       this.spellChecker = spellChecker;
+   }
+   
+   // 自定义查询数据库用户名密码和权限信息
+   private UserDetailsService userDetailsService;
+   // token 管理工具类（生成 token）
+   private TokenManager tokenManager;
+   // 密码管理工具类
+   private DefaultPasswordEncoder defaultPasswordEncoder;
+   // redis 操作工具类
+   private RedisTemplate redisTemplate;
+   @Autowired
+   public TokenWebSecurityConfig(UserDetailsService userDetailsService, 
+                                 DefaultPasswordEncoder defaultPasswordEncoder,
+                                 TokenManager tokenManager, 
+                                 RedisTemplate redisTemplate) {
+       this.userDetailsService = userDetailsService;
+       this.defaultPasswordEncoder = defaultPasswordEncoder;
+       this.tokenManager = tokenManager;
+       this.redisTemplate = redisTemplate;
+   }
+   ~~~
+
+   
+
+3. [**标注在参数上**]：
+
+   ~~~java
+   public void setStudent(@Autowired Student stu) {
+       this.stu = stu;
+   }
+   ~~~
+
+   
+
+4. [**标注在成员变量上**]：
+
+   ~~~java
+   @Autowired
+   Controller ct;
+   ~~~
+
+   **注意**：
+
+   - @Autowired会让private变为public，而标注在setter处则不会
+
+<img src="images/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz.png" alt="aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz" style="zoom:90%;" />
+
+
+
+##### 2、@Qualifier
+
+**根据名称**注入，需要与上面的注解一起使用，被注入的类需要注册在容器中，且name必须为contorller。
+
+@Qualifier("bookDao")：使用@Qualifier指定**需要装配的组件的id**，而不是使用属性名
+
+```java
+@Autowiredc
+@Qualifier("controller")
+Controller ct;
+```
+
+
+
+##### 3、@Resource(JSR250)
+
+JSR250规范的注解
+
+**注意**：不支持@Primary，不支持@Autowired（reqiured=false）
+
+可根据**类型**注入，也可根据**名称**注入
+
+```java
+@Resouce(name = "userDaoImpl")
+private UserDao userDao;
+```
+
+
+
+##### 4、@Value
+
+注入**普通类型**属性
+
+1、基本数值
+2、可以写SpEL； #{}
+3、可以写${}；取出配置文件【properties】中的值（在运行环境变量里面的值）
+
+```java
+@Value("张三")
+private String name;
+@Value("#{20-2}")
+private Integer age;
+//需要使用@PropertySource注解获取配置文件
+@Value("${person.nickName}")
+private String nickName;
+```
+
+
+
+##### 5、@PreDestroy
+
+**销毁**
+
+![image-20210907194104121](images\Spring-Framework.assets\image-20210907194104121.png)
+
+
+
+##### 6、@PostConstruct
+
+**初始化**
+
+![image-20210907194135269](images\Spring-Framework.assets\image-20210907194135269.png)
+
+1、创建配置类，替代XML文件
+
+![image-20210907194344574](images\Spring-Framework.assets\image-20210907194344574.png)
+
+2、加载配置类
+
+3、使用**AnnotationConfigApplicationContext**加载
+
+<img src="images\Spring-Framework.assets\image-20210907194417702.png" alt="image-20210907194417702" style="zoom:200%;" />
+
+
+
+##### 7、@PropertySource
+
+使用@PropertySource读取外部配置文件中的k/v保存到运行的环境变量中。
+
+加载完外部的配置文件以后使用**${}**取出配置文件的值。
+
+```java
+@PropertySource(value={"classpath:/person.properties"})
+@Configuration
+public class MainConfigOfPropertyValues {
+    ......
+}
+```
+
+
+
+##### 8、@Inject(JSR330)
+
+JSR330规范的注解。
+
+需要导入**javax.inject**的包，和Autowired的功能一样。
+
+**注意**：没有required=false的功能，没有使用的必要
+
+
 
 ## 4、管理Bean
 
@@ -278,7 +472,7 @@ public ColorFactoryBean colorFactoryBean(){
 
 
 
-#### 4、Beand的生命周期
+#### 4、Bean的生命周期
 
 1. 通过**构造器**创建bean实例
 2. 注入bean的属性值和对其他bean引用
@@ -295,7 +489,7 @@ public ColorFactoryBean colorFactoryBean(){
 
 **注意**：
 
-- 添加后置处理器，在xml中配置，创建类实现接口
+- 添加后置处理器，在xml中配置，创建类实现BeanPostProcessor接口
   - ![image-20210907180512222](images/image-20210907180512222.png) 
   - ![image-20210907180516882](images/image-20210907180516882.png) 
 
@@ -328,6 +522,407 @@ public ColorFactoryBean colorFactoryBean(){
 
 3. 创建bean，配置连接池
    - ![image-20210907180738173](images\Spring-Framework.assets\image-20210907180738173.png) 
+
+
+
+### 2、基于注解
+
+#### Bean的生命周期
+
+Bean创建---初始化----销毁
+
+自定义初始化和销毁方法，容器在Bean进行到指定生命周期的时候来调用自定义的初始化和销毁方法
+
+销毁：
+
+- 单实例：容器关闭的时候
+- 多实例：容器不会管理这个bean，容器不会调用销毁方法
+
+**指定初始化与销毁方法**：
+
+1. 通过@Bean的**init-method**属性和**destroy-method**属性指定方法
+
+   - 需要在类中设置指定的方法
+
+   - ~~~java
+     public class Car {
+         public Car(){...}
+         public void init(){...}
+         public void detory(){...}
+     }
+     
+     @Bean(initMethod="init", destroyMethod="detory")
+     public Car car() {
+         return new Car();
+     }
+     ~~~
+
+2. 实现**InitializingBean**、**DisposableBean**接口
+
+   - 只有单实例Bean才可以
+
+   - ~~~java
+     @Component
+     public class Cat implements InitializingBean, DisposableBean {
+     
+         public Cat(){
+             .....
+         }
+     
+         @Override
+         public void destroy() throws Exception {
+             .....
+         }
+     
+         @Override
+         public void afterPropertiesSet() throws Exception {
+             ......
+         }
+     
+     }
+     ~~~
+
+3. 使用**JSR250注解**
+
+   -  **@PostConstruct**：在bean创建完成并且属性赋值完成，来执行初始化方法
+   - **@PreDestroy**：在容器销毁bean之前通知我们进行清理工作，相当于一个回调通知
+
+4. 实现**BeanPostProcessor**接口
+
+   - **postProcessBeforeInitialization**：在bean任何初始化方法之前工作，对象创建完成，并赋值好，调用初始化方法
+
+   - **postProcessAfterInitialization**：在bean任何初始化方法之后工作
+
+   - ~~~java
+     @Component
+     public class MyBeanPostProcessor implements BeanPostProcessor {
+         @Override
+         public Object postProcessBeforeInitialization(Object bean, String beanName) 
+             throws BeansException {
+             ........
+                 return bean;
+         }
+         @Override
+         public Object postProcessAfterInitialization(Object bean, String beanName) 
+             throws BeansException {
+             .........
+                 return bean;
+         }
+     }
+     ~~~
+
+
+
+**扩展**：
+
+- Spring 底层对 BeanPostProcessor 的使用：bean赋值，注入其他组件，@Autowired，生命周期注解功能，@Asyncxxx等等，都是通过BeanPostProcessor来完成
+
+
+
+#### 注解大全
+
+##### 1、@Component
+
+默认加在ioc容器中的组件，容器启动会默认调用无参构造器创建对象，再进行初始化赋值等操作
+
+如果只有一个有参构造器，该构造器要用的组件，都是从容器中获取
+
+```java
+@Component
+public class Boss {
+
+    private Car car;
+
+    // 构造器要用的组件，都是从容器中获取
+    public Boss(Car car){
+        this.car = car;
+        System.out.println("Boss...有参构造器");
+    }
+    
+}
+```
+
+
+
+##### 2、@Configuration
+
+配置类==配置文件，告诉Spring这是一个配置类
+
+```java
+@Configuration
+public class myConfig(){
+    .......
+}
+```
+
+
+
+##### 3、@ComponentScans
+
+该注解可以一次声明多个@ComponentScan，因为该注解内含@Repeatable(ComponentScans.class) 
+
+可以指定@ComponentScan可以被@ComponentScans作为数组使用
+
+- **@ComponentScan**  value:指定要扫描的包
+- **excludeFilters = Filter[]** ：指定扫描的时候按照什么规则排除那些组件
+- **includeFilters = Filter[]** ：指定扫描的时候只需要包含哪些组件
+- **FilterType.ANNOTATION**：按照注解
+- **FilterType.ASSIGNABLE_TYPE**：按照给定的类型
+- **FilterType.ASPECTJ**：使用ASPECTJ表达式
+- **FilterType.REGEX**：使用正则指定
+- **FilterType.CUSTOM**：使用自定义规则
+
+```java
+@ComponentScans(
+    value = {
+        //扫描哪些包
+        @ComponentScan(value="com.atguigu",
+                       includeFilters = {
+            /*			@Filter(type=FilterType.ANNOTATION,classes={Controller.class}),
+						@Filter(type=FilterType.ASSIGNABLE_TYPE,classes={BookService.class}),*/
+            			@Filter(type=FilterType.CUSTOM,classes={MyTypeFilter.class})
+        				},
+                       useDefaultFilters = false
+//useDefaultFilters=true/false：
+// 指定是否需要使用Spring默认的扫描规则：被@Component, @Repository, @Service, @Controller或者已经声明过@Component自定义注解标记的组件；
+      )
+   }
+)
+```
+
+自定义过滤规则：**实现TypeFilter接口**
+
+- 参数**metadataReader**：读取到的当前正在扫描的类的信息
+
+- 参数**metadataReaderFactory**：可以获取到其他任何类信息的
+
+```java
+public class MyTypeFilter implements TypeFilter {
+	@Override
+	public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory)
+			throws IOException {
+		//获取当前类注解的信息
+		AnnotationMetadata annotationMetadata = metadataReader.getAnnotationMetadata();
+		//获取当前正在扫描的类的类信息
+		ClassMetadata classMetadata = metadataReader.getClassMetadata();
+		//获取当前类资源（类的路径）
+		Resource resource = metadataReader.getResource();
+		
+		String className = classMetadata.getClassName();
+		System.out.println("--->"+className);
+		if(className.contains("er")){
+			return true;
+		}
+		return false;
+	}
+
+}
+
+```
+
+
+
+##### 4、@Bean
+
+给容器中注册一个Bean，类型为**返回值的类型**，id默认是用**方法名**作为id
+
+```java
+@Bean("person")
+public Person person01(){
+    return new Person("lisi", 20);
+}
+```
+
+
+
+##### 5、@Lazy
+
+懒加载，只有bean被调用了才创建
+
+```java
+@Bean("person")
+@Lazy
+public Person person01(){}
+```
+
+
+
+##### 6、@Conditional
+
+条件装配：满足Conditional指定的条件，则进行组件注入
+
+**相关接口**：
+
+接口**Condition**：
+
+- 参数**AnnotatedTypeMetadata**：注释信息
+
+- 参数**ConditionContext**：判断条件能使用的上下文（环境）
+
+```java
+public class LinuxCondition implements Condition {
+    @Override
+    public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+        // 1、能获取到ioc使用的beanfactory
+        ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+        // 2、获取类加载器
+        ClassLoader classLoader = context.getClassLoader();
+        // 3、获取当前环境信息
+        Environment environment = context.getEnvironment();
+        // 4、获取到bean定义的注册类
+        BeanDefinitionRegistry registry = context.getRegistry();
+        // 可以判断容器中的bean注册情况，也可以给容器中注册bean
+        boolean definition = registry.containsBeanDefinition("person");
+        if(property.contains("linux")){
+            return true;
+        }
+        return false;
+    }
+}
+```
+
+类中组件统一设置，满足当前条件，这个类中配置的所有bean注册才能生效
+
+```java
+@Conditional({WindowsCondition.class})
+@Configuration
+public class MainConfig2 {}
+
+// 判断是否windows系统,需要实现Condition接口
+public class WindowsCondition implements Condition {
+
+	@Override
+	public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+		Environment environment = context.getEnvironment();
+		String property = environment.getProperty("os.name");
+		if(property.contains("Windows")){
+			return true;
+		}
+		return false;
+	}
+
+}
+```
+
+
+
+##### 7、@Import
+
+@Import导入组件，id默认是组件的全类名
+
+```java
+@Configuration
+@Import({Color.class,Red.class,MyImportSelector.class,MyImportBeanDefinitionRegistrar.class})
+public class MainConfig2 {}
+```
+
+**相关接口**：
+
+接口**ImportBeanDefinitionRegistrar**：手动注册bean到容器中。
+
+- 参数**AnnotationMetadata**：当前类的注解信息
+- 参数**BeanDefinitionRegistry**：BeanDefinition注册类，BeanDefinitionRegistry.registerBeanDefinition()手工注册Bean进来
+
+```java
+public class MyImportBeanDefinitionRegistrar implements ImportBeanDefinitionRegistrar {
+   @Override
+   public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+      
+      boolean definition = registry.containsBeanDefinition("com.atguigu.bean.Red");
+      boolean definition2 = registry.containsBeanDefinition("com.atguigu.bean.Blue");
+      if(definition && definition2){
+         //指定Bean定义信息,（Bean的类型，Bean。。。）
+         RootBeanDefinition beanDefinition = new RootBeanDefinition(RainBow.class);
+         //注册一个Bean，指定bean名
+         registry.registerBeanDefinition("rainBow", beanDefinition);
+      }
+   }
+}
+```
+
+接口**ImportSelector**：返回需要导入的组件的全类名数组
+
+自定义逻辑返回需要导入的组件
+
+- 参数**AnnotationMetadata**：当前标注@Import注解的类的所有注解信息
+- 返回值，就是到导入到容器中的组件全类名，不能返回null
+
+```java
+public class MyImportSelector implements ImportSelector {
+    @Override
+    public String[] selectImports(AnnotationMetadata importingClassMetadata) {
+        return new String[]{"com.atguigu.bean.Blue","com.atguigu.bean.Yellow"};
+    }
+
+}
+```
+
+
+
+##### 7、@Scope
+
+调整作用域
+
+**可选值**：
+
+- **prototype**：多实例的：IOC容器启动并不会去调用方法创建对象放在容器中，每次获取的时候才会调用方法创建对象
+- **singleton**：单实例的（默认值）：IOC容器启动会调用方法创建对象放到IOC容器中，以后每次获取就是直接从容器（map.get()）中拿
+- **request**：同一次请求创建一个实例
+- **session**：同一个session创建一个实例
+
+@Scope(“prototype”) **多例**
+
+```java
+@Scope("prototype")
+@Bean("person")
+public Person person(){
+    return new Person("张三", 25);
+}
+```
+
+
+
+##### 8、@Primary
+
+自动装配时当出现多个Bean候选者时，被注解为@Primary的Bean将作为首选者，否则将抛出异常（只对接口的多个实现生效）
+
+同时也可以在注入处继续使用@Qualifier指定需要装配的bean的名字
+
+```java
+@Primary
+@Component
+public class OperaSinger{
+    ........
+}
+```
+
+
+
+##### 9、@Profile
+
+**Profile**：Spring为我们提供的可以根据当前环境，动态的激活和切换一系列组件的功能。
+
+例如：开发环境、测试环境、生产环境，数据源：(/A)(/B)(/C)。
+
+@Profile：指定组件在哪个环境的情况下才能被注册到容器中，如果不指定，任何环境下都能注册这个组件
+
+ * 加了环境标识的Bean，只有这个环境被激活的时候才能注册到容器中，**默认是default环境**
+ * 写在配置类上，只有是指定的环境的时候，整个配置类里面的**所有**配置才能开始生效
+ * 没有标注环境标识的Bean在，任何环境下都是加载的
+
+```java
+@Profile("test")
+@Bean("testDataSource")
+public DataSource dataSourceTest(....){
+   ....
+}
+
+@Profile("dev")
+@Bean("devDataSource")
+public DataSource dataSourceDev(....) throws Exception{
+   .....
+}
+```
 
 
 
@@ -773,7 +1368,7 @@ Spring对JDBC的封装
 
 
 
-## 2、准备
+## 2、配置
 
 在XML中配置数据库连接池
 
@@ -795,81 +1390,176 @@ Spring对JDBC的封装
 
 ```xml
 <bean id="jdbcTemplate" class="org.springframewonk.jdbc.core.JdbcTemplate">
-<property name="dataSource" ref="dataSource"/>
+	<property name="dataSource" ref="dataSource"/>
 </bean>
 ```
 
 在service中注入dao对象，在dao中注入JbdcTemplate对象
 
 ```java
-Service
+@Service
 public class service {
     @Autowired
     dao dao;
 }
+
 @Repository
 public class dao {
     @Autowired
     JdbcTemplate jdbcTemplate;
 }
-
 ```
 
 
 
-## 3、操作
+## 3、方法
 
-3、添加操作：
-
-- 调用update（sql， args）方法
-
-4、修改操作：
-
-- 调用update（sql， args）方法
-
-5、删除操作：
-
-- 调用update（sql， args）方法
-
-6、查询操作之返回某个值：
-
-- 俩个参数，1、sql语句。2、返回的类型class
-- 调用queryForObjecgt（sql， Class<T>）方法
-
-7、查询操作之返回对象：
-
-- 三个参数，1、sql语句。2、RowMapper<T>接口，针对返回的不同类型数据，使用这个接口里面的实现类完成数据封装。3、值
-- 调用queryForObject（sql， RowMapper<T>, args）方法
-  例子：
-  queryForObject(sql, new BeanPropertyRowMapper<book>(Book.class), id);
-
-8、查询操作之返回集合：
-
-- 调用query（sql， RowMapper<T>, args）方法
-  返回的一个List<T>
-
-9、批量添加操作：
-
-- 调用batchUpdate（sql, List<Object[]> batchArgs）
-  第二个参数记录多条数据
-
-10、批量修改操作：
-
-- 同上
-
-11、批量删除操作：
-
-- 同上
+| 方法                                                         | 参数                                                         | 作用             |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------- |
+| update(sql, args)                                            | 1、sql语句<br />2、数据                                      | 添加、修改、删除 |
+| queryForObjecgt(sql, Class<T>)                               | 1、sql语句<br />2、返回的类型                                | 查询并返回某个值 |
+| queryForObject(sql, RowMapper<T>, args)                      | 1、sql语句<br />2、RowMapper<T>接口，针对返回的数据，完成数据封装<br />3、值 | 查询并返回对象   |
+| queryForObject(sql, <br />new BeanPropertyRowMapper<book>(Book.class), id) | 参数同上                                                     | 查询并返回集合   |
+| batchUpdate(sql, List<Object[]> batchArgs)                   | 1、sql语句<br />2、多条数据                                  | 批量添加         |
+| 同上                                                         | 同上                                                         | 批量修改         |
+| 同上                                                         | 同上                                                         | 批量删除         |
 
 
 
-# 事务
 
-## 1、操作准备
 
-创建service其注入dao，创建dao其内注入JDBCTemplate，JDBCTemplate注入DateSource，sservice、dao都加bean管理注释
+# 事务管理
 
-```java
+## 1、简介
+
+底层使用AOP
+
+事务是逻辑上的一组操作，要么都执行，要么都不执行
+
+
+
+Spring支持两种方式的事务管理：
+
+- **编程式事务管理**
+- **声明式事务管理**
+
+
+
+事务的特性（**ACID**）：
+
+- **原子性**：
+  - 事务（transaction）中的所有操作，或者全部完成，或者全部不完成，不会结束在中间某个环节
+  - 事务在执行过程中发生错误，会被回滚（Rollback）到事务开始前的状态，就像这个事务从来没有执行过一样
+  - 事务不可分割、不可约简
+
+- **一致性**：
+  - 在事务开始之前和事务结束以后，数据库的完整性没有被破坏
+  - 表示写入的资料必须完全符合所有的预设约束、触发器、级联回滚等
+- **隔离性**：
+  - 数据库允许多个并发事务同时对数据进行读写修改，隔离性可以防止多个事务并发执行时由于交叉而导致数据的不一致
+  - 事务隔离分为不同级别，包括未提交读（Read uncommitted）、提交读（read committed）、可重复读（repeatable read）和串行化（Serializable）
+- **持久性**：
+  - 事务处理结束后，对数据的修改就是永久的，即便系统故障也不会丢失
+
+
+
+Spring框架中，事务管理相关最重要的 3 个接口如下：
+
+- **PlatformTransactionManager**： （平台）事务管理器，Spring事务策略的核心
+
+- **TransactionDefinition**： 事务定义信息(事务隔离级别、传播行为、超时、只读、回滚规则)
+
+- **TransactionStatus**：事务运行状态
+
+  
+
+**注意**：
+
+- 事务能否生效，数据库引擎是否支持事务是关键
+
+
+
+~~~xml
+XML版
+XML中配置事务管理器
+<bean idm"transactionManager" class= "org.springframework.jdbc.datasource.DataSourceTransactionNanagen">
+	<property name="dataSource" ref="dataSource" />
+</bean>
+引入名称空间tx
+开启事务注解
+<tx:annotation-driven transaction-manager="transactionManager" />
+~~~
+
+~~~xml
+<tx:advice id="txAdvice">
+    <!--配置事务参数-->
+    <tx:attributes>
+        <!--指定哪种规则的方法 上面添加事务-->
+        <tx :method name="*" propagation= "REQUIRED" />
+        <!--<tx:method name= " account*"/>-->
+    </tx:attributes>
+</tx:advice>
+
+<!--3配置切入点和切面-->
+<aop:config>
+    <!--配置切入点-->
+    <aop :pointcut id="pt" expression="execution(* *.*(..))"/>
+    <!--配置切面-->
+    <aop : advisor advice-ref="txAdvice" pointcut -ref="pt"/>
+</aop:config>
+~~~
+
+或者
+
+~~~java
+// 完全注解版
+// 代替xml
+// 表明此是配置类
+@Configuration 
+// 开启组件扫描
+@ComponentScan(basePackages = "SpringJDBC") 
+// 开启事务
+@EnableTransactionManagement 
+pubLic cLass SpringConfigProPLUS {
+    // 配置数据源
+    @Bean 
+    public DruidDataSource getDDS(){
+        DruidDataSource dataSource = null;
+        Inputstrean is = SpringConfigProPLus
+            .cLass
+            .getCLassLoader()
+            .getResourceAsstream("SpringJDBC/druid.properties");
+
+        Properties pros = new Properties();
+        try {
+            pros.Load(is);
+            dataSource = (DruidDataSource) DruidDataSourceFactory.createDatasource (pros);
+        } catch (Exception e) {
+            e.printStackTrace0);
+        }
+        return datasource;
+    }
+    // JDBC配置模板
+    @Bean
+    public JdbcTempLate getJdbcTempLate(0ataScurce dataSource) {
+        return new JdbcTempLate(dataSource);
+    }
+    // 配置事务管理器
+    @Bean
+    public DataSourceTransactionManager getDSTM(Datasource dataSource){
+        return new DataSourceTransactionManager(dataSource);
+    }
+}
+~~~
+
+
+
+~~~java
+// 前提
+// 创建service其注入dao
+// 创建dao其内注入JDBCTemplate
+// JDBCTemplate注入DateSource
+// service、dao都添加交给Spring管理
 @Service
 public class service{
 	@Autowired
@@ -881,800 +1571,295 @@ public class dao {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 }
-```
+~~~
 
 
 
-## 2、事务管理
+## 2、编程式事务管理
 
-- 基于注解
-- 基于XML
-
+通过 TransactionTemplate 或者 TransactionManager 手动管理事务
 
 
-## 3、原理
+~~~java
+// 使用TransactionTemplate 进行编程式事务管理的示例代码如下：
 
-底层使用AOP原理
+// 注入事务模板
+@Autowired
+private TransactionTemplate transactionTemplate;
 
-
-
-## 4、事务管理器
-
-提供一个接口，代表事务管理器，这个接口针对不同的框架提供不同的实现类
-
-![image-20210910190736147](images\Spring-Framework.assets\image-20210910190736147.png)
-
-
-
-## 5、半注解式事务管理
-
-1、XML中配置事务管理器
-
-```xml
-<bean idm"transactionManager" class= "org.springframework.jdbc.datasource.DataSourceTransactionNanagen">
-	<property name="dataSource" ref="dataSource" />
-</bean>
-
-```
-
-2、 引入名称空间tx
-
-3、开启事务注解
-
-```xml
-<tx:annotation-driven transaction-manager="transactionManager" />
-```
-
-4、在service类上添加事务注解@Transational
-
--  此注解可以添加在类上也可以添加在方法上
-
-- 添加在类上，则所有方法都添加事务
-
-- 添加在方法上，则此方法添加事务
-
-```java
-@Service
-@Transactional
-public class service {.....}
-```
+// 业务方法
+public void testTransaction() {
+    transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+        @Override
+        protected void doInTransactionWithoutResult(TransactionStatus transactionStatus) {
+            try {
+                // ....  业务代码
+            } catch (Exception e){
+                //回滚
+                transactionStatus.setRollbackOnly();
+            }
+        }
+    });
+}
+~~~
 
 
 
-##  6、@Transational参数
+~~~java
+// 使用 TransactionManager 进行编程式事务管理的示例代码如下：
 
-1、**Propagation**：事务传播行为
+// 注入事务管理器
+@Autowired
+private PlatformTransactionManager transactionManager;
 
-- REQUIRED，调用的与被调用的都加进同一个事务
-- REQUIRED_NEW：创建新事务
+// 业务方法
+public void testTransaction() {
+    TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+    try {
+        // ....  业务代码
+        transactionManager.commit(status);
+    } catch (Exception e) {
+        // 回滚
+        transactionManager.rollback(status);
+    }
+}
+~~~
+
+
+
+## 3、声明式事务管理
+
+推荐使用（代码侵入性最小）
+
+实际是通过 AOP 实现（基于@Transactional 的全注解方式使用最多）
+
+~~~java
+@Transactional(propagation=propagation.PROPAGATION_REQUIRED)
+public void aMethod {
+    // do something
+    B b = new B();
+    C c = new C();
+    b.bMethod();
+    c.cMethod();
+}
+~~~
+
+
+
+## 4、三个重要接口
+
+
+
+### 1、PlatformTransactionManager
+
+Spring 并不直接管理事务，而是提供了多种事务管理器 ，Spring 事务管理器的接口是：**PlatformTransactionManager**，其可以被看作是**事务上层的管理者**
+
+通过这个接口，Spring 为各个平台如 JDBC(DataSourceTransactionManager)、Hibernate(HibernateTransactionManager)、JPA(JpaTransactionManager)等都提供了对应的事务管理器
+
+PlatformTransactionManager接口中定义了三个方法：
+
+~~~java
+public interface PlatformTransactionManager {
+    //获得事务
+    TransactionStatus getTransaction(@Nullable TransactionDefinition var1) throws TransactionException;
+    
+    //提交事务
+    void commit(TransactionStatus var1) throws TransactionException;
+    
+    //回滚事务
+    void rollback(TransactionStatus var1) throws TransactionException;
+}
+~~~
+
+<img src="images/image-20210910190736147.png" alt="image-20210910190736147" style="zoom:80%;" />
+
+
+
+### 2、TransactionDefinition
+
+事务属性可以理解成事务的一些基本配置，描述了事务策略如何应用到方法上
+
+- PlatformTransactionManager 会根据 TransactionDefinition 的定义比如事务超时时间、隔离级别、传播行为等来进行事务管理
+- PlatformTransactionManager 通过 getTransaction(TransactionDefinition definition) 方法来得到一个事务，这个方法里面的参数就是 TransactionDefinition 类
+
+
+
+事务属性包含了5个方面：
+
+- 隔离级别
+- 传播行为
+- 回滚规则
+- 是否只读
+- 事务超时
+
+
+
+TransactionDefinition 接口中定义了 5 个方法以及一些表示事务属性的常量比如隔离级别、传播行为等等
+
+~~~java
+public interface TransactionDefinition {
+    int PROPAGATION_REQUIRED = 0;
+    int PROPAGATION_SUPPORTS = 1;
+    int PROPAGATION_MANDATORY = 2;
+    int PROPAGATION_REQUIRES_NEW = 3;
+    int PROPAGATION_NOT_SUPPORTED = 4;
+    int PROPAGATION_NEVER = 5;
+    int PROPAGATION_NESTED = 6;
+    int ISOLATION_DEFAULT = -1;
+    int ISOLATION_READ_UNCOMMITTED = 1;
+    int ISOLATION_READ_COMMITTED = 2;
+    int ISOLATION_REPEATABLE_READ = 4;
+    int ISOLATION_SERIALIZABLE = 8;
+    int TIMEOUT_DEFAULT = -1;
+    
+    // 返回事务的传播行为，默认值为 REQUIRED
+    int getPropagationBehavior();
+    
+    // 返回事务的隔离级别，默认值是 DEFAULT
+    int getIsolationLevel();
+    
+    // 返回事务的超时时间，默认值为-1
+    // 如果超过该时间限制但事务还没有完成，则自动回滚事务
+    int getTimeout();
+    
+    // 返回是否为只读事务，默认值为 false
+    boolean isReadOnly();
+    
+    @Nullable
+    String getName();
+}
+~~~
+
+
+
+### 3、TransactionStatus
+
+TransactionStatus 接口用来记录事务的状态，其提供了一些方法来获取事务相应的状态，比如是否新事务、是否可以回滚等等
+
+TransactionStatus接口内容：
+
+~~~java
+public interface TransactionStatus{
+    // 是否是新的事务
+    boolean isNewTransaction(); 
+    
+    // 是否有恢复点
+    boolean hasSavepoint(); 
+    
+    // 设置为只回滚
+    void setRollbackOnly();  
+    
+    // 是否为只回滚
+    boolean isRollbackOnly(); 
+    
+    // 是否已完成
+    boolean isCompleted; 
+}
+~~~
+
+
+
+## 5、事务属性
+
+### 1、事务传播行为
+
+事务传播行为是为了解决业务层方法之间互相调用的事务问题
+
+当事务方法被另一个事务方法调用时，必须指定事务应该如何传播
+
+例如：方法可能继续在现有事务中运行，也可能开启一个新事物，并在自己的事务中运行
+
+
+
+Spring定义的事务传播行为如下：
 
 | 传播属性     | 描述                                                         |
 | ------------ | ------------------------------------------------------------ |
-| REQUIRED     | 如果有事务在运行，当前的方法就在这个事务内运行，否则，就启动一个新的事务，并在自己的事务内运行。 |
-| REQUIRED_NEW | 当前的方法必须启动新事务，并在它自己的事务内运行。如果有事务正在运行，应该将它挂起 |
-| SUPPORTS     | 如果有事务在运行，当前的方法就在这个事务内运行。否则它可以不运行在事务中。 |
-| NOT_SUPPORTE | 当前的方法不应该运行在事务中。如果有运行的事务，将它挂起。   |
-| MANDATORY    | 当前的方法必须运行在事务内部，如果没有正在运行的事务，就抛出异常。 |
-| NEVER        | 当前的方法不应该运行在事务中，如果有运行的事务，就抛出异常。 |
-| NESTED       | 如果有事务在运行，当前的方法就应该在这个事务的嵌套事务内运行。否则，就启动一个新的事务，并在它自己的事务内运行。 |
+| REQUIRED     | 如果外部事务在运行，当前方法就加入，否则启动一个新的事务，并在自己的事务内运行 |
+| REQUIRED_NEW | 当前方法必须启动新事务，并在自己的事务内运行，如果外部事务正在运行，就将外部事务挂起 |
+| SUPPORTS     | 如果有外部事务在运行，当前方法就在这个事务内运行，否则它可以不运行在事务中 |
+| NOT_SUPPORTE | 当前方法不运行在事务中，如果有外部事务运行，将它挂起         |
+| MANDATORY    | 当前方法必须加入外部事务，如果没有正在运行外部事务，就抛出异常 |
+| NEVER        | 当前方法不运行在任何事务中，如果有运行任何事务，就抛出异常   |
+| NESTED       | 如果有外部事务在运行，当前的方法就应该在这个事务的嵌套事务内运行，否则启动一个新的事务，并在它自己的事务内运行 |
 
-2、**Isolation**：事务隔离级别
 
-|                            | 脏读 | 不可重复读 | 幻读 |
+
+### 6、事务隔离级别
+
+| 隔离级别                   | 脏读 | 不可重复读 | 幻读 |
 | -------------------------- | ---- | ---------- | ---- |
 | READ UNCOMMITTED(读未提交) | 有   | 有         | 有   |
 | READ COMMITTED(读已提交)   | 无   | 有         | 有   |
 | REPEATABLE READ(可重复读)  | 无   | 无         | 有   |
 | SERIALIZABLE(串行化)       | 无   | 无         | 无   |
 
-3、**Timeout**：超时时间
+- **ISOLATION_DEFAULT**：使用后端数据库默认的隔离级别，MySQL 默认采用的 REPEATABLE_READ（可重复读） 隔离级别 Oracle 默认采用的 READ_COMMITTED 隔离级别
+- **ISOLATION_READ_UNCOMMITTED**：最低的隔离级别，使用这个隔离级别很少，因为它允许读取尚未提交的数据变更，可能会导致脏读、幻读或不可重复读
+- **ISOLATION_READ_COMMITTED**：允许读取并发事务已经提交的数据，可以阻止脏读，但是幻读或不可重复读仍有可能发生
+- **ISOLATION_REPEATABLE_READ**：对同一字段的多次读取结果都是一致的，除非数据是被本身事务自己所修改，可以阻止脏读和不可重复读，但幻读仍有可能发生
+- **ISOLATION_SERIALIZABLE**：最高的隔离级别，完全服从 ACID 的隔离级别，所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰，该级别可以防止脏读、不可重复读以及幻读，但是严重影响程序的性能，通常情况下也不会用到该级别
 
-- 事务需要在一定时间提交，若不提交则回滚
 
-- 默认值为-，设置时间以秒为单位
 
-4、**readOnly**：是否只读
+### 7、事务超时
 
-- 读：查询操作，写：添加修改删除操作
-- 默认值false，表示可写可读
-- 设置为true，则只能查询
+指一个事务所允许执行的最长时间，如果超过该时间限制但事务还没有完成，则自动回滚事务
 
-5、**rollbackFor**：回滚
+在 TransactionDefinition 中以 int 的值来表示超时时间，其单位是秒，默认值为 -1
 
-- 设置出现那些异常进行事务回滚
 
-6、**noRollbackFor**：不回滚
 
-- 设置出现那些异常不会回滚
+### 8、事务只读
 
+对于只有读取数据查询的事务，可以指定事务类型为 readonly
 
+只读事务不涉及数据的修改，数据库会提供一些优化手段，适合用在有多条数据库查询操作的方法中
 
-## 7、XML声明事务管理
+数据查询操作如果不加Transactional，每条sql会开启一个单独的事务，中间被其它事务改了数据，都会实时读取到最新值
 
-1、配置事务管理器
 
-2、配置通知
 
-3、配置切入点和切面
+**注意**：
 
-```xml
-<tx:advice id="txAdvice">
-	<!--配置事务参数-->
-	<tx:attributes>
-		<!--指定哪种规则的方法 上面添加事务-->
-		<tx :method name="*" propagation= "REQUIRED" />
-		<!--<tx:method name= " account*"/>-->
-	</ tx:attributes>
-</tx:advice>
-<!--3配置切入点和切面-->
-<aop : config>
-	<!--配置切入点-->
-	<aop :pointcut id="pt" expression="execution(* *.*(..))"/>
-	<!--配置切面-->
-	<aop : advisor advice-ref="txAdvice" pointcut -ref="pt"/>
-</aop:config>
+- 如果一次执行单条查询语句，则没有必要启用事务支持，数据库默认支持sql执行期间的读一致性
+- 如果你一次执行多条查询语句，例如统计查询，报表查询，这这种场景下，多查询sql必须保证整个的读一致性，否则，在前条sql查询之后，后条sql查询之前，数据被其他用户改变，则该此整体的统计查询将会出现读数据不一致的状态，此时，应该启用事务支持
 
-```
 
 
+### 9、事务回滚规则
 
-## 8、完全注解事务管理器
+默认情况下，事务只有遇到运行期异常（RuntimeException 的子类）时才会回滚，Error 也会导致事务回滚，但是在遇到检查型（Checked）异常时不会回滚
 
-1、创建配置类，使用配置类替代XML文件。
+<img src="images/image-20221017091815948.png" alt="image-20221017091815948" style="zoom:80%;" />
 
-```java
-//表明此是配置类
-@Configuration 
-//开启组件扫描
-@ComponentScan(basePackages = "SpringJDBC") 
-//开启事务
-@EnableTransactionManagement 
-pubLic cLass SpringConfigProPLUS {....}
-```
 
-2、使用Bean注解，创建Bean类，会将修饰的方法的返回值添加进容器中
 
-```java
-@Bean 
-public DruidDataSource getDDS(){
-    DruidDataSource dataSource = null;
-    Inputstrean is = SpringConfigProPLus.cLass.getCLassLoader().getResourceAsstream("SpringJDBC/druid.properties");
-    Properties pros = new Properties();
-    try {
-        pros.Load(is);
-        dataSource = (DruidDataSource) DruidDataSourceFactory.createDatasource (pros);
-    } catch (Exception e) {
-        e.printStackTrace0);
-    }
-	return datasource;
-}
-@Bean
-public JdbcTempLate getJdbcTempLate(0ataScurce dataSource) {
-	return new JdbcTempLate(dataSource);
-}
-@Bean
-public DataSourceTransactionManager getDSTM(Datasource dataSource){
-	return new DataSourceTransactionManager(dataSource);
-}
-```
 
 
 
-# 完全注解开发
 
-## 注入属性
+##  6、@Transational
 
-### 1、@Autowired
+此注解可以添加在类上也可以添加在方法上：
 
-**自动装配**：Spring利用**依赖注入**（DI），完成对IOC容器中中各个组件的依赖关系赋值
+-  添加在类上，则此类所有方法都添加事务
 
-**寻找原则**：
+-  添加在方法上，则此方法添加事务
 
-1. 默认**优先按照类型**去容器中找对应的组件，找到就赋值，applicationContext.getBean(BookDao.class)；
-2. 如果找到多个相同类型的组件，再将**属性的名称**作为组件的id去容器中查找，applicationContext.getBean("bookDao")；
-3. 自动装配默认**一定要找到对应的Bean并赋值属性**，没有就会报错，可以使用@Autowired(**required**=false)取消必须装配
+| 参数名        | 作用                                                         |      |
+| ------------- | ------------------------------------------------------------ | ---- |
+| Propagation   | 事务传播行为                                                 |      |
+| Isolation     | 事务隔离级别                                                 |      |
+| Timeout       | 超时时间<br />1、事务需要在一定时间提交，若不提交则回滚<br />2、默认值为 -1，设置时间以秒为单位 |      |
+| readOnly      | 是否只读<br />1、读：查询操作<br />2、写：添加修改删除操作 <br />默认值false，表示可写可读，设置为true，则只能查询 |      |
+| rollbackFor   | 设置出现那些异常进行事务回滚                                 |      |
+| noRollbackFor | 设置出现那些异常不会回滚                                     |      |
 
-**使用方法**：
-
-可以标注在：**构造器**、**参数**、**普通方法**、**成员变量**
-
-1. [**标注在普通方法上**]：
-
-   Spring容器创建当前对象，就会调用方法，完成赋值。方法使用的参数，自定义类型的值从ioc容器中获取
-
-   ~~~java
-   // 标注在方法上，Spring容器在创建当前对象的时候，就会调用当前方法完成赋值
-   // 方法使用的参数从IOC容器里面进行获取
-   @Autowired
-   public void getName(User user){
-       System.out.println("主动注入的User："+user.getName());
-   }
-   ~~~
-
-   **注意**：
-
-   - 在注入Bean后会自动执行一次方法
-   - @Bean标注的方法参数从容器中获取，和默认不写@Autowired效果是一样的，都能自动装配
-
-   
-
-2. [**标注在构造器上**]：
-
-   如果组件只有一个有参构造器，这个有参构造器的@Autowired即使省略了，参数对应的组件还是可以自动从容器中获取
-
-   ~~~java
-   // 可以省略
-   @Autowired
-   public TextEditor(SpellChecker spellChecker){
-       this.spellChecker = spellChecker;
-   }
-   
-   // 自定义查询数据库用户名密码和权限信息
-   private UserDetailsService userDetailsService;
-   // token 管理工具类（生成 token）
-   private TokenManager tokenManager;
-   // 密码管理工具类
-   private DefaultPasswordEncoder defaultPasswordEncoder;
-   // redis 操作工具类
-   private RedisTemplate redisTemplate;
-   @Autowired
-   public TokenWebSecurityConfig(UserDetailsService userDetailsService, 
-                                 DefaultPasswordEncoder defaultPasswordEncoder,
-                                 TokenManager tokenManager, 
-                                 RedisTemplate redisTemplate) {
-       this.userDetailsService = userDetailsService;
-       this.defaultPasswordEncoder = defaultPasswordEncoder;
-       this.tokenManager = tokenManager;
-       this.redisTemplate = redisTemplate;
-   }
-   ~~~
-
-   
-
-3. [**标注在参数上**]：
-
-   ~~~java
-   public void setStudent(@Autowired Student stu) {
-       this.stu = stu;
-   }
-   ~~~
-   
-   
-   
-4. [**标注在成员变量上**]：
-
-   ~~~java
-   @Autowired
-   Controller ct;
-   ~~~
-
-   **注意**：
-
-   - @Autowired会让private变为public，而标注在setter处则不会
-
-<img src="images/aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz.png" alt="aHR0cDovL2ltZy5ibG9nLmNzZG4ubmV0LzIwMTYwODI0MTcyODAwMTYz" style="zoom:90%;" />
-
-
-
-### 2、@Qualifier
-
-**根据名称**注入，需要与上面的注解一起使用，被注入的类需要注册在容器中，且name必须为contorller。
-
-@Qualifier("bookDao")：使用@Qualifier指定**需要装配的组件的id**，而不是使用属性名
-
-```java
-@Autowiredc
-@Qualifier("controller")
-Controller ct;
-```
-
-### 3、@Resource(JSR250)
-
-JSR250规范的注解
-
-**注意**：不支持@Primary，不支持@Autowired（reqiured=false）
-
-可根据**类型**注入，也可根据**名称**注入
-
-```java
-@Resouce(name = "userDaoImpl")
-private UserDao userDao;
-```
-
-### 4、@Value
-
-注入**普通类型**属性
-
-1、基本数值
-2、可以写SpEL； #{}
-3、可以写${}；取出配置文件【properties】中的值（在运行环境变量里面的值）
-
-```java
-@Value("张三")
-private String name;
-@Value("#{20-2}")
-private Integer age;
-//需要使用@PropertySource注解获取配置文件
-@Value("${person.nickName}")
-private String nickName;
-```
-
-### 5、@PreDestroy
-
-**销毁**
-
-![image-20210907194104121](images\Spring-Framework.assets\image-20210907194104121.png)
-
-### 6、@PostConstruct
-
-**初始化**
-
-![image-20210907194135269](images\Spring-Framework.assets\image-20210907194135269.png)
-
-1、创建配置类，替代XML文件
-
-![image-20210907194344574](images\Spring-Framework.assets\image-20210907194344574.png)
-
-2、加载配置类
-
-3、使用**AnnotationConfigApplicationContext**加载
-
-<img src="images\Spring-Framework.assets\image-20210907194417702.png" alt="image-20210907194417702" style="zoom:200%;" />
-
-
-
-### 7、@PropertySource
-
-使用@PropertySource读取外部配置文件中的k/v保存到运行的环境变量中。
-
-加载完外部的配置文件以后使用**${}**取出配置文件的值。
-
-```java
-@PropertySource(value={"classpath:/person.properties"})
-@Configuration
-public class MainConfigOfPropertyValues {
-    ......
-}
-```
-
-### 8、@Inject(JSR330)
-
-JSR330规范的注解。
-
-需要导入**javax.inject**的包，和Autowired的功能一样。
-
-**注意**：没有required=false的功能，没有使用的必要
-
-
-
-## 操作与管理Bean
-
-### 1、@Component
-
-默认加在ioc容器中的组件，容器启动会默认调用无参构造器创建对象，再进行初始化赋值等操作。如果只有一个有参构造器，该构造器要用的组件，都是从容器中获取。
-
-```java
-@Component
-public class Boss {
-
-    private Car car;
-
-    //构造器要用的组件，都是从容器中获取
-    public Boss(Car car){
-        this.car = car;
-        System.out.println("Boss...有参构造器");
-    }
-    
-}
-```
-
-### 2、@Configuration
-
-配置类==配置文件，告诉Spring这是一个配置类。
-
-```java
-@Configuration
-public class myConfig(){
-    .......
-}
-```
-
-### 3、@ComponentScans
-
-该注解可以一次声明多个@ComponentScan，因为该注解内含@Repeatable(ComponentScans.class) ，可以指定@ComponentScan可以被@ComponentScans作为数组使用。
-
-- **@ComponentScan**  value:指定要扫描的包
-- **excludeFilters = Filter[]** ：指定扫描的时候按照什么规则排除那些组件
-- **includeFilters = Filter[]** ：指定扫描的时候只需要包含哪些组件
-- **FilterType.ANNOTATION**：按照注解
-- **FilterType.ASSIGNABLE_TYPE**：按照给定的类型；
-- **FilterType.ASPECTJ**：使用ASPECTJ表达式
-- **FilterType.REGEX**：使用正则指定
-- **FilterType.CUSTOM**：使用自定义规则
-
-```java
-@ComponentScans(
-    value = {
-        //扫描哪些包
-        @ComponentScan(value="com.atguigu",
-                       includeFilters = {
-            /*			@Filter(type=FilterType.ANNOTATION,classes={Controller.class}),
-						@Filter(type=FilterType.ASSIGNABLE_TYPE,classes={BookService.class}),*/
-            			@Filter(type=FilterType.CUSTOM,classes={MyTypeFilter.class})
-        				},
-                       useDefaultFilters = false
-//useDefaultFilters=true/false：
-// 指定是否需要使用Spring默认的扫描规则：被@Component, @Repository, @Service, @Controller或者已经声明过@Component自定义注解标记的组件；
-      )
-   }
-)
-```
-
-自定义过滤规则：**实现TypeFilter接口**。
-
-- 参数**metadataReader**：读取到的当前正在扫描的类的信息。
-
-- 参数**metadataReaderFactory**：可以获取到其他任何类信息的。
-
-```java
-public class MyTypeFilter implements TypeFilter {
-	@Override
-	public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory)
-			throws IOException {
-		//获取当前类注解的信息
-		AnnotationMetadata annotationMetadata = metadataReader.getAnnotationMetadata();
-		//获取当前正在扫描的类的类信息
-		ClassMetadata classMetadata = metadataReader.getClassMetadata();
-		//获取当前类资源（类的路径）
-		Resource resource = metadataReader.getResource();
-		
-		String className = classMetadata.getClassName();
-		System.out.println("--->"+className);
-		if(className.contains("er")){
-			return true;
-		}
-		return false;
-	}
-
-}
-
-```
-
-
-
-### 4、@Bean
-
-给容器中注册一个Bean，类型为**返回值的类型**，id默认是用**方法名**作为id
-
-```java
-@Bean("person")
-public Person person01(){
-    return new Person("lisi", 20);
-}
-```
-
-### 5、@Lazy
-
-懒加载，只有bean被调用了才创建
-
-```java
-@Bean("person")
-@Lazy
-public Person person01(){}
-```
-
-### 6、@Conditional
-
-条件装配：满足Conditional指定的条件，则进行组件注入
-
-**相关接口**：
-
-接口**Condition**：
-
-- 参数**AnnotatedTypeMetadata**：注释信息
-
-- 参数**ConditionContext**：判断条件能使用的上下文（环境）
-
-```java
-public class LinuxCondition implements Condition {
-    @Override
-    public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        // 1、能获取到ioc使用的beanfactory
-        ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-        // 2、获取类加载器
-        ClassLoader classLoader = context.getClassLoader();
-        // 3、获取当前环境信息
-        Environment environment = context.getEnvironment();
-        // 4、获取到bean定义的注册类
-        BeanDefinitionRegistry registry = context.getRegistry();
-        // 可以判断容器中的bean注册情况，也可以给容器中注册bean
-        boolean definition = registry.containsBeanDefinition("person");
-        if(property.contains("linux")){
-            return true;
-        }
-        return false;
-    }
-}
-```
-
-类中组件统一设置。满足当前条件，这个类中配置的所有bean注册才能生效
-
-```java
-@Conditional({WindowsCondition.class})
-@Configuration
-public class MainConfig2 {}
-
-// 判断是否windows系统,需要实现Condition接口
-public class WindowsCondition implements Condition {
-
-	@Override
-	public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-		Environment environment = context.getEnvironment();
-		String property = environment.getProperty("os.name");
-		if(property.contains("Windows")){
-			return true;
-		}
-		return false;
-	}
-
-}
-```
-
-### 7、@Import
-
-@Import导入组件，id默认是组件的全类名
-
-```java
-@Configuration
-@Import({Color.class,Red.class,MyImportSelector.class,MyImportBeanDefinitionRegistrar.class})
-public class MainConfig2 {}
-```
-
-**相关接口**：
-
-接口**ImportBeanDefinitionRegistrar**：手动注册bean到容器中。
-
-- 参数**AnnotationMetadata**：当前类的注解信息
-- 参数**BeanDefinitionRegistry**：BeanDefinition注册类，BeanDefinitionRegistry.registerBeanDefinition()手工注册Bean进来
-
-```java
-public class MyImportBeanDefinitionRegistrar implements ImportBeanDefinitionRegistrar {
-   @Override
-   public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-      
-      boolean definition = registry.containsBeanDefinition("com.atguigu.bean.Red");
-      boolean definition2 = registry.containsBeanDefinition("com.atguigu.bean.Blue");
-      if(definition && definition2){
-         //指定Bean定义信息,（Bean的类型，Bean。。。）
-         RootBeanDefinition beanDefinition = new RootBeanDefinition(RainBow.class);
-         //注册一个Bean，指定bean名
-         registry.registerBeanDefinition("rainBow", beanDefinition);
-      }
-   }
-}
-```
-
-接口**ImportSelector**：返回需要导入的组件的全类名数组
-
-自定义逻辑返回需要导入的组件
-
-- 参数**AnnotationMetadata**：当前标注@Import注解的类的所有注解信息
-- 返回值，就是到导入到容器中的组件全类名，不能返回null
-
-```java
-
-public class MyImportSelector implements ImportSelector {
-    @Override
-    public String[] selectImports(AnnotationMetadata importingClassMetadata) {
-        return new String[]{"com.atguigu.bean.Blue","com.atguigu.bean.Yellow"};
-    }
-
-}
-```
-
-### 7、@Scope
-
-调整作用域
-
-**可选值**：
-
-- **prototype**：多实例的：ioc容器启动并不会去调用方法创建对象放在容器中。每次获取的时候才会调用方法创建对象。
-- **singleton**：单实例的（默认值）：ioc容器启动会调用方法创建对象放到ioc容器中。以后每次获取就是直接从容器（map.get()）中拿。
-- **request**：同一次请求创建一个实例。
-- **session**：同一个session创建一个实例。
-
-@Scope(“prototype”) **多例**
-
-```java
-@Scope("prototype")
-@Bean("person")
-public Person person(){
-    return new Person("张三", 25);
-}
-```
-
-### 8、@Primary
-
-自动装配时当出现多个Bean候选者时，被注解为@Primary的Bean将作为首选者，否则将抛出异常。（只对接口的多个实现生效）。
-
-同时也可以在注入处继续使用@Qualifier指定需要装配的bean的名字。
-
-```java
-@Primary
-@Component
-public class OperaSinger{
-    ........
-}
-```
-
-### 9、@Profile
-
-**Profile**：Spring为我们提供的可以根据当前环境，动态的激活和切换一系列组件的功能。
-
-例如：开发环境、测试环境、生产环境，数据源：(/A)(/B)(/C)。
-
-@Profile：指定组件在哪个环境的情况下才能被注册到容器中，如果不指定，任何环境下都能注册这个组件。
-
- * 加了环境标识的Bean，只有这个环境被激活的时候才能注册到容器中。**默认是default环境**。
- * 写在配置类上，只有是指定的环境的时候，整个配置类里面的**所有**配置才能开始生效。
- * 没有标注环境标识的Bean在，任何环境下都是加载的。
-
-```java
-@Profile("test")
-@Bean("testDataSource")
-public DataSource dataSourceTest(....){
-   ....
-}
-@Profile("dev")
-@Bean("devDataSource")
-public DataSource dataSourceDev(....) throws Exception{
-   .....
-}
-```
-
-
-
-## 生命周期
-
-### 简介
-
-**Bean创建**---**初始化**----**销毁的过程**
-
-由容器管理Bean的生命周期。
-
-我们可以自定义**初始化**和**销毁方法**，容器在Bean进行到当前生命周期的时候来调用我们自定义的初始化和销毁方法。
-
-### 1、指定初始化和销毁方法
-
-通过@Bean指定**init-method**和**destroy-method**
-
-```java
-@Bean(initMethod="init",destroyMethod="detory")
-public Car car(){
-    return new Car();
-}
-```
-
-### 2、InitializingBean（初始化）与DisposableBean（销毁）
-
-通过让Bean实现**InitializingBean**（定义初始化逻辑）、**DisposableBean**（定义销毁逻辑）
-
-*           只有单实例Bean才可以
-
-```java
-@Component
-public class Cat implements InitializingBean, DisposableBean {
-
-    public Cat(){
-       .....
-    }
-
-    @Override
-    public void destroy() throws Exception {
-        .....
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-       ......
-    }
-
-}
-```
-
-### 3、可以使用JSR250
-
- **@PostConstruct**：在bean创建完成并且属性赋值完成，来执行初始化方法
-
-**@PreDestroy**：在容器销毁bean之前通知我们进行清理工作，相当于一个回调通知
-
-
-
-### 4、BeanPostProcessor【interface】：bean的后置处理器
-
-在bean初始化前后进行一些处理工作。
-
-**postProcessBeforeInitialization**：在bean任何初始化方法之前工作
-
-**postProcessAfterInitialization**：在bean任何初始化方法之后工作
-
-```java
-@Component
-public class MyBeanPostProcessor implements BeanPostProcessor {
-
-	@Override
-	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-		........
-		return bean;
-	}
-
-	@Override
-	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-		.........
-		return bean;
-	}
-
-}
-```
-
-**BeanPostProcessor.postProcessBeforeInitialization()**:
-初始化：
-
-- 对象创建完成，并赋值好，调用初始化方法。
-
-**BeanPostProcessor.postProcessAfterInitialization()**:
-
-销毁：
-*     单实例：容器关闭的时候
-*     多实例：容器不会管理这个bean；容器不会调用销毁方法
-
-遍历得到容器中所有的BeanPostProcessor，挨个执行beforeInitialization方法，一但返回null，跳出for循环，不会执行后面的BeanPostProcessor.postProcessorsBeforeInitialization()。
-
-**BeanPostProcessor原理**：
-
-```java
-//给bean进行属性赋值
-populateBean(beanName, mbd, instanceWrapper);
-initializeBean
-{
-	applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
-    //执行自定义初始化
-	invokeInitMethods(beanName, wrappedBean, mbd);
-	applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
-}
-```
-
-**扩展**：Spring底层对 BeanPostProcessor 的使用；
-
-bean赋值，注入其他组件，@Autowired，生命周期注解功能，@Async,xxx等等，都是通过BeanPostProcessor来完成;
-
-
-
-## 注解事务
-
-### 1、@EnableTransactionManagement 
-
-开启基于注解的事务管理功能
-
-```java
-@EnableTransactionManagement
-@ComponentScan("com.atguigu.tx")
-@Configuration
-public class TxConfig {....}
-```
-
-
-
-### 2、配置事务管理器来控制事务
-
-```java
-@Bean
-public PlatformTransactionManager transactionManager(){...}
-```
-
-
-
-### 3、标注@Transactional
+~~~java
+// 自定义回滚类型
+@Transactional(rollbackFor= MyException.class)
+~~~
 
 
 
