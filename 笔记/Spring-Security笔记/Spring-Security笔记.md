@@ -9,6 +9,8 @@ Spring Security 基于 Spring 框架，提供了一套 Web 应用安全性的完
 - 用户认证：**验证某个用户是否为系统中的合法主体**，也就是说用户**能否访问该系统**。用户认证一般要求用户提供用户名和密码。系统通过校验用户名和密码来完成认证过程。**通俗点说就是系统认为用户是否能登录**。
 - 用户授权：**验证某个用户是否有权限执行某个操作**。在一个系统中，**不同用户所具有的权限是不同的**。一般来说，系统会**为不同的用户分配不同的角色**，而**每个角色则对应一系列的权限**。**通俗点讲就是系统判断用户是否有权限去做某些事情**。
 
+
+
 ## 2、权限管理相关概念
 
 **主体**：
@@ -1216,13 +1218,30 @@ return new User(users.getUsername(), new BCryptPasswordEncoder().encode(users.ge
 
 ### 2、案例
 
-在不关闭Security的CSRF情况下，在登陆页面添加一个隐藏域。
+在不关闭Security的CSRF情况下，在登陆页面添加一个隐藏域
 
 ```html
 <input  type="hidden"th:if="${_csrf}!=null"th:value="${_csrf.token}"name="_csrf"/>
 ```
 
-**注意**：如果不关闭CSRF，则必须在form表单中添加这个，否则请求会被拒绝。
+前后端分离的情况下，需要把csrfToken存入Cookie，前端发请求时携带即可
+
+~~~java
+.csrf()
+.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse());
+~~~
+
+~~~js
+{
+  "_csrf":"xxxx"
+}
+~~~
+
+**注意**：
+
+- 如果不关闭CSRF，则必须在form表单中添加这个，否则请求会被拒绝
+
+
 
 ### 3、实现 CSRF 的原理
 
@@ -1254,6 +1273,8 @@ private static final class SaveOnAccessCsrfToken implements CsrfToken {
 ![image-20210928213726977](images/image-20210928213726977.png)
 
 CsrfTokenRepository 接口实现类主要：**HttpSessionCsrfTokenRepository**，**CookieCsrfTokenRepository**。
+
+
 
 2、请求到来时，从请求中提取 **csrfToken**，和保存的 **csrfToken** 做比较，进而判断当前请求是否合法，主要通过 **CsrfFilter** 过滤器来完成。
 
@@ -1395,7 +1416,7 @@ public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Except
 
 ![image-20210929192638447](images/image-20210929192638447.png)
 
-用户根据用户名密码认证成功，然后获取当前用户角色的一系列权限值，并以用户名为 key，权限列表为 value 的形式存入 redis 缓存中，根据用户名相关信息生成 token 返回，浏览器将 token 记录到 cookie 中，每次调用 api 接口都默认将 token 携带到 header 请求头中，Spring-security 解析 header 头获取 token 信息，解析 token 获取当前用户名，根据用户名就可以从 redis 中获取权限列表，这样 Spring-security 就能够判断当前请求是否有权限访问。
+用户根据用户名密码认证成功，然后获取当前用户角色的一系列权限值，并以用户名为 key，权限列表为 value 的形式存入 redis 缓存中，根据用户名相关信息生成 token 返回，浏览器将 token 记录到 cookie 中，每次调用 api 接口都默认将 token 携带到 header 请求头中，Spring-security 解析 header 头获取 token 信息，解析 token 获取当前用户名，根据用户名就可以从 redis 中获取权限列表，这样 Spring-security 就能够判断当前请求是否有权限访问
 
 
 

@@ -1,3 +1,5 @@
+
+
 # SpringSession
 
 ## 简介
@@ -6,8 +8,8 @@ Spring Session 提供了用于管理用户会话信息的 API 和实现，同时
 
 它还提供与以下各项的透明集成：
 
-- HttpSession：允许以中立的方式替换应用程序中的 HttpSession，支持在标头中提供会话 ID 以与 RESTful API 一起使用。
-- WebSocket：接收 WebSocket 消息时，保持 HttpSession 活力。
+- HttpSession：允许以中立的方式替换应用程序中的 HttpSession，支持在标头中提供会话 ID 以与 RESTful API 一起使用
+- WebSocket：接收 WebSocket 消息时，保持 HttpSession 活力
 - WebSession：允许以中立的方式替换应用程序中的 Spring WebFlux’s WebSession
 
 

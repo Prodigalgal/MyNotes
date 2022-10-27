@@ -1068,6 +1068,7 @@ HashSet 按 Hash 算法来存储集合中的元素，因此具有很好的存取
 
 - 对于存放在Set容器中的对象，对应的类一定要**重写equals()和hashCode(Object  obj)方法**，以实现对象相等规则
 - 即：“相等的对象必须具有相等的散列码”
+- HashSet底层使用了HashMap，每个构造方法都创建了一个HashMap，只不过Map的每个value都指向同一个空的Object类型对象
 
 **特点**： 
 
