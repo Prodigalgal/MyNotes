@@ -24,9 +24,7 @@ Feign集成了Ribbon，利用Ribbon维护了服务列表信息，并且通过轮
 
 ## 步骤
 
-参考microservicecloud-consumer-dept-80
-
-新建microservicecloud-consumer-dept-feign，新建Consumer模块
+参考microservicecloud-consumer-dept-80，新建microservicecloud-consumer-dept-feign
 
 ### 1、引入依赖POM
 
@@ -72,17 +70,6 @@ microservicecloud-consumer-dept-feign工程pom.xml修改，主要**添加对feig
 **api模块**新建DeptClientService接口并**新增注解@FeignClient ** 
 
 ```java
-package com.atguigu.springcloud.service;
- 
-import java.util.List;
- 
-import org.springframework.cloud.netflix.feign.FeignClient;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
- 
-import com.atguigu.springcloud.entities.Dept;
- 
 // 表明是FeignClient端，value填写服务名
 @FeignClient(value = "MICROSERVICECLOUD-DEPT")
 public interface DeptClientService{
@@ -104,17 +91,6 @@ public interface DeptClientService{
 microservicecloud-consumer-dept-feign工程即Consumer模块修改 Controller，添加上一步新建的DeptClientService接口，使用接口调用。
 
 ```java
-package Core.Controller;
-
-import Core.pojo.Dept;
-import Core.service.DeptClientService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-
 @RestController
 public class DeptConsumerController {
 
@@ -170,7 +146,9 @@ public class Consumer_Dept_Feign {
 ## 总结
 
  Feign**通过接口的方法**调用Rest服务（之前是Ribbon+RestTemplate），
-该请求发送给Eureka服务器（http://MICROSERVICECLOUD-DEPT/dept/list）, 通过Feign直接找到服务接口，由于在进行服务调用的时候融合了Ribbon技术，所以也支持负载均衡作用。
+该请求发送给Eureka服务器（http://MICROSERVICECLOUD-DEPT/dept/list）, 通过Feign直接找到服务接口，由于在进行服务调用的时候融合了Ribbon技术，所以也支持负载均衡作用
+
+
 
 # OpenFeign构建
 
@@ -335,13 +313,13 @@ logging:
 
 # Feign VS OpenFeign
 
-##  Feign
+**Feign**：
 
-Feign是Spring Cloud组件中的一个轻量级RESTful的HTTP服务客户端。
+Feign是Spring Cloud组件中的一个轻量级RESTful的HTTP服务客户端
 
-Feign内置了Ribbon，用来做客户端负载均衡，去调用服务注册中心的服务。
+Feign内置了Ribbon，用来做客户端负载均衡，去调用服务注册中心的服务
 
-Feign的使用方式是：使用Feign的注解定义接口，调用这个接口，就可以调用服务注册中心的服务。
+Feign的使用方式是：使用Feign的注解定义接口，调用这个接口，就可以调用服务注册中心的服务
 
 ```xml
 <dependency>
@@ -350,11 +328,11 @@ Feign的使用方式是：使用Feign的注解定义接口，调用这个接口�
 </dependency>	
 ```
 
-## OpenFeign
+**OpenFeign**：
 
-OpenFeign是Spring Cloud 在Feign的基础上支持了SpringMVC的注解，如@RequesMapping等等。
+OpenFeign是Spring Cloud 在Feign的基础上支持了SpringMVC的注解，如@RequesMapping等等
 
-OpenFeign的@FeignClient可以解析SpringMVC的@RequestMapping注解下的接口，并通过动态代理的方式产生实现类，实现类中做负载均衡并调用其他服务。
+OpenFeign的@FeignClient可以解析SpringMVC的@RequestMapping注解下的接口，并通过动态代理的方式产生实现类，实现类中做负载均衡并调用其他服务
 
 ```xml
 <dependency>

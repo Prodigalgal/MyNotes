@@ -878,15 +878,15 @@ Java 集合可分为 **Collection** 和 **Map** 两种体系
   - Set：元素无序、不可重复的集合
 - Map接口：双列数据，保存具有映射关系“key-value对”的集合
 
-<img src="images/image-20220401091830467.png" alt="image-20220401091830467" style="zoom:67%;" />
+<img src="images/image-20220401091830467.png" alt="image-20220401091830467" style="zoom: 50%;" /><img src="images/image-20220401091919923.png" alt="image-20220401091919923" style="zoom: 50%;" />
 
-<img src="images/image-20220401091919923.png" alt="image-20220401091919923" style="zoom:67%;" />
+
 
 ## 2、Collection 接口
 
 ### 1、基本概念
 
-- Collection 接口是 **List**、**Set** 和 **Queue** 接口的父接口，该接口里定义的方法既可用于操作 Set 集合，也可用于操作 List 和 Queue 集合。
+- Collection 接口是 **List**、**Set** 和 **Queue** 接口的父接口，该接口里定义的方法既可用于操作 Set、List、Queue 集合
 - JDK不提供此接口的任何直接实现，而是提供更具体的子接口(如：Set和List) 实现
 - 在 Java5 之前，Java 集合会丢失容器中所有对象的数据类型，把所有对象都当成 Object 类型处理，从 JDK 5.0 增加了泛型以后，Java 集合可以记住容器中对象的数据类型
 
@@ -937,7 +937,7 @@ Java 集合可分为 **Collection** 和 **Map** 两种体系
 
 ##### ArrayList
 
-ArrayList本质上是对象引用的一个**”变长”数组**。
+ArrayList本质上是对象引用的一个**”变长”数组**
 
 ~~~java
 // 默认容量的大小
@@ -1090,7 +1090,7 @@ HashSet 按 Hash 算法来存储集合中的元素，因此具有很好的存取
 
 - LinkedHashSet 是 **HashSet** 的子类
 - LinkedHashSet 根据元素的 hashCode 值来决定元素的存储位置， 但它同时使用**双向链表**维护元素的次序，这使得元素看起来是以插入顺序保存的
-- LinkedHashSet插入性能略低于 HashSet，但在迭代访问 Set 里的全部元素时有很好的性能。
+- LinkedHashSet插入性能略低于 HashSet，但在迭代访问 Set 里的全部元素时有很好的性能
 - LinkedHashSet 不允许集合元素重复
 
 ##### TreeSet
@@ -1101,7 +1101,7 @@ HashSet 按 Hash 算法来存储集合中的元素，因此具有很好的存取
 
 **注意**：
 
-- TreeSet只能添加同类对象，不然抛出ClassCastException异常。
+- TreeSet只能添加同类对象，不然抛出ClassCastException异常
 
 新增方法：
 
@@ -7002,7 +7002,7 @@ C消费1个后剩余0
 
 1、instanceof
 
-instanceof运算符 只被用于**对象引用变量**，检查左边的被测试对象是不是右边类或接口的实例化
+instanceof运算符只被用于**对象引用变量**，检查左边的被测试对象是不是右边类或接口的实例化
 
 如果被测对象是null值，则测试结果总是false
 
@@ -7059,7 +7059,7 @@ JDK1.8：ArrayList像懒汉式，一开始创建一个长度为0的数组，当�
 然后是ArrayList和Vector的区别：
 
 - Vector和ArrayList几乎是完全相同的，唯一的区别在于Vector是同步类(synchronized)，属于强同步类，因此开销就比ArrayList要大，访问要慢
-- Vector每次扩容请求其大小的2倍空间，而ArrayList是1.5倍。Vector还有一个子类Stack
+- Vector每次扩容请求其大小的2倍空间，而ArrayList是1.5倍，Vector还有一个子类Stack
 
 
 
@@ -7312,12 +7312,12 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
 
 ![image-20220401173631154](images/image-20220401173631154.png)
 
-1. 判断键值对数组 table[i]是否为空或为 null，否则执行 resize() 进行扩容。
-2. 根据键值 key 计算 hash 值得到插入的数组索引 i，如果 table[i]==null，直接新建节点添加， 转向6，如果 table[i]不为空，转向3。
-3. 判断 table[i] 的首个元素是否和 key 一样，如果相同直接覆盖 value，否则转向4，这里的相同指的是 hashCode 以及 equals。 
-4. 判断 table[i] 是否为 treeNode，即 table[i] 是否是红黑树，如果是红黑树，则直接在树中插入键值对，否则转向5。
-5. 遍历 table[i]，判断链表长度是否大于 8，大于 8 的话把链表转换为红黑树，在红黑树中执行插入操作，否则进行链表的插入操作，遍历过程中若发现 key 已经存在直接覆盖 value 即可。
-6. 插入成功后，判断实际存在的键值对数量 size 是否超多了最大容量 threshold，如果超过， 进行扩容。
+1. 判断键值对数组 table[i]是否为空或为 null，否则执行 resize() 进行扩容
+2. 根据键值 key 计算 hash 值得到插入的数组索引 i，如果 table[i]==null，直接新建节点添加， 转向6，如果 table[i]不为空，转向3
+3. 判断 table[i] 的首个元素是否和 key 一样，如果相同直接覆盖 value，否则转向4，这里的相同指的是 hashCode 以及 equals
+4. 判断 table[i] 是否为 treeNode，即 table[i] 是否是红黑树，如果是红黑树，则直接在树中插入键值对，否则转向5
+5. 遍历 table[i]，判断链表长度是否大于 8，大于 8 的话把链表转换为红黑树，在红黑树中执行插入操作，否则进行链表的插入操作，遍历过程中若发现 key 已经存在直接覆盖 value 即可
+6. 插入成功后，判断实际存在的键值对数量 size 是否超多了最大容量 threshold，如果超过， 进行扩容
 
 
 
@@ -7336,7 +7336,7 @@ TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
 
 resize每次扩容都是翻倍，与原来计算（n-1）&hash 的结果相比，只是多了一个 bit 位，所以节点要么就在原来的位置，要么就被分配到原位置+旧容量这个位置。
 
-比如原来的容量为 32，那么应该拿 hash 跟 31（0x11111）做与操作，在扩容扩到了 64 的容量之后，应该拿 hash 跟 63（0x111111）做与操作，新容量跟原来相比只是多了一个 bit 位，假设原来的位置在 23，那么当新增的那个 bit 位的计算结果为 0 时，那么该节点还是在 23，相反，计算结果为 1 时，则该节点会被分配到 23+31 的 桶上。
+比如原来的容量为 32，那么应该拿 hash 跟 31（0x11111）做与操作，在扩容扩到了 64 的容量之后，应该拿 hash 跟 63（0x111111）做与操作，新容量跟原来相比只是多了一个 bit 位，假设原来的位置在 23，那么当新增的那个 bit 位的计算结果为 0 时，那么该节点还是在 23，相反，计算结果为 1 时，则该节点会被分配到 23+31 的 桶上
 
 因此保证了 rehash 之后每个桶上的节点数必定小于等于原来桶上的节点数，又保证了 rehash 之后不会出现更严重的冲突
 

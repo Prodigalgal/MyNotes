@@ -2,24 +2,33 @@
 
 ## 概述
 
-SpringCloud=分布式微服务架构下的一站式解决方案，是各个微服务架构落地技术的集合体，俗称微服务全家桶。
+SpringCloud分布式微服务架构下的一站式解决方案，是各个微服务架构落地技术的集合体，俗称微服务全家桶
+
+
 
 ## SpringCloud和SpringBoot
 
 <u>SpringBoot</u>专注于快速方便的**开发单个个体微服务**。
 
-<u>SpringCloud</u>是**关注全局**的微服务协调整理治理框架，它将SpringBoot开发的一个个单体微服务整合并管理起来，为各个微服务之间提供，配置管理、服务发现、断路器、路由、微代理、事件总线、全局锁、决策竞选、分布式会话等等集成服务。
+<u>SpringCloud</u>是**关注全局**的微服务协调整理治理框架，它将SpringBoot开发的一个个单体微服务整合并管理起来，为各个微服务之间提供，配置管理、服务发现、断路器、路由、微代理、事件总线、全局锁、决策竞选、分布式会话等等集成服务
 
-SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离不开SpringBoot，属于依赖的关系。
+SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离不开SpringBoot，属于依赖的关系
 
-**总结**：SpringBoot专注于快速、方便的开发单个微服务个体，SpringCloud关注全局的服务治理框架。
+**总结**：SpringBoot专注于快速、方便的开发单个微服务个体，SpringCloud关注全局的服务治理框架
+
+
 
 ## SpringCloud和Dubbo
 
-![image-20211126172640711](images/image-20211126172640711.png)
+<img src="images/image-20211126172640711.png" alt="image-20211126172640711" style="zoom: 50%;" />
 
-**最大区别**：SpringCloud抛弃了Dubbo的**RPC通信**，采用的是**基于HTTP的REST方式**。
-严格来说，这两种方式各有优劣。虽然从一定程度上来说，REST方式牺牲了服务调用的性能，但避免了原生RPC带来的问题。而且REST相比RPC更为灵活，服务提供方和调用方的依赖只依靠一纸契约，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显得更加合适。
+**最大区别**：
+
+- SpringCloud抛弃了Dubbo的**RPC通信**，采用的是**基于HTTP的REST方式**
+- 严格来说，这两种方式各有优劣，虽然从一定程度上来说，REST方式牺牲了服务调用的性能，但避免了原生RPC带来的问题
+- REST相比RPC更为灵活，服务提供方和调用方的依赖只依靠一纸契约，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显得更加合适
+
+
 
 # Rest微服务构建
 
@@ -390,17 +399,19 @@ public class DeptController_Consumer{
 
 # 组件替换
 
-![image-20220115231140387](images/image-20220115231140387.png) 
+<img src="images/image-20220115231140387.png" alt="image-20220115231140387" style="zoom:67%;" />
 
-![image-20220115231148661](images/image-20220115231148661.png)
+<img src="images/image-20220115231148661.png" alt="image-20220115231148661" style="zoom:70%;" />
+
+
 
 # 扩展
 
 ## RestTemplate
 
-RestTemplate提供了多种**便捷访问远程Http服务**的方法， 是一种简单便捷的访问restful服务模板类，是Spring提供的用于访问Rest服务的客户端模板工具集。
+RestTemplate提供了多种**便捷访问远程Http服务**的方法， 是一种简单便捷的访问restful服务模板类，是Spring提供的用于访问Rest服务的客户端模板工具集
 
-使用restTemplate访问restful接口非常的简单。
+使用restTemplate访问restful接口非常的简单
 
-(url, requestMap, ResponseBean.class)这三个参数分别代表 REST请求地址、请求参数、HTTP响应转换被转换成的对象类型。
+(url, requestMap, ResponseBean.class)这三个参数分别代表 REST请求地址、请求参数、HTTP响应转换被转换成的对象类型
 

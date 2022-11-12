@@ -1,16 +1,22 @@
 # Eurake简介
 
-Eureka是Netflix的一个子模块，也是核心模块之一。Eureka是一个基于REST的服务，用于定位服务，以实现云端中间层服务发现和故障转移。
+Eureka 是 Netflix 的一个子模块，也是核心模块之一
 
-服务注册与发现对于微服务架构来说是非常重要的，有了服务发现与注册，只需要使用服务的标识符，就可以访问到服务，而不需要修改服务调用的配置文件了。
+Eureka 是一个基于 REST 的服务，用于定位服务，以实现云端中间层服务发现和故障转移
 
-功能类似于dubbo的注册中心，比如Zookeeper。
+服务注册与发现对于微服务架构来说是非常重要的，有了服务发现与注册，只需要使用服务的标识符，就可以访问到服务，而不需要修改服务调用的配置文件了
+
+功能类似于 Dubbo 的注册中心，比如 Zookeeper
+
+
 
 # Eurake基本架构
 
-Eureka 采用了 **C-S** 的设计架构。Eureka Server 作为服务注册功能的服务器，它是服务注册中心。
+Eureka 采用了 **C-S** 的设计架构
 
-而系统中的其他微服务，使用 Eureka 的客户端连接到 Eureka Server并维持心跳连接。这样系统的维护人员就可以通过 Eureka Server 来监控系统中各个微服务是否正常运行。SpringCloud 的一些其他模块（比如Zuul）就可以通过 Eureka Server 来发现系统中的其他微服务，并执行相关的逻辑。
+Eureka Server 作为服务注册功能的服务器，它是服务注册中心而系统中的其他微服务，使用 Eureka 的客户端连接到 Eureka Server并维持心跳连接，这样系统的维护人员就可以通过 Eureka Server 来监控系统中各个微服务是否正常运行
+
+SpringCloud 的一些其他模块（比如Zuul）就可以通过 Eureka Server 来发现系统中的其他微服务，并执行相关的逻辑
 
 Eureka包含**两个组件**：**Eureka Server** 和 **Eureka Client** 
 
@@ -27,6 +33,8 @@ Eureka包含**两个组件**：**Eureka Server** 和 **Eureka Client**
 **Service Provider** 服务提供方将自身服务注册到Eureka，从而使服务消费方能够找到。
 
 **Service Consumer **服务消费方从Eureka获取注册服务列表，从而能够消费服务。
+
+
 
 # 构建Server端步骤
 
@@ -150,7 +158,7 @@ eureka:
   client:
     #表示是否将自己注册进EurekaServer默认为true。
     register-with-eureka: true
-    #是否从EurekaServer抓取已有的注册信息，默认为true。单节点无所谓，集群必须设置为true才能配合ribbon使用负载均衡
+    #是否从EurekaServer抓取已有的注册信息，默认为true。单节点无所谓，集群必须设置为true才能使用负载均衡
     fetchRegistry: true
     service-url:
       defaultZone: http://localhost:7001/eureka
@@ -225,6 +233,8 @@ info:
   build.artifactId: $project.artifactId$
   build.version: $project.version$
 ```
+
+
 
 # Eurake自我保护机制
 
@@ -309,7 +319,7 @@ eureka:
 
 # Eurake服务发现
 
-对于注册进eureka里面的微服务，可以通过服务发现来获得该服务的信息。
+对于注册进eureka里面的微服务，可以通过服务发现来获得该服务的信息
 
 ```java
 @GetMapping(value = "/payment/discovery")
@@ -334,9 +344,11 @@ public Object discovery() {
 
 ## 1、添加注解
 
-主启动类添加注解@EnableDiscoveryClient //服务发现
+主启动类添加注解 @EnableDiscoveryClient 服务发现
 
 访问 http://localhost:8001/payment/discovery
+
+
 
 # 测试
 
@@ -368,7 +380,7 @@ public class ApplicationContextBean{
 }
 ```
 
-Ribbon和Eureka整合后Consumer可以直接调用服务而不用再关心地址和端口号，且该服务还有负载均衡功能了。
+Ribbon和Eureka整合后Consumer可以直接调用服务而不用再关心地址和端口号，且该服务还有负载均衡功能了
 
 
 
@@ -376,11 +388,11 @@ Ribbon和Eureka整合后Consumer可以直接调用服务而不用再关心地址
 
 ## 前提
 
-著名的CAP理论指出，一个分布式系统不可能同时满足C(一致性)、A(可用性)和P(分区容错性)。
+著名的CAP理论指出，一个分布式系统不可能同时满足C(一致性)、A(可用性)和P(分区容错性)
 
-由于分区容错性P在是分布式系统中必须要保证的，因此我们只能在A和C之间进行权衡。
+由于分区容错性P在是分布式系统中必须要保证的，因此我们只能在A和C之间进行权衡
 
-而Zookeeper保证的是**CP**，Eureka则是**AP**。
+而Zookeeper保证的是**CP**，Eureka则是**AP**
 
 ## Zookeeper保证CP
 

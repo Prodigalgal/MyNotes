@@ -1707,7 +1707,7 @@ public String testUp(MultipartFile photo, HttpSession session) throws IOExceptio
         file.mkdir();
     }
     String finalPath = photoPath + File.separator + fileName;
-    //实现上传功能
+    // 实现上传功能
     photo.transferTo(new File(finalPath));
     return "success";
 }
@@ -1793,6 +1793,7 @@ File file = new File("src/main/resources/resource.properties");
 
 ~~~java
 // 不推荐，Linux环境无法使用
+// getFile()不能嵌套在jar文件
 ResourceUtils.getFile("classpath:resource.properties");
 ResourceUtils.getURL(ResourceUtils.CLASSPATH_URL_PREFIX).getPath()+"/file/img/1.jpg";
 ~~~

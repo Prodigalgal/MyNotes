@@ -1313,6 +1313,8 @@ permanent # 返回301永久重定向，浏览器地址栏会显示跳转后的UR
 rewrite ^/([0-9]+).html$ /index.jsp?pageNum=$1 break;
 ~~~
 
+
+
 ## 4、防盗链配置
 
 ~~~txt

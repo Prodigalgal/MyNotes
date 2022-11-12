@@ -1,20 +1,16 @@
 # Stream概述
 
-官方定义 Spring Cloud Stream 是一个构建消息驱动微服务的框架。
+官方定义 Spring Cloud Stream 是一个构建消息驱动微服务的框架
 
-应用程序通过 inputs 或者 outputs 来与 Spring Cloud Stream中**binder**对象交互。
+应用程序通过 inputs 或者 outputs 来与 Spring Cloud Stream中**binder**对象交互，而用户只需配置**binding**(绑定) 
 
-而用户只需配置**binding**(绑定) 。
+binder对象负责与消息中间件交互，通过使用Spring **Integration**来连接消息代理中间件以实现消息事件驱动
 
-binder对象负责与消息中间件交互。
+Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化的自动化配置实现，引用了发布-订阅、消费组、区的三个核心概念
 
-通过使用Spring **Integration**来连接消息代理中间件以实现消息事件驱动。
+目前仅支持RabbitMQ、Kafka
 
-Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化的自动化配置实现，引用了发布-订阅、消费组、分区的三个核心概念。
-
-目前仅支持RabbitMQ、Kafka。
-
-总结：屏蔽底层消息中间件的差异，降低切换成本，统一消息的编程模型。
+总结：屏蔽底层消息中间件的差异，降低切换成本，统一消息的编程模型
 
 # Stream设计思想
 
@@ -30,31 +26,37 @@ Spring Cloud Stream 为一些供应商的消息中间件产品提供了个性化
 
 ![image-20220121113212672](images/image-20220121113212672.png) 
 
-Stream中的消息通信方式遵循了发布-订阅模式。
+Stream中的消息通信方式遵循了发布-订阅模式
 
 Topic主题进行广播，在RabbitMQ就是Exchange、在Kakfa中就是Topic
+
+
 
 # Stream流程
 
 Binder：很方便的连接中间件，屏蔽差异
 
-Channel：通道，是队列Queue的一种抽象，在消息通讯系统中就是实现存储和转发的媒介，通过Channel对队列进行配置。
+Channel：通道，是队列Queue的一种抽象，在消息通讯系统中就是实现存储和转发的媒介，通过Channel对队列进行配置
 
-Source和Sink：简单的可理解为参照对象是Spring Cloud Stream自身，从Stream发布消息就是输出，接受消息就是输入。
+Source和Sink：简单的可理解为参照对象是Spring Cloud Stream自身，从Stream发布消息就是输出，接受消息就是输入
 
-![image-20220121150259368](images/image-20220121150259368.png) 
-
-![image-20220121150305914](images/image-20220121150305914.png) 
+<img src="images/image-20220121150259368.png" alt="image-20220121150259368" style="zoom:67%;" /> <img src="images/image-20220121150305914.png" alt="image-20220121150305914" style="zoom:67%;" /> 
 
 # API与常用注解
 
+**注意**：这些注解基本上已经弃用
+
 ![image-20220121150507129](images/image-20220121150507129.png) 
+
+
 
 # 构建步骤
 
-## 1、构建消息生产模块
+## 1、旧版
 
-### 1、引入POM
+### 1、构建消息生产模块
+
+#### 1、引入POM
 
 ```xml
  <?xml version="1.0" encoding="UTF-8"?>
@@ -110,7 +112,9 @@ Source和Sink：简单的可理解为参照对象是Spring Cloud Stream自身，
 </project>
 ```
 
-### 2、修改YML
+
+
+#### 2、修改YML
 
 ```yml
 server:
@@ -132,7 +136,7 @@ spring:
                   username: guest
                   password: guest
         bindings: # 服务的整合处理
-          output: # 这个名字是一个通道的名称
+          output-0: # 这个是一个通道的名称
             destination: studyExchange # 表示要使用的Exchange名称定义
             content-type: application/json # 设置消息类型，本次为json，文本则设置“text/plain”
             binder: defaultRabbit # 设置要绑定的消息服务的具体设置
@@ -148,7 +152,9 @@ eureka:
     prefer-ip-address: true     # 访问的路径变为IP地址
 ```
 
-### 3、业务类
+
+
+#### 3、业务类
 
 主启动类无需额外注解
 
@@ -187,7 +193,9 @@ public class SendMessageController {
 }
 ```
 
-### 测试
+
+
+#### 测试
 
 启动Eurake与RabbitMQ，以及消息生产者模块
 
@@ -195,9 +203,11 @@ http://localhost:8801/sendMessage
 
 <img src="images/image-20220121152143633.png" alt="image-20220121152143633" style="zoom:67%;" /> 
 
-## 2、构建消息消费模块
 
-### 1、引入POM
+
+### 2、构建消息消费模块
+
+#### 1、引入POM
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -253,7 +263,9 @@ http://localhost:8801/sendMessage
 </project>
 ```
 
-### 2、修改YML
+
+
+#### 2、修改YML
 
 ```yml
 server:
@@ -275,7 +287,7 @@ spring:
                   username: guest
                   password: guest
         bindings: # 服务的整合处理
-          input: # 这个名字是一个通道的名称
+          input-0: # 这个是一个通道的名称
             destination: studyExchange # 表示要使用的Exchange名称定义
             content-type: application/json # 设置消息类型，本次为对象json，如果是文本则设置“text/plain”
             binder: defaultRabbit # 设置要绑定的消息服务的具体设置
@@ -291,7 +303,9 @@ eureka:
     prefer-ip-address: true     # 访问的路径变为IP地址
 ```
 
-### 3、业务类
+
+
+#### 3、业务类
 
 主启动类无需添加额外注解
 
@@ -309,7 +323,9 @@ public class ReceiveMessageListener {
 }
 ```
 
-### 测试
+
+
+#### 测试
 
 启动Eurake、RabbitMQ，与消息生产者
 
@@ -317,19 +333,31 @@ http://localhost:8801/sendMessage
 
 测试8801发送8802接收消息
 
+
+
+## 2、新版
+
+
+
+
+
+
+
+
+
 # 分组消费与持久化
 
 ## 问题发现
 
-首先启动两份消息消费者模块，使消息生产者发送一次消息。俩个消息消费者均消费消息。得出有重复消费问题，以及消息持久化问题。
+首先启动两份消息消费者模块，使消息生产者发送一次消息，俩个消息消费者均消费消息，得出有重复消费问题，以及消息持久化问题
 
 ## 解决方案
 
-分组和持久化属性**group**。
+分组和持久化属性**group**
 
-**注意**：在Stream中处于**同一个group**中的多个消费者是竞争关系，轮询，能够保证消息只会被其中一个应用消费一次。
+**注意**：在Stream中处于**同一个group**中的多个消费者是竞争关系，轮询，能够保证消息只会被其中一个应用消费一次
 
-不同组是可以全面消费的(重复消费)，同一组内会发生竞争关系，只有其中一个可以消费。
+不同组是可以重复消费，同一组内会发生竞争关系，只有其中一个可以消费
 
 ## 分组
 
@@ -364,13 +392,17 @@ cloud:
 
 ### 测试
 
-依旧是重复消费，因为两个消费者在不同组，不同组是可以重复消费的。
+依旧是重复消费，因为两个消费者在不同组，不同组是可以重复消费的
 
-只要将两个消费者分在同一组即可。
+只要将两个消费者分在同一组即可
+
+
 
 ## 持久化
 
 如果我们没有给服务实例进行分组，当消费者A由于某些原因故障下线了，而此时生产者发送的消息，A即使上线了也收不到，意味着消息丢失了。如果有分组的服务，重启之后则可以消费待消费的消息。
+
+
 
 # 扩展
 

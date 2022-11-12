@@ -799,7 +799,7 @@ func main() {
 	fmt.Println("main start")
 
 	// 管道只有10空间，主线程存入100，过度生产报错
-	//chanel_1 := make(chan int, 10)
+	// chanel_1 := make(chan int, 10)
 	// 正确写法
 	chanel_1 := make(chan int, 100)
 
@@ -835,4 +835,4 @@ func main() {
 	fmt.Println("main end")
 ~~~
 
-![image-20220704211705519](images/image-20220704211705519.png)
+<img src="images/image-20220704211705519.png" alt="image-20220704211705519" style="zoom:67%;" />

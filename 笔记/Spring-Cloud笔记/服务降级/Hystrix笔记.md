@@ -2,11 +2,11 @@
 
 ## 问题
 
-复杂分布式体系结构中的应用程序有数十个依赖关系，每个依赖关系在某些时候将不可避免地失败。
+复杂分布式体系结构中的应用程序有数十个依赖关系，每个依赖关系在某些时候将不可避免地失败
 
-Hystrix是一个用于处理分布式系统的延迟和容错的开源库，在分布式系统里，许多依赖不可避免的会调用失败，比如超时、异常等，Hystrix能够保证在一个依赖出问题的情况下，不会导致整体服务失败，避免级联故障，以提高分布式系统的弹性。
+Hystrix是一个用于处理分布式系统的延迟和容错的开源库，在分布式系统里，许多依赖不可避免的会调用失败，比如超时、异常等，Hystrix能够保证在一个依赖出问题的情况下，不会导致整体服务失败，避免级联故障，以提高分布式系统的弹性
 
-“断路器”本身是一种开关装置，当某个服务单元发生故障之后，通过断路器的故障监控（类似熔断保险丝），向调用方返回一个符合预期的、可处理的备选响应（**FallBack**），而不是长时间的等待或者抛出调用方无法处理的异常，这样就保证了服务调用方的线程不会被长时间、不必要地占用，从而避免了故障在分布式系统中的蔓延，乃至雪崩。
+“断路器”本身是一种开关装置，当某个服务单元发生故障之后，通过断路器的故障监控（类似熔断保险丝），向调用方返回一个符合预期的、可处理的备选响应（**FallBack**），而不是长时间的等待或者抛出调用方无法处理的异常，这样就保证了服务调用方的线程不会被长时间、不必要地占用，从而避免了故障在分布式系统中的蔓延，乃至雪崩
 
 ## 作用
 
@@ -19,13 +19,15 @@ Hystrix是一个用于处理分布式系统的延迟和容错的开源库，在�
 
 ## 简介
 
-熔断机制是应对雪崩效应的一种微服务链路保护机制。
+熔断机制是应对雪崩效应的一种微服务链路保护机制
 
-当扇出链路的某个微服务不可用或者响应时间太长时，会进行服务的降级，进而熔断该节点微服务的调用，快速返回"错误"的响应信息。
+当扇出链路的某个微服务不可用或者响应时间太长时，会进行服务的降级，进而熔断该节点微服务的调用，快速返回响应信息
 
-当检测到该节点微服务调用响应正常后恢复调用链路。
+当检测到该节点微服务调用响应正常后恢复调用链路
 
-在SpringCloud框架里熔断机制通过Hystrix实现。Hystrix会监控微服务间调用的状况，当失败的调用到一定阈值，缺省是5秒内20次调用失败就会启动熔断机制。熔断机制的注解是**@HystrixCommand**。
+在SpringCloud框架里熔断机制通过Hystrix实现，Hystrix会监控微服务间调用的状况，当失败的调用到一定阈值，缺省是5秒内20次调用失败就会启动熔断机制
+
+熔断机制的注解是**@HystrixCommand**
 
 ## 构建步骤
 
@@ -180,19 +182,6 @@ info:
 一旦调用服务方法失败并抛出了错误信息后，会自动调用@HystrixCommand标注好的fallbackMethod调用类中的**指定方法** 
 
 ```java
-package com.atguigu.springcloud.controller;
- 
- 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
- 
-import com.atguigu.springcloud.entities.Dept;
-import com.atguigu.springcloud.service.DeptService;
-import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
- 
 @RestController
 public class DeptController{
   @Autowired
@@ -239,14 +228,6 @@ public String paymentInfo_TimeOutHandler(Integer id) {
 修改被调用方主启动类DeptProvider8001_Hystrix_App并**添加新注解@EnableCircuitBreaker **
 
 ```java
-package com.atguigu.springcloud;
- 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
-import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
- 
 @SpringBootApplication
 @EnableEurekaClient // 本服务启动后会自动注册进eureka服务中
 @EnableCircuitBreaker// 对hystrixR熔断机制的支持
@@ -323,7 +304,7 @@ Consumer启动microservicecloud-consumer-dept-80
 
 ## 简介
 
-整体资源快不够了，忍痛将某些服务先关掉，待渡过难关，再开启回来。
+整体资源快不够了，忍痛将某些服务先关掉，待渡过难关，再开启回来
 
 服务降级处理是在**客户端实现**完成的，与服务端没有关系
 
@@ -334,16 +315,6 @@ Consumer启动microservicecloud-consumer-dept-80
 根据已经有的DeptClientService接口新建一个实现了FallbackFactory接口的类DeptClientServiceFallbackFactory，记得加入到容器中
 
 ```java
-package com.atguigu.springcloud.service;
- 
-import java.util.List;
- 
-import org.springframework.stereotype.Component;
- 
-import com.atguigu.springcloud.entities.Dept;
- 
-import feign.hystrix.FallbackFactory;
- 
 @Component//不要忘记添加，不要忘记添加
 public class DeptClientServiceFallbackFactory implements FallbackFactory<DeptClientService>
 {
@@ -375,17 +346,6 @@ public class DeptClientServiceFallbackFactory implements FallbackFactory<DeptCli
 修改microservicecloud-api工程，DeptClientService接口在注解@FeignClient中添加fallbackFactory属性值
 
 ```java
-package com.atguigu.springcloud.service;
- 
-import java.util.List;
- 
-import org.springframework.cloud.netflix.feign.FeignClient;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
- 
-import com.atguigu.springcloud.entities.Dept;
- 
 @FeignClient(value = "MICROSERVICECLOUD-DEPT",fallbackFactory=DeptClientServiceFallbackFactory.class)
 public interface DeptClientService
 {

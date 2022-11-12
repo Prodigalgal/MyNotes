@@ -334,7 +334,7 @@ String类型是**二进制安全的**，意味着Redis的string可以包含任�
 
 ### 1.3、数据结构
 
-String的数据结构为**简单动态字符串**(Simple Dynamic String,缩写SDS)
+String的数据结构为**简单动态字符串**(Simple Dynamic String 缩写SDS)
 
 是可修改的字符串，内部结构实现上类似于Java的ArrayList，采用预分配冗余空间的方式来减少内存的频繁分配
 
@@ -404,15 +404,25 @@ Redis的Set是**string类型的无序集合**，它底层其实是一个**value�
 ### 3.2、常用命令
 
 sadd <key\><value1\><value2\> .....  将一个或多个 member 元素加入到集合 key 中，已经存在的 member 元素将被忽略
+
 smembers <key\> 取出该集合的所有值。
+
 sismember <key\><value\> 判断集合<key\>是否为含有该<value\>值，有1，没有0
+
 scard<key\> 返回该集合的元素个数。
+
 srem <key\><value1\><value2\> .... 删除集合中的某个元素。
+
 spop <key\> 随机从该集合中吐出一个值。
+
 srandmember <key\><n\> 随机从该集合中取出n个值。不会从集合中删除 。
+
 smove <source\><destination\> value 把集合中一个值从一个集合移动到另一个集合
+
 sinter <key1\><key2\> 返回两个集合的交集元素。
+
 sunion <key1\><key2\> 返回两个集合的并集元素。
+
 sdiff <key1\><key2\> 返回两个集合的差集元素(key1中的，不包含key2中的)
 
 
@@ -433,9 +443,9 @@ Redis的set结构也是一样，它的内部也使用hash结构，所有的value
 
 Redis Hash 是一个**键值对集合**
 
-Redis Hash是一个string类型的**field和value的映射表**，hash特别适合用于存储对象
+Redis Hash 是一个string类型的**field和value的映射表**，hash特别适合用于存储对象
 
-类似Java里面的Map<String,Object>，用户ID为查找的key，存储的value用户对象包含姓名，年龄，生日等信息
+类似Java里面的Map<String, Object>，用户ID为查找的key，存储的value用户对象包含姓名，年龄，生日等信息
 
 ![image-20211205164400639](images/image-20211205164400639.png)
 
@@ -446,13 +456,20 @@ Redis Hash是一个string类型的**field和value的映射表**，hash特别适�
 ### 4.2、常用命令
 
 hset <key\><field\><value\> 给<key\>集合中的 <field\>键赋值<value\>
+
 hget <key1\><field\>从<key1\> 集合<field\>取出 value 
+
 hmset <key1\><field1\><value1\><field2\><value2\>...  批量设置hash的值
-hexists<key1\><field\> 查看哈希表 key 中，给定域 field 是否存在。 
+
+hexists<key1\><field\> 查看哈希表 key 中，给定域 field 是否存在
+
 hkeys <key\> 列出该hash集合的所有field
+
 hvals <key\> 列出该hash集合的所有value
+
 hincrby <key\><field\><increment\> 为哈希表 key 中的域 field 的值加上增量 +1   -1
-hsetnx <key\><field\><value\> 将哈希表 key 中的域 field 的值设置为 value ，当且仅当域 field 不存在 .
+
+hsetnx <key\><field\><value\> 将哈希表 key 中的域 field 的值设置为 value ，当且仅当域 field 不存在
 
 
 
@@ -480,13 +497,20 @@ Redis有序集合Zset与普通集合Set非常相似，是一个**没有重复元
 
 ### 5.2、常用命令
 
-zadd  <key\><score1\><value1\><score2\><value2\>… 将一个或多个 member 元素及其 score 值加入到有序集 key 当中。
-zrange <key\><start\><stop\>  [WITHSCORES]   返回有序集 key 中，下标在<start\><stop\>之间的元素，带WITHSCORES，可以让分数一起和值返回到结果集。
-zrangebyscore <key\><min\><max\> [withscores] [limit offset count] 返回有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员。有序集成员按 score 值递增(从小到大)次序排列。 
-zrevrangebyscore <key\><min\><max\> [withscores] [limit offset count] 同上，改为从大到小排列。 
+zadd  <key\><score1\><value1\><score2\><value2\>… 将一个或多个 member 元素及其 score 值加入到有序集 key 当中
+
+zrange <key\><start\><stop\>  [WITHSCORES]   返回有序集 key 中，下标在<start\><stop\>之间的元素，带WITHSCORES，可以让分数一起和值返回到结果集
+
+zrangebyscore <key\><min\><max\> [withscores] [limit offset count] 返回有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员。有序集成员按 score 值递增(从小到大)次序排列
+
+zrevrangebyscore <key\><min\><max\> [withscores] [limit offset count] 同上，改为从大到小排列
+
 zincrby <key\><increment\><value\> 为元素的score加上增量
+
 zrem  <key\><value\> 删除该集合下，指定值的元素 
+
 zcount <key\><min\><max\> 统计该集合，分数区间内的元素个数 
+
 zrank <key\><value\> 返回该值在集合中的排名，从0开始
 
 
@@ -536,9 +560,9 @@ setbit<key\><offset\><value\> 设置Bitmaps中某个偏移量的值（0或1）�
 
 ![image-20211206201052206](images/image-20211206201052206.png)
 
-**注意**：很多应用的用户id以一个指定数字（例如10000） 开头， 直接将用户id和Bitmaps的偏移量对应势必会造成一定的浪费， 通常的做法是每次做setbit操作时将用户id减去这个指定数字。
+**注意**：很多应用的用户id以一个指定数字（例如10000） 开头， 直接将用户id和Bitmaps的偏移量对应势必会造成一定的浪费， 通常的做法是每次做setbit操作时将用户id减去这个指定数字
 
-在第一次初始化Bitmaps时， 假如偏移量非常大， 那么整个初始化过程执行会比较慢， 可能会造成Redis的阻塞。
+在第一次初始化Bitmaps时， 假如偏移量非常大， 那么整个初始化过程执行会比较慢， 可能会造成Redis的阻塞
 
 getbit<key\><offset\> 获取Bitmaps中某个偏移量的值，获取键的第offset位的值（从0开始算）
 
@@ -1032,9 +1056,9 @@ Redis事务的主要作用就是串联多个命令防止别的命令插队：
 
 ### 2.1、组队成功，提交成功
 
-![image-20220301105718012](images/image-20220301105718012.png)
-
 组队成功，提交成功
+
+![image-20220301105718012](images/image-20220301105718012.png)
 
 
 
@@ -1056,7 +1080,7 @@ Redis事务的主要作用就是串联多个命令防止别的命令插队：
 
 ## 3、事务错误处理
 
-**组队中**某个命令出现了报告错误，执行时整个的所有队列都会被取消
+**组队中**某个命令出现了报告错误，执行时整个队列都会被取消
 
 **执行中**某个命令报出了错误，则只有报错的命令不会被执行，而其他的命令都会执行，不会回滚
 
@@ -1069,6 +1093,8 @@ Redis事务的主要作用就是串联多个命令防止别的命令插队：
 如果在事务**执行之前这个(或这些) key 被其他命令所改动，那么事务将被打断**
 
 ![image-20220301110437329](images/image-20220301110437329.png)
+
+
 
 ## 5、UNWATCH
 
@@ -1287,8 +1313,6 @@ public static void release(JedisPool jedisPool, Jedis jedis) {
 
 **Redis DataBase**
 
-
-
 ### 概述
 
 #### 1、优势
@@ -1396,7 +1420,7 @@ rdbcompression压缩文件
 
 ![image-20220302114909244](images/image-20220302114909244.png)
 
-对于存储到磁盘中的快照，可以设置是否进行压缩存储。如果是的话，redis会采用LZF算法进行压缩
+对于存储到磁盘中的快照，可以设置是否进行压缩存储，如果是的话，redis会采用LZF算法进行压缩
 
 如果你不想消耗CPU来进行压缩的话，可以设置为关闭此功能
 
@@ -1817,8 +1841,8 @@ public static Jedis getJedisFromSentinel() {
 ### 2、缺点
 
 - 多键操作是不被支持的 
-- 多键的Redis事务是不被支持的，因此lua脚本中如果有多个key则不被支持。但是将key用 { } 则可以
-- 由于集群方案出现较晚，很多公司已经采用了其他的集群方案，而代理或者客户端分片的方案想要迁移至redis cluster，需要整体迁移而不是逐步过渡，复杂度较大。
+- 多键的Redis事务是不被支持的，因此lua脚本中如果有多个key则不被支持，但是将key用 { } 则可以
+- 由于集群方案出现较晚，很多公司已经采用了其他的集群方案，而代理或者客户端分片的方案想要迁移至redis cluster，需要整体迁移而不是逐步过渡，复杂度较大
 
 
 
@@ -2294,7 +2318,7 @@ Redis单命令的原子性主要得益于Redis的单线程
 
 ![image-20220301110142785](images/image-20220301110142785.png)
 
-**悲观锁(Pessimistic Lock)**,，顾名思义，就是很悲观，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。**传统的关系型数据库里边就用到了很多这种锁机制**，比如**行锁**，**表锁**等，**读锁**，**写锁**等，都是在做**操作之前先上锁**。
+**悲观锁(Pessimistic Lock)**,，顾名思义，就是很悲观，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。**传统的关系型数据库里边就用到了很多这种锁机制**，比如**行锁**，**表锁**等，**读锁**，**写锁**等，都是在做**操作之前先上锁**
 
 
 
@@ -2302,7 +2326,7 @@ Redis单命令的原子性主要得益于Redis的单线程
 
 ![image-20220301110232425](images/image-20220301110232425.png)
 
-**乐观锁(Optimistic Lock),** 顾名思义，就是很乐观，每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在**更新的时候会判断**一下在此期间别人有没有去更新这个数据，可以使用版本号等机制。**乐观锁适用于多读的应用类型，这样可以提高吞吐量**。Redis就是利用这种check-and-set机制实现事务的。
+**乐观锁(Optimistic Lock),** 顾名思义，就是很乐观，每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在**更新的时候会判断**一下在此期间别人有没有去更新这个数据，可以使用版本号等机制。**乐观锁适用于多读的应用类型，这样可以提高吞吐量**。Redis就是利用这种check-and-set机制实现事务的
 
 
 
@@ -2516,14 +2540,13 @@ key可能会在某些时间点被超高并发地访问，是一种非常“热�
 - **实时调整**：现场监控哪些数据热门，实时调整key的过期时长
 
 - **使用锁**：
-
-  - 就是在缓存失效的时候（判断拿出来的值为空）不是立即去load db
+- 就是在缓存失效的时候（判断拿出来的值为空）不是立即去load db
 
 
   - 先使用缓存工具的某些带成功操作返回值的操作（比如Redis的SETNX）去set一个mutex key
 
 
-  - 当操作返回成功时，再进行load db的操作，并回设缓存，最后删除mutex key
+  - 当操作返回成功，再进行load db的操作，并回设缓存，最后删除mutex key
 
 
   - 当操作返回失败，证明有线程在load db，当前线程睡眠一段时间再重试整个get缓存的方法
@@ -2557,7 +2580,6 @@ keys 对应的数据存在，但在redis中大量过期，此时若有大量并�
   - 比如我们可以在原有的失效时间基础上增加一个随机值，比如1-5分钟随机，这样每一个缓存的过期时间的重复率就会降低，就很难引发集体失效的事件
 
 
- 
 
 
 
