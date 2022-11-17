@@ -205,6 +205,220 @@ public void show(String face) {
 
 
 
+## NIO
+
+### 1、IO 概述
+
+IO 的操作方式通常分为几种：同步阻塞 BIO、同步非阻塞 NIO、异步非阻塞 AIO
+
+在 JDK1.4 之前，建立网络连接采用的是 BIO 模式
+
+NIO（New IO 或 Non Blocking IO）是 JDK1.4 版本开始引入的一个新的 IO API，可以替代标准的 Java IO API
+
+NIO 支持面向缓冲区、基于通道的 IO 操作，以更加高效的方式进行文件的读写操作
+
+BIO 与 NIO 一个比较重要的不同：
+
+- BIO 的时候往往会引入多线程，每个连接对应一个单独的线程
+- NIO 则是使用单线程或者只使用少量的多线程，让连接共用一个线程
+
+AIO 也就是 NIO 2，在 JDK7 中引入了 NIO 的改进版 NIO 2，它是异步非阻塞的 IO 模型
+
+
+
+### 2、BIO 概述
+
+阻塞 IO（BIO）是最传统的一种 IO 模型，即在读写数据过程中会发生阻塞现象，直至数据能够读取或者写入
+
+在 BIO 模式中，服务器会为每个客户端请求建立一个线程进行处理，这种模式简单方便，但资源占用非常大，因此请求数量达到上限时，会导致资源瓶颈，甚至导致导致服务器崩溃
+
+大多数情况下为了避免上述问题，都采用了线程池模型，创建一个固定大小的线程池，如果有客户端发送请求，就从线程池中取一个空闲线程来处理，当请求处理完之后，就释放对线程的占用，避免为每一个客户端的请求都创建线程所带来的资源浪费，使得线程可以重用，但线程池也有它的弊端，如果连接大多是长连接，可能会导致在一段时间内，线程池中的线程都被占用，那么当再有客户端请求时，由于没有空闲线程来处理，就会导致客户端连接失败
+
+<img src="images/image-20221114200140752.png" alt="image-20221114200140752" style="zoom:50%;" />
+
+
+
+### 3、NIO 概述
+
+NIO 采用非阻塞模式，基于 Reactor 模式的工作方式，IO 调用不会被阻塞，实现过程是：先对每个客户端注册事件，然后有一个线程专门去轮询每个客户端是否有事件发生，当有事件发生时，便顺序处理每个事件，当所有事件处理完之后，便再转去继续轮询
+
+NIO 中实现非阻塞 IO 的核心对象就是 Selector，Selector 就是注册各种 IO 事件地方，而且当事件发生时，就是这个对象进行的通知
+
+NIO 最重要的地方是当一个连接创建后，不需要对应一个线程，这个连接会被注册到多路复用器，一个选择器线程可以同时处理成千上万个连接，系统不必创建大量的线程，也不必维护这些线程，从而大大减小了系统的开销
+
+NIO 由以下几个核心部分组成：
+
+- Channels
+- Buffers
+- Selectors
+- 其它组件，如 Pipe 和 FileLock，不过是三个核心组件共同使用的工具类
+
+<img src="images/image-20221114200745631.png" alt="image-20221114200745631" style="zoom:50%;" />
+
+
+
+### 4、AIO 概述
+
+AIO 也就是 NIO 2，在 Java 7 中引入了 NIO 的改进版 NIO 2，它是异步非阻塞 的 IO 模型
+
+异步 IO 是基于事件和回调机制实现的，也就是说 AIO 模式不需要 Selector，而是事件驱动形式，当客户端发送数据之后，会主动通知服 务器，接着服务器再进行读写操作
+
+Java 的 AIO API 其实是 Proactor 模式的应用，和 Reactor 模式类似， Reactor 和 Proactor 模式的主要区别就是真正的读取和写入操作是有谁来完成的， Reactor 中需要应用程序自己读取或者写入数据，而 Proactor 模式中，应用程序不需要进行实际的读写过程，只需要从缓存区读写即可，数据在缓存区与真正的 IO 设备的读写交由操作系统来完成
+
+
+
+### 5、三大组件
+
+#### 1、Channel
+
+##### 1、概述
+
+Channel 可以翻译成通道，和 IO 中的 Stream 流是差不多一个等级的，只不过 Stream 是单向的：InputStream、OutputStream 而 Channel 是双向的，既可以用来读操作，又可以用来写操作，可以异步的读写操作
+
+NIO 中的 Channel 的主要实现有：FileChannel、DatagramChannel、SocketChannel、ServerSocketChannel 从名字来看分别可以对应：文件 IO、UDP、TCP（Server 和 Client）
+
+
+
+##### 2、FileChannel
+
+在使用 FileChannel 之前，必须先打开它，但是，无法直接打开一个 FileChannel，需要通过使用一个 InputStream、OutputStream 或 RandomAccessFile 来获取一个 FileChannel 实例
+
+读写数据，首先都需要分配一个 Buffer
+
+- read() 方法：
+  - 将 FileChannel 中的数据读取到 Buffer 中，read() 方法返回的 int 值表示了有多少字节被读到了 Buffer 中，如果返回-1，表示到了文件末尾
+- write() 方法：
+  - 在 while 循环中调用的，因为无法保证 write() 方法一次能向 FileChannel 写入多少字节，因此需要重复调用 write() 方法，直到 Buffer 中已经没有尚未写入通道的字节
+- transferTo()、transferFrom() 方法：
+  - 使得通道之间可以互相传输数据，需要 position、count、to/fromChannel
+- scatter()、gather() 方法：
+  - 分散读（scatter）指 Channel 在读操作时将读取的数据读取到多个 Buffer 中
+  - 聚集写（gather）指 Channel 在写操作时将多个 Buffer 的数据写入同一个 ChannelChannel 中
+
+
+
+
+
+**注意**：
+
+- 如果将位置设置在文件结束符之后，然后向通道中写数据，文件将撑大到当前位置并写入数据，这可能导致文件空洞，磁盘上物理文件中写入的数据间有空隙
+
+~~~java
+public class FileChannelDemo {
+    public static void main(String[] args) throws IOException {
+        RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
+        FileChannel inChannel = aFile.getChannel();
+        ByteBuffer buf = ByteBuffer.allocate(48);
+        int bytesRead = inChannel.read(buf);
+        while (bytesRead != -1) {
+            System.out.println("读取： " + bytesRead);
+            buf.flip();
+            while (buf.hasRemaining()) {
+                System.out.print((char) buf.get());
+            }
+            buf.clear();
+            bytesRead = inChannel.read(buf);
+        }
+        aFile.close();
+        System.out.println("操作结束");
+    }
+}
+
+public class FileChannelDemo {
+    public static void main(String[] args) throws IOException {
+        RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
+        FileChannel inChannel = aFile.getChannel();
+        String newData = "New String to write to file..." + System.currentTimeMillis();
+        ByteBuffer buf1 = ByteBuffer.allocate(48);
+        buf1.clear();
+        buf1.put(newData.getBytes());
+        buf1.flip();
+        while(buf1.hasRemaining()) {
+            inChannel.write(buf1);
+        }
+        inChannel.close();
+    }
+}
+
+public class FileChannelWrite {
+    public static void main(String args[]) throws Exception {
+        RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
+        FileChannel fromChannel = aFile.getChannel();
+        RandomAccessFile bFile = new RandomAccessFile("test.txt", "rw");
+        FileChannel toChannel = bFile.getChannel();
+
+        long position = 0;
+        long count = fromChannel.size();
+        toChannel.transferFrom(fromChannel, position, count);
+        aFile.close();
+        bFile.close();
+        System.out.println("over!");
+
+        long position = 0;
+        long count = fromChannel.size();
+        fromChannel.transferTo(position, count, toChannel);
+        aFile.close();
+        bFile.close();
+        System.out.println("over!");
+    }
+}
+
+
+public class ScatterGatherDemo {
+    public static void main(String args[]) throws Exception {
+        ByteBuffer header = ByteBuffer.allocate(128);
+        ByteBuffer body = ByteBuffer.allocate(1024);
+        ByteBuffer[] bufferArray = { header, body };
+        channel.read(bufferArray);
+
+        ByteBuffer header = ByteBuffer.allocate(128);
+        ByteBuffer body = ByteBuffer.allocate(1024);
+        ByteBuffer[] bufferArray = { header, body };
+        channel.write(bufferArray);
+    }
+}
+~~~
+
+
+
+##### 3、SocketChannel
+
+SocketChannel 就是 NIO 对于非阻塞 Socket 操作的支持的组件，其在 socket 上 封装了一层，主要是支持了非阻塞的读写。同时改进了传统的单向流 API,，Channel 同时支持读写
+
+
+
+
+
+#### 2、Buffer
+
+NIO 中的关键 Buffer 实现有：ByteBuffer、CharBuffer、DoubleBuffer、FloatBuffer、IntBuffer、LongBuffer、ShortBuffer 分别对应基本数据类型：byte、char、double、float、int、long、short
+
+
+
+#### 3、Selector
+
+Selector 运行单线程处理多个 Channel，如果应用打开了多个通道，但每个连接的流量都很低，使用 Selector 就会很方便
+
+例如在一个聊天服务器中，向 Selector 注册 Channel，然后调用它的 select() 方法，这个方法会阻塞直到某个注册的通道有事件就绪，一旦这个方法返回，线程就可以处理这些事件， 例如：新的连接进来、数据接收等
+
+
+
+#### 4、三者关系
+
+一个 Channel 就像一个流，只是 Channel 是双向的，Channel 读数据到 Buffer， Buffer 写数据到 Channel
+
+一个 Selector 允许一个线程处理多个 Channel
+
+
+
+
+
+
+
+
+
+
+
 # JDK8新特性
 
 ## Lambda表达式
@@ -2339,9 +2553,15 @@ public static void main(String[] args) {
 
 ##### 1、主要原因
 
-- 系统资源不足
+- 系统资源竞争
 - 进程运行推进的顺序不合适
 - 资源分配不当
+- 死锁的四个产生条件
+  - 资源互斥使用
+  - 资源不可抢占
+  - 请求和保持
+  - 循环等待
+
 
 ~~~java
 // 死锁例子
