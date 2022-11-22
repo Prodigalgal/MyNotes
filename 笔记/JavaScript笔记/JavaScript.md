@@ -1,8 +1,4 @@
-# JavaScript
-
-***
-
-## 第1章 JavaScript起源 
+# 第1章 JavaScript起源 
 
 ### 1.1 起源
 
@@ -85,7 +81,7 @@
 
 
 
-## 第2章 JavaScript基本语法
+# 第2章 JavaScript基本语法
 
 **JavaScript需要包括在\<script>标签中，这个标签可以出现在页面的任何位置。**
 
@@ -652,7 +648,7 @@ alert(b.age); //18
 - **dom对象**
   - document、body、button……
 
-## 第3章 JavaScript事件
+# 第3章 JavaScript事件
 
 ### 3.1 事件介绍
 
@@ -1060,7 +1056,7 @@ alert(b.age); //18
 
 
 
-## 第4章 JavaScript嵌入方式
+# 第4章 JavaScript嵌入方式
 
 ### 4.1 浏览器加载顺序
 
@@ -1179,7 +1175,7 @@ window.onload = function(){
 
 
 
-## 第5章 DOM
+# 第5章 DOM
 
 ### 5.1 什么是DOM
 

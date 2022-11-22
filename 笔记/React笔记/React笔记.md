@@ -109,12 +109,12 @@
 语法：
 
 - 只有一个根标签
-- 标签必须闭合
+- 每个标签必须闭合
 - 遇到 **<** 开头的代码，以标签的语法解析，HTML 同名标签转换为 HTML 同名元素，其它标签需要特别解析
   - 由标签首字母判断：
     - 若小写字母开头，则将该标签转为 HTML中同名元素，若 HTML中无该标签对应的同名元素，则报错
     - 若大写字母开头，React 就去渲染对应的组件，若组件没有定义，则报错
-- 样式的类名指定不要用 class，要用 className
+- 样式类名不要用 class，要用 className
 - 内联样式，要用 style={{key:value}} 的形式去写
 
 - 定义虚拟 DOM 时，不要写引号
@@ -129,7 +129,7 @@ const VDOM = (<h2 className="title" id={myId.toLowerCase()}>
               </h2>)
 ~~~
 
-babel.JS 的作用：
+babel.js 的作用：
 
 - 浏览器不能直接解析 JSX 代码，需要 babel 转译为纯 JS 的代码才能运行
 - 只要用了 JSX，都要加上 type="text/babel"，声明需要 babel 来处理
@@ -203,10 +203,6 @@ babel.JS 的作用：
 
 ## 1、组件概念
 
-
-
-
-
 作用：用来实现局部功能效果的代码和资源的集合(html/css/JS/image等等)，复用编码，简化项目编码，提高运行效率
 
 流程：
@@ -265,9 +261,17 @@ export default App;
 
 ### 1、类式组件
 
+使用 ES6 类组件可以在构造函数中初始化组件的状态，并且需要强制地调用 super(); 方法
+
+extends 所继承的 Component 会注册所有生命周期方法，所有的 Component  API 都可以使用，包括 state 等
+
 ~~~react
 // 1.创建类式组件
 class MyComponent extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
     render() {
         // render 方法 ——> 放在 MyComponent 的原型对象上，供实例使用
         // render 中的 this ——> MyComponent 的实例对象 <=> MyComponent 组件实例对象
@@ -286,6 +290,13 @@ ReactDOM.render(<MyComponent/>,document.getElementById('test'))
 
 ### 2、函数式组件
 
+组件就是函数，接收一个输入并返回一个输出
+
+- 输入是 props
+- 输出就是一个普通的 JSX 组件实例
+
+函数式组件比较特殊，因为本身是函数所以无状态，也没有 this，也没有生命周期
+
 ```react
 // 1.创建函数式组件
 function MyComponent() {
@@ -298,6 +309,16 @@ function MyComponent() {
 // 2.1.React 解析组件标签，找到了 MyComponent 组件
 // 2.2.发现组件是使用函数定义的，随后调用该函数，将返回的虚拟 DOM 转为真实 DOM，随后呈现在页面中
 ReactDOM.render(<MyComponent/>, document.getElementById('test'))
+
+// 箭头函数、解构赋值
+const Search = ({ value, onChange, children }) => {
+    // do something
+    return (
+        <form>
+            {children} <input type="text" value={value} onChange={onChange} />
+        </form>
+    );
+}
 ```
 
 
@@ -305,6 +326,13 @@ ReactDOM.render(<MyComponent/>, document.getElementById('test'))
 **注意**：
 
 - 类式组件中 render 方法里的 this 为组件实例对象
+- 函数式组件没有本地状态，不能通过 this.state 访问，不能通过 this.setState() 修改
+
+
+
+**技巧**：
+
+- React 学习之道里提到，如果不需要控制组件的 state、props、生命周期建议使用函数式组件，否则使用类式组件
 
 
 
@@ -315,6 +343,8 @@ ReactDOM.render(<MyComponent/>, document.getElementById('test'))
 state 是组件对象最重要的属性，值是对象，可以包含多个 **key：value** 的组合
 
 组件又被称为状态机，通过更新组件的 state 来重新渲染组件
+
+state 通过使用 this 绑定在类上，因此可以在整个组件访问到 state
 
 
 
@@ -396,6 +426,12 @@ ReactDOM.render(<Weather/>,document.getElementById('test'))
 
 
 
+<img src="images/image-20221122114632951.png" alt="image-20221122114632951" style="zoom:50%;" />
+
+
+
+
+
 ### 2、props
 
 每个组件对象都会有 props（properties） 属性，并且组件对象的所有属性都保存在 props 中
@@ -403,6 +439,34 @@ ReactDOM.render(<Weather/>,document.getElementById('test'))
 props 可以设定初始值，还可以限制类型
 
 作用：通过 props 从组件外向组件内传递变化的数据
+
+
+
+属性：
+
+- children
+
+  - 将元素从上层传递到当前组件中，这些元素对当前组件来说是未知的
+
+  - 不仅可以传递字符串，还可以传递元素、元素树、组件
+
+  - ~~~react
+    <Search value={searchTerm} onChange={this.onSearchChange} >
+        Search
+    </Search>
+    
+    class Search extends Component {
+        render() {
+            const { value, onChange, children } = this.props;
+            return (
+                <form>
+                    // Search
+                    {children} <input type="text" value={value} onChange={onChange} />
+                </form>
+            );
+        }
+    }
+    ~~~
 
 
 
@@ -457,8 +521,6 @@ function speak() {
     console.log('我说话了');
 }
 ~~~
-
-
 
 ~~~react
 // 1、创建组件
@@ -635,11 +697,21 @@ ReactDOM.render(<Demo a="1" b="2"/>, document.getElementById('test'))
 ## 5、事件处理
 
 通过 onXxx 属性指定事件处理函数（注意大小写）
-- React 使用的是自定义合成事件，而不是使用的原生DOM事件 ——> 为了更好的兼容性
+- React 使用的是自定义合成事件，而不是使用的原生 DOM 事件 ——> 为了更好的兼容性
 - React 中的事件是通过事件委托方式处理的（委托给组件最外层的元素） ——> 为了高效
 
-通过 event.target 得到发生事件的 DOM 元素对象 ——> 不要过度使用 ref
+在元素中使用监听时，可以在回调函数的参数中使用 event 访问到 React 的合成事件
+
+- 通过 event.target 得到发生事件的 DOM 元素对象 ——> 不要过度使用 ref
+
 - 发生事件的元素正好是要操作的元素，可以省写 ref 去操作
+
+
+
+**注意**：
+
+- 当必须要传递一个参数时，需要把类方法封装到一个箭头函数中，此举称为高阶函数
+  - 因为传给元素事件处理器的内容必须是函数
 
 ~~~react
 // 1、创建组件
@@ -658,6 +730,10 @@ class Demo extends React.Component {
     showData2 = (event) => {
         alert(event.target.value);
     }
+    
+    onDismiss = (oid) => {
+        console.log(oid);
+    }
 
     render() {
         return (
@@ -666,6 +742,13 @@ class Demo extends React.Component {
                 <button onClick={this.showData}>点我提示左侧的数据</button>
                 &nbsp;
                 <input onBlur={this.showData2} type="text" placeholder="失去焦点提示数据"/>&nbsp;
+
+                <button
+                    onClick={() => this.onDismiss(item.objectID)}
+                    // onClick={this.onDismiss} 无法传递参数
+                    // onClick={this.onDismiss(item.objectID)} 组件加载完后会直接调用
+                    type="button"
+                />
             </div>
         )
     }
@@ -674,6 +757,18 @@ class Demo extends React.Component {
 // 2、渲染组件到页面
 ReactDOM.render(<Demo a="1" b="2"/>, document.getElementById('test'))
 ~~~
+
+
+
+~~~react
+
+~~~
+
+
+
+
+
+
 
 
 
@@ -768,6 +863,8 @@ React 组件中包含一系列**勾子函数**（生命周期回调函数），�
 
 在定义组件时，会在特定的**生命周期回调函数**中做特定的工作
 
+挂载：组件实例化的过程
+
 生命周期回调函数 <==> 生命周期钩子函数 <==> 生命周期函数 <==> 生命周期钩子
 
 ~~~react
@@ -824,32 +921,38 @@ ReactDOM.render(<Life/>, document.getElementById('test'))
 <img src="images/3_React生命周期(新).png" alt="3_React生命周期(新)" style="zoom: 60%;" />
 
 1. 初始化阶段：由 ReactDOM.render() 触发 ---> 初次渲染
-   1. constructor() 构造函数
-      - 用于初始化操作，一般很少使用
+   1. constructor() 
+      - 构造函数
+      - 用于初始化操作，一般很少使用，只有在组件实例化并插入到 DOM 中的时候才会被调用
       - 唯一直接修改 state 的地方，其他地方均通过 this.setState() 方法修改
    2. getDerivedStateFromProps()
       - 当 state 需要从 props 获取数据做初始化时使用
       - 尽量不使用，维护二者状态需要消耗额外资源，增加复杂度
-      - 每次 render 都会调用
+      - 每次渲染前都会调用
+      - 替代了 componentWillReceiveProps()
       - 典型场景：表单获取默认值
-   3. render() 渲染函数
-   4. componentDidMount() 挂载函数 
-      - UI 渲染完成后调用，常用，一般在此钩子中做初始化
-      - 只执行一次
+   3. render() 
+      - 渲染函数
+      - 当 state 或者 props 修改时都会调用
+   4. componentDidMount() 
+      - 挂载函数，只执行一次，常用
+      - UI 渲染完成后调用，一般在此钩子中做初始化
       - 典型场景：获取外部资源
       - 例如：开启定时器、发送网络请求、订阅消息
-2. 更新阶段：由组件内部 this.setSate() 或父组件重新 render 触发
+2. 更新阶段：由组件内部 this.setSate()、修改 props 或者父组件重新 render 触发
    1. getDerivedStateFromProps()
    2. shouldComponentUpdate()
       - 典型场景：性能优化
    3. render()
-   4. getSnapshotBeforeUpdate() ===> 在 render 之后但还未渲染时调用，state 已更新
+   4. getSnapshotBeforeUpdate() 
+      - 在 render 之后但还未渲染时调用，state 已更新
       - 典型场景：获取 render 之前的 DOM 状态
    5. componentDidUpdate()
       - 每次 UI 更新被调用
       - 典型场景：页面通过 props 重新获取数据
 3. 卸载组件：由 ReactDOM.unmountComponentAtNode() 触发
-   1. componentWillUnmount() ===> 常用，一般在这个钩子中做收尾的事
+   1. componentWillUnmount()
+      - 常用，一般在这个钩子中做收尾的事
       - 例如：关闭定时器、取消订阅消息
 
 
@@ -941,6 +1044,49 @@ ReactDOM.render(<Count count={199}/>,document.getElementById('test'))
 ~~~
 
 
+
+## 8、条件渲染
+
+条件渲染用于需要决定渲染哪个元素时，有些时候也可以是渲染一个元素或者什么都不渲染
+
+- 最简单的条件渲染，只需要用 JSX 中的 if-else 就可以实现
+- 在 JSX 中加上一个三元运算符也可以达到这样的目的
+- 运用 && 逻辑运算符
+
+~~~react
+render() {
+    const { searchTerm, result } = this.state;
+    return (
+        <div className="page">
+            <div className="interactions">
+                <Search
+                    value={searchTerm}
+                    onChange={this.onSearchChange}
+                    >
+                    Search
+                </Search>
+            </div>
+            { result
+                ? <Table
+                      list={result.hits}
+                      pattern={searchTerm}
+                      onDismiss={this.onDismiss}
+                      />
+                : null
+            }
+        </div>
+    );
+}
+
+{ result &&
+    <Table
+        list={result.hits}
+        pattern={searchTerm}
+        onDismiss={this.onDismiss}
+     />
+}
+
+~~~
 
 
 
@@ -1051,6 +1197,69 @@ ReactDOM.render(<Login/>,document.getElementById('test'))
 
 
 
+# 6、开发技巧
+
+## 1、客户端缓存
+
+为了实现在客户端对结果的缓存，必须在内部组件的状态中存储多个结果 （results）而不是一个结果（result）这些结果对象将会与关键字映射成一个键值对，而每一个从 API 得到的结果会以关键字为键（key）保存下来
+
+首先用 state 保存关键字，然后将后续请求合并到旧的结果中
+
+~~~js
+result: {
+	hits: [ ... ],
+	page: 2,
+}
+
+results: {
+	redux: {
+		hits: [ ... ],
+		page: 2,
+	},
+	react: {
+		hits: [ ... ],
+		page: 1,
+	},
+	...
+}
+~~~
+
+
+
+## 2、错误处理
+
+处理错误的基础知识，就是本地状态和条件渲染
+
+本质上来讲，错误只是 React 的另一种状态，当一个错误发生时，先将它存在本地状态中，然后利用条件渲染在组件中显示错误信息
+
+首先，要在本地状态中引入 error 这个状态，它初始化为 null，当错误发生时它会被置成一个 error 对象
+
+~~~react
+this.state = {
+    error: null,
+};
+
+catchErrorFunc() {
+    ....
+    .catch(e => this.setState({ error: e }));
+}
+
+
+render() {
+    const { error } = this.state;
+    ...
+    if (error) {
+        return <p>Something went wrong.</p>;
+    }
+    ...
+}
+
+~~~
+
+
+
+
+
 # 扩展
 
 ## 1、模块热替换
@@ -1066,6 +1275,182 @@ if (module.hot) {
     module.hot.accept();
 }
 ~~~
+
+
+
+## 2、ES6
+
+### 1、箭头函数
+
+JavaScript ES6 引入了箭头函数，箭头函数表达式比普通的函数表达式更加简洁
+
+需要注意箭头函数的一些功能性：
+
+- this 对象：
+
+  - 普通函数表达式总会定义它自己的 this 对象
+
+  - 箭头函数表达式仍然会使用包含它的语境下的 this 对象
+
+- 参数括号：
+
+  - 如果函数只有一个参数，可以移除掉参数的括号
+  - 但是如果有多个参数，就必须保留这个括号
+
+- 可以用简洁函数体来替换块状函数体：
+
+  - 简洁函数体的返回不用显示声明，以此移除 return 表达式
+
+~~~jsx
+// function expression
+function () { ... }
+
+// arrow function expression
+() => { ... }
+
+{list.map(item => {
+    	return (
+            <div key={item.objectID}></div>
+        )
+	}
+)}
+
+{list.map(item =>
+          <div key={item.objectID}></div>
+)}
+
+~~~
+
+
+
+### 2、类
+
+JavaScript ES6 引入了类的概念
+
+类都有一个用来实例化自己的构造函数，这个构造函数可以用来传入参数来赋给类的实例
+
+此外类可以定义函数，因为这个函数被关联给了类，所以它通常被称为类的方法
+
+~~~react
+class Developer {
+    constructor(firstname, lastname) {
+        this.firstname = firstname;
+        this.lastname = lastname;
+    }
+    getName() {
+        return this.firstname + ' ' + this.lastname;
+    }
+}
+const robin = new Developer('Robin', 'Wieruch');
+console.log(robin.getName());
+~~~
+
+
+
+### 3、对象初始化
+
+简写属性简洁地初始化对象
+
+简写方法名简洁地初始化对象的方法
+
+使用计算属性名，为一个对象动态地根据 key 分配值
+
+~~~js
+const name = 'Robin';
+const user = {
+    name,
+    // 等同于
+    // name: name,
+};
+
+const userService = {
+    getUserName(user) {
+        return user.firstname + ' ' + user.lastname;
+    },
+    // 等同于
+    //getUserName: function (user) {
+    //    return user.firstname + ' ' + user.lastname;
+    //},
+};
+
+// ES6
+const key = 'name';
+const user = {
+    [key]: 'Robin',
+    // 等同于
+    // name: 'Robin',
+};
+~~~
+
+
+
+### 4、对象方法
+
+类方法不会自动绑定 this 到实例上
+
+有三种方法：
+
+- 在构造函数中使用 bind 强制绑定
+- 使用箭头函数作为类方法声明自动绑定（推荐）
+- 在构造函数中使用箭头函数绑定并且初始化（不推荐）
+- 在 render 函数中使用 bind 强制绑定（不推荐）
+
+~~~react
+// 控制台显示 undifine
+class ExplainBindingsComponent extends Component {
+    onClickMe() {
+        console.log(this);
+
+        // this.onClickMe = this.onClickMe.bind(this);
+        // this.onClickMe = () => { console.log(this); }
+
+    }
+
+    // onClickMe = () => { console.log(this); }
+
+    render() {
+        return (
+            <button
+                // onClick={this.onClickMe.bind(this)}
+                onClick={this.onClickMe}
+                type="button"
+                >
+                Click Me
+            </button>
+        );
+    }
+}
+~~~
+
+
+
+### 5、解构
+
+在 JavaScript ES6 中有一种更方便的方法来访问对象和数组的属性，叫做解构
+
+数组、字典均可以使用解构
+
+~~~js
+const user = {
+    firstname: 'Robin',
+    lastname: 'Wieruch',
+};
+
+const users = ['Robin', 'Andrew', 'Dan'];
+
+// ES5
+var firstname = user.firstname;
+var lastname = user.lastname;
+console.log(firstname + ' ' + lastname);
+// output: Robin Wieruch
+
+// ES6
+const { firstname, lastname } = user;
+console.log(firstname + ' ' + lastname);
+// output: Robin Wieruch
+~~~
+
+
 
 
 
