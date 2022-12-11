@@ -499,7 +499,7 @@ const p = {name:'老刘', age:18, sex:'女'}
 // 2、渲染组件到页面
 ReactDOM.render(<Person name="jerry" age={19}  sex="男" speak={speak}/>, document.getElementById('test1'))
 ReactDOM.render(<Person name="tom" age={18} sex="女"/>, document.getElementById('test2'))
-// babel中可以通过 ... 展开一个对象，且展开对象的用法只适用于此处
+// ES6 中可以通过 ... 展开一个对象
 ReactDOM.render(<Person {...p}/>,document.getElementById('test3'))
 
 
@@ -1258,6 +1258,183 @@ render() {
 
 
 
+## 3、模块划分
+
+将组件封装到各自文件夹中，并且组件入口文件使用 index.js 命名，样式使用 index.css 命名
+
+文件名中的 index 名称表示是这个文件夹的入口文件，这仅仅是一个命名共识
+
+~~~text
+src/
+	index.js
+	index.css
+	constants/
+		index.js
+	components/
+        App/
+            index.js
+            test.js
+            index.css
+        Button/
+            index.js
+            test.js
+            index.css
+~~~
+
+**注意**：
+
+- 当使用 index.js 这个命名共识的时候，可以在导入时省略相对路径中的文件名
+
+  - 这个约定是在 node.js 世界里面被引入的，index 文件是一个模块的入口
+
+    - ~~~react
+      import { x } from '../constants';
+      ~~~
+
+  - 描述了一个模块的公共 API，外部模块只允许通过 index.js 文件导入模块中的共享代码
+
+  - 例子：
+
+    - ~~~tex
+      src/
+      	index.js
+      	App/
+      		index.js
+      	Buttons/
+      		index.js
+      		SubmitButton.js
+      		SaveButton.js
+      		CancelButton.js
+      ~~~
+
+    - ~~~react
+      import SubmitButton from './SubmitButton';
+      import SaveButton from './SaveButton';
+      import CancelButton from './CancelButton';
+      
+      export {
+      	SubmitButton,
+          SaveButton,
+          CancelButton,
+      };
+      
+      import {
+          SubmitButton,
+          SaveButton,
+          CancelButton
+      } from '../Buttons';
+      ~~~
+
+
+
+## 4、引用 DOM 元素
+
+有时需要在 React 中与 DOM 节点进行交互，使用 ref 属性可以访问元素中的一个节点，但通常访问 DOM 节点是 React 中的一种反模式，因为 React 是声明式编程和单向数据流
+
+但是在某些情况下，仍然需要访问 DOM 节点，官方文档提到了三种情况：
+
+- 使用 DOM API（focus 事件，媒体播放等）
+- 调用命令式 DOM 节点动画
+- 与需要 DOM 节点的第三方库集成（例如 D3.js）
+
+
+
+## 5、加载
+
+请求是异步的，此时应该向用户展示某些事情即将发生的某种反馈
+
+首先顶一个 Loading 组件用于向用户展示正在加载中
+
+再使用 state 保存一个是否加载的属性，在根据请求流程设置该属性
+
+根据是否加载的属性，判断 Loading 组件是否渲染
+
+
+
+## 6、setState() 使用函数参数
+
+setState() 方法不仅可以接收对象，在它的第二种形式中，还可以传入一个函数来更新状态信息
+
+使用函数作为参数而不是对象，有一个非常重要的应用场景，就是当更新状态需要取决于之前的状态或者属性的时候，如果不使用函数参数的形式， 组件的内部状态管理可能会引起 bug
+
+因为 React 的 setState() 方法是异步的，React 会依次执行 setState() 方法，如果 setState() 方法依赖于之前的状态或者属性的话，有可能在按批次执行的期间，状态或者属性的值就已经被改变了
+
+~~~js
+// fooCount 和 barCount 这样的状态或属性
+// 在调用 setState() 方法的时候在其他地方被异步地改变了
+// 就会导致错误
+const { fooCount } = this.state;
+const { barCount } = this.props;
+this.setState({ count: fooCount + barCount });
+~~~
+
+使用函数参数形式的话，传入 setState() 方法的参数是一个回调，该回调会在被执行时传入状态和属性，尽管 setState() 方法是异步的，但是通过回调函数，其使用的是执行那一刻的状态和属性
+
+~~~js
+// 上一次的值会传给prevState
+this.setState((prevState, props) => {
+    const { fooCount } = prevState;
+    const { barCount } = props;
+    return { count: fooCount + barCount };
+});
+~~~
+
+setState() 中函数参数形式相比于对象参数来说，在预防潜在 bug 的同时，还可以 提高代码的可读性和可维护性
+
+
+
+
+
+# 7、高级组件
+
+## 1、高阶组件
+
+高阶组件（HOC）是 React 中的一个高级概念
+
+HOC 与高阶函数是等价的，其接受任何输入，而输入值多数时候是一个组件，也可以是可选参数，并返回一个组件作为输出，返回的组件是输入组件的增强版本，并且可以在 JSX 中使用
+
+HOC 可用于不同的情况，比如：准备属性，管理状态、更改组件的表示形式，例如：用于帮助实现条件渲染
+
+~~~js
+// 例子
+// 在这个例子中，没有做任何改变，输入组件将和输出组件一样
+// 渲染与输入组件相同的实例，并将所有的属性 (props) 传递给输出组件，因此这个 HOC 没意义
+function withFoo(Component) {
+    return function(props) {
+        return <Component { ...props } />;
+    }
+}
+
+// ES6 简化写法
+const withFoo = (Component) => (props) => <Component { ...props } />
+
+// 增强输出组件功能：当加载状态 (isLoading) 为 true 时，组件显示 Loading 组件，否则显示输入的组件
+// 条件渲染是 HOC 的一种绝佳用例
+const withLoading = (Component) => (props) => props.isLoading ? <Loading /> : <Component { ...props } />
+// 但有点不好，就是组件可能不关心 isLoading 属性，因此可以用 解构赋值将 isLoading 属性单独取出
+const withLoading = 
+      (Component) => ({isLoading, ...others}) => isLoading ? <Loading /> : <Component { ...others } />
+
+~~~
+
+
+
+# 8、状态管理
+
+## 1、基本概念
+
+将子状态（substate）从一个组件移动到其他组件中的重构过程被称为状态提取
+
+例如：存在于父组件但是父组件用不到，并且子组件中需要的状态，重构到子组件中，状态从父组件到子组件向下移动
+
+状态提取的过程也可以反过来：从子组件到父组件，这种情形被称为状态提升
+
+例如：需要在子组件的兄弟组件上显示该组件的状态，此时需要将状态提升到父组件中，并在父组件中处理并传播
+
+
+
+
+
 
 
 # 扩展
@@ -1449,6 +1626,62 @@ const { firstname, lastname } = user;
 console.log(firstname + ' ' + lastname);
 // output: Robin Wieruch
 ~~~
+
+
+
+### 6、Import\Export
+
+在 JavaScript ES6 可以从模块中导入和导出某些功能，这些功能可以是函数、类、组件、常量等等
+
+基本上可以将所有东西都赋值到一个变量上，模块可以是单个文件，或者一个带有入口文件的文件夹
+
+import 和 export 语句的出现使得可以在多个不同的文件间共享代码，它能帮助开发者思考代码封装，不是所有的功能都需要从一个文件导出，其中一些功能应该只在定义它的文件中使用，一个文件导出的功能是这个文件公共 API，只有导出的功能才能被其他地方重用，这遵循了封装的最佳实践
+
+~~~js
+const firstname = 'robin';
+const lastname = 'wieruch';
+// 在一个文件导出
+export { firstname, lastname };
+
+// 在另一个文件中用相对路径导入
+import { firstname, lastname } from './file1.js';
+console.log(firstname);
+
+// 也可以用面向对象的方式导入
+// 导入可以有一个别名，防止冲突
+import * as person from './file1.js';
+console.log(person.firstname);
+~~~
+
+default 语句主要是为了兼容 ES5 只能导出一个对象，导入 default 语句可以省略花括号
+
+~~~js
+const firstname = 'robin';
+const lastname = 'wieruch';
+
+const person = {
+    firstname,
+    lastname,
+};
+
+export {
+	firstname,
+    lastname,
+};
+
+export {firstname, lastname}
+export default robin;
+
+import developer, { firstname, lastname } from './file1.js';
+console.log(developer);
+console.log(firstname, lastname);
+~~~
+
+
+
+
+
+
 
 
 
