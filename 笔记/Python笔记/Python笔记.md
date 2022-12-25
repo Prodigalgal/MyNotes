@@ -4018,7 +4018,7 @@ pd.Series(5., index=['a', 'b', 'c', 'd', 'e'])
 
 ##### 3、Series 对象
 
-Series 对象常用对象如下：
+Series 对象常用**属性**：
 
 - **name**：该属性跟 pandas 其他的关键功能关系非常密切
 - **dtype**：表示存放的数据类型
@@ -4059,7 +4059,10 @@ RangeIndex(start=0, stop=3, step=1)
 
 
 
-Series 对象操作类似于 ndarry，并且支持大部分 NumPy 函数，**支持索引切片**，使用 NumPy 函数或类似 NumPy 的运算（如根据布尔型数组进行过滤、标量乘法、应用数学函数等）都会保留索引值的链接
+**使用技巧**：
+
+- Series 对象操作类似于 ndarry，并且支持大部分 NumPy 函数，**支持索引切片**，使用 NumPy 函数或类似 NumPy 的运算（如根据布尔型数组进行过滤、标量乘法、应用数学函数等）都会保留索引值的链接
+
 
 ~~~python
 obj = pd.Series([4, 7, -5, 3])
@@ -4075,7 +4078,8 @@ obj * 2
 
 
 
-可以将 Series 对象看成是一个**定长的有序字典**，因为它是索引值到数据值的一个映射，可以用在许多原本需要字典参数的函数中
+- 可以将 Series 对象看成是一个**定长的有序字典**，因为它是索引值到数据值的一个映射，可以用在许多原本需要字典参数的函数中
+
 
 ~~~python
 0 in obj
@@ -4084,7 +4088,8 @@ obj * 2
 
 
 
-Series 最重要的一个功能是，会根据运算的索引标签**自动对齐数据**
+- Series 最重要的一个功能是，会根据运算的索引标签**自动对齐数据**
+
 
 ~~~python
 obj3
@@ -4230,7 +4235,22 @@ A B  1.0  4.0  5.0  8.0  10.0
 
 ##### 3、DataFrame 对象
 
+DataFrame 对象**函数**：（以下两个不大常用）
+
 - **from_records()**：支持元组列表或结构数据类型（dtype）的多维数组，生成的 DataFrame 索引是结构数据类型指定的字段
+
+~~~python
+data = array([(1, 2., b'Hello'), (2, 3., b'World')], dtype=[('A', '<i4'), ('B', '<f4'), ('C', 'S10')])
+
+pd.DataFrame.from_records(data, index='C')
+
+		  A    B  
+C               
+b'Hello'  1  2.0
+b'World'  2  3.0
+~~~
+
+- **from_dict()**：类似于from_records
 
 ~~~python
 pd.DataFrame.from_dict(dict([('A', [1, 2, 3]), ('B', [4, 5, 6])]))
@@ -4249,17 +4269,6 @@ A    1    2      3
 B    4    5      6
 ~~~
 
-~~~python
-data = array([(1, 2., b'Hello'), (2, 3., b'World')], dtype=[('A', '<i4'), ('B', '<f4'), ('C', 'S10')])
-
-pd.DataFrame.from_records(data, index='C')
-
-		  A    B  
-C               
-b'Hello'  1  2.0
-b'World'  2  3.0
-~~~
-
 
 
 DataFrame 对象常用**属性**：
@@ -4272,7 +4281,10 @@ DataFrame 对象常用**属性**：
 
 
 
-通过类似**字典标记**的方式或属性的方式，可以将 DataFrame 的列提取为一个 Series，返回的 Series 拥有原 DataFrame 相同的索引，且其 name 属性也已经被相应地设置为列名
+**使用技巧**：
+
+- 通过类似**字典标记**的方式或属性的方式，可以将 DataFrame 的列提取为一个 Series，返回的 Series 拥有原 DataFrame 相同的索引，且其 name 属性也已经被相应地设置为列名
+
 
 ~~~py
 df['year']
@@ -4280,13 +4292,14 @@ df['year']
 
 
 
-通过**列赋值**的方式进行修改，例如可以给那个列赋上一个标量值或一组值，如果是标量值，则以广播的方式填充列
-
-将列表或数组赋值给某个列时，其长度必须跟 DataFrame 的**长度相匹配**
-
-如果给列赋值的是一个 Series，就会**精确匹配** DataFrame 的索引
-
-如果赋值的列不存在，则会在 DataFrame 对象上**创建出新的列**出来
+- 通过**列赋值**的方式进行修改，例如可以给那个列赋上一个标量值或一组值
+  - 注意：
+    - 将列表或数组赋值给某个列时，其长度必须跟 DataFrame 的**长度相匹配**
+    - 默认添加在列索引的末尾
+  - 如果是标量值，则以广播的方式填充列
+  - 如果给列赋值的是一个 Series，就会**精确匹配** DataFrame 的索引
+  - 如果赋值的列不存在，则会在 DataFrame 对象上**创建出新的列**出来
+  - 使用 insert() 函数可以指定插入列的位置
 
 ~~~ python
 # 整列都变为 16.5
@@ -4303,7 +4316,7 @@ df['state'] = df['pop'] > 2
 
 
 
-del 关键字可以用来**删除列**
+- **del** 关键字可以用来**删除列**
 
 ~~~python
 del df['state']
@@ -4311,7 +4324,8 @@ del df['state']
 
 
 
-使用类似 NumPy 数组的方法，对 DataFrame 进行**转置**（交换行和列）
+- 使用类似 NumPy 数组的方法，对 DataFrame 进行**转置**（交换行和列）
+
 
 ~~~python
 df.T
@@ -4319,7 +4333,103 @@ df.T
 
 
 
-可以插入原生多维数组，但长度必须与 DataFrame 索引长度一致，默认在 DataFrame 尾部插入列，insert() 函数可以指定插入列的位置
+#### 3、索引对象
+
+##### 1、基本概念
+
+Pandas 索引对象负责管理轴标签和其他元数据（比如轴名称等）
+
+构建 Series 或 DataFrame 时，所用到的标签（任何数组或其他序列）都会被转换成一个 Index 对象
+
+~~~python
+obj = pd.Series(range(3), index=['a', 'b', 'c'])
+index = obj.index
+index
+Index(['a', 'b', 'c'], dtype='object')
+
+index[1:]
+Index(['b', 'c'], dtype='object')
+~~~
+
+
+
+##### 2、Index 对象
+
+**使用技巧**：
+
+- Index 对象是不可变的，因此用户不能对其进行修改
+
+~~~python
+index[1] = 'd'  # TypeError
+~~~
+
+
+
+- 不可变可以使 Index 对象可以在多个数据结构之间安全共享
+
+~~~python
+# 生成一个 Index 对象
+labels = pd.Index(np.arange(3))
+
+labels
+Int64Index([0, 1, 2], dtype='int64')
+
+obj2 = pd.Series([1.5, -2.5, 0], index=labels)
+obj2
+0    1.5
+1   -2.5
+2    0.0
+dtype: float64
+
+obj2.index is labels
+True
+~~~
+
+
+
+- 除了类似于数组，Index 功能也类似一个固定大小的集合，
+  - 但是与 Python 的集合不同，Pandas 的 Index 可以包含重复的标签，如果筛选时选择的标签是重复的，会显示所有的结果
+
+~~~python
+frame3
+state  Nevada  Ohio
+year               
+2000      NaN   1.5
+2001      2.4   1.7
+2002      2.9   3.6
+
+frame3.columns
+Index(['Nevada', 'Ohio'], dtype='object', name='state')
+
+'Ohio' in frame3.columns
+True
+
+2003 in frame3.index
+False
+~~~
+
+
+
+Index 对象常用**函数**：
+
+- append()：连接另一个 Index 对象，生成一个新的 Index 对象
+- difference()：计算差集，得到一个新的 Index 对象
+- intersection()：计算交集
+- union()：计算并集
+- isin()：通过条件计算，得到一个指示各值是否都符合条件的布尔数组
+- delete()：删除索引 i 处的元素，并返回一个新的 Index
+- drop()：删除传入的元素，并返回一个新的 Index
+- is_monotonic()：当各元素均大于等于前一个元素时，返回 True
+- is_unique()：当 Index 中没有重复值时，返回 True
+- unique()：返回索引的唯一值的数组
+
+
+
+
+
+
+
+
 
 
 
