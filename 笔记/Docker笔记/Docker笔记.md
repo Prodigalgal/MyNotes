@@ -1738,7 +1738,7 @@ services:           #本工程的服务配置列表
                     #本spring boot服务之后启动的容器实例的名字，如果指定，按照这个命名容器，如果未指定，容器命名规则是
                     #【[compose文件所在目录]_[服务名]_1】，例如【swappingdockercompose_swapping_1】
 　　　　　　　　　　　　#如果多启动，也就是docker-compose scale swapping=3 mysql=2的话，就不需要指定容器名称，
-　　　　　　　　　　　　#否则会报错 容器名重复存在的问题
+　　　　　　　　　　　　#如果多启动的同时，指定了container_name，会报容器名重复存在的错误
     build:          #基于Dockerfile文件构建镜像时使用的属性
       context: .    #代表当前目录，也可以指定绝对路径[/path/test/Dockerfile]或相对路径[../test/Dockerfile]
       				#尽量放在当前目录，便于管理
@@ -1933,7 +1933,9 @@ services:
     privileged: true
 ```
 
-执行docker compose -f yml文件 up -d后，进入容器中进行主从分配
+执行 docker compose -f yml文件 up -d 命令后，进入容器中进行主从分配
+
+
 
 # Docker可视化工具
 
@@ -2075,15 +2077,19 @@ Grafanad的默认账号密码为admin/admin，第一次登陆需要修改密码
 
 **容器**：
 
-Linux发展出了另一种虚拟化技术：Linux容器(Linux Containers，缩写为 LXC)
+Linux 发展出了另一种虚拟化技术：Linux 容器(Linux Containers，缩写为 LXC)
 
 Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离**，从另一个镜像运行，并由该镜像提供支持进程所需的全部文件，因此可以将软件运行所需的所有资源（例如依赖项）打包到一个隔离的容器中，从开发到测试再到生产的整个过程中，具备可移植性和一致性
 
+在 Docker 的最初版本确实是使用 LXC 技术，但是在后来被其自研的 libcontainerd 替换掉，libcontainerd 直接与 Linux Kernel 提供的功能交互
+
+<img src="images/f69cc6b9582ef25f917c845334458f23.png" alt="f69cc6b9582ef25f917c845334458f23" style="zoom:50%;" />
+
 **优点**：
 
-- Docker有着比虚拟机更少的抽象层：Docker不需要Hypervisor(虚拟机)实现硬件资源虚拟化，运行在Docker容器上的程序直接使用的都是实际物理机的硬件资源，因此在CPU、内存利用率上Docker将会在效率上有明显优势
+- Docker 有着比虚拟机更少的抽象层：Docker 不需要 Hypervisor (虚拟机)实现硬件资源虚拟化，运行在 Docker 容器上的程序直接使用的都是实际物理机的硬件资源，因此在 CPU、内存利用率上 Docker 将会在效率上有明显优势
 
-- Docker利用的是宿主机的内核，而不需要加载操作系统OS内核：当新建一个容器时，Docker不需要和虚拟机一样重新加载一个操作系统内核，避免了引寻、加载操作系统内核返回等比较费时费资源的过程，因此新建一个容器只需要几秒，而当新建一个虚拟机时，虚拟机软件需要加载OS，返回新建过程是分钟级别的
+- Docker 利用的是宿主机的内核，而不需要加载操作系统OS内核：当新建一个容器时，Docker 不需要和虚拟机一样重新加载一个操作系统内核，避免了引寻、加载操作系统内核返回等比较费时费资源的过程，因此新建一个容器只需要几秒，而当新建一个虚拟机时，虚拟机软件需要加载 OS，返回新建过程是分钟级别的
 - 容器不需要捆绑一整套操作系统，只需要软件工作所需的库资源和设置，系统因此而变得高效轻量并保证部署在任何环境中的软件都能始终如一地运行
 
 **缺点**：
@@ -2099,7 +2105,7 @@ Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离
 
 **不同点**：
 
-- 虚拟机实现了VM系统之间强隔离，而容器只提供了进程之间的隔离
+- 虚拟机实现了 VM 系统之间强隔离，而容器只提供了进程之间的隔离
 - 虚拟机是硬件级别的虚拟化，容器是操作系统级别的虚拟化
 
 <img src="images/image-20220126170919455.png" alt="image-20220126170919455" style="zoom:60%;" />
@@ -2108,9 +2114,9 @@ Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离
 
 
 
-## 2、docker虚悬镜像
+## 2、Docker 虚悬镜像
 
-仓库名、标签都是\<none>的镜像，俗称虚悬镜像dangling image
+仓库名、标签都是\<none>的镜像，俗称虚悬镜像 dangling image
 
 
 
@@ -2118,15 +2124,15 @@ Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离
 
 后台模式：
 
-首先：Docker容器后台运行，就必须有一个前台进程。
+首先：Docker 容器后台运行，就必须有一个前台进程。
 
-如果在docker run后面追加-d=true或者-d，那么容器将会运行在后台模式。此时所有I/O数据只能通过网络资源或者共享卷组来进行交互。因为容器不再监听你执行docker run的这个终端命令行窗口。但你可以通过执行docker attach来重新附着到该容器的会话中。需要注意的是，容器运行在后台模式下，是不能使用--rm选项的。
+如果在 docker run 后面追加 -d=true 或者 -d，那么容器将会运行在后台模式。此时所有 I/O 数据只能通过网络资源或者共享卷组来进行交互。因为容器不再监听你执行 docker run 的这个终端命令行窗口。但你可以通过执行 docker attach 来重新附着到该容器的会话中。需要注意的是，容器运行在后台模式下，是不能使用--rm选项的。
 
-容器运行的命令如果不是那些一直挂起的命令（比如运行top，tail），就是会自动退出的。例如 docker run -d centos运行一个容器，再使用docker ps -a查看，发现容器已经下线，因为容器没有需要执行的前台进程，就直接下线。因此最佳的解决方案是，将你要运行的程序以前台进程的形式运行，常见就是命令行模式，表示我还有交互操作，别中断。
+容器运行的命令如果不是那些一直挂起的命令（比如运行 top，tail），就是会自动退出的。例如  docker run -d centos 运行一个容器，再使用 docker ps -a 查看，发现容器已经下线，因为容器没有需要执行的前台进程，就直接下线。因此最佳的解决方案是，将你要运行的程序以前台进程的形式运行，常见就是命令行模式，表示我还有交互操作，别中断。
 
 前台模式：
 
-在前台模式下（不指定-d参数即可），Docker会在容器中启动进程，同时将当前的命令行窗口附着到容器的标准输入、标准输出和标准错误中。也就是说容器中所有的输出都可以在当前窗口中看到。甚至它都可以虚拟出一个TTY窗口，来执行信号中断。这一切都是可以配置的：
+在前台模式下（不指定 -d 参数即可），Docker 会在容器中启动进程，同时将当前的命令行窗口附着到容器的标准输入、标准输出和标准错误中。也就是说容器中所有的输出都可以在当前窗口中看到。甚至它都可以虚拟出一个 TTY 窗口，来执行信号中断。这一切都是可以配置的：
 
 >-a, --attach value                Attach to STDIN, STDOUT or STDERR (default [])
 >
@@ -2136,13 +2142,40 @@ Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离
 >
 >-i, --interactive                 Keep STDIN open even if not attached
 
-例如 docker run -it --name=interactive centos 前台启动一个centos，启动后会直接进入到其内部，但是退出后容器下线。
+例如 docker run -it --name=interactive centos 前台启动一个 centos，启动后会直接进入到其内部，但是退出后容器下线。
 
-如果在执行run命令时没有指定-a参数，那么Docker默认会挂载所有标准数据流，包括输入输出和错误，你可以单独指定挂载哪个标准流。
+如果在执行 run 命令时没有指定 -a 参数，那么 Docker 默认会挂载所有标准数据流，包括输入输出和错误，你可以单独指定挂载哪个标准流。
 
 ```shell
 docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 ```
+
+
+
+## 4、Containerd
+
+**历史**：
+
+- 原本 Containerd 只是 Docker 运行的一个伴随应用，作为连接 Docker 和底层 runc 的中间件
+- 后来 Containerd 从 Docker 项目中分离开源，逐渐从一个容器的 supervisor（基本的容器检测与执行）发展为具有完整功能的 container runtime（全流程）
+- Containerd 设计了全新的容器与镜像管理接口
+- CRI 作为独立于容器进程的插件被集成到了 Containerd，使 Containerd 成为符合 CRI 标准的容器运行时，也因此具备通用化能力，被 k8s 等项目使用
+
+**注意**：
+
+- Containerd 被设计为可以嵌入到其他系统中，因此并不由开发人员直接调用
+
+<img src="images/image-20221230222932822.png" alt="image-20221230222932822" style="zoom:80%;" />
+
+<p style="text-align:center">Docker 抽象图</p>
+
+![190cfe8d4cd148a590dcde175e9fcdc2](images/190cfe8d4cd148a590dcde175e9fcdc2.png)
+
+<p style="text-align:center">Containerd 架构图</p>
+
+
+
+
 
 # 问题
 
