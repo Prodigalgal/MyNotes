@@ -95,6 +95,14 @@ yum remove docker \
                   docker-latest-logrotate \
                   docker-logrotate \
                   docker-engine
+                  
+yum remove docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-engine
 ```
 
 ## 2、安装依赖
