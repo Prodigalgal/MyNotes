@@ -149,7 +149,7 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 
 
 
-### 2、安装要求
+### 2、<a name='安装要求'>安装要求</a>
 
 **硬件配置**：
 
@@ -159,6 +159,29 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 
 - 集群中所有机器之间网络互通
 
+  - ~~~bash
+    # 查看公网 IP 是否绑定在网卡上
+    ip a | grep xx.xx.xx.xx
+    
+    # 如果没有,需要绑定
+    # 临时,机器重启会失效
+    ifconfig 网卡名:1 xx.xx.xx.xx
+    
+    # 永久
+    # 在该 /etc/sysconfig/network-scripts 文件夹下创建 ifcfg-网卡名:1 的文件
+    # 例如
+    touch /etc/sysconfig/network-scripts/ifcfg-enp0s3:1
+    
+    # 添加如下内容
+    DEVICE=enp0s3:1
+    TYPE=Ethernet
+    ONBOOT=yes
+    NM_CONTROLLED=yes
+    BOOTPROTO=static
+    IPADDR=公网ip
+    NETMASK=255.255.255.0
+    ~~~
+
 - 可以访问外网，需要拉取镜像
 
 - 节点之中不可以有重复的主机名、MAC 地址或 product_uuid
@@ -166,7 +189,7 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
   - ~~~bash
     # 获取网络接口的 MAC 地址
     ip link
-    ifconfig -a 
+    ifconfig -a
     
     # 对 product_uuid 校验
     cat /sys/class/dmi/id/product_uuid
@@ -235,6 +258,10 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
   | ---- | ---- | ----------- | ------------------ | ------------ |
   | TCP  | 入站 | 10250       | Kubelet API        | 自身, 控制面 |
   | TCP  | 入站 | 30000-32767 | NodePort Services† | 所有         |
+  
+- 额外协议：
+
+  ICMP、IPIP协议
 
 **时间同步**：
 
@@ -332,10 +359,28 @@ yum install -y kubectl kubelet kubeadm
 ~~~bash
 # init.default初始化文件
 kubeadm config print init-defaults >init.default.yaml
-
 # 拉取相关镜像
 kubeadm config images pull --config=init.default.yaml
 ~~~
+
+
+
+#### 4、修改配置文件
+
+~~~bash
+vim /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+# 在末尾添加参数 --node-ip=公网IP
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS --node-ip=<公网IP>
+~~~
+
+
+
+**重要注意**：开始前务必检查所有前置要求均满足
+
+- 检查<a href='#安装要求'> 安装要求</a> 
+- 检查容器运行时是否运行
+- 检查公网 IP 是否绑定在网卡上
 
 
 
@@ -343,12 +388,7 @@ kubeadm config images pull --config=init.default.yaml
 
 ~~~bash
 # 启动 Master 节点
-# 
-kubeadm init \
---apiserver-advertise-address=Master公网IP \
---kubernetes-version v1.26.0 \
---service-cidr=10.1.0.0/16 \
---pod-network-cidr=10.244.0.0/16
+kubeadm init --apiserver-advertise-address=168.138.165.119 --kubernetes-version v1.26.0 --service-cidr=10.1.0.0/16 --pod-network-cidr=10.244.0.0/16
 ~~~
 
 ~~~bash
@@ -364,17 +404,15 @@ kubeadm join 10.0.0.64:6443 --token 0sdiop.qs9m98sqqn9hzjjm \
 ~~~
 
 ~~~bash
+# 非 root 用户运行 kubectl
 mkdir -p $HOME/.kube
-
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-
 chown $(id -u):$(id -g) $HOME/.kube/config
 
+# root 用户运行 kubectl
 vim ~/.bashrc
-
 # 在末尾添加
 export KUBECONFIG=/etc/kubernetes/admin.conf
-
 source ~/.bashrc
 ~~~
 
@@ -395,12 +433,15 @@ kind: JoinConfiguration
 discovery:
   bootstrapToken:
     apiServerEndpoint: Master节点公网IP:6443
-    token: xxxxx
+    token: t5a7cg.19va3edzrgbnldza
     unsafeSkipCAVerification: true
-  tlsBootstrapToken: xxxxx
+  tlsBootstrapToken: t5a7cg.19va3edzrgbnldza
   
 # 加入集群
 kubeadm join --config join-config.ymal
+
+# 或者使用
+kubeadm join MasterIP:6443 --token pw1mwc.e3cjvdsnhfc6nvmc --discovery-token-ca-cert-hash sha256:03d450c1455f3b72eccc1b7ddd3f2c0b6737e1f5492729de552dbd5c45a4781e
 ~~~
 
 ~~~bash
@@ -411,6 +452,149 @@ This node has joined the cluster:
 
 Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
 ~~~
+
+自此 Node 已加入集群，但是没有容器网络的功能
+
+
+
+### 4、初始化容器网络
+
+#### 1、说明
+
+必须部署一个基于 Pod 网络插件的容器网络接口 (CNI)，以便 Pod 可以相互通信
+
+在安装网络插件之前，集群 DNS (CoreDNS) 将不会启动
+
+Pod 网络不得与任何主机网络重叠
+
+默认情况下，kubeadm 将集群设置为强制使用 RBAC，确认网络插件支持 RBAC
+
+如果集群使用双栈协议，确认网络插件支持
+
+每个集群只能安装一个 Pod 网络
+
+
+
+**注意**：
+
+- 以下插件二选一
+
+
+
+#### 2、calico
+
+~~~bash
+# 下载配置文件
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+~~~
+
+修改 name: CALICO_IPV4POOL_CIDR 的 value 为 Master 节点启动时的 --pod-network-cidr 参数值
+
+在 CLUSTER_TYPE 参数的下方添加新配置，value 为 Master 节点的网卡名
+
+~~~yml
+- name: IP_AUTODETECTION_METHOD
+	value: "interface=enp0s3"
+~~~
+
+~~~bash
+# 安装 calico
+kubectl apply -f calico.yaml
+~~~
+
+等待所有的 Pod 构建、运行完成
+
+~~~bash
+# 查看 Pod 状态
+kubectl get pods -A
+
+# 查看 节点状态
+kubectl get nodes
+~~~
+
+卸载：
+
+~~~bash
+# Master 节点
+kubectl delete -f calico.yaml
+
+# 所有节点
+modprobe -r ipip
+# 停止所有生成的虚拟网卡
+ifconfig xxx down
+~~~
+
+
+
+#### 3、flannel
+
+~~~bash
+# 下载 flannel 的 yaml 配置文件
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+~~~
+
+修改 net-conf.json 的 Network 为 Master 节点启动时的 --pod-network-cidr 参数值
+
+~~~bash
+# 安装
+kubectl apply -f kube-flannel.yml
+~~~
+
+
+
+### 5、测试集群
+
+~~~bash
+# 启动一个 Nginx
+kubectl create deployment nginx --image=nginx
+
+# 暴露80端口
+kubectl expose deployment nginx --port=80 --type=NodePort
+
+# 查看 pod 与 svc 状态
+kubectl get pod,svc
+
+# 查看 pod 详细,顺便查看部署在哪个 Node 里了
+kubectl describe pod podname
+# 通过 Node IP:Port 访问，显示出 Nginx 界面即成功
+
+# 进入容器,能显示出命令行即成功
+kubectl exec nginx-748c667d99-94bsd -it --ns default /bin/bash
+~~~
+
+
+
+### 6、停止
+
+任何节点都按此步骤
+
+~~~bash
+# 移除指定节点的 pod
+kubectl drain nodename --delete-local-data --force --ignore-daemonsets
+~~~
+
+~~~bash
+# 移除节点
+kubectl delete nodes nodename
+~~~
+
+~~~bash
+kubeadm reset -f
+systemctl stop kubelet
+systemctl stop docker
+rm -rf /var/lib/cni/
+rm -rf /var/lib/kubelet/*
+rm -rf /etc/cni/
+ifconfig cni0 down
+ifconfig flannel.1 down
+ifconfig docker0 down
+ip link delete cni0
+ip link delete flannel.1
+systemctl start kubelet
+systemctl start docker
+~~~
+
+
 
 
 
@@ -468,5 +652,27 @@ systemctl show --property=Environment kubelet |cat
 
 ~~~bash
 swapoff -a
+~~~
+
+
+
+## 4、Node NotReady
+
+网络插件已安装，节点已加入
+
+查看节点 kubelet 报错信息
+
+~~~bash
+journalctl -xeu kubelet
+~~~
+
+~~~bash
+Jan 02 16:14:43 instance-20220501-1117 kubelet[48772]: E0102 16:14:43.098605   48772 kubelet.go:2475] "Container runtime network not ready" networkReady="NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized"
+~~~
+
+~~~bash
+# 重启 containerd 即可
+systemctl daemon-reload
+systemctl restart containerd
 ~~~
 
