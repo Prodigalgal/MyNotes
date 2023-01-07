@@ -2075,7 +2075,8 @@ Grafanad的默认账号密码为admin/admin，第一次登陆需要修改密码
 
 **虚拟机**：
 
-虚拟出一套完整的硬件，在其上运行一个完整的操作系统，在该系统上再运行所需应用进程
+- 虚拟出一套完整的硬件，在其上运行一个完整的操作系统，在该系统上再运行所需应用进程
+
 
 **缺点**：资源占用大，冗余多，启动慢
 
@@ -2085,11 +2086,12 @@ Grafanad的默认账号密码为admin/admin，第一次登陆需要修改密码
 
 **容器**：
 
-Linux 发展出了另一种虚拟化技术：Linux 容器(Linux Containers，缩写为 LXC)
+- Linux 发展出了另一种虚拟化技术：Linux 容器(Linux Containers，缩写为 LXC)
 
-Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离**，从另一个镜像运行，并由该镜像提供支持进程所需的全部文件，因此可以将软件运行所需的所有资源（例如依赖项）打包到一个隔离的容器中，从开发到测试再到生产的整个过程中，具备可移植性和一致性
-
-在 Docker 的最初版本确实是使用 LXC 技术，但是在后来被其自研的 libcontainerd 替换掉，libcontainerd 直接与 Linux Kernel 提供的功能交互
+  - LXC 不是模拟一个完整的操作系统而是**对进程进行资源隔离**
+  - 从一个镜像运行，由该镜像提供支持进程所需的全部文件，因此可以将软件运行所需的所有资源（例如依赖项）打包到一个隔离的容器中，从开发到测试再到生产的整个过程中，具备可移植性和一致性
+- 在 Docker 的最初版本确实是支持 LXC 技术，但是在后来被其自研的 libcontainerd 替换掉，libcontainerd 直接与 Linux Kernel 提供的功能交互
+  - 核心技术就是：Namespace（资源隔离）和Cgroup（资源管理），均由 Linux Kernel 提供
 
 <img src="images/f69cc6b9582ef25f917c845334458f23.png" alt="f69cc6b9582ef25f917c845334458f23" style="zoom:50%;" />
 
@@ -2098,7 +2100,7 @@ Linux 容器不是模拟一个完整的操作系统而是**对进程进行隔离
 - Docker 有着比虚拟机更少的抽象层：Docker 不需要 Hypervisor (虚拟机)实现硬件资源虚拟化，运行在 Docker 容器上的程序直接使用的都是实际物理机的硬件资源，因此在 CPU、内存利用率上 Docker 将会在效率上有明显优势
 
 - Docker 利用的是宿主机的内核，而不需要加载操作系统OS内核：当新建一个容器时，Docker 不需要和虚拟机一样重新加载一个操作系统内核，避免了引寻、加载操作系统内核返回等比较费时费资源的过程，因此新建一个容器只需要几秒，而当新建一个虚拟机时，虚拟机软件需要加载 OS，返回新建过程是分钟级别的
-- 容器不需要捆绑一整套操作系统，只需要软件工作所需的库资源和设置，系统因此而变得高效轻量并保证部署在任何环境中的软件都能始终如一地运行
+- 容器不需要捆绑一整套操作系统，只需要软件工作所需的库资源和系统设置，系统因此而变得高效轻量并保证部署在任何环境中的软件都能始终如一地运行
 
 **缺点**：
 
@@ -2160,28 +2162,31 @@ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 
 
-## 4、Containerd
+## 4、Containerd 的发展
 
 **历史**：
 
 - 原本 Containerd 只是 Docker 运行的一个伴随应用，作为连接 Docker 和底层 runc 的中间件
-- 后来 Containerd 从 Docker 项目中分离开源，逐渐从一个容器的 supervisor（基本的容器检测与执行）发展为具有完整功能的 container runtime（全流程）
+- 后来 Containerd 从 Docker 项目中分离开源
 - Containerd 设计了全新的容器与镜像管理接口
 - CRI 作为独立于容器进程的插件被集成到了 Containerd，使 Containerd 成为符合 CRI 标准的容器运行时，也因此具备通用化能力，被 k8s 等项目使用
+- Containerd  逐渐从一个容器的 supervisor（基本的容器检测与执行）发展为具有完整功能的 container runtime（全流程），也即 Containerd 彻底包含了 cri-plugin 与 runc
+
+
 
 **注意**：
 
 - Containerd 被设计为可以嵌入到其他系统中，因此并不由开发人员直接调用
 
+
+
 <img src="images/image-20221230222932822.png" alt="image-20221230222932822" style="zoom:80%;" />
 
-<p style="text-align:center">Docker 抽象图</p>
+<p style="text-align:center">Docker 抽象图（旧）</p>
 
 ![190cfe8d4cd148a590dcde175e9fcdc2](images/190cfe8d4cd148a590dcde175e9fcdc2.png)
 
 <p style="text-align:center">Containerd 架构图</p>
-
-
 
 
 
