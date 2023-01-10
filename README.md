@@ -24,7 +24,9 @@
 
 [JQuery笔记](笔记/JQuery笔记)
 
-[Linux笔记](Linux笔记)
+[Kubernetes笔记](笔记/Kubernetes笔记)
+
+[Linux笔记](笔记/Linux笔记)
 
 [Maven笔记](笔记/Maven笔记)
 

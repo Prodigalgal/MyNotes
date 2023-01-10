@@ -967,6 +967,940 @@ Pod 有两种类型：普通和静态
 
 ## 6、生命周期
 
+| 状态       | 说明                                                         |
+| ---------- | ------------------------------------------------------------ |
+| Pending    | API Server 已经创建了 Pod，但其中的容器镜像还未创建，包括镜像下载 |
+| Running    | Pod 内所有容器已经创建，并且至少有一个容器处于运行中或启动中或重启中 |
+| Compeleted | Pod 内所有容器均成功退出，并且不会重启                       |
+| Failed     | Pod 内所有容器均退出，但至少有一个容器失败                   |
+| Unknow     | 由于未知原因无法获取 Pod 状态，例如：网络通信不畅            |
+
+
+
+## 7、重启策略
+
+| 策略      | 说明                                                   |
+| --------- | ------------------------------------------------------ |
+| Always    | 当容器失效时，由 Kubelet 重启容器                      |
+| OnFailure | 当容器非正确终止（退出码不为 0 ），由 Kubelet 重启容器 |
+| Never     | 无论容器如何终止，都不重启                             |
+
+
+
+## 8、状态转换
+
+| 包含容器数 | 当前状态 | 发生事件        | 结果状态 |           | 结果状态结果状态 |
+| ---------- | -------- | --------------- | -------- | --------- | ---------------- |
+|            |          | **重启策略**    | Always   | OnFailure | Never            |
+| 一个       | Running  | 容器成功终止    | Running  | Succeed   | Succeed          |
+| 一个       | Running  | 容器失败终止    | Running  | Running   | Failed           |
+| 多个       | Running  | 容器失败终止    | Running  | Running   | Running          |
+| 多个       | Running  | 容器被 OOM 终止 | Running  | Running   | Failed           |
+
+
+
+## 9、资源配置
+
+可以对每个 Pod 能使用的计算资源限额
+
+Kubernetes 中可以限额的计算资源有 CPU 与 Memory 两种
+
+- CPU：资源单位为 CPU 数量，是一个绝对值而非相对值
+- Memory：资源单位为内存字节数，配额也是一个绝对值
+
+对一个计算资源进行限额需要设定以下两个参数： 
+
+- Requests：该资源最小申请数量
+- Limits：该资源最大允许使用的量
+
+当容器试图使用超过 Limits 时，可能会被 Kubernetes Kill 并重启
+
+~~~yaml
+sepc:
+	containers:
+		- name: db
+		image: mysql
+		
+		resources:
+			requests: # 最小额度
+				memory: "64Mi"
+				cpu: "250m"
+				
+			limits: # 最大额度
+				memory: "128Mi"
+				cpu: "500m"
+				
+# MySQL 容器申请最少 0.25 个 CPU 以及 64MiB 内存
+# 在运行过程中容器所能使用的资源配额为 0.5 个 CPU 以及 128MiB 内存
+# m 表示千分位，250m = 0.25
+~~~
+
+
+
+# 5、Kubernetes Label
+
+## 1、基本概念
+
+一个 Label 是一个 **k : v** 键值对，key 和 value 均自定义
+
+Label 可以附加到各种资源对象上，如 Node、Pod、 Service、RC，一个资源对象可以定义任意数量的 Label， 同一个 Label 也可以被添加到任意数量的资源对象上
+
+Label 通常在资源对象定义时确定，也可以在对象创建后动态添加或删除
+
+Label 的最常见的用法是使用 metadata.labels 字段，来为对象添加 Label，通过 spec.selector 来引用对象
+
+Label 附加到 Kubernetes 集群中各种资源对象上，目的就是对这些资源对象进行分组管理， 而分组管理的核心就是 Label Selector
+
+Label 与 Label Selector 都不能单独定义，必须附加在一些资源对象的定义文件上，一般附加在 RC 和 Service 的资源定义文件中
+
+~~~yaml
+apiVersion: v1
+kind: ReplicationController 
+metadata:
+	name: nginx 
+spec:
+	replicas: 3 
+	selector:
+		app: nginx
+		
+	template:
+        metadata:
+            labels:
+                app: nginx 
+        spec:
+            containers:
+                - name: nginx 
+                image: nginx 
+                ports:
+                    - containerPort: 80
+-------------------------------------
+apiVersion: v1 
+kind: Service 
+metadata: 
+	name: nginx
+spec:
+	type: NodePort 
+	ports:
+		- port: 80
+	nodePort: 3333 
+	selector:
+		app: nginx
+~~~
+
+
+
+# 6、Kubernetes Controller
+
+## 1、Replication Controller
+
+Replication Controller（RC）是 Kubernetes 系统中核心概念之一，当定义了一个 RC 并提交到 Kubernetes 集群中以后，Master 节点上的 Controller Manager 组件就得到通知，定期检查系统中存活的 Pod，并确保目标 Pod 实例的数量刚好等于 RC 的预期值，如果有过 多或过少的 Pod 运行，系统就会停掉或创建一些 Pod，此外可以通过修改 RC 的副本数量，来实现 Pod 的动态缩放功能
+
+~~~bash
+kubectl scale rc nginx --replicas=5
+~~~
+
+由于 Replication Controller 与 Kubernetes 代码中的模块 Replication Controller 同名， 所以在 Kubernetes v1.2 时， 它就升级成了另外一个新的概念 Replica Sets，官方解释为下一代的 RC，它与 RC 区别是：Replica Sets 支援基于集合的 Label selector，而 RC 只支持基于等式的 Label Selector
+
+很少单独使用 Replica Set，它主要被 Deployment 这个更高层面的资源对象所使用，从而形成一整套 Pod 创建、删除、更新的编排机制
+
+最好不要越过 RC 直接创建 Pod，因为 Replication Controller 会通过 RC 管理 Pod 副本，实现自动创建、补足、替换、删除 Pod 副本，这样就能提高应用的容灾能力，减少由于节点崩溃等意外状况造成的损失，即使应用程序只有一个 Pod 副本，也强烈建议使用 RC 来定 义 Pod
+
+
+
+## 2、Replica Set 
+
+Replica Set 跟 Replication Controller 没有本质的不同，只是名字不一样，并且 Replica Set 支持集合式的 Selector（Replication Controller 仅支持等式）
+
+Kubernetes 官方强烈建议避免直接使用 Replica Set，而应该通过 Deployment 来创建 RS 和 Pod，由于 Replica Set 是 Replication Controller 的代替物，因此用法基本相同
+
+
+
+## 3、Deployment
+
+Deployment 是 Kubenetes v1.2 引入的新概念，引入的目的是为了更好的解决 Pod 的编排问题
+
+Deployment 内部使用了 Replica Set 来实现，Deployment 的定义与 Replica Set 的 定义很类似，除了 API 声明与 Kind 类型有所区别
+
+~~~yaml
+apiVersion: extensions/v1beta1 
+kind: Deployment
+metadata:
+	name: frontend 
+spec:
+	replicas: 1 
+	selector:
+		matchLabels:
+			tier: frontend 
+			matchExpressions:
+				- {key: tier, operator: In, values: [frontend]} 
+template:
+    metadata:
+        labels:
+            app: app-demo 
+            tier: frontend
+    spec:
+        containers:
+            - name: tomcat-demo 
+            image: tomcat 
+            ports:
+                - containerPort: 8080
+~~~
+
+
+
+## 4、Horizontal Pod Autoscaler
+
+Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象
+
+通过追踪分析 RC 控制的所有目标 Pod 的负载变化情况，来确定是否需要针对性地调整目标 Pod 的副本数，这是 HPA 的实现原理
+
+Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式，手动模式通过 kubectl scale 命令对一个 Deployment/RC 进行 Pod 副本数量的设置，自动模式则需要用户根据某个性能指标或者自定义业务指标，并指定 Pod 副本数量的范围，系统将自动在这个范围内根据性 能指标的变化进行调整
+
+**手动扩容和缩容**：
+
+~~~bash
+kubectl scale deployment frontend --replicas 1
+~~~
+
+**自动扩容和缩容**：
+
+HPA 控制器基本 Master 的 kube-controller-manager 服务启动参数 --horizontal-podautoscaler-sync-period 定义的时长（默认值为 30s），周期性地监测 Pod 的 CPU 使用率， 并在满足条件时对 RC 或 Deployment 中的 Pod 副本数量进行调整，以符合用户定义的平均 Pod CPU 使用率
+
+~~~yaml
+apiVersion: extensions/v1beta1 
+kind: Deployment
+metadata:
+	name: nginx-deployment 
+spec:
+	replicas: 1 
+template:
+	metadata: 
+		name: nginx 
+		labels:
+			app: nginx 
+	spec:
+		containers:
+			- name: nginx 
+			image: nginx
+		resources:
+			requests:
+				cpu: 50m 
+		ports:
+			- containerPort: 80
+-------------------------------
+apiVersion: v1 
+kind: Service 
+metadata:
+	name: nginx-svc 
+spec:
+	ports:
+		- port: 80 
+	selector:
+		app: nginx
+-----------------------------------
+apiVersion: autoscaling/v1 
+kind: HorizontalPodAutoscaler 
+metadata:
+	name: nginx-hpa 
+spec:
+	scaleTargetRef:
+		apiVersion: app/v1beta1 
+		kind: Deployment
+		name: nginx-deployment 
+		minReplicas: 1
+		maxReplicas: 10
+		targetCPUUtilizationPercentage: 50
+~~~
+
+
+
+# 7、Kubernetes Volume
+
+## 1、基本概念
+
+Volume 是 Pod 中能够被多个容器访问的共享目录
+
+Kubernetes 的 Volume 定义在 Pod 上， 它被一个 Pod 中的多个容器挂载到具体的文件目录下
+
+Volume 与 Pod 的生命周期相同， 但与容器的生命周期不相关，当容器终止或重启时，Volume 中的数据也不会丢失
+
+要使用 Volume，Pod 需要指定 Volume 的类型、内容（字段）、映射到容器的位置（字段）
+
+Kubernetes 支持多种类型的 Volume，包括：emptyDir、hostPath、gcePersistentDisk、awsElasticBlockStore、nfs、iscsi、flocker、glusterfs、rbd、cephfs、gitRepo、secret、persistentVolumeClaim、downwardAPI、azureFileVolume、azureDisk、 vsphereVolume、Quobyte、PortworxVolume、ScaleIO
+
+
+
+## 2、emptyDir 
+
+emptyDir 类型的 Volume 创建于 Pod 被调度到某个宿主机上的时候，而同一个 Pod 内的容器都能读写 emptyDir 中的同一个文件，一旦这个 Pod 离开了这个宿主机，emptyDir 中的数据就会被永久删除，所以目前 emptyDir 类型的 Volume 主要用作临时空间，比如：Web 服务器写日志或者 tmp 文件需要的临时目录
+
+~~~yaml
+apiVersion: v1 
+kind: Pod 
+metadata:
+	name: test-pd 
+spec:
+	containers:
+		- image: docker.io/nazarpc/webserver
+	name: test-container
+	volumeMounts:
+		- mountPath: /cache 
+		name: cache-volume
+	volumes:
+		- name: cache-volume 
+		emptyDir: {}
+~~~
+
+
+
+
+
+## 3、hostPath 
+
+hostPath 属性的 Volume 使得对应的容器能够访问当前宿主机上的指定目录，例如：需要运行一个访问 Docker 系统目录的容器，那么就使用 /var/lib/docker 目录作为一个 hostDir 类型的 Volume，或者要在一个容器内部运行 CAdvisor，那么就使用 /dev/cgroups 目录作为一个 hostDir 类型的 Volume
+
+一旦这个 Pod 离开了这个宿主机，hostDir 中的数据虽然不会被永久删除，但数据也不会随 Pod 迁移到其他宿主机上，因此需要注意的是， 由于各个宿主机上的文件系统结构和内容并不一定完全相同，所以相同 Pod 的 hostDir 可能会在不同的宿主机上表现出不同的行为
+
+~~~yaml
+apiVersion: v1 
+kind: Pod 
+metadata:
+	name: test-pd 
+spec:
+	containers:
+		- image: docker.io/nazarpc/webserver 
+	name: test-container
+	# 指定在容器中挂接路径
+	volumeMounts:
+		- mountPath: /test-pd 
+		name: test-volume
+	# 指定所提供的存储卷
+	volumes:
+		- name: test-volume 
+		# 宿主机上的目录 
+		hostPath:
+			# directory location on host 
+			path: /data
+~~~
+
+
+
+## 3、nfs 
+
+nfs 类型的 Volume 允许一块现有的网络硬盘在同一个 Pod 内的容器间共享
+
+~~~yaml
+apiVersion: apps/v1  # for versions before 1.9.0 use apps/v1beta2 
+kind: Deployment
+metadata:
+	name: redis 
+spec:
+	selector: 
+		matchLabels:
+			app: redis 
+	revisionHistoryLimit: 2 
+template:
+	metadata:
+		labels:
+			app: redis 
+	spec:
+		containers:
+			# 应用的镜像
+			-image: redis 
+			name: redis
+			imagePullPolicy: IfNotPresent 
+		ports: # 应用的内部端口
+			- containerPort: 6379 
+			name: redis6379
+		env:
+			- name: ALLOW_EMPTY_PASSWORD
+			value: "yes"
+			- name: REDIS_PASSWORD
+			value: "redis"
+		# 持久化挂接位置，在 docker 中
+		volumeMounts:
+			- name: redis-persistent-storage 
+			mountPath: /data
+		volumes:
+			# 宿主机上的目录
+			- name: redis-persistent-storage 
+			nfs:
+				path: /k8s-nfs/redis/data 
+				server: 192.168.126.112
+~~~
+
+
+
+# 8、Kubernetes PVC\PV
+
+## 1、基本概念
+
+如何管理存储是管理计算的一个问题，而 PersistentVolume 子系统为用户和管理员提供了一个 API，用于抽象根据消费方式提供存储的详细信息
+
+为此引入了两个新的 API 资源：PersistentVolume 和 PersistentVolumeClaim
+
+- PersistentVolume（PV）：集群中由管理员配置的一段网络存储，是集群中的资源，就像节点是集群资源一样，PV 是容量插件，如 Volumes，但其生命周期独立于使用 PV 的任何单个 Pod，此 API 对象捕获存储实现的详细信息，包括 NFS，iSCSI 或特定于云提供程序的存储系统
+- PersistentVolumeClaim（PVC）：由用户进行存储的请求，它类似于 Pod，Pod 消耗节点资源，PVC 消耗 PV 资源，Pod 可以请求特定级别的资源（CPU 和内存），PVC 可以请求特定的大小和访问模式（一次读写、多次只读）
+
+虽然 PVC 允许用户使用抽象存储资源，但是 PV 对于不同的问题，用户通常需要具有不同属性（例如：性能）
+
+集群管理员需要提供各种 PV，而不仅仅是大小和访问模式，并且不会让用户了解这些卷的实现方式，对于这些需求，需要使用 StorageClass 资源，StorageClass 为管理员提供了一种描述他们提供的存储类的方法
+
+不同的类可能映射到服务质量级别，或备份策略，或者由群集管理员确定的任意策略，Kubernetes 本身对于什么类别代表是不言而喻的，这个概念有时在其他存储系统中称为配置文件
+
+
+
+**注意**：
+
+- PVC 和 PV 是一一对应的
+
+
+
+## 2、生命周期
+
+PV 是群集中的资源，PVC 是对这些资源的请求，并且还充当对资源的检查
+
+PV 和 PVC 之间的相互作用遵循以下生命周期：
+
+- **Provisioning** ——-> **Binding** ——–> **Using** ——> **Releasing** ——> **Recycling** 
+
+  - Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
+
+    - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
+
+    - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
+
+  - Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态
+  - Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
+  - Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
+  - Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
+    - 保留策略：允许人工处理保留的数据
+    - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持
+    - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持
+
+ 
+
+## 3、PV 类型
+
+~~~tex
+GCEPersistentDisk
+AWSElasticBlockStore
+AzureFile
+AzureDisk
+FC (Fibre Channel)
+Flexvolume
+Flocker
+NFS
+iSCSI
+RBD (Ceph Block Device)
+CephFS
+Cinder (OpenStack block storage)
+Glusterfs
+VsphereVolume
+Quobyte Volumes
+HostPath (Single node testing only – local storage is not supported in any
+way and WILL NOT WORK in a multi-node cluster)
+Portworx Volumes
+ScaleIO Volumes
+StorageOS
+~~~
+
+
+
+## 4、PV 卷阶段状态
+
+Available：资源尚未被 claim 使用 
+
+Bound：卷已经被绑定到 claim 了 
+
+Released：claim 被删除，卷处于释放状态，但未被集群回收
+
+Failed：卷自动回收失败
+
+
+
+## 5、例子
+
+### 1、创建 PV
+
+~~~yaml
+# 创建 5 个 pv，存储大小各不相同，是否可读也不相同
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+	name: pv001
+	labels:
+		name: pv001
+spec:
+	nfs:
+		path: /data/volumes/v1
+	server: nfs
+	accessModes: ["ReadWriteMany","ReadWriteOnce"]
+	capacity:
+		storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+	name: pv002
+	labels:
+		name: pv002
+spec:
+	nfs:
+		path: /data/volumes/v2
+	server: nfs
+	accessModes: ["ReadWriteOnce"]
+	capacity:
+		storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+	name: pv003
+	labels:
+		name: pv003
+spec:
+	nfs:
+		path: /data/volumes/v3
+	server: nfs
+	accessModes: ["ReadWriteMany","ReadWriteOnce"]
+	capacity:
+		storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+	name: pv004
+	labels:
+		name: pv004
+spec:
+	nfs:
+		path: /data/volumes/v4
+	server: nfs
+	accessModes: ["ReadWriteMany","ReadWriteOnce"]
+	capacity:
+		storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+	name: pv005
+	labels:
+		name: pv005
+spec:
+	nfs:
+		path: /data/volumes/v5
+	server: nfs
+	accessModes: ["ReadWriteMany","ReadWriteOnce"]
+	capacity:
+    	storage: 15Gi
+~~~
+
+~~~bash
+# 创建
+kubectl apply -f pv-damo.yaml
+
+# 查询
+kubectl get pv
+~~~
+
+
+
+### 2、创建 PVC
+
+~~~yaml
+# 创建一个 pvc，需要 6G 存储；所以不会匹配 pv001、pv002、pv003
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+	name: mypvc
+	namespace: default
+spec:
+	accessModes: ["ReadWriteMany"]
+	resources:
+		requests:
+			storage: 6Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+	name: vol-pvc
+	namespace: default
+spec:
+	volumes:
+		- name: html
+		persistentVolumeClaim:
+			claimName: mypvc
+	containers:
+		- name: myapp
+		image: ikubernetes/myapp:v1
+        volumeMounts:
+            - name: html
+            mountPath: /usr/share/nginx/html/
+~~~
+
+~~~bash
+# 创建
+kubectl apply -f vol-pvc-demo.yaml
+
+# 查询
+kubectl get pvc, pv
+~~~
+
+
+
+# 9、Kubernetes Secret
+
+## 1、基本概念
+
+Secret 解决了密码、token、密钥等敏感数据的配置问题，不需要把这些敏感数据暴露到镜像或者 Pod Spec 中
+
+Secret 以 Volume 或者环境变量的方式使用
+
+Secret 有三种类型：
+
+- **Service Account**：
+  - 用来访问 Kubernetes API，由 Kubernetes 自动创建
+  - 自动挂载到 Pod 的 /run/secrets/kubernetes.io/serviceaccount 目录
+- **Opaque**：
+  - base64 编码格式的 Secret
+  - 用来存储密码、密钥等
+- **kubernetes.io/dockerconfigjson**：
+  - 用来存储私有 docker registry 的认证信息
+
+
+
+## 2、Service Account
+
+~~~bash
+kubectl run nginx --image nginx
+# deployment "nginx" created
+
+kubectl get pods
+# NAME READY STATUS RESTARTS AGE
+# nginx-3137573019-md1u2 1/1 Running 0 13s
+
+kubectl exec nginx-3137573019-md1u2 ls
+# /run/secrets/kubernetes.io/serviceaccount
+# ca.crt
+# namespace
+# token
+~~~
+
+
+
+## 3、Opaque Secret
+
+创建说明：Opaque 类型的数据是一个 map 类型，要求 value 是 base64 编码格式
+
+~~~bash
+# 转码到 base64
+echo -n "admin" | base64
+YWRtaW4=
+
+echo -n "1f2d1e2e67df" | base64
+MWYyZDFlMmU2N2Rm:
+~~~
+
+~~~yaml
+# 创建 secrets.yml
+apiVersion: v1
+kind: Secret
+metadata:
+	name: mysecret
+	type: Opaque
+	data:
+		password: MWYyZDFlMmU2N2Rm
+		username: YWRtaW4=
+~~~
+
+~~~yaml
+# 使用方法
+# 挂载到 volume
+apiVersion: v1
+kind: Pod
+metadata:
+	labels:
+		name: seret-test
+		name: seret-test
+spec:
+	volumes:
+		- name: secrets
+	secret:
+		secretName: mysecret
+	containers:
+		-image: hub.atguigu.com/library/myapp:v1
+		name: db
+		volumeMounts:
+			- name: secrets
+			mountPath:"
+		readOnly: true
+
+# 导出到环境变量
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+	name: pod-deployment
+spec:
+	replicas: 2
+	template:
+		metadata:
+			labels:
+				app: pod-deployment
+		spec:
+			containers:
+				- name: pod-1
+				image: hub.atguigu.com/library/myapp:v1
+				ports:
+					-containerPort: 80
+				env:
+					-name: TEST_USER
+				valueFrom:
+					secretKeyRef:
+						name: mysecret
+						key: username
+~~~
+
+
+
+## 4、kubernetes.io/dockerconfigjson
+
+使用 Kuberctl 创建 docker registry 认证的 secret
+
+~~~bash
+kubectl create secret \
+docker-registry myregistrykey \
+--docker-server=DOCKER_REGISTRY_SERVER \
+--docker-username=DOCKER_USER \
+--docker-password=DOCKER_PASSWORD \
+--docker-email=DOCKER_EMAIL \
+secret "myregistrykey" created .
+~~~
+
+在创建 Pod 的时候，通过 imagePullSecrets 来引用刚创建的 myregistrykey
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+	name: foo
+spec:
+    containers:
+        - name: foo
+        image: roc/awangyang:v1
+        imagePullSecrets:
+        	-name: myregistrykey
+~~~
+
+
+
+# 10、Kubernetes configMap
+
+## 1、基本概念
+
+configMap 功能在 v1.2 版本中引入
+
+许多应用程序会从配置文件、命令行参数、环境变量中读取配置信息，configMap API 提供了向容器中注入配置信息的机制
+
+configMap 可以被用来保存单个属性，也可以用来保存整个配置文件或者 JSON 二进制大对象
+
+
+
+## 2、创建方式
+
+### 1、使用目录创建
+
+~~~bash
+ls docs/user-guide/configmap/kubectl/
+# game.properties
+# ui.properties
+
+cat docs/user-guide/configmap/kubectl/game.properties
+# enemies=aliens
+# lives=3
+# enemies.cheat=true
+# enemies.cheat.level=noGoodRotten
+# secret.code.passphrase=UUDDLRLRBABAS
+# secret.code.allowed=true
+# secret.code.lives=30
+
+cat docs/user-guide/configmap/kubectl/ui.properties
+# color.good=purple
+# color.bad=yellow
+# allow.textmode=true
+# how.nice.to.look=fairlyNice
+
+kubectl create configmap game-config --from-file=docs/user-guide/configmap/kubectl
+~~~
+
+--from-file 指定目录下的所有文件，都会被读取然后在 configMap 里面创建一个键值对，键的名字就是文件名，值就是文件的内容
+
+
+
+### 2、使用文件创建
+
+只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap
+
+~~~bash
+kubectl create configmap game-config-2 --from-file=docs/user- guide/configmap/kubectl/game.properties
+
+kubectl get configmaps game-config-2 -o yaml
+~~~
+
+--from-file 这个参数可以使用多次，使用两次分别指定上个创建方式中的两个配置文件，效果就跟指定整个目录是一样的
+
+
+
+### 3、使用字面量创建
+
+使用字面量创建，利用 -from-literal 参数传递配置信息，该参数可以使用多次
+
+~~~bash
+kubectl create configmap special-config \
+--from-literal=special.how=very \
+--from-literal=special.type=charm
+
+kubectl get configmaps special-config -o yaml
+~~~
+
+
+
+## 3、使用
+
+### 1、替换环境变量
+
+~~~yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+	name: special-config
+	namespace: default
+	data:
+		special.how: very
+		special.type: charm
+
+apiVersion: v1
+	kind: ConfigMap
+	metadata:
+		name: env-config
+		namespace: default
+		data:
+			log_level: INFO
+
+apiVersion: v1
+	kind: Pod
+	metadata:
+		name: dapi-test-pod
+	spec:
+		containers:
+			- name: test-container
+			image: hub.xxx.com/library/myapp:v1
+			command: [ "/bin/sh", "-c", "env"]
+		env:
+			- name: SPECIAL_LEVEL_KEY
+			valueFrom:
+				configMapKeyRef:
+                	name: special-config
+					key: special.how
+			- name: SPECIAL_TYPE_KEY
+			valueFrom:
+				configMapKeyRef:
+					name: special-config
+					key: special.type
+			envFrom:
+				- configMapRef:
+				name: env-config
+restartPolicy: Never
+~~~
+
+
+
+### 2、设置命令行参数
+
+~~~yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+	name: special-config
+	namespace: default
+data:
+    special.how: very
+    special.type: charm
+    
+apiVersion: v1
+kind: Pod
+metadata:
+	name: dapi-test-pod
+spec:
+	containers:
+		- name: test-container
+		image: hub.xxx.com/library/myapp:v1
+		command: ['bin/sh', '-c', 'echo ${SPECIAL_LEVEL_KEY} ${SPECIAL_TYPE_KEY}']
+		env:
+			- name: SPECIAL_LEVEL_KEY
+			valueFrom:
+				configMapKeyRef:
+					name: special-config
+					key: special.how
+            - name: SPECIAL_TYPE_KEY
+			valueFrom:
+				configMapKeyRef:
+					name: special-config
+					key: special.type
+restartPolicy: Never
+~~~
+
+
+
+### 3、在数据卷中使用
+
+~~~yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+	name: special-config
+	namespace: default
+data:
+    special.how: very
+    special.type: charm
+    
+apiVersion: v1
+kind: Pod
+metadata:
+	name: dapi-test-pod
+spec:
+	containers:
+		- name: test-container
+		image: hub.xxx.com/library/myapp:v1
+		command: ['bin/sh', '-c', 'cat /etc/config/special.how']
+		volumeMounts:
+			- name: config-volume
+			mountPath: /etc/config
+		volumes:
+			- name: config-volume
+			configMap:
+				name: special-config
+~~~
+
+
+
+## 4、热更新
+
+~~~bash
+# 使用自带的默认编辑器直接修改即可
+kubectl edit configmap log-config
+~~~
+
+更新 configMap 目前并不会触发相关 Pod 的滚动更新，可以通过修改 pod annotations 的方式触发滚动更新，例如：给 spec.template.metadata.annotations 中添加 version/config 触发滚动更新
+
+
+
+# 10、Kubernetes Namspace
+
+## 1、基本概念
+
+
+
 
 
 # 扩展
