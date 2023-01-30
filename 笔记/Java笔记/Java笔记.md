@@ -205,9 +205,9 @@ public void show(String face) {
 
 
 
-## NIO
+## I/O 模式
 
-### 1、IO 概述
+### 1、I/O 概述
 
 IO 的操作方式通常分为几种：同步阻塞 BIO、同步非阻塞 NIO、异步非阻塞 AIO
 
@@ -267,7 +267,7 @@ Java 的 AIO API 其实是 Proactor 模式的应用，和 Reactor 模式类似�
 
 
 
-### 5、三大组件
+### 5、NIO 三大组件
 
 #### 1、Channel
 
@@ -275,7 +275,15 @@ Java 的 AIO API 其实是 Proactor 模式的应用，和 Reactor 模式类似�
 
 Channel 可以翻译成通道，和 IO 中的 Stream 流是差不多一个等级的，只不过 Stream 是单向的：InputStream、OutputStream 而 Channel 是双向的，既可以用来读操作，又可以用来写操作，可以异步的读写操作
 
-NIO 中的 Channel 的主要实现有：FileChannel、DatagramChannel、SocketChannel、ServerSocketChannel 从名字来看分别可以对应：文件 IO、UDP、TCP（Server 和 Client）
+NIO 中的 Channel 的主要实现有：FileChannel、DatagramChannel、SocketChannel、ServerSocketChannel 从名字来看分别可以对应： File、UDP、TCP（后两个）
+
+SocketChannel 就是 NIO 对于非阻塞 Socket 操作的支持的组件，其在 socket 上封装了一层，主要是支持了非阻塞的读写，同时改进了传统的单向流 API，Channel 同时支持读写，socket 通道类主要分为 DatagramChannel、SocketChannel、ServerSocketChannel，其在被实例化时都会创建一个对等 socket 对象
+
+要把一个 socket 通道置为非阻塞模式，要依靠所有 socket 通道类的公有超级类：SelectableChannel，非阻塞 I/O 和可选择性是紧密相连的，这也正是管理阻塞模式的 API 代码要在 SelectableChannel 超级类中定义的原因
+
+> 就绪选择（readiness selection）是一种可以用来查询通道的机制，该查询可以判断通道是否准备好执行一个目标操作，如读或写
+
+设置或重新设置一个通道的阻塞模式只要调用 configureBlocking() 方法即可，传递参数值为 true 则设为阻塞模式，参数值为 false 值设为非阻塞模式，可以通过调用 isBlocking() 方法来判断某个 socket 通道当前处于哪种模式
 
 
 
@@ -291,11 +299,20 @@ NIO 中的 Channel 的主要实现有：FileChannel、DatagramChannel、SocketCh
   - 在 while 循环中调用的，因为无法保证 write() 方法一次能向 FileChannel 写入多少字节，因此需要重复调用 write() 方法，直到 Buffer 中已经没有尚未写入通道的字节
 - transferTo()、transferFrom() 方法：
   - 使得通道之间可以互相传输数据，需要 position、count、to/fromChannel
-- scatter()、gather() 方法：
-  - 分散读（scatter）指 Channel 在读操作时将读取的数据读取到多个 Buffer 中
-  - 聚集写（gather）指 Channel 在写操作时将多个 Buffer 的数据写入同一个 ChannelChannel 中
+- force() 方法：
+  - 将通道里尚未写入磁盘的数据强制写到磁盘上
+  - 出于性能方面的考虑，操作系统会将数据缓存在内存中，所以无法保证写入到 FileChannel 里的数据一定会即时写到磁盘上，要保证这一点，需要调用 force() 方法
+  - 有一个 boolean 类型的参数，指明是否同时将文件元数据（权限信息等）写到磁盘上
 
 
+
+
+支持 scatter / gather：
+
+- 分散读（scatter）指 Channel 在读操作时将读取的数据读取到多个 Buffer 中
+- 聚集写（gather）指 Channel 在写操作时将多个 Buffer 的数据写入同一个 ChannelChannel 中
+- scatter / gather 经常用于需要将传输的数据分开处理的场合
+  - 例如：传输一个由消息头和消息体组成的消息，可能会将消息体和消息头分散到不同的 buffer 中，这样可以方便的处理消息头和消息体
 
 
 
@@ -306,8 +323,11 @@ NIO 中的 Channel 的主要实现有：FileChannel、DatagramChannel、SocketCh
 ~~~java
 public class FileChannelDemo {
     public static void main(String[] args) throws IOException {
+        // 获取一个 File
         RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
+        // 获取一个 FileChannel 实例
         FileChannel inChannel = aFile.getChannel();
+        // 分配一个 Buffer
         ByteBuffer buf = ByteBuffer.allocate(48);
         int bytesRead = inChannel.read(buf);
         while (bytesRead != -1) {
@@ -324,7 +344,7 @@ public class FileChannelDemo {
     }
 }
 
-public class FileChannelDemo {
+public class FileChannelWrite {
     public static void main(String[] args) throws IOException {
         RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
         FileChannel inChannel = aFile.getChannel();
@@ -333,6 +353,8 @@ public class FileChannelDemo {
         buf1.clear();
         buf1.put(newData.getBytes());
         buf1.flip();
+        // 循环写入，因为无法保证 write 方法可以一次性写入
+        // 所以需要循环直到 Buffer 没有尚未写入的字节
         while(buf1.hasRemaining()) {
             inChannel.write(buf1);
         }
@@ -340,7 +362,7 @@ public class FileChannelDemo {
     }
 }
 
-public class FileChannelWrite {
+public class FileChannelTransfer {
     public static void main(String args[]) throws Exception {
         RandomAccessFile aFile = new RandomAccessFile("test.txt", "rw");
         FileChannel fromChannel = aFile.getChannel();
@@ -366,9 +388,14 @@ public class FileChannelWrite {
 
 public class ScatterGatherDemo {
     public static void main(String args[]) throws Exception {
+        // .......
         ByteBuffer header = ByteBuffer.allocate(128);
         ByteBuffer body = ByteBuffer.allocate(1024);
+        // Buffer 需要现被插入到数组中
         ByteBuffer[] bufferArray = { header, body };
+        // read 方法按照 Buffer 在数组中的顺序写入数据
+        // 一个 Buffer 写满后立即下移一个 Buffer
+        // 因为 Bufer 必须填满才下移，因此不适合动态消息
         channel.read(bufferArray);
 
         ByteBuffer header = ByteBuffer.allocate(128);
@@ -381,37 +408,1109 @@ public class ScatterGatherDemo {
 
 
 
-##### 3、SocketChannel
+##### 3、ServerSocketChannel
 
-SocketChannel 就是 NIO 对于非阻塞 Socket 操作的支持的组件，其在 socket 上 封装了一层，主要是支持了非阻塞的读写。同时改进了传统的单向流 API,，Channel 同时支持读写
+ServerSocketChannel 是一个基于通道的 socket 监听器，同 java.net.ServerSocket 执行相同的任务，不过增加了通道语义，因此能够在非阻塞模式下运行
+
+由于 ServerSocketChannel 没有 bind() 方法，因此有必要取出对等的 socket 并使用它来绑定到一个端口以开始监听连接，同时使用对等 ServerSocket 的 API 来根据需要设置其他的 socket 选项
+
+同 java.net.ServerSocket 一样，ServerSocketChannel 也有 accept( )方法，ServerSocketChannel 的 accept() 方法会返回 SocketChannel 类型对象
+
+~~~java
+public class SocketChannelAccept {
+    public static final String GREETING = "Hello java nio.\r\n";
+    
+    public static void main(String[] argv) throws Exception {
+        int port = 1234;
+        // 获取 Buffer
+        ByteBuffer buffer = ByteBuffer.wrap(GREETING.getBytes());
+        // 打开 ServerSocketChannel
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        // 绑定端口
+        ssc.socket().bind(new InetSocketAddress(port));
+        // 设置阻塞模式
+        ssc.configureBlocking(false);
+        while (true) {
+            System.out.println("Waiting for connections");
+            // 监听新连接
+            SocketChannel sc = ssc.accept();
+            if (sc == null) {
+                System.out.println("null");
+                Thread.sleep(2000);
+            } else {
+                System.out.println("Incoming connection from: " + sc.socket().getRemoteSocketAddress());
+                buffer.rewind();
+                sc.write(buffer);
+                sc.close();
+            }
+        }
+    }
+}
+~~~
 
 
+
+##### 4、SocketChannel
+
+Java NIO 中的 SocketChannel 是一个连接到 TCP 网络套接字的通道
+
+SocketChannel 是一种面向流连接 socket 套接字的可选择通道（多路复用）
+
+SocketChannel 特征：
+
+- 对于已经存在的 socket 不能创建 SocketChannel
+- SocketChannel 中提供的 open 接口创建的 Channel 并没有进行网络级联，需要使用 connect 接口连接到指定地址
+- 未进行连接的 SocketChannle 执行 I/O 操作时，会抛出 NotYetConnectedException
+- SocketChannel 支持两种 I/O 模式：阻塞式和非阻塞式
+- SocketChannel 支持异步关闭，如果 SocketChannel 在一个线程上 read 阻塞，另一个线程对该 SocketChannel 调用shutdownInput，则读阻塞的线程将返回 -1 表示没有读取任何数据，如果 SocketChannel 在一个线程上 write 阻塞，另一个线程对该 SocketChannel 调用 shutdownWrite，则写阻塞的线程将抛出 AsynchronousCloseException
+- SocketChannel 支持设定参数
+  - SO_SNDBUF：套接字发送缓冲区大小
+  - SO_RCVBUF：套接字接收缓冲区大小
+  - SO_KEEPALIVE：保活连接
+  - O_REUSEADDR：复用地址
+  - SO_LINGER：有数据传输时延缓关闭 Channel (只有在非阻塞模式下有用)
+  - TCP_NODELAY：禁用 Nagle 算法
+
+~~~java
+// open 方法只创建了 SocketChannel 实例，并没有进行实质的 tcp 连接
+// 方法一:创建 SocketChannel
+SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("www.baidu.com", 80));
+// 方法二:创建 SocketChannel
+SocketChannel socketChanne2 = SocketChannel.open();
+socketChanne2.connect(new InetSocketAddress("www.baidu.com", 80));
+
+// 连接校验
+// 测试 SocketChannel 是否为 open 状态
+socketChannel.isOpen(); 
+// 测试 SocketChannel 是否已经被连接
+socketChannel.isConnected(); 
+// 测试 SocketChannel 是否正在进行连接
+socketChannel.isConnectionPending(); 
+// 校验正在进行套接字连接的 SocketChannel 是否已经完成连接
+socketChannel.finishConnect(); 
+
+// 设置阻塞模式
+socketChannel.configureBlocking(false);
+
+// 读入
+ByteBuffer byteBuffer = ByteBuffer.allocate(16);
+socketChannel.read(byteBuffer);
+socketChannel.close();
+System.out.println("read over");
+
+// 参数获取与设置
+// 通过 setOptions 方法可以设置 socket 套接字的相关参数
+socketChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, Boolean.TRUE)
+			 .setOption(StandardSocketOptions.TCP_NODELAY, Boolean.TRUE);
+// getOption 方法可以获取 相关参数
+socketChannel.getOption(StandardSocketOptions.SO_KEEPALIVE);
+socketChannel.getOption(StandardSocketOptions.SO_RCVBUF);
+~~~
+
+
+
+##### 5、DatagramChannel
+
+DatagramChannel 模拟包导向的无连接协议（如 UDP/IP）
+
+DatagramChannel 是无连接的，每个数据报都是一个自包含的实体，拥有自己的目的地址及不依赖其他数据报的数据负载，与面向流的 socket 不同，DatagramChannel 可以发送单独的数据报给不同的目的地址，同样 DatagramChannel 对象也可以接收来自任意地址的数据包，每个到达的数据报都含有关于它来自何处的信息（源地址）
+
+~~~java
+// 实例化并连接 DatagramChannel
+DatagramChannel server = DatagramChannel.open();
+server.socket().bind(new InetSocketAddress(10086));
+
+// 接收数据
+ByteBuffer receiveBuffer = ByteBuffer.allocate(64);
+receiveBuffer.clear();
+SocketAddress receiveAddr = server.receive(receiveBuffer);
+
+// 发送数据
+DatagramChannel client = DatagramChannel.open();
+ByteBuffer sendBuffer = ByteBuffer.wrap("client send".getBytes());
+client.send(sendBuffer, new InetSocketAddress("127.0.0.1",10086));
+~~~
+
+
+
+**注意**：
+
+- 如果 ByteBuffer 空间小于数据包大小，则剩余的数据包内容，静默丢弃
+
+
+
+~~~java
+public class UDPServer {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        DatagramChannel server = DatagramChannel.open();
+        server.socket().bind(new InetSocketAddress(8888));
+        server.configureBlocking(false);
+
+        while (true) {
+            ByteBuffer receive = ByteBuffer.allocate(2);
+            SocketAddress receiveAddr = server.receive(receive);
+            if (receiveAddr != null) {
+                System.out.println(receiveAddr);
+                System.out.println(new String(receive.array()));
+            } else {
+                TimeUnit.SECONDS.sleep(1);
+            }
+        }
+    }
+}
+
+public class UDPClient {
+    public static void main(String[] args) throws IOException {
+        DatagramChannel sendChannel= DatagramChannel.open();
+        InetSocketAddress sendAddress= new InetSocketAddress("127.0.0.1", 8888);
+        Scanner sc = new Scanner(System.in);
+        while (sc.hasNextLine()) {
+            String line = sc.nextLine();
+            int send = sendChannel.send(ByteBuffer.wrap(line.getBytes(StandardCharsets.UTF_8)), sendAddress);
+            System.out.println(send);
+        }
+    }
+}
+~~~
 
 
 
 #### 2、Buffer
 
-NIO 中的关键 Buffer 实现有：ByteBuffer、CharBuffer、DoubleBuffer、FloatBuffer、IntBuffer、LongBuffer、ShortBuffer 分别对应基本数据类型：byte、char、double、float、int、long、short
+##### 1、概述
+
+Java NIO 中的 Buffer 用于和 NIO 通道进行交互，数据从通道读取到缓冲区，从缓冲区写入到通道
+
+> 缓冲区本质上是一块可以写入数据，可以读取数据的内存，其实也就是一个数组
+
+在 NIO 库中，所有数据都是用缓冲区处理的，读取或写入都是在缓冲区中，而在面向流 I/O 系统中，所有数据都是直接写入或者直接将数据读取到 Stream 对象中
+
+在 NIO 中，所有的缓冲区类型都继承于抽象类 Buffer
+
+NIO 中的关键 Buffer 实现有：ByteBuffer、CharBuffer、DoubleBuffer、FloatBuffer、IntBuffer、LongBuffer、ShortBuffer、MappedByteBuffer 分别对应基本数据类型：byte、char、double、float、int、long、short
+
+当向 Buffer 写入数据时，Buffer 会记录下写了多少数据，一旦要读取数据，需要通过 flip() 方法将 Buffer 从写模式切换到读模式，在读模式下，可以读取之前写入到 Buffer 的所有数据，一旦读完了所有的数据，就需要清空缓冲区，让它可以再次被写入，有两种方式能清空缓冲区：调用 clear() 或 compact() 方法，clear()方法会清空整个缓冲区，compact() 方法只会清除已经读过的数据，任何未读的数据都被移到缓冲区的起始处，新写入的数据将放到缓冲区未读数据的后面
+
+~~~java
+public void testConect2() throws IOException {
+    // 获取文件
+    RandomAccessFile aFile = new RandomAccessFile("01.txt", "rw");
+    // 获取通道
+    FileChannel inChannel = aFile.getChannel();
+    // 创建缓冲区
+    ByteBuffer buf = ByteBuffer.allocate(48);
+    int bytesRead = inChannel.read(buf); // read into buffer. 循环读取 while (bytesRead != -1) {}
+    buf.flip(); // make buffer ready for read
+    while(buf.hasRemaining()){
+        System.out.print((char) buf.get()); // read 1 byte at a time
+    }
+    buf.clear(); // make buffer ready for writing
+    bytesRead = inChannel.read(buf);
+}
+aFile.close();
+}
+~~~
+
+
+
+##### 2、三个属性
+
+要了解 Buffer 的工作原理，需要熟悉它的三个属性：
+
+- **Capacity**
+  - 作为一个内存块，Buffer 有一个固定的大小值（capacity）你只能往里写 capacity 个 byte、long、char 等类型
+  - 一旦 Buffer 满了，需要将其清空（通过读数据或者清除数据）才能继续写数据往里写数据
+- **Position**
+  - 写数据：
+    -  Buffer 中时，position 表示写入数据的当前位置，position 的初始值为
+      0，当一个 byte、long 等数据写到 Buffer 后，position 会向下移动到下一个可插入
+      数据的 Buffer 单元
+    - position 最大可为 capacity – 1（因为 position 的初始值为 0）
+  - 读数据：
+    - position 表示读入数据的当前位置
+    - 如 position=2 时表示已开始读入了 3 个 byte，或从第 3 个 byte 开始读取
+    - 通过 ByteBuffer.flip() 切换到读模式时 position 会被重置为 0，当 Buffer 从 position 读入数据后，position 会下移到下一个可读入的数据 Buffer 单元
+- **Limit**
+  - 写数据：
+    - limit 表示可对 Buffer 最多写入多少个数据
+    - 写模式下，limit 含义等于 Buffer 的 capacity
+  - 读数据：
+    - limit 表示 Buffer 里有多少可读数据（not null 的数据）
+    - 因此能读到之前写入的所有数据（limit 被设置成已写数据的数量，这个值在写模式下就是 position）
+
+position 和 limit 的含义取决于 Buffer 处在读模式还是写模式
+
+capacity 的含义总是一样的，无论 Buffer 处在什么模式
+
+<img src="images/image-20230129120106550.png" alt="image-20230129120106550" style="zoom:50%;" />
+
+
+
+##### 3、操作
+
+**分配**：
+
+- 要想获得一个 Buffer 对象首先要进行分配，每一个 Buffer 类都有一个 allocate() 方法
+
+- ~~~java
+  ByteBuffer buf = ByteBuffer.allocate(48);
+  ~~~
+
+**写数据**：
+
+- 写数据到 Buffer 有两种方法
+
+  - Channel read() 到 Buffer
+  - 通过 put() 方法到 Buffer
+
+- put() 方法会让 Buffer 的 position 发送偏移，偏移大小为 put 进入的字节数
+
+  - 有多个重载方法
+  
+- ~~~java
+  int bytesRead = inChannel.read(buf);
+  buf.put(127);
+  ~~~
+
+**读数据**：
+
+- 写数据到 Buffer 有两种方法
+
+  - 从 Buffer 读取数据到 Channel
+  - 使用 get() 方法从 Buffer 中读取一个字节
+
+- get() 方法会让 Buffer 的 position 发生偏移，偏移大小为 get 的字节数
+
+  - 有多个重载方法
+
+- ~~~java
+  int bytesWritten = inChannel.write(buf);
+  byte aByte = buf.get();
+  ~~~
+
+**模式切换**：
+
+- flip() 方法将 Buffer 从写模式切换到读模式
+- 其实功能没变，只是给 Buffer 的标记属性设值而已
+- 调用 flip() 方法会将 position 设为 0，并将 limit 设置成之前 position 的值
+- position 现在用于标记读的位置，limit 表示之前写进了多少个 byte、char 等 （现在能读取多少个 byte、char 等）
+
+**重置 position**：
+
+- Buffer.rewind() 将 position 设回 0，所以可以重读 Buffer 中的所有数据
+- limit 保持不变，仍然表示能从 Buffer 中读取多少个元素（byte、char 等）
+
+**清除**：
+
+- 一旦读完 Buffer 中的数据，需要让 Buffer 准备好再次被写入
+- 可以通过 clear() 或 compact() 方法来完成
+  - clear() 方法：
+    - position 将被设回 0，limit 被设置成 capacity 的值，但是数据还在
+
+  - compact() 方法：
+    - 将所有未读的数据拷贝到 Buffer 起始处，然后将 position 设到最后一个未读元素正后面，limit 属性依然像 clear()方法一样，设置成 capacity，剩余数据还在
+
+
+**标记**：
+
+- 通过调用 Buffer.mark() 方法，可以标记 Buffer 中的一个特定 position，之后可以通过调用 Buffer.reset() 方法恢复到这个 position
+
+- ~~~java
+  buffer.mark(); 
+  // call buffer.get() a couple of times, e.g. during parsing.
+  // set position back to mark
+  buffer.reset(); 
+  ~~~
+
+**分片**：
+
+- 在现有缓冲区上切出一片来作为一个新的缓冲区，但现有的缓冲区与创建的子缓冲区在底层数组层面上是数据共享的，也就是说，子缓冲区相当于是现有缓冲区的一个视图窗口
+
+- 调用 slice() 方法可以创建一个子缓冲区
+
+- ~~~java
+  public void testConect3() throws IOException {
+      ByteBuffer buffer = ByteBuffer.allocate(10);
+      // 存入缓冲区中的数据 0-9
+      for (int i = 0; i < buffer.capacity(); ++i) {
+          buffer.put((byte) i);
+      }
+      
+      // 创建子缓冲区
+      buffer.position(3);
+      buffer.limit(7);
+      ByteBuffer slice = buffer.slice();
+      
+      // 改变子缓冲区的内容
+      for (int i = 0; i < slice.capacity(); ++i) {
+          byte b = slice.get(i);
+          b *= 10;
+          slice.put(i, b);
+      }
+      
+      buffer.position(0);
+      buffer.limit(buffer.capacity());
+      while (buffer.remaining() > 0) {
+          System.out.println(buffer.get());
+      }
+  }
+  ~~~
+
+**只读**：
+
+- 通过调用缓冲区的 asReadOnlyBuffer() 方法，将任何常规缓冲区转换为只读缓冲区
+
+- 这个方法返回一个与原缓冲区完全相同的缓冲区，并与原缓冲区共享数据，只不过它是只读的
+
+- 如果原缓冲区的内容发生了变化，只读缓冲区的内容也随之发生变化
+
+- 如果尝试修改只读缓冲区的内容，则会报 ReadOnlyBufferException 异常
+
+- 只可以把常规缓冲区转换为只读缓冲区，而不能将只读的缓冲区转换为可写的缓冲区
+
+- ~~~java
+  public void testConect4() throws IOException {
+      ByteBuffer buffer = ByteBuffer.allocate(10);
+      // 缓冲区中的数据 0-9
+      for (int i = 0; i < buffer.capacity(); ++i) {
+          buffer.put((byte) i);
+      }
+      
+      // 创建只读缓冲区
+      ByteBuffer readonly = buffer.asReadOnlyBuffer();
+      
+      // 改变原缓冲区的内容
+      for (int i = 0; i < buffer.capacity(); ++i) {
+          byte b = buffer.get(i);
+          b *= 10;
+          buffer.put(i, b);
+      }
+      readonly.position(0);
+      readonly.limit(buffer.capacity());
+      
+      // 只读缓冲区的内容也随之改变
+      while (readonly.remaining() > 0) {
+          System.out.println(readonly.get());
+      }
+  }
+  ~~~
+
+**直接缓冲区**：
+
+- 直接缓冲区是为加快 I/O 速度，使用一种特殊方式为其分配内存的缓冲区
+
+- 它会在每一次调用底层操作系统的本机 I/O 操作之前(或之后)，尝试避免将缓冲区的内容拷贝到一个中间缓冲区中或者从一个中间缓冲区中拷贝数据
+
+- 要分配直接缓冲区，需要调用 allocateDirect() 方法，而不是 allocate() 方法，使用方式与普通缓冲区并无区别
+
+- ~~~java
+  public void testConect5() throws IOException {
+      // 管道1
+      String infile = "01.txt";
+      FileInputStream fin = new FileInputStream(infile);
+      FileChannel fcin = fin.getChannel();
+      
+     	// 管道2
+      String outfile = String.format("02.txt");
+      FileOutputStream fout = new FileOutputStream(outfile);
+      FileChannel fcout = fout.getChannel();
+      
+      // 使用 allocateDirect 而不是 allocate
+      ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+      while (true) {
+          buffer.clear();
+          int r = fcin.read(buffer);
+          if (r == -1) {
+              break;
+          }
+          buffer.flip();
+          fcout.write(buffer);
+      }
+  }
+  ~~~
+
+**内存映射文件**：
+
+- 内存映射文件 I/O 是一种读和写文件数据的方法，它可以比常规的基于流或者基于通道的 I/O 快的多
+
+- 内存映射文件 I/O 是通过使文件中的数据映射为内存数组来完成的
+
+- 只有文件中实际读取或者写入的部分才会映射到内存中
+
+- ~~~java
+  static private final int start = 0;
+  static private final int size = 1024;
+  
+  public static void main(String args[]) throws Exception {
+      RandomAccessFile raf = new RandomAccessFile("01.txt", "rw");
+      FileChannel fc = raf.getChannel();
+      MappedByteBuffer mbb = fc.map(FileChannel.MapMode.READ_WRITE, start, size);
+      
+      mbb.put(0, (byte) 97);
+      mbb.put(1023, (byte) 122);
+      raf.close();
+  }
+  ~~~
 
 
 
 #### 3、Selector
 
-Selector 运行单线程处理多个 Channel，如果应用打开了多个通道，但每个连接的流量都很低，使用 Selector 就会很方便
+##### 1、概述
 
-例如在一个聊天服务器中，向 Selector 注册 Channel，然后调用它的 select() 方法，这个方法会阻塞直到某个注册的通道有事件就绪，一旦这个方法返回，线程就可以处理这些事件， 例如：新的连接进来、数据接收等
+Selector 运行单线程处理多个 Channel，如果应用打开了多个通道，但每个连接的流量都很低，使用 Selector 就非常快速
+
+Selector 一般称为选择器 ，也可以翻译为多路复用器，用于检查一个或多个 NIO Channel（通道）的状态是否处于可读、可写
+
+例如：在一个聊天服务器中，向 Selector 注册 Channel，然后调用它的 select() 方法，这个方法会阻塞直到某个注册的通道有事件就绪，一旦这个方法返回，线程就可以处理这些事件（新的连接进来、数据接收）
+
+不是所有的 Channel 都可以被 Selector 复用的，FileChannel 就不能被选择器复用，判断一个 Channel 能被 Selector 复用，有一个前提：是否继承了一个抽象类 SelectableChannel，如果继承了则可以被复用，否则不能
+
+SelectableChannel 类提供了实现通道的可选择性所需要的公共方法，它是所有支持就绪检查的通道类的父类，所有 socket 通道，都继承了 SelectableChannel 类，包括从管道（Pipe）对象的中获得的通道
+
+一个通道可以被注册到多个选择器上，但对每个选择器而言只能被注册一次，通道和选择器之间的关系，使用注册的方式完成  SelectableChannel 可以被注册到 Selector 对象上，在注册的时候，需要指定通道的哪些操作，是 Selector 感兴趣的
 
 
 
-#### 4、三者关系
+##### 2、注册
 
-一个 Channel 就像一个流，只是 Channel 是双向的，Channel 读数据到 Buffer， Buffer 写数据到 Channel
+使用 Channel.register（Selector sel，int ops）方法，将一个通道注册到一个选择器
 
-一个 Selector 允许一个线程处理多个 Channel
+- 第一个参数，指定通道要注册的选择器
+
+- 第二个参数，指定选择器需要查询的通道状态
+
+  - 可读：SelectionKey.OP_READ
+
+  - 可写：SelectionKey.OP_WRITE
+
+  - 连接：SelectionKey.OP_CONNECT
+
+  - 接收：SelectionKey.OP_ACCEPT
+
+  - 如果 Selector 对通道的多操作类型感兴趣，可以用位或操作符来实现，比如：
+
+    - ~~~java
+      int key = SelectionKey.OP_READ | SelectionKey.OP_WRITE;
+      ~~~
+
+选择器查询的不是通道的操作，而是通道的某个操作的一种就绪状态，一旦通道具备完成某个操作的条件，表示该通道的某个操作已经就绪，可以被 Selector 查询到，程序可以对通道进行对应的操作
 
 
 
+##### 3、选择键
 
+Channel 注册到后，并且一旦通道处于某种就绪的状态，可以被选择器查询到，这个过程使用选择器 Selector 的 select() 方法完成
+
+select() 方法的作用：对感兴趣的通道操作，进行就绪状态的查询
+
+Selector 可以不断的查询 Channel 中发生的某个操作的就绪状态，并且挑选感兴趣的操作的就绪状态，一旦通道的某个操作的就绪状态达成，并且是 Selector 感兴趣的操作，就会被 Selector 选中，放入选择键集合中
+
+一个选择键，首先包含了注册在 Selector 的通道操作的类型，比方说：SelectionKey.OP_READ，也包含了特定的通道与特定的选择器之间的注册关系
+
+一个选择键类似监听器模式里边的一个事件，由于 Selector 不是事件触发的模式，而是主动去查询的模式，所以不叫事件 Event，而是叫 SelectionKey 选择键
+
+
+
+##### 4、使用
+
+一般的使用流程
+
+~~~java
+// 1、获取 Selector 选择器
+Selector selector = Selector.open();
+// 2、获取通道
+ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+// 3、设置为非阻塞
+serverSocketChannel.configureBlocking(false);
+// 4、绑定连接
+serverSocketChannel.bind(new InetSocketAddress(9999));
+// 5、将通道注册到选择器上,并制定监听事件为：接收事件
+serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+~~~
+
+通过 Selector 的 select() 方法，可以查询出已经就绪的通道操作，这些就绪的状态保存在一个元素是 SelectionKey 对象的 Set 集合中
+
+select()方法有多个重载：
+
+- select()：阻塞到至少有一个通道的注册事件就绪
+- select(long timeout)：和 select() 一样，但最长阻塞事件为 timeout 毫秒
+- selectNow()：非阻塞，只要有通道就绪就立刻返回
+
+select()方法返回的 int 值，表示自前一次 select() 方法以来到这一次 select() 方法之间的时间段上，有多少通道变成就绪状态
+
+一旦调用 select() 方法，并且返回值不为 0 时，在 Selector 中有一个 selectedKeys() 方法，用来访问已选择键集合，迭代集合的每一个选择键元素，根据就绪的操作类型，完成对应的操作
+
+~~~java
+// 获取已选择键集合
+Set selectedKeys = selector.selectedKeys();
+// 实例迭代器
+Iterator keyIterator = selectedKeys.iterator();
+// 遍历
+while(keyIterator.hasNext()) {
+    SelectionKey key = keyIterator.next();
+    if(key.isAcceptable()) {
+        // 接收操作就绪
+    } else if (key.isConnectable()) {
+        // 连接操作就绪 
+    } else if (key.isReadable()) {
+        // 通道读操作就绪
+    } else if (key.isWritable()) {
+        // 通道写操作就绪
+    }
+    keyIterator.remove();
+}
+~~~
+
+选择器执行选择的过程，系统底层会依次询问每个通道是否已经就绪，这个过程可能会造成调用线程进入阻塞状态，有以下三种方式可以唤醒在 select() 方法中阻塞的线程
+
+- wakeup() 方法 ：通过调用 Selector 对象的 wakeup() 方法让处在阻塞状态的 select() 方法立刻返回
+  - 该方法使得选择器上的第一个还没有返回的选择操作立即返回
+  - 如果当前没有进行中的选择操作，那么下一次对 select() 方法的一次调用将立即返回
+- close() 方法 ：通过 close() 方法关闭 Selector
+  - 该方法使得任何一个在选择操作中阻塞的线程都被唤醒，类似 wakeup()，同时使得注册到该 Selector 的所有 Channel 被注销，所有的键将被取消，但是 Channel 本身并不会关闭
+
+
+
+**注意**：
+
+- 与 Selector 一起使用时，Channel 必须处于非阻塞模式下，否则将抛出异常 IllegalBlockingModeException
+- 通道并没有一定要支持所有的四种操作，比如：ServerSocketChannel 支持 Accept，SocketChannel 不支持，使用通道的 validOps() 方法，来获取通道所有支持的操作集合
+
+
+
+##### 5、示例
+
+~~~java
+public void ServerDemo() {
+    try {
+        // 创建 ServerSocketChannel 监听 8000
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        ssc.socket().bind(new InetSocketAddress("127.0.0.1", 8000));
+        ssc.configureBlocking(false);
+        // 创建 Selector
+        Selector selector = Selector.open();
+        // 注册 Channel，并且指定感兴趣的事件是 Accept
+        ssc.register(selector, SelectionKey.OP_ACCEPT);
+        // 创建 Buffer
+        ByteBuffer readBuff = ByteBuffer.allocate(1024);
+        ByteBuffer writeBuff = ByteBuffer.allocate(128);
+        writeBuff.put("received".getBytes());
+        writeBuff.flip();
+        // 循环监听
+        while (true) {
+            // 进行选择
+            int nReady = selector.select();
+            // 获取就绪通道
+            Set<SelectionKey> keys = selector.selectedKeys();
+            // 遍历就绪通道
+            Iterator<SelectionKey> it = keys.iterator();
+            while (it.hasNext()) {
+                SelectionKey key = it.next();
+                it.remove();
+                if (key.isAcceptable()) {
+                    // 监听新的连接，并且把新连接注册到 selector 上
+                    SocketChannel socketChannel = ssc.accept();
+                    socketChannel.configureBlocking(false);
+                    // 声明这个新连接只对读操作感兴趣
+                    socketChannel.register(selector, SelectionKey.OP_READ);
+                } else if (key.isReadable()) {
+                    SocketChannel socketChannel = (SocketChannel) key.channel();
+                    readBuff.clear();
+                    socketChannel.read(readBuff);
+                    readBuff.flip();
+                    System.out.println("received : " + new String(readBuff.array()));
+                    key.interestOps(SelectionKey.OP_WRITE);
+                } else if (key.isWritable()) {
+                    writeBuff.rewind();
+                    SocketChannel socketChannel = (SocketChannel) key.channel();
+                    socketChannel.write(writeBuff);
+                    key.interestOps(SelectionKey.OP_READ);
+                }
+            }
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+~~~
+
+~~~java
+public void ClientDemo() {
+    try {
+        SocketChannel socketChannel = SocketChannel.open();
+        socketChannel.connect(new InetSocketAddress("127.0.0.1", 8000));
+        ByteBuffer writeBuffer = ByteBuffer.allocate(32);
+        ByteBuffer readBuffer = ByteBuffer.allocate(32);
+        writeBuffer.put("hello".getBytes());
+        writeBuffer.flip();
+        while (true) {
+            writeBuffer.rewind();
+            socketChannel.write(writeBuffer);
+            readBuffer.clear();
+            socketChannel.read(readBuffer);
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+~~~
+
+
+
+### 6、NIO 其余组件
+
+#### 1、Pipe
+
+Java NIO 管道是 2 个线程之间的单向数据连接
+
+Pipe 有一个 source 通道和一个 sink 通道，数据会被写到 sink 通道，从 source 通道读取
+
+~~~java
+// 通过 Pipe.open()方法打开管道。
+Pipe pipe = Pipe.open();
+
+// 要向管道写数据，需要访问 sink 通道
+Pipe.SinkChannel sinkChannel = pipe.sink();
+
+// 通过调用 SinkChannel 的 write()方法，将数据写入 SinkChannel：
+String newData = "New String to write to file..." + System.currentTimeMillis();
+ByteBuffer buf = ByteBuffer.allocate(48);
+buf.clear();
+buf.put(newData.getBytes());
+buf.flip();
+while(buf.hasRemaining()) {
+	sinkChannel.write(buf);
+}
+
+// 从读取管道的数据，需要访问 source 通道
+Pipe.SourceChannel sourceChannel = pipe.source();
+
+// 调用 source 通道的 read()方法来读取数据
+// read()方法返回的 int 值表示多少字节被读进了缓冲区
+ByteBuffer buf = ByteBuffer.allocate(48);
+int bytesRead = sourceChannel.read(buf);
+~~~
+
+
+
+#### 2、FileLock
+
+##### 1、概述
+
+文件锁在 OS 中很常见，如果多个程序同时访问、修改同一个文件，很容易因为文件数据不同步而出现问题，给文件加一个锁，同一时间，只能有一个程序修改此文件，或者程序都只能读此文件，这就解决了同步问题
+
+文件锁是进程级别的，不是线程级别的，文件锁可以解决多个进程并发访问、修改同一个文件的问题，但不能解决多线程并发访问、修改同一文件的问题
+
+使用文件锁时，同一进程内的多个线程，可以同时访问、修改此文件，文件锁是当前程序所属的 JVM 实例持有的，一旦获取到文件锁（对文件加锁），要调用 release()，或者关闭对应的 FileChannel 对象，或者当前 JVM 退出，才会释放这个锁，一旦某个进程（比如说 JVM 实例）对某个文件加锁，则在释放这个锁之前，此进程不能再对此文件加锁，就是说 JVM 实例在同一文件上的文件锁是不重叠的（进程级别不能重复在同一文件上获取锁）
+
+文件锁要通过 FileChannel 对象使用
+
+
+
+##### 2、分类
+
+排它锁：
+
+- 又叫独占锁，对文件加排它锁后，该进程可以对此文件进行读写，该进程独占此文件，其他进程不能读写此文件，直到该进程释放文件锁
+
+共享锁：
+
+- 某个进程对文件加共享锁，其他进程也可以访问此文件，但这些进程都只能读此文件，不能写，线程是安全的，只要还有一个进程持有共享锁，此文件就只能读，不能写
+
+
+
+##### 3、使用
+
+一般使用方式：
+
+~~~java
+// 创建 FileChannel 对象，文件锁只能通过 FileChannel 对象来使用
+FileChannel fileChannel = new FileOutputStream("1.txt").getChannel();
+// 对文件加锁
+FileLock lock = fileChannel.lock();
+// 对此文件进行一些读写操作
+// ....... 
+// 释放锁
+lock.release();
+~~~
+
+**获取锁**的方法及其重载：
+
+- lock() 是阻塞式的，如果未获取到文件锁，会一直阻塞当前线程，直到获取文件锁
+- tryLock() 是非阻塞式的，tryLock 是尝试获取文件锁，获取成功就返回锁对象，否则返回 null，不会阻塞当前线程
+
+~~~java
+// 对整个文件加锁，默认为排它锁
+lock();
+
+// 自定义加锁方式
+// 前 2 个参数指定要加锁的部分（可以只对此文件的部分内容加锁），第三个参数值指定是否是共享锁
+lock(long position, long size, booean shared); 
+
+// 对整个文件加锁，默认为排它锁
+tryLock();
+
+// 自定义加锁方式
+tryLock(long position, long size, booean shared);
+~~~
+
+**检查锁**的类型及其属性：
+
+~~~java
+// 在某些 OS 上，对某个文件加锁后，不能对此文件使用通道映射
+// 此文件锁是否是共享锁
+boolean isShared();
+// 此文件锁是否还有效
+boolean isValid();
+~~~
+
+
+
+#### 3、Path
+
+Java Path 接口是 Java NIO 的一部分，Java Path 接口是在 Java7 中添加到 Java NIO 的，Path 接口位于 java.nio.file 包中，所以 Path 接口的完全限定名称为 java.nio.file.Path
+
+Java Path 实例表示文件系统中的路径，一个路径可以指向一个文件或一个目录，路径可以是绝对路径，也可以是相对路径
+
+- 绝对路径：包含从文件系统的根目录到它指向的文件或目录的完整路径
+- 相对路径：包含相对于其他路径的文件或目录的路径
+
+java.nio.file.Path 接口类似于 java.io.File 类，通常可以使用 Path 接口来替换 File 类的使用
+
+
+
+~~~java
+// 使用 Paths 类中的静态方法 Paths.get() 来创建路径实例
+// Paths.get()方法是 Path 实例的工厂方法
+public static void main(String[] args) {
+    // 使用绝对路径创建
+    Path path = Paths.get("d:\\xxx\\001.txt");
+    
+	// 使用相对路径创建
+    Path file = Paths.get("d:\\xxx", "001.txt");
+    
+    // 路径标准化
+    // Path 接口的 normalize()方法可以使路径标准化
+   	// 标准化意味着它将移除所有在路径字符串的中间的.和..代码，并解析路径字符串所引用的路径
+    String originalPath = "d:\\xxx\\projects\\..\\01-project";
+    Path path1 = Paths.get(originalPath);
+	System.out.println("path1 = " + path1);
+	Path path2 = path1.normalize();
+	System.out.println("path2 = " + path2);
+}
+~~~
+
+
+
+#### 4、Files
+
+Java NIO Files 类 (java.nio.file.Files) 提供了几种操作文件系统中的文件的方法
+
+java.nio.file.Files 类与 java.nio.file.Path 实例经常一起使用
+
+**创建新目录**：
+
+~~~java
+
+// Files.createDirectory(); 用于根据 Path 实例创建一个新目录
+Path path = Paths.get("d:\\aaa");
+try {
+    // 如果创建目录成功，将返回一个 Path 实例，该实例指向新创建的路径
+    Path newDir = Files.createDirectory(path);
+} catch(FileAlreadyExistsException e){
+    // 目录已经存在
+    e.printStackTrace();
+} catch (IOException e) {
+    // 其他发生的异常，例如：父目录不存在
+    e.printStackTrace();
+}
+~~~
+
+**文件复制**：
+
+- Files.copy()方法的第三个参数，如果目标文件已经存在，这个参数指示 copy() 方法覆盖现有的文件
+
+~~~java
+Path sourcePath = Paths.get("d:\\xxx\\01.txt");
+Path destinationPath = Paths.get("d:\\xxx\\02.txt");
+try {
+    Files.copy(sourcePath, destinationPath);
+} catch(FileAlreadyExistsException e) {
+    // 文件已经存在
+} catch (IOException e) {
+    // 其他发生的异常
+    e.printStackTrace();
+}
+Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+~~~
+
+**文件移动**：
+
+- Files.move() 的第三个参数，指示 Files.move() 方法来覆盖目标路径上的任何现有文件
+- 不仅可以移动还可以重名
+
+~~~java
+Path sourcePath = Paths.get("d:\\xxx\\01.txt");
+Path destinationPath = Paths.get("d:\\xxx\\001.txt");
+try {
+    Files.move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+} catch (IOException e) {
+    // 移动文件失败
+    e.printStackTrace();
+}
+~~~
+
+**文件删除**：
+
+~~~java
+Path path = Paths.get("d:\\xxx\\001.txt");
+try {
+    Files.delete(path);
+} catch (IOException e) {
+    // 删除文件失败
+    e.printStackTrace();
+}
+~~~
+
+**文件遍历**：
+
+- Files.walkFileTree() 方法包含递归遍历目录树功能
+- Path 实例指向要遍历的目录，FileVisitor 在遍历期间被调用
+  - FileVisitor 是一个接口，必须自己实现 FileVisitor 接口，并将实现的实例传递给 walkFileTree() 方法，在目录遍历过程中，FileVisitor 实现的每个方法都将被调用，如果不需要实现所有这些方法，那么可以扩展 SimpleFileVisitor 类，它包含 FileVisitor 接口中所有方法的默认实现
+  - FileVisitor 接口的方法中，每个都返回一个 FileVisitResult 枚举实例，FileVisitResult 枚举包含以下四个选项
+    - CONTINUE：继续
+    - TERMINATE：终止
+    - SKIP_SIBLING：跳过同级
+    - SKIP_SUBTREE：跳过子级
+
+~~~java
+Path rootPath = Paths.get("d:\\aaaa");
+String fileToFind = File.separator + "01.txt";
+try {
+    Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            String fileString = file.toAbsolutePath().toString();
+            // System.out.println("pathString = " + fileString);
+            if(fileString.endsWith(fileToFind)) {
+                System.out.println("file found at path: " + file.toAbsolutePath());
+                return FileVisitResult.TERMINATE;
+            }
+            return FileVisitResult.CONTINUE;
+        }
+    });
+} catch (IOException e) {
+    e.printStackTrace();
+}
+~~~
+
+
+
+#### 5、AsynchronousFileChannel
+
+在 Java 7 中，Java NIO 中添加了 AsynchronousFileChannel，用于异步地将数据写入文件
+
+
+
+**创建**：
+
+~~~java
+Path path = Paths.get("d:\\xxx\\01.txt");
+try {
+    // 第一个参数用于绑定一个 Path 实例
+    // 第二个参数指示该文件准许的操作
+    AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+} catch (IOException e) {
+    e.printStackTrace();
+}
+~~~
+
+**读取数据**：
+
+~~~java
+// 使用 Future
+// 创建实例
+Path path = Paths.get("d:\\xxx\\001.txt");
+AsynchronousFileChannel fileChannel = null;
+try {
+    fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+// 分配 Buffer，循环读取直到结束
+ByteBuffer buffer = ByteBuffer.allocate(1024);
+long position = 0;
+Future<Integer> operation = fileChannel.read(buffer, position);
+while(!operation.isDone()){}
+
+// 读写转换，读取内容
+buffer.flip();
+byte[] data = new byte[buffer.limit()];
+buffer.get(data);
+System.out.println(new String(data));
+buffer.clear();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// 使用 CompletionHandler
+// 创建实例
+Path path = Paths.get("d:\\xxx\\001.txt");
+AsynchronousFileChannel fileChannel = null;
+try {
+    fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+// 分配 Buffer
+ByteBuffer buffer = ByteBuffer.allocate(1024);
+long position = 0;
+
+// 读取
+fileChannel.read(buffer, position, buffer, 
+                 new CompletionHandler<Integer, ByteBuffer>() {
+                    // 读取操作完成，将调用 CompletionHandler 的 completed() 方法
+                    // 对于 completed() 方法的参数传递一个整数，表示读取了多少字节，
+                    // 以及传递给 read() 方法的“附件”，“附件”是 read() 方法的第三个参数
+                    // 在本代码中，它是 ByteBuffer，数据也被读取
+                     @Override
+                     public void completed(Integer result, ByteBuffer attachment) {
+                         System.out.println("result = " + result);
+                         attachment.flip();
+                         byte[] data = new byte[attachment.limit()];
+                         attachment.get(data);
+                         System.out.println(new String(data));
+                         attachment.clear();
+                     }
+                     // 如果读取操作失败，则将调用 CompletionHandler 的 failed() 方法
+                     @Override
+                     public void failed(Throwable exc, ByteBuffer attachment) {
+                     }
+                 });
+~~~
+
+**写入数据**：
+
+~~~java
+Path path = Paths.get("d:\\xxx\\001.txt");
+AsynchronousFileChannel fileChannel = null;
+try {
+    fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.WRITE);
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+ByteBuffer buffer = ByteBuffer.allocate(1024);
+long position = 0;
+buffer.put("atguigu data".getBytes());
+buffer.flip();
+Future<Integer> operation = fileChannel.write(buffer, position);
+buffer.clear();
+while(!operation.isDone());
+System.out.println("Write over");
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Path path = Paths.get("d:\\xxx\\001.txt");
+if(!Files.exists(path)){
+    try {
+        Files.createFile(path);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+AsynchronousFileChannel fileChannel = null;
+try {
+    fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.WRITE);
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+ByteBuffer buffer = ByteBuffer.allocate(1024);
+long position = 0;
+buffer.put("AAA data".getBytes());
+buffer.flip();
+fileChannel.write(buffer, position, buffer, 
+                  new CompletionHandler<Integer, ByteBuffer>() {
+                      @Override
+                      public void completed(Integer result, ByteBuffer attachment) {
+                          System.out.println("bytes written: " + result);
+                      }
+                      @Override
+                      public void failed(Throwable exc, ByteBuffer attachment) {
+                          System.out.println("Write failed");
+                          exc.printStackTrace();
+                      }
+                  });
+~~~
+
+
+
+## 字符集
+
+java 中使用 Charset 来表示字符集编码对象
+
+**常用静态方法**：
+
+~~~java
+public static Charset forName(String charsetName) // 通过编码类型获得 Charset 对象
+public static SortedMap<String,Charset> availableCharsets() // 获得系统支持的所有编码方式
+public static Charset defaultCharset() // 获得系统默认的编码方式
+public static boolean isSupported(String charsetName) // 判断是否支持该编码类型
+~~~
+
+**常用普通方法**：
+
+~~~java
+public final String name() // 获得 Charset 对象的编码类型(String)
+public abstract CharsetEncoder newEncoder() // 获得编码器对象
+public abstract CharsetDecoder newDecoder() // 获得解码器对象
+~~~
+
+**示例**：
+
+~~~java
+public void charSetEncoderAndDecoder() throws CharacterCodingException {
+    Charset charset=Charset.forName("UTF-8");
+    
+    // 1.获取编码器
+    CharsetEncoder charsetEncoder=charset.newEncoder();
+    
+    // 2.获取解码器
+    CharsetDecoder charsetDecoder=charset.newDecoder();
+    
+    // 3.获取需要解码编码的数据
+    CharBuffer charBuffer=CharBuffer.allocate(1024);
+    charBuffer.put("字符集编码解码");
+    charBuffer.flip();
+    
+    // 4.编码
+    ByteBuffer byteBuffer=charsetEncoder.encode(charBuffer);
+    System.out.println("编码后：");
+    for (int i=0;i<byteBuffer.limit();i++) {
+        System.out.println(byteBuffer.get());
+    }
+    
+    // 5.解码
+    byteBuffer.flip();
+    CharBuffer charBuffer1=charsetDecoder.decode(byteBuffer);
+    System.out.println("解码后：");
+    System.out.println(charBuffer1.toString());
+    System.out.println("指定其他格式解码:");
+    Charset charset1=Charset.forName("GBK");
+    byteBuffer.flip();
+    CharBuffer charBuffer2 =charset1.decode(byteBuffer);
+    System.out.println(charBuffer2.toString());
+    //6.获取 Charset 所支持的字符编码
+    Map<String ,Charset> map= Charset.availableCharsets();
+    Set<Map.Entry<String,Charset>> set=map.entrySet();
+    for (Map.Entry<String,Charset> entry: set) {
+        System.out.println(entry.getKey()+"="+entry.getValue().toString());
+    }
+}
+~~~
 
 
 
@@ -3439,19 +4538,23 @@ java -XX:+PrintCommandLineFlags -version
 - AbstractQueuedLongSynchronizer
 - AbstractQueuedSynchronizer                  
 
-通常地：AbstractQueuedSynchronizer简称为AQS
+通常地：AbstractQueuedSynchronizer 简称为 AQS
 
 <img src="images/image-20220701213536485.png" alt="image-20220701213536485" style="zoom: 67%;" />
 
-**作用**：用来构建锁或者其它同步器组件的重量级基础框架及整个JUC体系的基石，通过内置的FIFO队列来完成资源获取线程的排队工作，并通过一个int类变量，表示持有锁的状态
+**作用**：
+
+- 用来构建锁或者其它同步器组件的重量级基础框架及整个 JUC 体系的基石，通过内置的 FIFO 队列来完成资源获取线程的排队工作，并通过一个 int 类变量，表示持有锁的状态
 
 <img src="images/image-20220701213926095.png" alt="image-20220701213926095" style="zoom:67%;" />
 
- **CLH**：Craig、Landin and Hagersten 队列，是一个单向链表，AQS中的队列是CLH变体的**虚拟双向队列FIFO**
+ **CLH**：
 
-如果共享资源被占用，就需要一定的阻塞等待唤醒机制来保证锁分配，这个机制主要用的是CLH队列的变体实现的，将暂时获取不到锁的线程加入到队列中，这个队列就是AQS的抽象表现
+- Craig、Landin and Hagersten 队列，是一个单向链表，AQS 中的队列是 CLH 变体的**虚拟双向队列 FIFO**
 
-它将请求共享资源的线程封装成队列的结点（Node），通过CAS、自旋以及LockSupport.park()的方式，维护state变量的状态（一个volatile原子int值，通过占用与释放方法修改），使并发达到同步的效果
+如果共享资源被占用，就需要一定的阻塞等待唤醒机制来保证锁分配，这个机制主要用的是 CLH 队列的变体实现的，将暂时获取不到锁的线程加入到队列中，这个队列就是 AQS 的抽象表现
+
+它将请求共享资源的线程封装成队列的结点（Node），通过 CAS、自旋以及 LockSupport.park() 的方式，维护 state 变量的状态（一个 volatile 原子 int 值，通过占用与释放方法修改），使并发达到同步的效果
 
 <img src="images/图像.bmp" alt="图像" style="zoom:150%;" />
 
@@ -3459,8 +4562,8 @@ java -XX:+PrintCommandLineFlags -version
 
 #### 2、锁与同步器
 
-- 锁，面向锁的使用者，定义了开发者和锁交互的使用层API，隐藏了实现细节，调用即可。
-- 同步器，面向锁的实现者，比如Java并发大神DougLee，提出统一规范并简化了锁的实现，屏蔽了同步状态管理、阻塞线程排队和通知、唤醒机制等。
+- 锁，面向锁的使用者，定义了开发者和锁交互的使用层API，隐藏了实现细节，调用即可
+- 同步器，面向锁的实现者，比如：Java 并发大神 DougLee，提出统一规范并简化了锁的实现，屏蔽了同步状态管理、阻塞线程排队和通知、唤醒机制等
 
 
 
@@ -3472,19 +4575,19 @@ java -XX:+PrintCommandLineFlags -version
 
 ##### 1、自身
 
-- AQS的同步状态**State**成员变量，0就是空闲，1就是占用
+- AQS 的同步状态 **State** 成员变量，0 就是空闲，1 就是占用
 
   ~~~java
   private volatile int state;
   ~~~
 
-- **CLH**队列，为一个双向队列
+- **CLH** 队列，为一个双向队列
 
 
 
 ##### 2、内部类
 
-- Node类在AQS类内部，Node的等待状态waitState成员变量，描述等待状态
+- Node 类在 AQS 类内部，Node 的等待状态 waitState 成员变量，描述等待状态
 
   ~~~java
   volatile int waitStatus
@@ -3502,7 +4605,7 @@ Lock接口的实现类，基本都是通过【聚合】了一个【队列同步�
 
 <img src="images/image-20220702145311147.png" alt="image-20220702145311147" style="zoom: 67%;" />
 
-对比公平锁和非公平锁的 tryAcquire()方法的实现代码，其实差别就在于非公平锁获取锁时比公平锁中少了一个判断 ：
+对比公平锁和非公平锁的 tryAcquire() 方法的实现代码，其实差别就在于非公平锁获取锁时比公平锁中少了一个判断：
 
 ~~~java
 !hasQueuedPredecessors()
@@ -3512,21 +4615,21 @@ hasQueuedPredecessors() 中判断了是否需要排队，导致公平锁和非�
 
 - 公平锁：公平锁讲究先来先到，线程在获取锁时，如果这个锁的等待队列中已经有线程在等待，那么当前线程就会进入等待队列中
 
-- 非公平锁：不管是否有等待队列，如果可以获取锁，则立刻占有锁对象，也就是说队列的第一个排队线程在unpark()，之后还是需要竞争锁（存在线程竞争的情况下）
+- 非公平锁：不管是否有等待队列，如果可以获取锁，则立刻占有锁对象，也就是说队列的第一个排队线程在 unpark()，之后还是需要竞争锁（存在线程竞争的情况下）
 
 <img src="images/image-20220702145838611.png" alt="image-20220702145838611" style="zoom:80%;" />
 
 **源码解读**：
 
-lock方法：
+lock() 方法：
 
 ![image-20220702145938838](images/image-20220702145938838.png)
 
-acquire()方法：
+acquire() 方法：
 
 <img src="images/image-20220702150026473.png" alt="image-20220702150026473" style="zoom:80%;" />
 
-tryAcquire(arg)方法：
+tryAcquire(arg) 方法：
 
 - 返回真，结束
 - 返回假，推进条件，走下一个方法
@@ -3535,7 +4638,7 @@ tryAcquire(arg)方法：
 
 <img src="images/image-20220702150318002.png" alt="image-20220702150318002" style="zoom:67%;" />
 
-addWaiter(Node.EXCLUSIVE)方法：
+addWaiter(Node.EXCLUSIVE) 方法：
 
 - 双向链表中，第一个节点为虚节点(也叫哨兵节点)，其实并不存储任何信息，只是占位。
 - 真正的第一个有数据的节点，是从第二个节点开始的。
@@ -3544,7 +4647,7 @@ addWaiter(Node.EXCLUSIVE)方法：
 
 <img src="images/image-20220702150644431.png" alt="image-20220702150644431" style="zoom:67%;" />
 
-acquireQueued(addWaiter(Node.EXCLUSIVE), arg)方法：
+acquireQueued(addWaiter(Node.EXCLUSIVE), arg) 方法：
 
 - 假如再抢失败就会进入，shouldParkAfterFailedAcquire 和 parkAndCheckInterrupt 方法中
 
@@ -3558,7 +4661,7 @@ acquireQueued(addWaiter(Node.EXCLUSIVE), arg)方法：
 
 ![image-20220702150928786](images/image-20220702150928786.png)
 
-unlock方法：
+unlock() 方法：
 
 sync.release(1); -----》tryRelease(arg) ----》unparkSuccessor
 
@@ -4015,12 +5118,12 @@ AtomicIntegerArray、AtomicLongArray 和 AtomicReferenceArray 类进一步扩展
 #### 2、基本类型原子类
 
 ~~~java
-public final int get() //获取当前的值
-public final int getAndSet(int newValue)//获取当前的值，并设置新的值
-public final int getAndIncrement()//获取当前的值，并自增
-public final int getAndDecrement() //获取当前的值，并自减
-public final int getAndAdd(int delta) //获取当前的值，并加上预期的值
-boolean compareAndSet(int expect, int update) //如果输入的数值等于预期值，则以原子方式将该值设置为输入值（update）
+public final int get() // 获取当前的值
+public final int getAndSet(int newValue) // 获取当前的值，并设置新的值
+public final int getAndIncrement() // 获取当前的值，并自增
+public final int getAndDecrement() // 获取当前的值，并自减
+public final int getAndAdd(int delta) // 获取当前的值，并加上预期的值
+boolean compareAndSet(int expect, int update) // 如果输入的数值等于预期值，则以原子方式将该值设置为输入值（update）
 ~~~
 
 ~~~java
@@ -4987,9 +6090,11 @@ CopyOnWriteArrayList CopyOnWriteArraySet 类型，通过动态数组与线程安
 
 ## 8、Callable & Future 接口
 
-目前有两种创建线程的方法一种是通过创建 Thread 类，另一种是通过使用 Runnable 创建线程。
+目前有两种创建线程的方法一种是通过创建 Thread 类，另一种是通过使用 Runnable 创建线程
 
-但是，Runnable 缺少的一项功能是，当线程终止时（即 run()完成时），我们无法使线程返回结果，为了支持此功能， Java 中提供了 Callable 接口。
+但是，Runnable 缺少的一项功能是，当线程终止时（即 run() 完成时），无法使线程返回结果，为了支持此功能， Java 中提供了 Callable 接口
+
+
 
 ### 1、Callable 接口
 
@@ -4997,7 +6102,7 @@ CopyOnWriteArrayList CopyOnWriteArraySet 类型，通过动态数组与线程安
 
 Callable接口中定义了需要有返回的任务需要实现的方法
 
-比如主线程让一个子线程去执行任务，子线程可能比较耗时，启动子线程开始执行任务后，主线程就去做其他事情了，过了一会才去获取子任务的执行结果
+比如：主线程让一个子线程去执行任务，子线程可能比较耗时，启动子线程开始执行任务后，主线程就去做其他事情了，过了一会才去获取子任务的执行结果
 
 ~~~java
 @FunctionalInterface
@@ -5010,10 +6115,13 @@ public interface Callable<V> {
 
 #### 2、特点
 
-- 为了实现 Runnable，需要实现不返回任何内容的 run()方法，而对于 Callable，需要实现在完成时返回结果的 call() 方法
-- call()方法可以引发异常，而 run()则不能
-- 为实现 Callable 而必须重写 call 方法
-- 不能直接替换 runnable，因为 Thread 类的构造方法根本没有 Callable
+为了实现 Runnable，需要实现不返回任何内容的 run() 方法，而对于 Callable，需要实现在完成时返回结果的 call() 方法
+
+call() 方法可以引发异常，而 run() 则不能
+
+为实现 Callable 而必须重写 call 方法
+
+不能直接替换 runnable，因为 Thread 类的构造方法根本没有 Callable 参数
 
 ~~~java
 // 创建新类 MyThread 实现 runnable 接口
@@ -5021,6 +6129,7 @@ class MyThread implements Runnable{
     @Override
     public void run() {}
 }
+
 // 新类 MyThread2 实现 callable 接口
 class MyThread2 implements Callable<Integer>{
     @Override
@@ -5038,7 +6147,7 @@ class MyThread2 implements Callable<Integer>{
 
 Future接口定义了操作异步任务执行一些方法，如获取异步任务的执行结果、取消任务的执行、判断任务是否被取消、判断任务执行是否完毕等
 
-Futrue 在 Java 里面，通常用来表示一个异步任务的引用，比如将任务提交到线程池里面，然后会得到一个 Futrue，在 Future 里面有 isDone 方法来判断任务是否处理结束，还有 get 方法可以一直阻塞直到任务结束然后获取结果，但整体来说这种方式，还是同步的，因为需要客户端不断阻塞等待或者不断轮询才能知道任务是否完成
+Futrue 在 Java 里面，通常用来表示一个异步任务的引用，比如：将任务提交到线程池里面，然后会得到一个 Futrue，在 Future 里面有 isDone 方法来判断任务是否处理结束，还有 get 方法可以一直阻塞直到任务结束然后获取结果，但整体来说这种方式，还是同步的，因为需要客户端**不断阻塞等待**或者**不断轮询**才能知道任务是否完成
 
 当 call 方法完成时，结果必须存储在主线程已知的对象中，以便主线程可以知道该线程返回的结果，为此，可以使用 Future 对象，将 Future 视为保存结果的对象---它可能暂时不保存结果，但将来会保存（一旦 Callable 返回）
 
@@ -5046,15 +6155,16 @@ Futrue 在 Java 里面，通常用来表示一个异步任务的引用，比如�
 
 #### 2、基本使用
 
-Future 是主线程可以跟踪进度以及其他线程的结果的一种方式，并且要实现此接口，必须重写 5 种方法。
+Future 是主线程可以跟踪进度或其他线程的运行结果的一种方式，并且要实现此接口，必须重写 5 种方法
 
 ~~~java
-// 用于停止任务。
-// 如果尚未启动，它将停止任务。如果已启动，则仅在 mayInterrupt 为 true 时才会中断任务。
+// 用于停止任务
+// 如果尚未启动，它将停止任务。如果已启动，则仅在 mayInterrupt 为 true 时才会中断任务
 public boolean cancel(boolean mayInterrupt)
     
-// 用于获取任务的结果。
-// 如果任务完成，它将立即返回结果，否则将等待任务完成，然后返回结果。阻塞
+// 用于获取任务的结果
+// 如果任务完成，它将立即返回结果，否则将等待任务完成，然后返回结果
+// 阻塞
 public Object get() throws InterruptedException，ExecutionException：
     
 // 如果任务完成，则返回 true，否则返回 false
@@ -5066,25 +6176,29 @@ public boolean isDone()
 - Callable 与 Runnable 类似，因为它封装了要在另一个线程上运行的任务
 - 而 Future 用于存储从另一个线程获得的结果
 
-实际上，future 也可以与 Runnable 一起使用
+实际上，Future 也可以与 Runnable 一起使用
 
 - 要创建线程，需要 Runnable
-- 为了获得结果，需要 future
+- 为了获得结果，需要 Future
 
 
 
 #### 3、缺点
 
-- 不支持手动完成
-  - 提交了一个任务，但是执行太慢了，并且通过其他路径已经获取到了任务结果， 现在没法把这个任务结果通知到正在执行的线程，所以必须主动取消或者一直等待它执行完成
-- 不支持进一步的非阻塞调用
-  - 通过 Future 的 get 方法会一直阻塞到任务完成，但是想在获取任务之后执行额外的任务，因为 Future 不支持回调函数，所以无法实现这个功能
-- 不支持链式调用
-  - 对于 Future 的执行结果，我们想继续传到下一个 Future 处理使用，从而形成 一个链式的 pipline 调用，这在 Future 中是没法实现的
-- 不支持多个 Future 合并
-  - 有 10 个 Future 并行执行，我们想在所有的 Future 运行完毕之后， 执行某些函数，是没法通过 Future 实现的
-- 不支持异常处理
-  - Future 的 API 没有任何的异常处理的 api，所以在异步运行时，如果出了问题是不好定位的
+不支持手动完成：
+- 提交了一个任务，但是执行太慢了，并且通过其他路径已经获取到了任务结果， 现在没法把这个任务结果通知到正在执行的线程，所以必须主动取消或者一直等待它执行完成
+
+不支持进一步的非阻塞调用：
+- 通过 Future 的 get 方法会一直阻塞到任务完成，但是想在获取任务之后执行额外的任务，因为 Future 不支持回调函数，所以无法实现这个功能
+
+不支持链式调用：
+- 对于 Future 的执行结果，想继续传到下一个 Future 处理使用，从而形成链式的 pipline 调用，这在 Future 中是没法实现的
+
+不支持多个 Future 合并：
+- 有 10 个 Future 并行执行，想在所有的 Future 运行完毕之后， 执行某些函数，是没法通过 Future 实现的
+
+不支持异常处理：
+- Future 的 API 没有任何的异常处理的 api，所以在异步运行时，如果出了问题是不好定位的
 
 
 
@@ -5098,7 +6212,7 @@ FutureTask 类型实现 **Runnable** 和 **Future**，并方便地将两种功�
 
 在主线程中需要执行比较耗时的操作时，但又不想阻塞主线程时，可以把这些作业交给 Future 对象在后台完成
 
-FutureTask 仅在计算完成才能检索结果，如果计算尚未完成，**调用get 方法会阻塞**，一旦计算完成，就不能再重新开始或取消计算（只计算一次），如果想要异步获取结果,通常都会以轮询的方式去获取结果，尽量不要阻塞，不过轮询也会耗费CPU资源并且并不见得能及时获取结果
+FutureTask 仅在计算完成才能检索结果，如果计算尚未完成，**调用 get 方法会阻塞**，一旦计算完成，就不能再重新开始或取消计算（只计算一次），如果想要异步获取结果，通常都会以**轮询**的方式去获取结果，尽量不要阻塞，不过轮询也会耗费CPU资源并且并不见得能及时获取结果
 
 ~~~java
 while(true) {
@@ -5203,10 +6317,10 @@ public static void main(String[] args) throws ExecutionException, InterruptedExc
     Thread t1 = new Thread(futureTask, "t1");
     t1.start();
 
-    // 3秒钟后才出来结果，还没有计算你提前来拿(只要一调用get方法，对于结果就是不见不散，会导致阻塞)
+    // 3秒钟后才出来结果，还没有计算完成，提前来拿，但是只要一调用 get 方法，对于结果就是不见不散，会导致阻塞
     System.out.println(Thread.currentThread().getName()+"\t"+futureTask.get());
 
-    // 3秒钟后才出来结果，我只想等待1秒钟，过时不候
+    // 3秒钟后才出来结果，只等待1秒钟，过时不候
     System.out.println(Thread.currentThread().getName() + "\t" + futureTask.get(1L, TimeUnit.SECONDS));
     System.out.println(Thread.currentThread().getName() + "\t" + " run... here");
 }
@@ -5218,30 +6332,28 @@ public static void main(String[] args) throws ExecutionException, InterruptedExc
 
 #### 1、基本概念
 
-CompletableFuture 类实现了 Future，CompletionStage 接口，被用于异步编程，异步通常意味着非阻塞， 可以使得任务单独运行在与主线程分离的其他线程中，并且通过**传入回调对象**，当异步任务完成或者发生异常时，自动调用回调对象的回调方法，就可以在主线程中得到异步任务的执行状态，是否完成，和是否异常等信息。
+CompletableFuture 类实现了 Future，CompletionStage 接口，被用于异步编程，异步通常意味着非阻塞， 可以使得任务单独运行在与主线程分离的其他线程中，并且通过**传入回调对象**，当异步任务完成或者发生异常时，自动调用回调对象的回调方法，就可以在主线程中得到异步任务的执行状态，是否完成，和是否异常等信息
 
 - 实现了 Future 接口就可以兼容现在有线程池框架
 - CompletionStage 接口才是异步编程的接口抽象（代表异步计算过程中的某一个阶段，一个阶段完成以后可能会触发另外一个阶段，有些类似Linux系统的管道分隔符传参数），其内定义多种异步方法
 
-一个 CompletableFuture 就代表了一个任务，也就是说CompletableFuture 可能代表一个明确完成任务的Future，也可能代表一个完成阶段CompletionStage
+一个 CompletableFuture 就代表了一个任务，也就是说 CompletableFuture 可能代表一个明确完成任务的 Future，也可能代表一个完成阶段的 CompletionStage
 
 
 
 **注意**：
 
-- CompletableFuture的大部分方法都有带和不带Async后缀的，带Async代表异步方法，可以指定一个线程池，作为任务的运行环境，如果没有指定就会使用**默认ForkJoinPool线程池**来执行，并且如果机器是单核的，则**默认ThreadPerTaskExecutor**，该类是一个内部类，每次执行execute都会创建一个新线程。
+- CompletableFuture 的大部分方法都有带和不带 Async 后缀的，带 Async 代表异步方法，可以指定一个线程池，作为任务的运行环境，如果没有指定就会使用**默认 ForkJoinPool 线程池**来执行，并且如果机器是单核的，则**默认 ThreadPerTaskExecutor**，该类是一个内部类，每次执行 execute 都会创建一个新线程
 
 **注意**：
 
-- CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等main线程结束，程序退出，也就会导致CompletableFuture线程中断，避免的方法可以调用get或者使用回调
+- CompletableFuture 所创建的线程都是守护线程，也就是创建完后，如果没有用户线程，此时全部都是守护线程，等 main 线程结束，程序退出，也就会导致 CompletableFuture 线程中断，避免的方法可以调用 get 或者使用回调
 
 
 
 #### 2、基本使用
 
-主线程里面创建一个 CompletableFuture，然后主线程**调用 get 方法会阻塞**，最后我们在一个子线程中使其终止。
-
-
+主线程里面创建一个 CompletableFuture，然后主线程**调用 get 方法会阻塞**，最后在一个子线程中使其终止
 
 ~~~java
 public static void main(String[] args) throws Exception {
@@ -5268,7 +6380,7 @@ public static void main(String[] args) throws Exception {
 }
 
 A子线程开始干活
-    // 调用get，阻塞
+// 调用get，阻塞
 主线程调用 get 方法获取结果为  success第0  
 主线程调用 get 方法获取结果为  success第1
 主线程调用 get 方法获取结果为  success第2
@@ -5282,7 +6394,9 @@ A子线程开始干活
 主线程完成,阻塞结束!!!!!!
 ~~~
 
-##### runAsync
+
+
+##### 1、runAsync
 
 没有返回值的异步任务
 
@@ -5309,7 +6423,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### supplyAsync
+##### 2、supplyAsync
 
 有返回值的异步任务
 
@@ -5344,7 +6458,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### get()/get(L, T)/getNow(T)
+##### 3、get() / getNow(T)
 
 用于获取结果
 
@@ -5378,7 +6492,7 @@ System.out.println(completableFuture.getNow(444));
 
 
 
-##### join()
+##### 3、join()
 
 获取结果，与get有细微差异，<a href="#CompletableFuture的join与get方法的差别">详情</a>
 
@@ -5388,7 +6502,7 @@ System.out.println(CompletableFuture.supplyAsync(() -> "abc").thenApply(r -> r +
 
 
 
-##### complete(T)
+##### 4、complete(T)
 
 主动触发计算
 
@@ -5416,11 +6530,9 @@ System.out.println(completableFuture.complete(444) + "\t" + completableFuture.ge
 
 
 
-
-
 #### 3、线程依赖
 
-##### thenApply
+##### 1、thenApply
 
 当一个线程依赖另一个线程时，可以使用 **thenApply** 方法来把这两个线程**串行化**
 
@@ -5454,7 +6566,7 @@ public static void main(String[] args) throws Exception{
 
 #### 4、处理结果
 
-##### thenAccept
+##### 1、thenAccept
 
 接收任务的处理结果，并消费，无返回
 
@@ -5485,7 +6597,7 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### theRun
+##### 2、theRun
 
 任务 A 执行完执行 B，并且 B 不需要 A 的结果
 
@@ -5495,13 +6607,13 @@ System.out.println(CompletableFuture.supplyAsync(() -> "resultA").thenRun(() -> 
 
 
 
-##### whenComplete
+##### 3、whenComplete
 
 当某个任务执行完成后执行的回调方法，会将执行结果或者执行期间抛出的异常传递给回调方法
 
-如果是正常执行则异常为null，回调方法对应的CompletableFuture的result和该任务一致
+如果是正常执行则异常为 null，回调方法对应的 CompletableFuture 的 result 和该任务一致
 
-如果该任务正常执行，则get方法返回执行结果，如果是执行异常，则get方法抛出异常
+如果该任务正常执行，则 get 方法返回执行结果，如果是执行异常，则 get 方法抛出异常
 
 ~~~java
 // 创建异步执行任务 
@@ -5548,22 +6660,28 @@ System.out.println("main thread exit,time->"+System.currentTimeMillis());
 
 **题外话**：
 
-当whenComplete之前如果出现了其他事情，阻塞了，例如main线程sleep，分俩种情况：
+当 whenComplete 之前如果出现了其他事情，阻塞了，例如 main 线程 sleep，分俩种情况：
 
-- 如果上一个CompletableFuture执行完毕了，那么就使用主线程调用whenComplete方法。
-- 如果上一个CompletableFuture还没执行完毕，使用的线程还是上一个CompletableFuture的。
+- 如果上一个 CompletableFuture 执行完毕了，那么就使用主线程调用 whenComplete 方法
+- 如果上一个 CompletableFuture 还没执行完毕，使用的线程还是上一个 CompletableFuture 的
 
 （可以打开，上图的sleep代码测试）
 
-**注意**：此种情况在then开头的方法中，不会出现
+**注意**：
+
+- 此种情况在 then 开头的方法中，不会出现
+
+
 
 #### 5、异常处理
 
-**exceptionally** 异常处理，出现异常时触发。
+**exceptionally** 异常处理，出现异常时触发
 
-**handle** 类似于 thenAccept/thenRun 方法，是最后一步的处理调用，但是同时可以处理异常。
+**handle** 类似于 thenAccept/thenRun 方法，是最后一步的处理调用，但是同时可以处理异常
 
-##### exceptionally
+
+
+##### 1、exceptionally
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5583,7 +6701,9 @@ public static void main(String[] args) throws Exception{
 }
 ~~~
 
-##### handle
+
+
+##### 2、handle
 
 与thenAccept不同，有异常也可以往下一步走，根据带的异常参数可以进一步处理
 
@@ -5621,13 +6741,13 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### thenCompose
+##### 1、thenCompose
 
-在某个任务执行完成后，将该任务的执行结果作为方法入参然后执行指定的方法，该方法会返回一个新的CompletableFuture实例
+在某个任务执行完成后，将该任务的执行结果作为方法入参然后执行指定的方法，该方法会返回一个新的 CompletableFuture 实例
 
-如果上一个CompletableFuture实例的result不为null，则返回一个基于该result的新CompletableFuture实例
+如果上一个 CompletableFuture 实例的 result 不为 null，则返回一个基于该 result 的新 CompletableFuture 实例
 
-如果上一个CompletableFuture实例的result为null，则执行任务时抛出异常
+如果上一个 CompletableFuture 实例的 result 为 null，则执行任务时抛出异常
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5653,9 +6773,9 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### thenCombine/thenAcceptBoth/runAfterBoth
+##### 2、thenCombine / thenAcceptBoth / runAfterBoth
 
-这三个方法都是将两个CompletableFuture组合起来，只有这**两个都正常执行完了才会执行某个任务**
+这三个方法都是将两个 CompletableFuture 组合起来，只有这**两个都正常执行完了才会执行某个任务**
 
 区别在于：
 
@@ -5721,9 +6841,9 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### applyToEither/acceptEither/runAfterEither
+##### 3、applyToEither / acceptEither / runAfterEither
 
-这三个方法都是将两个CompletableFuture组合起来，只要**其中一个执行完了就会执行某个任务**
+这三个方法都是将两个 CompletableFuture 组合起来，只要**其中一个执行完了就会执行某个任务**
 
 其区别在于：
 
@@ -5799,11 +6919,11 @@ System.out.println("main thread exit,time->"+System.currentTimeMillis());
 
 
 
-##### allOf
+##### 4、allOf
 
-返回的CompletableFuture是**多个任务都执行完成后才会执行**，只要有一个任务执行异常，则返回的CompletableFuture执行get方法时会抛出异常，如果都是正常执行，则get返回null
+返回的 CompletableFuture 是**多个任务都执行完成后才会执行**，只要有一个任务执行异常，则返回的 CompletableFuture 执行 get 方法时会抛出异常，如果都是正常执行，则 get 返回 null
 
-由于无法明确每个线程所返回的类型，所以allOf返回的CompleteFuture范型是Void
+由于无法明确每个线程所返回的类型，所以 allOf 返回的 CompleteFuture 范型是 Void
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -5866,13 +6986,13 @@ public static void main(String[] args) throws Exception{
 
 
 
-##### anyOf
+##### 5、anyOf
 
-返回的CompletableFuture是**多个任务只要其中一个执行完成就会执行**
+返回的 CompletableFuture 是**多个任务只要其中一个执行完成就会执行**
 
-其get返回的是已经执行完成的任务的执行结果，如果该任务执行异常，则抛出异常
+其 get 返回的是已经执行完成的任务的执行结果，如果该任务执行异常，则抛出异常
 
-由于无法确定每个CompletableFuture的返回类型，因此anyOf返回的CompletableFuture的范型是Object
+由于无法确定每个 CompletableFuture 的返回类型，因此 anyOf 返回的 CompletableFuture 的范型是 Object
 
 ~~~java
 public static void main(String[] args) throws Exception{
@@ -6054,7 +7174,7 @@ System.out.println(resultFuture.join());
 
 CountDownLatch 这个类使一个线程等待其他线程各自执行完毕后再执行
 
-CountDownLatch 类可以设置一个计数器代表参与线程数量，然后通过 countDown 方法来进行减 1 的操作，使用 await 方法等待计数器不大于 0，当计数器不大于0时继续执行 await 方法之后的语句
+CountDownLatch 类可以设置一个计数器代表参与线程数量，然后通过 countDown 方法来进行减 1 的操作，使用 await 方法等待计数器不大于 0，当计数器不大于 0 时继续执行 await 方法之后的语句
 
 - 当一个或多个线程调用 await 方法时，这些线程会阻塞
 - 其它线程调用 countDown 方法会将计数器减 1(调用 countDown 方法的线程不会阻塞)
@@ -6069,13 +7189,14 @@ public static void main(String[] args) throws Exception{
     for (int i = 1; i <= 6; i++) {
         new Thread(() ->{
             try{
-                if(Thread.currentThread().getName().equals("同学 6")){
+                if(Thread.currentThread().getName().equals("同学6")) {
                     Thread.sleep(2000);
                 }
-                System.out.println(Thread.currentThread().getName() + "离开了");
-                //计数器减一,不会阻塞
+                // 计数器减一,不会阻塞
                 countDownLatch.countDown();
-            }catch (Exception e){
+                System.out.println(Thread.currentThread().getName() + "离开了,现在的计数器为" 
+                                   + countDownLatch.getCount());
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }, "同学" + i).start();
@@ -6087,6 +7208,14 @@ public static void main(String[] args) throws Exception{
     System.out.println("全部离开了,现在的计数器为" + countDownLatch.getCount());
 }
 
+主线程睡觉
+同学5离开了,现在的计数器为1
+同学3离开了,现在的计数器为3
+同学1离开了,现在的计数器为4
+同学2离开了,现在的计数器为4
+同学4离开了,现在的计数器为2
+同学6离开了,现在的计数器为0
+全部离开了,现在的计数器为0
 ~~~
 
 
@@ -6109,33 +7238,53 @@ private final static int NUMBER = 7;
 public static void main(String[] args) {
     // 定义循环栅栏
     CyclicBarrier cyclicBarrier = 
-        new CyclicBarrier(NUMBER, ()->{System.out.println("集齐"+NUMBER+"颗龙珠,现在召唤神龙");});
+        new CyclicBarrier(NUMBER, 
+        ()->{System.out.println(Thread.currentThread().getName()+"集齐"+NUMBER+"颗龙珠,现在召唤神龙");});
 
     // 定义 7 个线程分别去收集龙珠
     for (int i = 1; i <= 7; i++) {
-        new Thread(()->{
+        new Thread(() -> {
             try {
-                if(Thread.currentThread().getName().equals("龙珠 3 号")){
+                if(Thread.currentThread().getName().equals("龙珠3号")) {
                     System.out.println("龙珠 3 号抢夺战开始,孙悟空开启超级赛亚人模式!");
                     Thread.sleep(5000);
                     System.out.println("龙珠 3 号抢夺战结束,孙悟空打赢了,拿到了龙珠3号!");
-                }else{
+                } else {
                     System.out.println(Thread.currentThread().getName() + "收集到了!!!!");
                 }
+                // 等待所有线程完成
                 cyclicBarrier.await();
+                // 最后的任务
                 System.out.println(Thread.currentThread().getName() + "神龙召唤完毕");
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }, "龙珠"+i+"号").start();
     }
 }
+
+龙珠5号收集到了!!!!
+龙珠2号收集到了!!!!
+龙珠4号收集到了!!!!
+龙珠1号收集到了!!!!
+龙珠 3 号抢夺战开始,孙悟空开启超级赛亚人模式!
+龙珠6号收集到了!!!!
+龙珠7号收集到了!!!!
+龙珠 3 号抢夺战结束,孙悟空打赢了,拿到了龙珠3号!
+龙珠3号集齐7颗龙珠,现在召唤神龙
+龙珠3号神龙召唤完毕
+龙珠4号神龙召唤完毕
+龙珠1号神龙召唤完毕
+龙珠2号神龙召唤完毕
+龙珠5号神龙召唤完毕
+龙珠6号神龙召唤完毕
+龙珠7号神龙召唤完毕
 ~~~
 
 **CountDownLatch和CyclicBarrier区别**：
 
 - CountDownLatch 是一个计数器，线程完成一个记录一个，计数器递减，只能只用一次
-- CyclicBarrier 的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供reset功能，可以多次使用
+- CyclicBarrier 的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供 reset 功能，可以多次使用
 
 
 
@@ -6171,7 +7320,42 @@ public static void main(String[] args) throws Exception{
         }, "汽车" + i).start();
     }
 }
+
+汽车1找车位 ing
+汽车1汽车停车成功!
+汽车2找车位 ing
+汽车2汽车停车成功!
+汽车3找车位 ing
+汽车3汽车停车成功!
+汽车4找车位 ing
+汽车5找车位 ing
+汽车6找车位 ing
+汽车7找车位 ing
+汽车8找车位 ing
+汽车9找车位 ing
+汽车10找车位 ing
+汽车1溜了溜了
+汽车4汽车停车成功!
+汽车2溜了溜了
+汽车5汽车停车成功!
+汽车3溜了溜了
+汽车6汽车停车成功!
+汽车4溜了溜了
+汽车7汽车停车成功!
+汽车5溜了溜了
+汽车8汽车停车成功!
+汽车6溜了溜了
+汽车9汽车停车成功!
+汽车7溜了溜了
+汽车10汽车停车成功!
+汽车8溜了溜了
+汽车9溜了溜了
+汽车10溜了溜了
 ~~~
+
+**注意**：
+
+- 请求许可证时，该线程会阻塞，直到有许可证为止，除非其他线程中断它
 
 
 
