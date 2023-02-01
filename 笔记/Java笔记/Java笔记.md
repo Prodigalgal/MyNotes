@@ -646,7 +646,7 @@ capacity 的含义总是一样的，无论 Buffer 处在什么模式
 
 
 
-##### 3、操作
+##### 3、操作以及常用方法
 
 **分配**：
 
@@ -862,7 +862,7 @@ Selector 运行单线程处理多个 Channel，如果应用打开了多个通道
 
 Selector 一般称为选择器 ，也可以翻译为多路复用器，用于检查一个或多个 NIO Channel（通道）的状态是否处于可读、可写
 
-例如：在一个聊天服务器中，向 Selector 注册 Channel，然后调用它的 select() 方法，这个方法会阻塞直到某个注册的通道有事件就绪，一旦这个方法返回，线程就可以处理这些事件（新的连接进来、数据接收）
+例如：在一个聊天服务器中，向 Selector 注册 Channel，然后调用它的 select() 方法，这个方法会**阻塞**直到某个注册的通道有事件就绪，一旦这个方法返回，线程就可以处理这些事件（新的连接进来、数据接收）
 
 不是所有的 Channel 都可以被 Selector 复用的，FileChannel 就不能被选择器复用，判断一个 Channel 能被 Selector 复用，有一个前提：是否继承了一个抽象类 SelectableChannel，如果继承了则可以被复用，否则不能
 
@@ -902,17 +902,29 @@ SelectableChannel 类提供了实现通道的可选择性所需要的公共方�
 
 Channel 注册到后，并且一旦通道处于某种就绪的状态，可以被选择器查询到，这个过程使用选择器 Selector 的 select() 方法完成
 
-select() 方法的作用：对感兴趣的通道操作，进行就绪状态的查询
-
 Selector 可以不断的查询 Channel 中发生的某个操作的就绪状态，并且挑选感兴趣的操作的就绪状态，一旦通道的某个操作的就绪状态达成，并且是 Selector 感兴趣的操作，就会被 Selector 选中，放入选择键集合中
 
-一个选择键，首先包含了注册在 Selector 的通道操作的类型，比方说：SelectionKey.OP_READ，也包含了特定的通道与特定的选择器之间的注册关系
-
-一个选择键类似监听器模式里边的一个事件，由于 Selector 不是事件触发的模式，而是主动去查询的模式，所以不叫事件 Event，而是叫 SelectionKey 选择键
 
 
+**选择键**:
 
-##### 4、使用
+- 包含了注册在 Selector 的通道操作的类型，比方说：SelectionKey.OP_READ，也包含了特定的通道与特定的选择器之间的注册关系
+
+- 类似监听器模式里边的一个事件，由于 Selector 不是事件触发的模式，而是主动去查询的模式，所以不叫事件 Event，而是叫 SelectionKey 选择键
+
+
+
+一个 Selector 实例有三个选择键集合：
+
+- 所有的 SelectionKey  集合，使用 keys() 获取
+- 被选择的 SelectionKey  集合，使用 selectedKeys() 获取
+- 被取消的 SelectionKey 集合，代表了所有被取消注册关系的Channel，在下一次执行 select() 方法时，这些 Channel 对应的SelectionKey 会被彻底删除，程序通常无须直接访问（不能直接访问）该集合
+
+新创建的 Selector 实例三个集合均为空
+
+
+
+##### 4、使用以及常用方法
 
 一般的使用流程
 
@@ -923,7 +935,7 @@ Selector selector = Selector.open();
 ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
 // 3、设置为非阻塞
 serverSocketChannel.configureBlocking(false);
-// 4、绑定连接
+// 4、监听端口
 serverSocketChannel.bind(new InetSocketAddress(9999));
 // 5、将通道注册到选择器上,并制定监听事件为：接收事件
 serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -931,15 +943,25 @@ serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
 通过 Selector 的 select() 方法，可以查询出已经就绪的通道操作，这些就绪的状态保存在一个元素是 SelectionKey 对象的 Set 集合中
 
-select()方法有多个重载：
+select() 有多个重载：
 
-- select()：阻塞到至少有一个通道的注册事件就绪
-- select(long timeout)：和 select() 一样，但最长阻塞事件为 timeout 毫秒
-- selectNow()：非阻塞，只要有通道就绪就立刻返回
+- **select()**：阻塞到至少有一个通道的注册事件就绪
+- **select(long timeout)**：和 select() 一样，但最长阻塞事件为 timeout 毫秒
+- **selectNow()**：非阻塞，只要有通道就绪就立刻返回
 
-select()方法返回的 int 值，表示自前一次 select() 方法以来到这一次 select() 方法之间的时间段上，有多少通道变成就绪状态
+select() 说明：
 
-一旦调用 select() 方法，并且返回值不为 0 时，在 Selector 中有一个 selectedKeys() 方法，用来访问已选择键集合，迭代集合的每一个选择键元素，根据就绪的操作类型，完成对应的操作
+- select() 方法返回的 int 值，表示自前一次 select() 方法以来到这一次 select() 方法之间的时间段上，有多少 IO 事件需要处理
+- 一旦调用 select() 方法，并且返回值不为 0 时，可以调用 Selector 的 selectedKeys() 方法，用来访问已选择键集合，迭代集合的每一个选择键元素，根据就绪的操作类型，完成对应的操作
+
+**selectedKeys()**：
+
+- 获取所有连接到服务器的需要进行IO处理的 Channel 对象的 Set 集合，同时这个 Set 集合是能被 select() 选择的
+- 该 Set 集合中的元素类型是 SelectionKey，SelectionKey 类其实就是对Channel 的一个封装
+
+**keys()**：
+
+- 获取所有连接到服务器的 Channel 对象的 Set 集合
 
 ~~~java
 // 获取已选择键集合
@@ -962,13 +984,16 @@ while(keyIterator.hasNext()) {
 }
 ~~~
 
-选择器执行选择的过程，系统底层会依次询问每个通道是否已经就绪，这个过程可能会造成调用线程进入阻塞状态，有以下三种方式可以唤醒在 select() 方法中阻塞的线程
+选择器执行选择的过程，系统底层会依次询问每个通道是否已经就绪，这个过程可能会造成调用线程进入阻塞状态，有以下两种方式可以唤醒在 select() 方法中阻塞的线程：
 
-- wakeup() 方法 ：通过调用 Selector 对象的 wakeup() 方法让处在阻塞状态的 select() 方法立刻返回
-  - 该方法使得选择器上的第一个还没有返回的选择操作立即返回
-  - 如果当前没有进行中的选择操作，那么下一次对 select() 方法的一次调用将立即返回
-- close() 方法 ：通过 close() 方法关闭 Selector
-  - 该方法使得任何一个在选择操作中阻塞的线程都被唤醒，类似 wakeup()，同时使得注册到该 Selector 的所有 Channel 被注销，所有的键将被取消，但是 Channel 本身并不会关闭
+**wakeup()**：通过调用 Selector 对象的 wakeup() 方法让处在阻塞状态的 select() 方法立刻返回
+
+- 该方法使得选择器上的第一个还没有返回的选择操作立即返回
+- 如果当前没有进行中的选择操作，那么下一次对 select() 方法的一次调用将立即返回
+
+**close()**：通过 close() 方法关闭 Selector
+
+- 该方法使得任何一个在选择操作中阻塞的线程都被唤醒，类似 wakeup()，同时使得注册到该 Selector 的所有 Channel 被注销，所有的键将被取消，但是 Channel 本身并不会关闭
 
 
 
@@ -976,6 +1001,12 @@ while(keyIterator.hasNext()) {
 
 - 与 Selector 一起使用时，Channel 必须处于非阻塞模式下，否则将抛出异常 IllegalBlockingModeException
 - 通道并没有一定要支持所有的四种操作，比如：ServerSocketChannel 支持 Accept，SocketChannel 不支持，使用通道的 validOps() 方法，来获取通道所有支持的操作集合
+
+**注意**：
+
+- 在没有客户端连接之前 select() 会一直阻塞                    
+- 当客户端连接后没被处理，select() 就会进入不阻塞状态                    
+- 当客户端连接后被处理，select() 就会进入阻塞状态
 
 
 
@@ -1007,6 +1038,7 @@ public void ServerDemo() {
             Iterator<SelectionKey> it = keys.iterator();
             while (it.hasNext()) {
                 SelectionKey key = it.next();
+                // 每次遍历需要把其移除
                 it.remove();
                 if (key.isAcceptable()) {
                     // 监听新的连接，并且把新连接注册到 selector 上
@@ -1055,6 +1087,8 @@ public void ClientDemo() {
     }
 }
 ~~~
+
+多人聊天室代码查看<a href="/资料">资料</a>
 
 
 
@@ -1120,7 +1154,7 @@ int bytesRead = sourceChannel.read(buf);
 
 
 
-##### 3、使用
+##### 3、使用以及常用方法
 
 一般使用方式：
 
@@ -1310,8 +1344,6 @@ try {
 #### 5、AsynchronousFileChannel
 
 在 Java 7 中，Java NIO 中添加了 AsynchronousFileChannel，用于异步地将数据写入文件
-
-
 
 **创建**：
 
