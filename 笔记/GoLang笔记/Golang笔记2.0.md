@@ -673,8 +673,6 @@ T(表达式)
 
 其中，T表示要转换的类型，表达式包括变量、复杂算子、函数返回值等
 
-
-
 ```go
 func sqrtDemo() {
     var a, b = 3, 4
@@ -684,6 +682,358 @@ func sqrtDemo() {
     fmt.Println(c)
 }
 ```
+
+
+
+### 8、数组
+
+#### 1、概述
+
+同一种数据类型的**固定长度**的序列
+
+数组长度必须是常量，且是类型的组成部分，一旦定义，长度不能变
+
+长度是数组类型的一部分，因此，var a[5] int 和 var a[10]int 是不同的类型
+
+~~~go
+// 数组定义
+var a [len]int
+~~~
+
+数组可以通过下标进行访问，下标是从 0 开始，最后一个元素下标是：len-1
+
+~~~go
+for i := 0; i < len(a); i++ {
+}
+for index, v := range a {
+}
+~~~
+
+访问越界，如果下标在数组合法范围之外，则触发访问越界，会 panic
+
+**数组是值类型**，赋值和传参会复制整个数组，而不是指针，因此改变副本的值，不会改变本身的值
+
+支持 "=="、"!=" 操作符
+
+**内存总是被初始化过的**
+
+指针数组 **[n]*T**，数组指针 **\*[n]T**
+
+内置函数 len 和 cap 都返回数组长度 (元素数量)
+
+~~~go
+a := [2]int{}
+println(len(a), cap(a)) 
+~~~
+
+
+
+
+
+#### 2、初始化
+
+**一维数组**：
+
+~~~go
+// 全局
+var arr0 [5]int = [5]int{1, 2, 3}
+var arr1 = [5]int{1, 2, 3, 4, 5}
+var arr2 = [...]int{1, 2, 3, 4, 5, 6}
+var str = [5]string{3: "hello world", 4: "tom"}
+
+// 局部
+a := [3]int{1, 2}           // 未初始化元素值为对应类型零值
+b := [...]int{1, 2, 3, 4}   // 通过初始化值确定数组长度
+c := [5]int{2: 100, 4: 200} // 使用索引号初始化元素
+d := [...]struct {
+    name string
+    age  uint8
+}{
+    {"user1", 10}, // 可省略元素类型
+    {"user2", 20},
+}
+~~~
+
+
+
+**多维数组**：
+
+~~~go
+// 全局
+var arr0 [5][3]int
+var arr1 [2][3]int = [...][3]int{{1, 2, 3}, {7, 8, 9}}
+
+// 局部
+a := [2][3]int{{1, 2, 3}, {4, 5, 6}}
+b := [...][2]int{{1, 1}, {2, 2}, {3, 3}} // 第 2 纬度不能用 "..."
+~~~
+
+~~~go
+// 遍历
+var f [2][3]int = [...][3]int{{1, 2, 3}, {7, 8, 9}}
+
+for k1, v1 := range f {
+    for k2, v2 := range v1 {
+        fmt.Printf("(%d,%d)=%d ", k1, k2, v2)
+    }
+    fmt.Println()
+}
+~~~
+
+
+
+**注意**：
+
+- 值拷贝行为会造成性能问题，通常会建议使用 slice，或数组指针
+
+
+
+#### 3、拷贝与传参
+
+~~~go
+// 由于数组是值类型
+// 必须使用数组指针作为参数传入，才能修改数组内容
+func printArr(arr *[5]int) {
+    arr[0] = 10
+    for i, v := range arr {
+        fmt.Println(i, v)
+    }
+}
+
+func main() {
+    var arr1 [5]int
+    printArr(&arr1)
+    fmt.Println(arr1)
+    arr2 := [...]int{2, 4, 6, 8, 10}
+    printArr(&arr2)
+    fmt.Println(arr2)
+}
+~~~
+
+
+
+### 9、切片
+
+#### 1、概述
+
+切片是数组的一个**引用**，因此**切片是引用类型**，但自身是结构体，值拷贝传递
+
+~~~go
+func testSlice(s []int) {
+	s[0] = 5
+}
+func main() {
+	var arr1 = []int{1, 2, 3}
+	testSlice(arr1)
+	fmt.Println(arr1)
+    fmt.Println(reflect.TypeOf(arr1).Kind())
+}
+5 2 3
+slice
+~~~
+
+切片的**长度可变**，其是一个可变的数组
+
+切片遍历方式和数组一样，可以用 len() 求长度，表示可用元素数量，读写操作不能超过该限制
+
+cap 可以求出 slice 最大扩张容量，不能超出数组限制，0 <= len(slice) <= len(array)，其中 array 是 slice 引用的数组
+
+~~~go
+// 切片定义
+// var 变量名 []类型
+var str []string
+var arr []int
+~~~
+
+
+
+**注意**：
+
+- slice 并不是数组或数组指针，其内部通过指针和相关属性引用数组片段，实现变长方案
+- 如果 slice == nil，那么 len、cap 结果都等于 0
+- 切片是引用类型，如果只声明，那么零值是 nil，还需要进一步的分配内存
+
+<img src="images/image-20230210230257674.png" alt="image-20230210230257674" style="zoom:67%;" />
+
+
+
+#### 2、初始化
+
+~~~go
+func main() {
+    // 声明切片，为分配内存，为 nil
+    var s1 []int
+    if s1 == nil {
+        fmt.Println("是空")
+    } else {
+        fmt.Println("不是空")
+    }
+    // :=
+    s2 := []int{}
+    s5 := []int{1, 2, 3}
+    fmt.Println(s5)
+
+    // make()
+    // 第二个参数: len 长度
+    // 第三个参数: cap 容量，可省略，默认 cap = len
+    var s3 []int = make([]int, 0)
+    fmt.Println(s1, s2, s3)
+    var s4 []int = make([]int, 0, 0)
+    fmt.Println(s4)
+
+    // 从数组切片，前包后不包
+    arr := [5]int{1, 2, 3, 4, 5}
+    var s6 []int
+    s6 = arr[1:4]
+    fmt.Println(s6)
+}
+~~~
+
+~~~go
+// 全局
+var arr = [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+var slice0 []int = arr[start:end] 
+var slice1 []int = arr[:end]      
+var slice2 []int = arr[start:]
+var slice3 []int = arr[:] 		   // 两端都不写，默认 start 到 end
+var slice4 = arr[:len(arr)-1]      // 去掉切片的最后一个元素
+
+// 局部
+arr2 := [...]int{9, 8, 7, 6, 5, 4, 3, 2, 1, 0}
+slice5 := arr[start:end]
+slice6 := arr[:end]        
+slice7 := arr[start:]     
+slice8 := arr[:]  
+slice9 := arr[:len(arr)-1] //去掉切片的最后一个元素
+~~~
+
+
+
+**注意**：
+
+- 切片时，起止位默认是 0 到 len，可默认不写
+- 使用 make 函数创建时，必须满足 cap >= len >= 0
+- data[:6:8] 每个数字前都有个冒号，slice 内容为 data 从 0 到第 6 位，长度 len 为 6，最大扩充项 cap 设置为 8
+  - a[x:y:z]，切片内容：[x:y]，切片长度：y-x，切片容量：z-x
+
+
+
+~~~go
+// 遍历
+data := [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+slice := data[:]
+for index, value := range slice {
+    fmt.Printf("inde : %v , value : %v\n", index, value)
+}
+~~~
+
+
+
+#### 3、追加与拷贝
+
+使用 **append** 函数向 slice 尾部添加数据，并**返回新的 slice 对象**
+
+```go
+func main() {
+    s1 := make([]int, 0, 5)
+    fmt.Printf("%p\n", &s1)
+    s2 := append(s1, 1)
+    fmt.Printf("%p\n", &s2)
+    fmt.Println(s1, s2)
+
+}
+0xc42000a060
+0xc42000a080
+[] [1]
+```
+
+超出原 slice.cap 限制，就会**重新分配底层数组**，即便原数组并未填满，**重新分配的底层数组与原数组无关**
+
+~~~go
+func main() {
+    data := [...]int{0, 1, 2, 3, 4, 10: 0}
+    s := data[:2]
+    s = append(s, 100, 200) 		// 一次 append 两个值，超出 s.cap 限制
+    fmt.Println(s, data)         	// 重新分配的底层数组，与原数组无关
+    fmt.Println(&s[0], &data[0]) 	// 比对底层数组起始指针
+}
+~~~
+
+通常以 2 倍容量重新分配底层数组，在大批量添加数据时，建议一次性分配足够大的空间，以减少内存分配和数据复制开销，或初始化足够长的 len 属性，改用索引号进行操作
+
+
+
+**注意**：
+
+- 及时释放不再使用的 slice 对象，避免持有过期数组，造成 GC 无法回收
+
+
+
+使用 **copy** 函数拷贝切片，copy 函数在两个 slice 间复制数据，复制长度**以 len 小的为准**，两个 slice 可指向同一底层数组，允许元素区间重叠
+
+~~~go
+func main() {
+    data := [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    fmt.Println("array data : ", data)
+    s1 := data[8:]
+    s2 := data[:5]
+
+    fmt.Printf("slice s1 : %v\n", s1)
+    fmt.Printf("slice s2 : %v\n", s2)
+    copy(s2, s1)
+
+    fmt.Printf("copied slice s1 : %v\n", s1)
+    fmt.Printf("copied slice s2 : %v\n", s2)
+    fmt.Println("last array data : ", data)
+}
+
+array data :  [0 1 2 3 4 5 6 7 8 9]
+slice s1 : [8 9]
+slice s2 : [0 1 2 3 4]
+copied slice s1 : [8 9]
+copied slice s2 : [8 9 2 3 4]
+last array data :  [8 9 2 3 4 5 6 7 8 9]
+~~~
+
+
+
+#### 4、字符串切片
+
+string 底层就是一个 byte 的数组，因此也可以进行切片操作
+
+~~~go
+func main() {
+    str := "hello world"
+    
+    s1 := str[0:5]
+    fmt.Println(s1)
+    
+    s2 := str[6:]
+    fmt.Println(s2)
+}
+hello
+world
+~~~
+
+string 本身是不可变的，因此要改变 string 中字符，需要先切片，再转为 string 类型
+
+~~~go
+func main() {
+    str := "Hello world"
+    s := []byte(str) // 中文字符用[]rune(str)
+    s[6] = 'G'
+    s = s[:8]
+    s = append(s, '!')
+    str = string(s)
+    fmt.Println(str)
+}
+~~~
+
+
+
+
+
+
 
 
 

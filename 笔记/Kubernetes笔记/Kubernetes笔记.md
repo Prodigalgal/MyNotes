@@ -62,6 +62,8 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 
 <img src="images/image-20221229203054021.png" alt="image-20221229203054021" style="zoom:67%;" />
 
+
+
 ### 3、套件
 
 #### 1、Kubeadm
@@ -116,8 +118,6 @@ kubectl [command] [type] [name] [flags]
 | explain | 显示文档参考资料                                 |
 | edit    | 使用默认编辑器编辑一个资源                       |
 | delete  | 通过文件、标准输入、资源名称、标签选择器删除资源 |
-
-
 
 
 
@@ -1541,6 +1541,28 @@ kubectl get pvc, pv
 
 
 
+### 3、安装 nfs
+
+创建目录，开放权限
+
+~~~bash
+# 所有节点都要创建该目录
+mkdir -p /home/data
+# 主节点开放
+echo "/home/data *(insecure,rw,sync,no_root_squash)" > /etc/exports
+# 主节点重启服务
+systemctl restart nfs-server
+~~~
+
+~~~bash
+# 从节点挂载
+mount 196.198.168.168:/home/data /home/data
+~~~
+
+
+
+
+
 # 9、Kubernetes Secret
 
 ## 1、基本概念
@@ -2336,6 +2358,272 @@ spec:
 
 
 
+# 部署常用软件
+
+## 1、MySQL
+
+### 1、创建 Namespace
+
+把 MySQL 部署在单独的名称空间中
+
+~~~bash
+kubectl create namespace dev
+~~~
+
+
+
+### 2、创建持久卷 PV
+
+存储 MySQL 数据文件
+
+定义一个容量大小为 1 GB 的 PV，挂载到 /home/data/mysql 目录，需手动创建该目录
+
+~~~bash
+mkdir /home/data/mysql
+~~~
+
+编写 mysql-pv.yaml 文件内容，要创建的 pv 对象名称：mysql-pv-1g
+
+~~~yaml
+# 定义持久卷信息
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  # pv 是没有 namespace 属性的，它是一种跨 namespace 的共享资源
+  name: mysql-pv-1g
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  # 存储类，具有相同存储类名称的 pv 和 pvc 才能进行绑定
+  storageClassName: nfs
+  nfs:
+    path: /home/data/mysql
+    server: MasterIP
+    
+~~~
+
+~~~bash
+kubectl create -f mysql-pv.yaml
+kubectl get pv
+~~~
+
+
+
+### 3、创建持久卷声明 PVC
+
+声明存储大小为 1 Gb 的 PVC 资源，k8s 会根据 storageClassName 存储类名称找到匹配的 PV 对象进行绑定
+
+编写 mysql-pvc.yaml 文件内容，要创建的 pvc 对象名称是：mysql-pvc
+
+~~~bash
+# 定义mysql的持久卷声明信息
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  # 存储类，具有相同存储类名称的 pv 和 pvc才 能进行绑定
+  storageClassName: nfs
+~~~
+
+~~~bash
+kubectl create -f mysql-pvc.yaml
+kubectl get pvc -n dev
+~~~
+
+
+
+### 4、创建 Secret 对象
+
+用来保存 MySQL 的 root 用户密码
+
+设置密码为 fuckharkadmin，执行创建命令
+
+```bash
+kubectl create secret generic mysql-root-password --from-literal=password=fuckharkadmin -n dev
+```
+
+~~~bash
+kubectl get secret -n dev
+~~~
+
+
+
+### 5、创建 Deployment 和 Service
+
+编辑 mysql-svc.yaml 文件内容，service 使用 NodePort 类型，指定暴露的 nodePort 端口为 31306，在宿主机使用任意数据库客户端对 MySQL 进行访问
+
+~~~yaml
+# 定义 MySQL 的 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mysql
+  name: mysql
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql:latest
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-root-password
+              key: password
+          # 如果不想使用 secret 对象保存 MySQL 登录密码，可以直接使用下面的方式指定   
+          # value: "123456"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysqlvolume
+          mountPath: /var/lib/mysql
+        - name: mysqlsocket
+          mountPath: /var/run/mysql
+      volumes:
+      - name: mysqlvolume
+        # 使用 pvc
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+      - name: mysqlsocket
+        # 使用 pvc
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+---
+# 定义 MySQL 的 Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: svc-mysql
+  name: svc-mysql
+  namespace: dev
+spec:
+  selector:
+    app: mysql
+  type: NodePort
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+    nodePort: 31306
+~~~
+
+~~~bash
+kubectl create -f mysql-svc.yaml
+~~~
+
+
+
+移除
+
+~~~bash
+kubectl get deployment -n dev
+kubectl delete deployment mysql -n dev
+kubectl get service -n dev
+kubectl delete service svc-mysql -n dev
+kubectl get pod -n dev
+~~~
+
+
+
+~~~bash
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-cnf
+  namespace: default
+data:
+  mysqld.cnf: |
+    [mysqld]
+    pid-file        = /var/run/mysqld/mysqld.pid
+    socket          = /var/run/mysqld/mysqld.sock
+    datadir         = /var/lib/mysql
+    lower_case_table_names=1 #实现mysql不区分大小（开发需求，建议开启）
+    symbolic-links=0
+    character-set-server=utf8mb4
+    [client]
+    default-character-set=utf8mb4
+    [mysql]
+    default-character-set=utf8mb4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: mysql
+  template:
+    metadata:
+      labels:
+        name: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "fuckharkadmin"
+        volumeMounts:
+        - mountPath: "/var/lib/mysql"
+          name: "mysql-dir"
+        - mountPath: "/etc/mysql/mysql.conf.d"
+          name: "mysql-conf"
+      volumes:
+      - name: "mysql-dir"
+        hostPath:
+          path: /opt/mysql/data
+          type: DirectoryOrCreate
+      - name: "mysql-conf"
+        configMap:
+          name: mysql-cnf
+          items:
+            - key: mysqld.cnf
+              path: mysqld.cnf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: default
+spec:
+  type: NodePort
+  ports:
+  - port: 3306
+    nodePort: 31306
+    targetPort: 3306
+  selector:
+    name: mysql
+~~~
+
+
+
+
+
 
 
 
@@ -2377,6 +2665,26 @@ OCI 标准目前包含两部分内容：（说白了 OCI 就是真正规定怎�
 CRI 全称 Container Runtime Interface （容器运行时接口），Kubernetes 定义的接口，使得上层应用无需编译就可以支持多种容器运行时的接口，并且可以通过插件切换适配不同封装的容器
 
 <img src="images/image-20230107133613400.png" alt="image-20230107133613400" style="zoom:70%;" />
+
+
+
+
+
+## 3、常用命令
+
+~~~bash
+# 查看 Pod 都运行在哪些节点上
+kubectl get pod -A -o yaml |grep '^    n'|grep -v nodeSelector|awk 'NR%3==1{print ++n"\n"$0;next}1'
+
+1
+    name: nginx-ingress-controller-688987f6c9-tndbc
+    namespace: ingress-nginx
+    nodeName: node2
+2
+    name: jenkins-0
+    namespace: jenkins
+    nodeName: node1
+~~~
 
 
 
