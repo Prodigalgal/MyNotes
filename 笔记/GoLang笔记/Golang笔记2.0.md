@@ -465,7 +465,7 @@ const (
 a, b, c, d := 071, 0x1F, 1e9, math.MinInt16
 ```
 
-空指针值 nil，而非C/C++ NULL。
+空指针值 nil，而非C/C++ NULL
 
 #### 2、整型
 
@@ -2021,7 +2021,123 @@ type Mutex struct {
 
 
 
+# 扩展
 
+
+
+**注意，panic无法跨协程传递，主线程的recover无法恢复子协程的panic**
+
+
+
+## 1、切片底层
+
+首先 Go **数组是值类型**，赋值和函数传参操作都会复制整个数组数据
+
+~~~go
+func main() {
+    // 初始化数组
+    arrayA := [2]int{100, 200}
+    var arrayB [2]int
+
+    arrayB = arrayA
+
+    fmt.Printf("arrayA : %p , %v\n", &arrayA, arrayA)
+    fmt.Printf("arrayB : %p , %v\n", &arrayB, arrayB)
+
+    testArray(arrayA)
+}
+
+func testArray(x [2]int) {
+    fmt.Printf("func Array : %p , %v\n", &x, x)
+}
+
+arrayA : 0xc4200bebf0 , [100 200]
+arrayB : 0xc4200bec00 , [100 200]
+func Array : 0xc4200bec30 , [100 200]
+~~~
+
+三个内存地址都不同，这也就验证了 Go 中数组赋值和函数传参都是值复制的，这就带来一个问题，如果数组非常大，每次传参需要复制大量数据，内存占用很高，这就需要使用数组的指针进行传参，但是不是任何时候都适用，因为切片的底层数组有可能在堆上分配内存，同时小数组在栈上拷贝的消耗未必比 make 函数大
+
+~~~go
+func main() {
+    arrayA := [2]int{100, 200}
+    testArrayPoint(&arrayA)   // 1.传数组指针
+}
+
+func testArrayPoint(x *[2]int) {
+    fmt.Printf("func Array : %p , %v\n", x, *x)
+    (*x)[1] += 100
+}
+
+func Array : 0xc4200b0140 , [100 200]
+arrayA : 0xc4200b0140 , [100 300]
+~~~
+
+切片是对数组一个连续片段的引用，所以切片是一个引用类型（更类似于 Python 中的 list 类型），这个片段可以是整个数组，或者是由起始和终止索引标识的一些项的子集，需要注意的是，终止索引标识的项不包括在切片内
+
+~~~go
+// 切片结构
+type slice struct {
+    array unsafe.Pointer
+    len   int
+    cap   int
+}
+// Pointer 是指向一个数组的指针
+// len 代表当前切片的长度
+// cap 是当前切片的容量，cap 总是大于等于 len 的
+~~~
+
+<img src="images/image-20230211114417279.png" alt="image-20230211114417279" style="zoom:67%;" />
+
+从 slice 获取一块内存地址的指针（没啥用）
+
+~~~go
+s := make([]byte, 200)
+ptr := unsafe.Pointer(&s[0])
+~~~
+
+从 Go 的内存地址中构造一个 slice（不太好用且没啥用）
+
+~~~go
+var ptr unsafe.Pointer
+// 构造出一个 slice 结构体
+var s1 = struct {
+    addr uintptr
+    len int
+    cap int
+}{ptr, length, length}
+// 使用 unsafe.Pointer() 函数将 s1 转为 unsafe.Pointer 类型
+// 再使用 (*[]byte) 对 unsafe.Pointer 类型进行转换
+// 此时拿到的是一个 slice 指针，再前面加一个 * 获取 slice
+// 到此就获取到了一个 nil 的 slice
+s := *(*[]byte)(unsafe.Pointer(&s1))
+~~~
+
+```go
+// 该函数可以将任意指针转换为 unsafe.Pointer 类型
+unsafe.Pointer()
+// 可以使用 (*T)ptr 再转换回去
+a := 10
+b := &a // b 为 *int
+ub := unsafe.Pointer(b)
+bak_b := (*int)ub // 转换回去
+```
+
+使用 Go 反射构造一个 slice（不太好用且没啥用）
+
+~~~go
+var o []byte
+sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&o))
+sliceHeader.Cap = length
+sliceHeader.Len = length
+sliceHeader.Data = uintptr(ptr)
+~~~
+
+
+
+**注意**：
+
+- 和数组不同的是，切片的长度可以在运行时修改
 
 
 

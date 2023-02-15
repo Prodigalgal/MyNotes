@@ -95,14 +95,6 @@ yum remove docker \
                   docker-latest-logrotate \
                   docker-logrotate \
                   docker-engine
-                  
-yum remove docker-client \
-                  docker-client-latest \
-                  docker-common \
-                  docker-latest \
-                  docker-latest-logrotate \
-                  docker-logrotate \
-                  docker-engine
 ```
 
 ## 2、安装依赖
@@ -122,8 +114,11 @@ yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++
 ## 3、安装docker-ce
 
 ~~~bash
-由于RHEL8已从Docker转向PodMan所以需要先
+# 由于RHEL8已从Docker转向PodMan所以需要先
 dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+# 阿里云
+yum config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 ~~~
 
 ```shell
@@ -1370,6 +1365,69 @@ IRkernel::installspec()
 
 
 
+## 9、安装Harbor
+
+完整安装 Docker 与 Docker-Compose
+
+~~~bash
+# 下载 离线版 Harbor
+wget https://github.com/goharbor/harbor/releases/download/v2.5.5/harbor-offline-installer-v2.5.5.tgz
+~~~
+
+~~~bash
+# 创建解压目录 Harbor
+mkdir harbor
+# 进入解压目录 Harbor
+cd harbor
+# 解压压缩包到当前目录下的 Harbor 目录中
+tar -zxvf harbor-offline-installer-v2.5.5.tgz
+~~~
+
+~~~bash
+# 生成CA证书私钥
+openssl genrsa -out ca.key 4096
+
+# 生成CA证书
+openssl req -x509 -new -nodes -sha512 -days 3650 \
+ -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=192.168.100.142" \
+ -key ca.key \
+ -out ca.crt
+
+mkdir -p /date/cert
+# 将服务器证书和密匙复制到Harbor主机上的证书文件夹中
+cp ca.crt /data/cert
+cp ca.key /data/cert
+
+# 重启docker
+systemctl restart docker
+
+# 运行 harbor 目录下的 prepare脚本启用HTTPS服务（可忽略）
+./prepare
+~~~
+
+~~~bash
+# 修改 yml 配置文件
+cp harbor.yml.tmpl harbor.yml
+vim harbor.yml
+
+# 主要修改访问端口
+# 是否需要 Https，如果需要就修改证书路径
+# 修改登陆密码、仓库密码
+
+# 运行安装脚本
+./install.sh
+
+# 开机自启
+vim /etc/rc.local
+/usr/local/lib/docker/cli-plugins/docker-compose -f /home/harbor/harbor/docker-compose.yml up -d
+~~~
+
+
+
+
+
+
+
 # Docker容器数据卷
 
 ## 1、数据卷
@@ -1819,8 +1877,13 @@ networks:                        #关于compose中的networks的详细使用
 
 为全部用户安装docker-compose
 
+~~~bash
+# 提前创建目录
+mkdir -p /usr/local/lib/docker/cli-plugins
+~~~
+
 ```bash
-curl -SL https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+curl -SL https://github.com/docker/compose/releases/download/v2.16.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
 ```
 
 ~~~bash

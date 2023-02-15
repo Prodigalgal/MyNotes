@@ -1412,6 +1412,18 @@ netstat [选项]（功能描述：查看系统网络情况）
 
 下载安装：yum install xxx 
 
+修改源：
+
+~~~bash
+# 以 RHEL8 为例子
+# 首先备份原本源
+cp oracle-linux-ol8.repo oracle-linux-ol8.repo.bak
+# 删除
+rm -f oracle-linux-ol8.repo
+# 下载 Aliyun 源
+wget http://mirrors.aliyun.com/repo/Centos-8.repo
+~~~
+
 
 
 # 问题

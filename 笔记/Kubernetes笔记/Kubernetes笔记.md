@@ -247,11 +247,13 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 - 集群中所有机器之间网络互通
 
   - ~~~bash
-    # 查看公网 IP 是否绑定在网卡上
+    # 公网 VPS IP 一般不会直接绑定在网卡上
+    # 检查公网 IP 是否绑定在网卡上
     ip a | grep xx.xx.xx.xx
     
+    # 临时
     # 如果没有,需要绑定
-    # 临时,机器重启会失效
+    # 机器重启会失效
     ifconfig 网卡名:1 xx.xx.xx.xx
     
     # 永久
@@ -265,7 +267,7 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
     ONBOOT=yes
     NM_CONTROLLED=yes
     BOOTPROTO=static
-    IPADDR=公网ip
+    IPADDR=公网IP
     NETMASK=255.255.255.0
     ~~~
 
@@ -293,7 +295,6 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
     modprobe overlay
     modprobe br_netfilter
     
-    # 设置所需的 sysctl 参数，参数在重新启动后保持不变
     cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
     net.bridge.bridge-nf-call-iptables  = 1
     net.bridge.bridge-nf-call-ip6tables = 1
@@ -301,8 +302,24 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
     EOF
     
     # 应用 sysctl 参数而不重新启动
+    # 设置所需的 sysctl 参数，参数在重新启动后保持不变
     sysctl --system
+    
+    # 检查非常重要
+    lsmod | grep br_netfilter
+    lsmod | grep overlay
+    sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward
     ~~~
+  
+- 防火墙
+
+  - ~~~bash
+    # 为了省事直接关闭
+    # 否则需要开启对应端口与协议
+    systemctl disable firewalld
+    systemctl stop firewalld
+    ~~~
+
 
 **禁止 swap 分区**：
 
@@ -313,7 +330,7 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
   # 永久
   sed -ri 's/.*swap.*/#&/' /etc/fstab
   
-  # 查看 swap 状态
+  # 检查 swap 状态
   free -m
   ~~~
 
@@ -346,11 +363,11 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
   | TCP  | 入站 | 10250       | Kubelet API        | 自身, 控制面 |
   | TCP  | 入站 | 30000-32767 | NodePort Services† | 所有         |
   
-- 额外协议：
+- 开放额外协议：
 
   ICMP、IPIP协议
 
-**时间同步**：
+**时间同步**：（部份 OS 不需要）
 
 - ~~~bash
   yum install -y ntpdate
@@ -360,6 +377,10 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 
 
 ## 2、包管理器安装版
+
+**注意**：内网外网搭建的区别
+
+
 
 ### 1、基准配置
 
@@ -372,7 +393,14 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 以下为基于 Red Hat 发行的系统
 
 ~~~bash
-# 配置仓库文件
+# 环境准备
+yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++ tc
+~~~
+
+
+
+~~~bash
+# k8s 国外直接使用 google 配置仓库文件，省事
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -382,8 +410,24 @@ gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
 
-# 安装
-yum install -y kubectl kubelet kubeadm
+# k8s 国内 Aliyun
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+EOF
+
+# containerd 国内 Aliyun
+yum config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+# 安装四件套
+yum install -y kubectl kubelet kubeadm containerd
+
+# 安装完 containerd 先启动一次生成配置文件
 ~~~
 
 
@@ -402,8 +446,15 @@ yum install -y kubectl kubelet kubeadm
        SystemdCgroup = true
   
   # 重启 containerd
+  systemctl daemon-reload
   systemctl restart containerd
   systemctl status containerd
+  
+  # 国内 Aliyun 镜像下载的 sandbox_image 的 tag 与 原版有出入，需要在配置中新增对应 sanbox_image tag
+  # 查看镜像 crictl image list
+  # 修改完同样需要重启
+  [plugins."io.containerd.grpc.v1.cri"]
+    sandbox_image = "xxxxx"
   ~~~
 
 配置 Kubelet：
@@ -421,7 +472,7 @@ yum install -y kubectl kubelet kubeadm
   systemctl status kubelet
   ~~~
 
-配置 Docker：
+配置 Docker：（直接使用 containerd 就不需要再配置 Docker）
 
 - ~~~bash
   # docker安装后默认没有daemon.json这个配置文件，需要进行手动创建
@@ -434,6 +485,7 @@ yum install -y kubectl kubelet kubeadm
   # 重启 docker
   systemctl daemon-reload
   systemctl restart docker
+  systemctl status docker
   
   # 查看 Driver
   docker info|grep Driver
@@ -446,8 +498,21 @@ yum install -y kubectl kubelet kubeadm
 ~~~bash
 # init.default初始化文件
 kubeadm config print init-defaults >init.default.yaml
-# 拉取相关镜像
+
+# 国内需要修改 init.default.yaml 的镜像地址 registry.aliyuncs.com/google_containers
+# 国外默认
+# 或者不使用 --config 启动，改为 --image-repository= 加上镜像地址
+# 使用配置文件，拉取相关镜像
 kubeadm config images pull --config=init.default.yaml
+# 或者使用命令行
+kubeadm config images pull --image-repository=registry.aliyuncs.com/google_containers
+~~~
+
+~~~bash
+# 国内 Aliyun 下载的 sandbox_image 为 3.9
+# 在修改 containerd 的 sandbox_image 失效的情况下，直接修改 tag 即可
+# 具体修改为多少的 tag，可查看任意容器日志得到
+ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k8s.io/pause:3.6
 ~~~
 
 
@@ -455,10 +520,11 @@ kubeadm config images pull --config=init.default.yaml
 #### 4、修改配置文件
 
 ~~~bash
+# 未验证
 vim /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 
-# 在末尾添加参数 --node-ip=公网IP
-ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS --node-ip=<公网IP>
+# 在末尾添加参数 --node-ip=主机IP
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS --node-ip=<主机IP>
 ~~~
 
 
@@ -474,8 +540,8 @@ ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELE
 ### 2、初始化 Master
 
 ~~~bash
-# 启动 Master 节点
-kubeadm init --apiserver-advertise-address=168.138.165.119 --kubernetes-version v1.26.0 --service-cidr=10.1.0.0/16 --pod-network-cidr=10.244.0.0/16
+# 启动 Master 节点，国内需要添加 --image-repository
+kubeadm init --apiserver-advertise-address=masterIP --kubernetes-version v1.26.0 --service-cidr=10.1.0.0/16 --pod-network-cidr=10.244.0.0/16 --image-repository=registry.aliyuncs.com/google_containers
 ~~~
 
 ~~~bash
@@ -488,6 +554,12 @@ Then you can join any number of worker nodes by running the following on each as
 
 kubeadm join 10.0.0.64:6443 --token 0sdiop.qs9m98sqqn9hzjjm \
 	--discovery-token-ca-cert-hash sha256:39244ba104bd5d5f79c695852a18b329b86f75df1a4e7f8b583627a432e9f762
+
+# 后续忘记可以使用改命令获取，不过需要检查是否过期
+kubeadm token list
+
+# 过期了，需要重新生成
+kubeadm token create --print-join-command
 ~~~
 
 ~~~bash
@@ -510,6 +582,7 @@ source ~/.bashrc
 ### 3、初始化 Node
 
 ~~~bash
+# 使用配置文件加入，麻烦不建议
 # 加入Master，创建join-config.ymal文件
 vim join-config.ymal
 
@@ -523,11 +596,11 @@ discovery:
     token: t5a7cg.19va3edzrgbnldza
     unsafeSkipCAVerification: true
   tlsBootstrapToken: t5a7cg.19va3edzrgbnldza
-  
+
 # 加入集群
 kubeadm join --config join-config.ymal
 
-# 或者使用
+# 或者使用命令行加入
 kubeadm join MasterIP:6443 --token pw1mwc.e3cjvdsnhfc6nvmc --discovery-token-ca-cert-hash sha256:03d450c1455f3b72eccc1b7ddd3f2c0b6737e1f5492729de552dbd5c45a4781e
 ~~~
 
@@ -2362,6 +2435,20 @@ spec:
 
 ## 1、MySQL
 
+**环境准备**：
+
+~~~bash
+yum install -y nfs-utils rpcbind
+
+# Master
+systemctl start nfs-server
+systemctl start rpcbind
+systemctl enable nfs-server
+systemctl enable rpcbind
+~~~
+
+
+
 ### 1、创建 Namespace
 
 把 MySQL 部署在单独的名称空间中
@@ -2379,7 +2466,16 @@ kubectl create namespace dev
 定义一个容量大小为 1 GB 的 PV，挂载到 /home/data/mysql 目录，需手动创建该目录
 
 ~~~bash
+# 主节点
+# 创建目录
 mkdir /home/data/mysql
+# 授权
+echo "/home/data/ *(insecure,rw,sync,no_root_squash)" > /etc/exports
+systemctl restart nfs-server
+
+# 子节点
+mkdir -p /home/data/mysql
+mount masterIP:/home/data/mysql /home/data/mysql
 ~~~
 
 编写 mysql-pv.yaml 文件内容，要创建的 pv 对象名称：mysql-pv-1g
@@ -2405,7 +2501,7 @@ spec:
 ~~~
 
 ~~~bash
-kubectl create -f mysql-pv.yaml
+kubectl create -f mysql-pv-1g.yaml
 kubectl get pv
 ~~~
 
@@ -2495,14 +2591,8 @@ spec:
         volumeMounts:
         - name: mysqlvolume
           mountPath: /var/lib/mysql
-        - name: mysqlsocket
-          mountPath: /var/run/mysql
       volumes:
       - name: mysqlvolume
-        # 使用 pvc
-        persistentVolumeClaim:
-          claimName: mysql-pvc
-      - name: mysqlsocket
         # 使用 pvc
         persistentVolumeClaim:
           claimName: mysql-pvc
@@ -2535,96 +2625,9 @@ kubectl create -f mysql-svc.yaml
 移除
 
 ~~~bash
-kubectl get deployment -n dev
 kubectl delete deployment mysql -n dev
-kubectl get service -n dev
 kubectl delete service svc-mysql -n dev
-kubectl get pod -n dev
 ~~~
-
-
-
-~~~bash
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mysql-cnf
-  namespace: default
-data:
-  mysqld.cnf: |
-    [mysqld]
-    pid-file        = /var/run/mysqld/mysqld.pid
-    socket          = /var/run/mysqld/mysqld.sock
-    datadir         = /var/lib/mysql
-    lower_case_table_names=1 #实现mysql不区分大小（开发需求，建议开启）
-    symbolic-links=0
-    character-set-server=utf8mb4
-    [client]
-    default-character-set=utf8mb4
-    [mysql]
-    default-character-set=utf8mb4
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mysql
-  namespace: default
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: mysql
-  template:
-    metadata:
-      labels:
-        name: mysql
-    spec:
-      containers:
-      - name: mysql
-        image: mysql:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 3306
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: "fuckharkadmin"
-        volumeMounts:
-        - mountPath: "/var/lib/mysql"
-          name: "mysql-dir"
-        - mountPath: "/etc/mysql/mysql.conf.d"
-          name: "mysql-conf"
-      volumes:
-      - name: "mysql-dir"
-        hostPath:
-          path: /opt/mysql/data
-          type: DirectoryOrCreate
-      - name: "mysql-conf"
-        configMap:
-          name: mysql-cnf
-          items:
-            - key: mysqld.cnf
-              path: mysqld.cnf
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-  namespace: default
-spec:
-  type: NodePort
-  ports:
-  - port: 3306
-    nodePort: 31306
-    targetPort: 3306
-  selector:
-    name: mysql
-~~~
-
-
-
-
-
-
 
 
 
@@ -2688,8 +2691,6 @@ kubectl get pod -A -o yaml |grep '^    n'|grep -v nodeSelector|awk 'NR%3==1{prin
 
 
 
-
-
 # 问题
 
 ## 1、安装三件套报错 Nux.Ro RPMs 无法连接到
@@ -2708,8 +2709,6 @@ To see the stack trace of this error execute with --v=5 or higher
 ~~~
 
 原因可能是 containerd 配置文件未将 cri 从 disabled_plugins 移除，并添加 SystemdCgroup，正确配置后重启即可
-
-
 
 
 
@@ -2764,3 +2763,10 @@ systemctl daemon-reload
 systemctl restart containerd
 ~~~
 
+
+
+## 5、crictl 报错 WARN[0000] runtime connect using default endpoints
+
+```bash
+crictl config runtime-endpoint unix:///var/run/containerd/containerd.sock
+```
