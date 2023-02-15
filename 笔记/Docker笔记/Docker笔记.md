@@ -1400,9 +1400,6 @@ cp ca.key /data/cert
 
 # 重启docker
 systemctl restart docker
-
-# 运行 harbor 目录下的 prepare脚本启用HTTPS服务（可忽略）
-./prepare
 ~~~
 
 ~~~bash
@@ -1410,10 +1407,12 @@ systemctl restart docker
 cp harbor.yml.tmpl harbor.yml
 vim harbor.yml
 
-# 主要修改访问端口
+# 主要修改访问端口,访问域名
 # 是否需要 Https，如果需要就修改证书路径
 # 修改登陆密码、仓库密码
 
+# 运行 harbor 目录下的 prepare 脚本启用 HTTPS 服务（可忽略）
+./prepare
 # 运行安装脚本
 ./install.sh
 
@@ -1423,6 +1422,37 @@ vim /etc/rc.local
 ~~~
 
 
+
+## 10、安装GitLab
+
+~~~bash
+~~~
+
+
+
+~~~bash
+docker run -itd \
+-p 8443:443 -p 8090:80 -p 8022:22 \
+--restart always --name gitlab \
+-v /usr/local/gitlab/etc:/etc/gitlab \
+-v /usr/local/gitlab/log:/var/log/gitlab \
+-v /usr/local/gitlab/data:/var/opt/gitlab \
+--privileged=true gitlab/gitlab-ce
+~~~
+
+
+
+## 11、安装Go服务
+
+先在 Windos 上编译
+
+~~~bash
+go env -w GOOS=linux
+~~~
+
+~~~bash
+go
+~~~
 
 
 
@@ -2250,6 +2280,40 @@ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 ![190cfe8d4cd148a590dcde175e9fcdc2](images/190cfe8d4cd148a590dcde175e9fcdc2.png)
 
 <p style="text-align:center">Containerd 架构图</p>
+
+
+
+## 5、推送镜像到 Harbor
+
+首先登陆 Harbor 创建项目
+
+~~~bash
+# 添加地址
+vim /etc/docker/daemon.json
+
+{
+   "insecure-registries": ["http://211.131.241.221:8888"]
+}
+~~~
+
+~~~bash
+systemctl daemon-reload
+systemctl restart docker
+
+docker login xxx.xxx.xxx.xxx:xx
+# 输入账号密码
+
+# 给想要推送的镜像打标签
+# docker tag 镜像名:TAG harbor地址/项目/镜像名:TAG
+docker tag gos:v1.0 192.168.100.142:80/gostest/gos:v1.0
+
+# 推送镜像
+docker push 192.168.100.142:80/gostest/gos:v1.0
+~~~
+
+
+
+
 
 
 

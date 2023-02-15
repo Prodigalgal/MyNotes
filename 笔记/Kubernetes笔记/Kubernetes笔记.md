@@ -2691,6 +2691,76 @@ kubectl get pod -A -o yaml |grep '^    n'|grep -v nodeSelector|awk 'NR%3==1{prin
 
 
 
+## 4、从 Harbor 拉取镜像
+
+首先在一台安装有 Docker 的节点上访问一次 Harbor
+
+~~~bash
+# 在改节点上解析文件保存结果
+cat /root/.docker/config.json | base64 -w 0
+
+ewoJImF1dGhzIjogewoJCSIxOTIuMTY4LjEwMC4xNDI6ODAiOiB7CgkJCSJhdXRoIjogIllXUnRhVzQ2TVRJek5EVTIiCgkJfQoJfQp9
+~~~
+
+失败了。。。
+
+
+
+## 5、从 DockerHub 拉取镜像
+
+~~~bash
+docker tag 镜像名:版本 用户名/镜像名:版本
+docker push 用户名/镜像名:版本
+~~~
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: gos
+  name: gos
+spec:
+  selector:
+    matchLabels:
+      app: gos
+  template:
+    metadata:
+      labels:
+        app: gos
+    spec:
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+      # 刚才推送的镜像 Tag
+        - image: proglagla/gos:v1.0
+          name: gos
+          ports:
+            - containerPort: 3306
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: svc-gos
+  name: svc-gos
+spec:
+  selector:
+    app: gos
+  type: NodePort
+  ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: 8080
+      nodePort: 30800
+~~~
+
+
+
+
+
+
+
 # 问题
 
 ## 1、安装三件套报错 Nux.Ro RPMs 无法连接到
