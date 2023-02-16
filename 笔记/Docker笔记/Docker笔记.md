@@ -1367,6 +1367,8 @@ IRkernel::installspec()
 
 ## 9、安装Harbor
 
+注意：证书部份存疑
+
 完整安装 Docker 与 Docker-Compose
 
 ~~~bash
@@ -1444,17 +1446,28 @@ docker run -itd \
 
 ## 11、安装Go服务
 
-先在 Windos 上编译
+建议 main.go 文件放置在根目录处，且 Dockerfile 与其同级
 
-~~~bash
-go env -w GOOS=linux
+使用分层镜像可以大大减小容器大小
+
+~~~dockerfile
+from golang:alphine as build
+ENV GO111MODULE=on \
+	CGGO_ENABLED=on \
+	GOOS=linux \
+	GOARCH=amd64 \
+	GOPROXY="https://goproxy.cn,direct"
+
+WORKDIR /app
+COPY . .
+RUN go build -o main .
+
+FROM scratch
+WORKDIR /
+COPY --from=build /app/main main
+EXPOSE 8080
+CMD["./main"]
 ~~~
-
-~~~bash
-go
-~~~
-
-
 
 
 

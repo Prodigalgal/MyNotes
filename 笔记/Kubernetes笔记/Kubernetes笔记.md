@@ -53,10 +53,112 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 
 ### 2、架构
 
-**节点角色与功能**：
+#### 1、Master
 
-- **Master Node**：集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller MangerServer 所组成 
-- **Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 kubelet、kube proxy 和 ContainerRuntime
+**Master Node**：集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller MangerServer 所组成，拥有 Master 组件
+
+**Master 组件**：是集群的控制平台（control plane）：负责集群中的全局决策（例如，调度），探测并响应集群事件（例如，当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+
+Master 组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
+
+- **kube-apiserver**：
+
+  - 提供 Kubernetes API，Kubernetes控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
+  - kubectl / kubernetes dashboard 等 Kubernetes 管理工具就是通过 kubernetes API 实现对 Kubernetes 集群的管理
+
+- **etcd**：
+
+  - 支持一致性和高可用的名值对存储组件，Kubernetes集群的所有配置信息都存储在 etcd 中
+
+- **kube-scheduler**：
+
+  - 监控所有新创建尚未分配到节点上的 Pod，并且自动选择为 Pod 选择一个合适的节点去运行
+  - 影响调度的因素有：
+    - 单个或多个 Pod 的资源需求
+    - 硬件、软件、策略的限制
+    - 亲和与反亲和（affinity and anti-affinity）的约定
+    - 数据本地化要求
+    - 工作负载间的相互作用
+
+- **kube-controller-manager**：
+
+  - 运行了所有的控制器，逻辑上来说，每一个控制器是一个独立的进程，但是这些控制器都被合并运行在一个进程里
+  - 包含的控制器有：
+    - 节点控制器： 负责监听节点停机的事件并作出对应响应
+    - 副本控制器： 负责为集群中每一个 副本控制器对象（Replication Controller Object）维护期望的 Pod 副本数
+    - 端点（Endpoints）控制器：负责为端点对象（Endpoints Object，连接 Service 和 Pod）赋值
+    - Service Account & Token控制器： 负责为新的名称空间创建 default Service Account 以及 API Access Token
+
+- **cloud-controller-manager**：
+
+  - 运行了与具体云基础设施供应商互动的控制器，这是 Kubernetes 1.6 版本中引入的特性
+
+  - 只运行特定于云基础设施供应商的控制器，使得云供应商的代码和 Kubernetes 的代码可以各自独立的演化，在此之前的版本中，Kubernetes 的核心代码是依赖于云供应商的代码的，在后续的版本中，特定于云供应商的代码将由云供应商自行维护，并在运行 Kubernetes 时链接到 cloud-controller-manager
+
+  - 包含的云供应商相关的依赖：
+
+    - 节点控制器：当某一个节点停止响应时，调用云供应商的接口，以检查该节点的虚拟机是否已经被云供应商删除
+      - 私有化部署 Kubernetes 时，由于不知道运行节点的系统是否被删除，所以在移除系统后，要自行通过 kubectl delete node 将节点对象从 Kubernetes 中删除
+
+    - 路由控制器：在云供应商的基础设施中设定网络路由
+      - 私有化部署 Kubernetes 时，需要自行规划 Kubernetes 的拓扑结构，并做好路由配置
+    - 服务（Service）控制器：创建、更新、删除云供应商提供的负载均衡器
+      - 私有化部署 Kubernetes 时，不支持 LoadBalancer 类型的 Service，如需要此特性，需要创建 NodePort 类型的 Service，并自行配置负载均衡器
+    - 数据卷（Volume）控制器：创建、绑定、挂载数据卷，并协调云供应商编排数据卷
+      - 私有化部署 Kubernetes 时，需要自行创建和管理存储资源，并通过 Kubernetes 的存储类、存储卷、数据卷等关联
+
+
+
+#### 2、Node
+
+**Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 Node 组件例如：kubelet、kube proxy 和 ContainerRuntime
+
+**Node 组件**：Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
+
+- **kubelet**：
+  - 运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态
+  - 其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态
+  - 注意：Kubelet 不管理不是通过 Kubernetes 创建的容器
+- **kube-proxy**：
+  - 网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
+  - 其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
+  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
+- **容器运行时**：
+  - 负责运行容器
+  - Kubernetes 支持多种容器引擎：
+    - Docker
+    - containerd
+    - cri-o
+    - rktlet
+    - 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
+
+
+
+#### 3、Addons
+
+Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功能特性
+
+由于其提供集群级别的功能特性，addons 使用到的 Kubernetes 资源都放置在 kube-system 名称空间下
+
+下面描述了一些经常用到的 addons，参考 [Addons](https://kubernetes.io/docs/concepts/cluster-administration/addons/)查看更多列表
+
+- **DNS**：
+
+  - 除了 DNS Addon 以外，其他的 addon 都不是必须的，所有 Kubernetes 集群都应该有 Cluster DNS
+
+  - Cluster DNS 是一个 DNS 服务器，是对已有环境中其他 DNS 服务器的一个补充，存放了 Kubernetes Service 的 DNS 记录
+
+  - Kubernetes 启动容器时，自动将该 DNS 服务器加入到容器的 DNS 搜索列表中
+  - 目前默认安装 Core DNS
+
+- **Web UI**：
+  - [Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) 是一个 Kubernetes 集群的 Web 管理界面，让用户可以通过该界面管理集群
+
+- **ContainerResource Monitoring**
+  - [Container Resource Monitoring](https://kubernetes.io/docs/tasks/debug-application-cluster/resource-usage-monitoring/) 将容器的度量指标（metrics）记录在时间序列数据库中，并提供了 UI 界面查看这些数据
+
+- **Cluster-level Logging**
+  - [Cluster-level logging](https://kubernetes.io/docs/concepts/cluster-administration/logging/) 负责将容器的日志存储到一个统一存储中，并提供搜索浏览的界面
 
 <img src="images/image-20221229202009990.png" alt="image-20221229202009990" style="zoom:67%;" />
 
@@ -157,7 +259,7 @@ kubectl [command] [type] [name] [flags]
 
 | 命令         | 说明                                                 |
 | ------------ | ---------------------------------------------------- |
-| apply        | 通过文件或标准输入对资源进行配置                     |
+| apply        | 通过文件或标准输入对资源进行更改                     |
 | patch        | 使用补丁修改、更新资源的字段                         |
 | repalce      | 通过文件或标准输入替换一个资源                       |
 | conver       | 不同的 API 版本之间转换配置文件                      |
@@ -192,6 +294,17 @@ install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 ~~~bash
 kubectl version --client
+~~~
+
+
+
+**开启命令提示**：
+
+~~~bash
+yum install -y bash-completion
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" >> ~/.bashrc
 ~~~
 
 
@@ -704,29 +817,127 @@ kubectl apply -f kube-flannel.yml
 
 ### 5、测试集群
 
+#### 1、部署一个应用
+
+在 k8s 上进行部署前，首先需要了解一个基本概念 **Deployment**，在k8s中，通过发布 Deployment，可以创建镜像 (image) 的实例 (container)，这个实例会被包含在称为 **Pod** 的概念中，**Pod** 是 k8s 中最小可管理单元
+
+在发布 Deployment 后，Deployment 将指示 k8s 如何创建和更新应用程序的实例，Master 节点将实例调度到集群中的具体节点
+
+创建实例后，Kubernetes Deployment Controller 会持续监控这些实例，如果运行实例的 Worker 节点关机或被删除，则 Kubernetes Deployment Controller 将在集群选择资源最优的 Worker 节点上重新创建新实例，这是一种通过自我修复机制来解决故障或维护问题
+
+> 在容器编排之前的时代，各种安装脚本通常用于启动应用程序，但是不能够使应用程序从机器故障中恢复，通过创建应用程序实例并确保它们在集群节点中的运行实例个数，Kubernetes Deployment 提供了一种完全不同的方式来管理应用程序
+
+<img src="images/image-20230216223932817.png" alt="image-20230216223932817" style="zoom:30%;" />
+
+通过在 Master 节点发布 Deployment，Master 节点会选择合适的 Worker 节点创建 Container，Container 会包含在 Pod 里
+
+~~~yaml
+apiVersion: apps/v1	# 与 k8s 集群版本有关，使用 kubectl api-versions 即可查看当前集群支持的版本
+kind: Deployment	# 配置的类型，使用的是 Deployment
+metadata:	        # 元数据，即 Deployment 的一些基本属性和信息
+  name: nginx-deployment	# Deployment 的名称
+  labels:	    # 标签，可以灵活定位一个或多个资源，其中 key:value 均自定义，可以定义多组
+    app: nginx	# 为该 Deployment 设置标签
+spec:	        # 关于该 Deployment 的预期状态
+  replicas: 1	# 使用该 Deployment 创建一个实例
+  selector:	    # 标签选择器，与上面的标签共同作用
+    matchLabels: # 选择包含标签 app:nginx 的资源
+      app: nginx
+  template:	    # 这是选择或创建的 Pod 的模板
+    metadata:	# Pod 元数据
+      labels:	# Pod 标签，上面的 selector 即选择包含标签 app:nginx 的 Pod
+        app: nginx
+    spec:	    # Pod 预期状态
+      containers:	# 生成 container，与 docker 中的 container 是同一种
+      - name: nginx	# container 名称
+        image: nginx:1.7.9	# 使用镜像 nginx:1.7.9 创建 container，该 container 默认 80 端口可访问
+~~~
+
 ~~~bash
-# 启动一个 Nginx
-kubectl create deployment nginx --image=nginx
+# 部署
+kubectl apply -f nginx-deployment.yaml
+~~~
 
-# 暴露80端口
-kubectl expose deployment nginx --port=80 --type=NodePort
-
-# 查看 pod 与 svc 状态
-kubectl get pod,svc
-
-# 查看 pod 详细,顺便查看部署在哪个 Node 里了
-kubectl describe pod podname
-# 通过 Node IP:Port 访问，显示出 Nginx 界面即成功
-
-# 进入容器,能显示出命令行即成功
-kubectl exec nginx-748c667d99-94bsd -it --ns default /bin/bash
+~~~bash
+# 查看 Deployment
+kubectl get deployments
+# 查看 Pod
+kubectl get pods
 ~~~
 
 
 
-### 6、停止
+#### 2、状态查看
 
-任何节点都按此步骤
+~~~bash
+# kubectl get 资源类型
+# 获取类型为Deployment的资源列表
+kubectl get deployments
+
+# 获取类型为Pod的资源列表
+kubectl get pods
+
+# 获取类型为Node的资源列表
+kubectl get nodes
+~~~
+
+在命令后增加 -A 或 --all-namespaces 可查看所有 namespace 中的对象，使用参数 -n 可查看指定 namespace 的对象
+
+~~~bash
+# 查看所有名称空间的 Deployment
+kubectl get deployments -A
+kubectl get deployments --all-namespaces
+
+# 查看 kube-system 名称空间的 Deployment
+kubectl get deployments -n kube-system
+~~~
+
+
+
+#### 3、详情查看
+
+显示 Pod 的详细信息
+
+~~~~bash
+# kubectl describe 资源类型 资源名称
+
+# 查看名称为 nginx-XXXXXX 的 Pod 的信息
+kubectl describe pod nginx-XXXXXX	
+
+# 查看名称为 nginx 的 Deployment 的信息
+kubectl describe deployment nginx	
+~~~~
+
+查看容器日志
+
+~~~bash
+# kubectl logs Pod 名称
+
+# 查看名称为 nginx-pod-XXXXXXX 的 Pod 内的容器打印的日志
+# 上一步的 nginx-pod 没有输出日志，所以结果为空
+kubectl logs -f nginx-pod-XXXXXXX
+~~~
+
+
+
+#### 4、进入容器
+
+~~~bash
+# kubectl exec Pod名称 操作命令
+
+# 在名称为 nginx-pod-xxxxxx 的 Pod 中运行 bash
+kubectl exec -it nginx-pod-xxxxxx /bin/bash
+~~~
+
+
+
+#### 5、暴露实例
+
+
+
+
+
+### 6、停止
 
 ~~~bash
 # 移除指定节点的 pod
@@ -737,6 +948,8 @@ kubectl drain nodename --delete-local-data --force --ignore-daemonsets
 # 移除节点
 kubectl delete nodes nodename
 ~~~
+
+如果安装的网络插件为 flannel 且 容器运行时为 Docker 则直接运行下列所有命令
 
 ~~~bash
 kubeadm reset -f
@@ -785,6 +998,10 @@ Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与�
 
 ### 2、spec 对象
 
+Spec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达该组件要达到什么预期状态
+
+每个 K8s 对象都有 Spec 属性，只是其中的参数有所不同
+
 | 参数名                                      | 字段类型 | 说明                                                         |
 | ------------------------------------------- | -------- | ------------------------------------------------------------ |
 | spec.containers[].name                      | String   | 定义容器名字                                                 |
@@ -824,15 +1041,27 @@ Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与�
 
 Pod 是 Kubernetes 中可以创建和管理的最小单元，是资源对象模型中由用户创建或部署的最小资源对象模型，其他的资源对象都是用来支撑或者扩展 Pod 对象功能的，比如：控制器对象是用来管控 Pod 对象的、Service 或者 Ingress 资源对象是用来暴露 Pod 引用对象的，PersistentVolume 资源对象是用来为 Pod 提供存储等等
 
-Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成，每一个 Pod 都有一个特殊的被称为根容器的 Pause 容器，Pause 容器对应的镜像属于 Kubernetes 平台的一部分，除了 Pause 容器，每个 Pod 还包含一个或多个紧密相关的用户业务容器
+Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成，每一个 Pod 都有一个特殊的被称为根容器的 Pause 容器，Pause 容器对应的镜像属于 Kubernetes 平台的一部分，除了 Pause 容器，每个 Pod 还包含一个或多个紧密相关的用户业务容器，以及这些容器包含的资源，这些资源包括：
+
+- 共享存储：称为卷 Volumes
+- 网络：每个 Pod 在集群中有个唯一的 IP，Pod 中的 container 共享该 IP 地址
+- container 的基本信息，例如：容器的镜像版本，对外暴露的端口等
 
 <img src="images/image-20230107131244951.png" alt="image-20230107131244951" style="zoom: 33%;" />
 
 
 
+**建议**：
+
+- 如果多个容器紧密耦合并且需要共享磁盘等资源，则应该被部署在同一个 Pod
+
+<img src="images/image-20230216234334535.png" alt="image-20230216234334535" style="zoom:50%;" />
+
 ## 2、特点
 
-同一个 Pod 中的容器总会被调度到相同 Node 节点，不同节点间 Pod 的通信基于虚拟二层网络技术实现
+同一个 Pod 中的容器总会被调度到相同 Node 节点，并在相同 Node 节点的共享上下文中运行
+
+不同节点间 Pod 的通信基于**虚拟二层网络技术**实现
 
 Pod 又分为普通与静态
 
@@ -840,8 +1069,12 @@ Pod 又分为普通与静态
 
 **资源共享**：
 
-- 一个 Pod 里的多个容器可以共享存储和网络，可以看作一个逻辑的主机。共享的如 namespace、cgroups 或者其他的隔离资源
-- 同一个 Pod 里的多个容器共享 Pod 的 IP 和 端口 namespace，所以一个 Pod 内的多个容器之间可以通过 localhost 来进行通信，所需要注意的是不同容器要注意不要有端口冲突即可
+- 一个 Pod 里的多个容器可以共享存储和网络，可以看作一个逻辑的主机
+  - 资源：namespace、cgroups 或者其他的隔离资源
+
+- 同一个 Pod 里的多个容器共享 Pod 的 IP、端口、namespace
+  - 一个 Pod 内的多个容器之间可以通过 localhost 来进行通信，但需要注意的是容器之间的端口冲突
+
 - 不同的 Pod 有不同的 IP，不同 Pod 内的容器之前通信，不可以使用 IPC（进程间通信，如果没有特殊指定的话），通常情况下使用 Pod 的 IP 进行通信
 - 一个 Pod 里的多个容器可以共享存储卷，这个存储卷会被定义为 Pod 的一部分，并且可以挂载到该 Pod 里的所有容器的文件系统上
 - 每个 Pod 中有一个 Pause 容器保存所有容器状态， 通过管理 Pause 容器，达到管理 Pod 中所有容器的效果
@@ -850,7 +1083,7 @@ Pod 又分为普通与静态
 
 **生命周期短暂**：
 
-- Pod 属于生命周期比较短暂的组件，比如：当 Pod 所在节点发生故障，那么该节点上的 Pod 会被调度到其他节点，但需要注意的是，被重新调度的 Pod 是一个全新的 Pod，跟之前的 Pod 毫无关系
+- Pod 属于生命周期比较短暂的组件，比如：当 Pod 所在节点发生故障，那么该节点上的 Pod 会被调度到其他节点，但需要注意的是，被重新调度的 Pod 是一个全新的 Pod，跟之前的 Pod 毫无关系，除了配置相同外，其余属性均不相同，例如：IP、Name
 
 
 
@@ -2754,10 +2987,6 @@ spec:
       targetPort: 8080
       nodePort: 30800
 ~~~
-
-
-
-
 
 
 
