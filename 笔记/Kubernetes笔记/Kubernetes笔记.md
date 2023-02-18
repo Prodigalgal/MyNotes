@@ -61,15 +61,14 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 
 Master 组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
 
-- **kube-apiserver**：
+Master 组件：
 
+- **kube-apiserver**：
   - 提供 Kubernetes API，Kubernetes控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
   - kubectl / kubernetes dashboard 等 Kubernetes 管理工具就是通过 kubernetes API 实现对 Kubernetes 集群的管理
-
 - **etcd**：
 
   - 支持一致性和高可用的名值对存储组件，Kubernetes集群的所有配置信息都存储在 etcd 中
-
 - **kube-scheduler**：
 
   - 监控所有新创建尚未分配到节点上的 Pod，并且自动选择为 Pod 选择一个合适的节点去运行
@@ -79,16 +78,14 @@ Master 组件可以运行于集群中的任何机器上，但是通常在同一�
     - 亲和与反亲和（affinity and anti-affinity）的约定
     - 数据本地化要求
     - 工作负载间的相互作用
-
 - **kube-controller-manager**：
 
   - 运行了所有的控制器，逻辑上来说，每一个控制器是一个独立的进程，但是这些控制器都被合并运行在一个进程里
   - 包含的控制器有：
-    - 节点控制器： 负责监听节点停机的事件并作出对应响应
+    - 节点控制器： 负责监听节点停机的事件并作出对应响应（下文 Node 篇有简要介绍）
     - 副本控制器： 负责为集群中每一个 副本控制器对象（Replication Controller Object）维护期望的 Pod 副本数
     - 端点（Endpoints）控制器：负责为端点对象（Endpoints Object，连接 Service 和 Pod）赋值
     - Service Account & Token控制器： 负责为新的名称空间创建 default Service Account 以及 API Access Token
-
 - **cloud-controller-manager**：
 
   - 运行了与具体云基础设施供应商互动的控制器，这是 Kubernetes 1.6 版本中引入的特性
@@ -111,6 +108,8 @@ Master 组件可以运行于集群中的任何机器上，但是通常在同一�
 
 #### 2、Node
 
+##### 1、Node 组件
+
 **Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 Node 组件例如：kubelet、kube proxy 和 ContainerRuntime
 
 **Node 组件**：Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
@@ -131,6 +130,192 @@ Master 组件可以运行于集群中的任何机器上，但是通常在同一�
     - cri-o
     - rktlet
     - 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
+
+
+
+##### 2、Node 信息
+
+每个 Node 都有自身的状态，Node 状态包含如下信息：（这些信息由节点上的 kubelet 收集）
+
+- **Addresses**：
+
+  - 依据集群部署的方式（在哪个云供应商部署，或是在物理机上部署）Addesses 字段可能有所不同
+    - HostName： 在节点执行 hostname 命令所获得的值，启动 kubelet 时，可以通过参数 --hostname-override 覆盖
+    - ExternalIP：通常是节点的外部 IP，可以从集群外访问的内网 IP 地址，在集群搭建篇的例子中，为空值
+    - InternalIP：通常是从节点内部可以访问的 IP 地址
+
+- **Conditions**：
+
+  - 描述了节点的状态，Node Condition 以一个 JSON 对象的形式存在
+
+    | Node Condition    | 描述                                                         |
+    | ----------------- | ------------------------------------------------------------ |
+    | OutOfDisk         | 如果节点上的空白磁盘空间不够，不能够再添加新的节点时，该字段为 True，其他情况为 False |
+    | Ready             | 如果节点是健康的且已经就绪可以接受新的 Pod，则节点Ready字段为 True，False 表明了该节点不健康，不能够接受新的 Pod |
+    | MemoryPressure    | 如果节点内存紧张，则该字段为 True，否则为 False              |
+    | PIDPressure       | 如果节点上进程过多，则该字段为 True，否则为 False            |
+    | DiskPressure      | 如果节点磁盘空间紧张，则该字段为 True，否则为 False          |
+    | NetworkUnvailable | 如果节点的网络配置有问题，则该字段为 True，否则为 False      |
+
+    ~~~json
+    // 例子
+    "conditions": [
+      {
+        "type": "Ready",
+        "status": "True",
+        "reason": "KubeletReady",
+        "message": "kubelet is posting ready status",
+        "lastHeartbeatTime": "2019-06-05T18:38:35Z",
+        "lastTransitionTime": "2019-06-05T11:41:27Z"
+      }
+    ]
+    ~~~
+
+    - 如果 Ready 类型的 Condition 的 status 字段持续为 Unkown 或者 False 超过 pod-eviction-timeout（kube-controller-manager (opens new window)的参数）所指定的时间，节点控制器（node controller）将对该节点上的所有 Pod 执行删除的调度动作，默认的 pod-eviction-timeout 时间是 5 分钟
+    - 某些情况下（例如：节点网络故障）apiserver 不能够与节点上的 kubelet 通信，删除 Pod 的指令不能下达到该节点的 kubelet 上，直到 apiserver 与节点的通信重新建立，删除指令才下达到节点，这也就导致虽然对 Pod 执行了删除的调度指令，但是这些 Pod 仍然在失联的节点上运行，因此可能会发现失联节点上的 Pod 仍然在运行（在该节点上执行 docker ps 等命令可查看容器的运行状态），然而 apiserver 中，失联节点的 Pod 的状态已经变为 Terminating 或者 Unknown，如果 Kubernetes 不能通过 cloud-controller-manager 判断失联节点是否已经永久从集群中移除（例如：在虚拟机或物理机上自己部署 Kubernetes 的情况），则集群管理员需要手动删除 apiserver 中的节点对象，此时 Kubernetes 将删除该节点上的所有 Pod，在 Kubernetes v1.12 中，TaintNodesByCondition 特性进入 beta 阶段，此时 node lifecycle controller 将自动创建该 Condition 对应的污点，调度器在选择合适的节点时，不再关注节点的 Condition，而是检查节点的污点和 Pod 的容忍度
+
+- **Capacity and Allocatable**：
+
+  - Capacity 中的字段表示节点上的资源总数，Allocatable 中的字段表示该节点上可分配给普通 Pod 的资源总数
+    - CPU
+    - 内存
+    - 该节点可调度的最大 Pod 数量
+
+- **Info**：
+  - 描述了节点的基本信息，例如：
+    - Linux 内核版本
+    - Kubernetes 版本（kubelet 和 kube-proxy 的版本）
+    - Docker 版本
+    - 操作系统名称
+
+~~~bash
+# 查看所有 Node
+kubectl get nodes -o wide
+# 查看节点详细信息
+kubectl describe node <node-name>
+~~~
+
+
+
+##### 3、Node 管理
+
+与 Pod 和 Service 不一样，节点并不是由 Kubernetes 创建的，节点由云供应商（例如：Google Compute Engine、阿里云等）创建，或者节点已经存在于本地物理机/虚拟机的资源池
+
+Kubernetes 中创建节点时，仅仅是创建了一个描述该节点的 API 对象，节点 API 对象创建成功后，Kubernetes将检查该节点是否有效
+
+假设创建如下节点信息：
+
+~~~yaml
+kind: Node
+apiVersion: v1
+metadata:
+  name: "10.240.79.157"
+  labels:
+    name: "my-first-k8s-node"
+~~~
+
+Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述），并且基于 metadata.name 字段对节点进行健康检查，如果节点有效（节点组件正在运行），则可以向该节点调度 Pod，否则该节点 API 对象将被忽略，并且 K8s 会一直检测节点的状态，直到节点变为有效状态或者由集群管理员手动删除节点
+
+
+
+##### 4、Node Controller
+
+节点控制器是一个负责管理节点的 Kubernetes master 组件，主要功能：
+
+- 节点控制器在注册节点时为节点分配 CIDR 地址块
+
+- 节点控制器通过云供应商接口检查节点列表中每一个节点对象对应的虚拟机是否可用，在云环境中，只要节点状态异常，节点控制器检查其虚拟机在云供应商的状态，如果虚拟机不可用，自动将节点对象从 APIServer 中删除
+
+- 节点控制器监控节点的健康状况，当节点变得不可触达时（例如：由于节点已停机，节点控制器不再收到来自节点的心跳信号）节点控制器将节点API对象的 NodeStatus Condition 取值从 NodeReady 更新为 Unknown，然后在等待 pod-eviction-timeout 时间后，将节点上的所有 Pod 从节点驱逐
+
+  - 默认40秒未收到心跳，修改 NodeStatus Condition 为 Unknown
+  - 默认 pod-eviction-timeout 为 5分钟
+  - 节点控制器每隔 --node-monitor-period 秒检查一次节点的状态
+
+- 每个节点都有一个 kube-node-lease 名称空间下对应的 Lease 对象，节点控制器周期性地更新 Lease 对象，此时 NodeStatus 和 node-lease 都被用来记录节点的心跳信号
+
+  - NodeStatus 的更新频率远高于 node-lease，原因是：
+
+    - 每次节点向 Master 发出心跳信号，NodeStatus 都将被更新
+
+    - 只有在 NodeStatus 发生改变，或者足够长的时间未接收到 NodeStatus 更新时，节点控制器才更新 node-lease（默认为1分钟，比节点失联的超时时间 40 秒要更长）
+    - 由于 node-lease 比 NodeStatus 更轻量级，该特性显著提高了节点心跳机制的效率，并使 Kubernetes 性能和可伸缩性得到了提升
+
+在 Kubernetes v1.4 中，优化了节点控制器的逻辑以便更好的处理大量节点不能触达 Master 的情况（例如：Master 出现网络故障），主要的优化点在于，节点控制器在决定是否执行 Pod 驱逐的动作时，会检查集群中所有节点的状态
+
+大多数情况下，节点控制器限制了驱逐 Pod 的速率为 --node-eviction-rate （默认值是0.1）每秒，即节点控制器每 10 秒驱逐 1 个 Pod
+
+当节点所在的高可用区出现故障时，节点控制器驱逐 Pod 的方式将不一样，节点控制器驱逐Pod前，将检查高可用区里故障节点的百分比（NodeReady Condition 的值为 Unknown 或 False）：
+
+- 如果故障节点的比例不低于 --unhealthy-zone-threshold（默认为 0.55），则降低驱逐 Pod 的速率
+- 如果集群规模较小（少于等于 --large-cluster-size-threshold 个节点，默认值为 50），则停止驱逐 Pod
+- 如果集群规模大于 --large-cluster-size-threshold 个节点，则驱逐 Pod 的速率降低到 --secondary-node-eviction-rate （默认值为 0.01）每秒
+
+针对每个高可用区使用这个策略的原因是，某一个高可用区可能与 Master 隔开了，而其他高可用区仍然保持连接，如果集群并未分布在云供应商的多个高可用区上，此时只有一个高可用区（即整个集群）
+
+将集群的节点分布到多个高可用区最大的原因是，在某个高可用区出现整体故障时，可以将工作负载迁移到仍然健康的高可用区，因此如果某个高可用区的所有节点都出现故障时，节点控制器仍然使用正常的驱逐 Pod 的速率（--node-eviction-rate）
+
+最极端的情况是，所有的高可用区都完全不可用（例如：集群中一个健康的节点都没有），此时节点控制器 Master 节点的网络连接出现故障，并停止所有的驱逐 Pod 的动作，直到某些连接得到恢复
+
+自 Kubernetes v1.6 开始，节点控制器同时也负责为带有 NoExecute 污点的节点驱逐其上的 Pod，同时节点控制器还负责根据节点的状态（例如：节点不可用，节点未就绪等）为节点添加污点
+
+自 Kubernetes v1.8 开始，节点控制器可以根据节点的 Condition 为节点添加污点
+
+
+
+##### 5、节点自注册
+
+如果 kubelet 的启动参数 --register-node为 true（默认为 true），kubelet 会尝试将自己注册到 API Server
+
+kubelet自行时，将使用如下选项：
+
+- --kubeconfig：向 apiserver 进行认证时所用身份信息的路径
+- --cloud-provider：向云供应商读取节点自身元数据
+- --register-node：自动向 API Server 注册节点
+- --register-with-taints：注册节点时，为节点添加污点，逗号分隔，格式为 <key>=<value>:<effect>
+- --node-ip：节点的 IP 地址
+- --node-labels：注册节点时，为节点添加标签
+- --node-status-update-frequency：向 Master 节点发送心跳信息的时间间隔
+
+如果 Node authorization mode 和 NodeRestriction admission plugin 被启用，kubelet 只拥有创建/修改其自身所对应的节点 API 对象的权限
+
+
+
+##### 6、手动管理节点
+
+如果管理员想要手动创建节点 API 对象，可以将 kubelet 的启动参数 --register-node 设置为 false
+
+管理员可以修改节点API对象（不管是否设置了 --register-node 参数）
+
+可以修改的内容有：
+
+- 增加/减少标签
+- 标记节点为不可调度（unschedulable）
+
+节点的标签与 Pod 上的节点选择器（node selector）配合，可以控制调度方式，例如：限定 Pod 只能在某一组节点上运行
+
+执行如下命令可将节点标记为不可调度（unschedulable）阻止新的 Pod 被调度到该节点上，但是不影响任何已经在该节点上运行的 Pod，这在准备重启节点之前非常有用
+
+```sh
+kubectl cordon $NODENAME
+```
+
+z**注意**：
+
+- DaemonSet Controller 创建的 Pod 将绕过 Kubernetes 调度器，并且忽略节点的 unschedulable 属性
+  - Daemons 守护进程属于节点，尽管该节点在准备重启前，已经排空了上面所有的应用程序
+
+
+
+##### 7、节点容量
+
+节点 API 对象中描述了节点的容量（Capacity），例如：CPU数量、内存大小等信息
+
+通常节点在向 APIServer 注册的同时，在节点 API 对象里汇报了其容量（Capacity），如果手动管理节点，需要在添加节点时自己设置节点的容量
+
+Kubernetes 调度器在调度 Pod 到节点上时，将确保节点上有足够的资源，也即调度器检查节点上所有容器的资源请求之和不大于节点的容量，并且只能检查由 kubelet 启动的容器，不包括直接由容器引擎启动的容器，更不包括不在容器里运行的进程
+
+可以显示的为 Pod 以外的进程预留资源，参考 reserve resources for system daemons
 
 
 
@@ -317,16 +502,202 @@ Kubelet 是在每个 Node 节点上运行的主要节点代理，用于在集群
 
 #### 4、容器运行时
 
+##### 1、概述
+
 v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dockershim，但是自 v1.24 版起，Dockershim 已从 Kubernetes 项目中移除，所以需要在集群内每个节点上安装一个容器运行时以使 Pod 可以运行在上面，v1.26 要求使用符合容器运行时接口（CRI）的运行时
 
 容器运行时具有掌控容器运行的整个生命周期，包括镜像的构建和管理、容器的运行和管理等，其向上提供容器调用接口，包括容器生成与销毁的全生命周期管理的功能，向下提供调用接口，负责具体的容器操作事项
 
 常见的容器运行时：
 
-- containerd
+- containerd（推荐）
 - CRI-O
 - Docker Engine
 - Mirantis Container Runtime
+
+
+
+Kubernetes为容器提供了一系列重要的资源：
+
+- 由镜像、一个或多个数据卷合并组成的文件系统
+- 容器自身的信息
+- 集群中其他重要对象的信息
+
+在容器中执行 hostname 命令或者在libc 中执行 gethostname 函调用，获得的是容器所在 Pod 的名字
+
+Pod 的名字，以及 Pod 所在名称空间可以通过 downward API 注入到容器的环境变量里。
+
+用户也可以使用 configMap 为容器自定义环境变量
+
+在容器创建时，集群中所有的 Service 的连接信息将以环境变量的形式注入到容器中
+
+~~~bash
+FOO_SERVICE_HOST=<Service的ClusterIP>
+FOO_SERVICE_PORT=<Service的端口>
+~~~
+
+
+
+##### 2、RunTime Class
+
+使用 RuntimeClass 这一特性可以为容器选择运行时的容器引擎，以在性能和安全之间取得平衡
+
+如果要使用，请确保 RuntimeClass 的 feature gate 在 apiserver 和 kubelet 上都是是激活状态，其依赖于 Container Runtime Interface（CRI）的具体实现
+
+RuntimeClass 默认要求集群中所有节点上的容器引擎的配置都是相同的，Kubernetes v1.16 中才开始引入对节点上容器引起不同的情况下的支持
+
+
+
+**containerd**：
+
+修改配置文件 /etc/containerd/config.toml 配置其 Runtime handler，请注意该文档的如下内容
+
+```toml
+# 旧版为 cri
+# 新版查看安装过程中配置
+[plugins.cri.containerd.runtimes.${HANDLER_NAME}]
+```
+
+此配置会有一个 handler 名称，用来唯一地标识该 CRI 的配置，此时需要为每一个 handler 创建一个对应的 RuntimeClass api 对象
+
+RuntimeClass 目前只有两个主要的字段：
+
+- RuntimeClass name（metadata.name）
+- handler (handler)
+
+~~~yaml
+apiVersion: node.k8s.io/v1beta1
+kind: RuntimeClass
+metadata:
+  name: myclass # RuntimeClass 没有名称空间
+handler: myHandler  # 对应 CRI 配置的 handler 名称
+~~~
+
+为集群完成 RuntimeClass 的配置后，在 Pod 的定义中指定 runtimeClassName 即可
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  runtimeClassName: myclass
+~~~
+
+kubelet 将依据这个字段使用指定的 RuntimeClass 来运行该 Pod，如果指定的 RuntimeClass 不存在，或者 CRI 不能运行对应的 handler 配置，则 Pod 将进入 Failed 这个终止阶段，需要查看 Pod 的日志排查，如果 Pod 中未指定 runtimeClassName，kubelet 将使用默认的 RuntimeHandler 运行 Pod
+
+
+
+##### 3、容器钩子
+
+Kubernetes中为容器提供了两个 hook（钩子函数）：
+
+- **PostStart**：
+  - 此钩子函数在容器创建后将立刻执行，并不能保证该钩子函数在容器的 ENTRYPOINT 之前执行
+  - 该钩子函数没有输入参数
+- **PreStop**：
+  - 此钩子函数在容器被 terminate（终止）之前执行，例如：
+    - 通过接口调用删除容器所在 Pod
+    - 某些管理事件的发生：健康检查失败、资源紧缺等
+  - 如果容器已经被关闭或者进入了 completed 状态，preStop 钩子函数的调用将失败
+  - 该函数的执行是同步的，即 Kubernetes 将在该函数完成执行之后才删除容器
+  - 该钩子函数没有输入参数
+
+容器只要实现并注册 hook handler 便可以使用钩子函数，容器可以实现两种类型的 hook handler：
+
+- **Exec**：在容器的名称空进和 cgroups 中执行一个指定的命令，例如：pre-stop.sh
+  - 该命令所消耗的 CPU、内存等资源，将计入容器可以使用的资源限制
+- **HTTP**：向容器的指定端口发送一个 HTTP 请求
+
+当容器的生命周期事件发生时，Kubernetes 在容器中执行该钩子函数注册的 handler，对于 Pod 而言，hook handler 的调用是同步的，即如果是 PostStart hook，容器的 ENTRYPOINT 和 hook 是同时出发的，然而如果 hook 执行的时间过长或者挂起了，容器将不能进入到 Running 状态，PreStop hook 的行为与此相似，如果 hook 在执行过程中挂起了，Pod phase 将停留在 Terminating 的状态，并且在 terminationGracePeriodSeconds 超时之后，Pod被删除，如果 PostStart 或者 PreStop hook 执行失败，则 Kubernetes 将 kill 该容器
+
+用户应该使其 hook handler 越轻量级越好，例如：对于长时间运行的任务，在停止容器前，调用 PreStop 钩子函数，以保存当时的计算状态和数据
+
+Hook 将至少被触发一次，即，当指定事件 PostStart 或 PreStop 发生时，hook 有可能被多次触发，因此 hook handler 的实现需要保证即使多次触发，执行也不会出错
+
+Hook handler 的日志并没有在 Pod 的 events 中发布，如果 handler 因为某些原因失败了，kubernetes 将广播一个事件 PostStart hook 发送 FailedPreStopHook 事件，可以执行命令 kubectl describe pod $(pod_name) 以查看这些事件
+
+~~~bash
+# 创建一个 Pod 并在其内定义 hook
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-demo
+spec:
+  containers:
+  - name: lifecycle-demo-container
+    image: nginx
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+      preStop:
+        exec:
+          command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+~~~
+
+
+
+**注意**：
+
+- Kubernetes 只在 Pod Teminated 状态时才发送 preStop 事件，处于其他状态不会发送
+
+
+
+### 4、集群通信
+
+**Node To Master**：
+
+所有从集群访问 Master 节点的通信，都是通过 APIServer （没有任何其他 Master 组件发布远程调用接口）
+
+通常安装 Kubernetes 时，APIServer 监听 HTTPS 端口（443），并且配置了一种或多种客户端认证方式，至少需要配置一种形式的授权方式，尤其是匿名访问或 Service Account Tokens 被启用的情况下
+
+节点上必须配置集群（APIServer）的公钥根证书（public root certificate），在提供有效的客户端身份认证的情况下，节点可以安全地访问 APIServer，例如：在 Google Kubernetes Engine 的默认 K8s 安装里，通过客户端证书为 kubelet 提供客户端身份认证
+
+对于需要调用 APIServer 接口的 Pod，应该为其关联 Service Account，此时 Kubernetes 将在创建 Pod 时自动为其注入公钥根证书（public root certificate）以及一个有效的 bearer token（放在 HTTP 请求头 Authorization 字段）
+
+所有名称空间中，都默认配置了名为 Kubernetes 的 Service，该 Service 对应一个虚拟 IP（默认为 10.96.0.1）将发送到该地址的请求将由 kube-proxy 转发到 APIServer 的 HTTPS 端口上
+
+得益于这些措施，默认情况下从集群（节点以及节点上运行的 Pod）访问 Master 的连接是安全的，可以通过不受信的网络或公网连接 Kubernetes 集群
+
+
+
+**Master To Node**：
+
+从 Master（APIServer）到 Node 存在着两条主要的通信路径：
+
+- apiserver 访问集群中每个节点上的 kubelet 进程
+- 使用 apiserver 的 proxy 功能，从 apiserver 访问集群中的任意节点、Pod、Service
+
+
+
+**apiserver to kubelet**：
+
+apiserver 在如下情况下访问 kubelet：
+
+- 抓取 Pod 的日志
+- 通过 kubectl exec -it 指令（或 kuboard 的终端界面）获得容器的命令行终端
+- 提供 kubectl port-forward 功能
+
+这些连接的访问端点是 kubelet 的 HTTPS 端口，默认情况下，apiserver 不校验 kubelet 的 HTTPS 证书，这种情况下，连接可能会收到 man-in-the-middle 攻击，因此该连接如果在不受信网络或者公网上运行时，是不安全的
+
+如果要校验 kubelet 的 HTTPS 证书，可以通过 --kubelet-certificate-authority 参数为 apiserver 提供校验 kubelet 证书的根证书，否则建议开启 Kubelet authentication/authorization 以保护 kubelet API
+
+
+
+**apiserver to nodes, pods, services**：
+
+从 apiserver 到 节点、Pod、Service 的连接使用的是 HTTP 连接，没有进行身份认证，也没有进行加密传输，也可以通过增加 https 作为 节点、Pod、Service 请求 URL 的前缀，但是 HTTPS 证书并不会被校验，也无需客户端身份认证，因此该连接是无法保证一致性的
+
+目前，此类连接如果运行在非受信网络或公网上时，是不安全的
+
+
+
+**SSH**：
+
+Kubernetes 支持 SSH隧道（tunnel）来保护 Master --> Node 访问路径，APIServer 将向集群中的每一个节点建立一个 SSH 隧道（连接到端口 22 的 ssh 服务）并通过隧道传递所有发向 kubelet、node、pod、service 的请求
+
+SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通信方式
 
 
 
@@ -933,6 +1304,142 @@ kubectl exec -it nginx-pod-xxxxxx /bin/bash
 
 #### 5、暴露实例
 
+Kubernetes 中的 **Service（服务）** 提供了一种抽象层，它选择具备某些特征的 Pod 并定义一个访问方式
+
+Service 使 Pod 之间的相互依赖解耦，原本从一个 Pod 中访问另外一个 Pod，需要知道对方的 IP 地址
+
+Service 通过 Labels、LabelSelector 选定 Pod
+
+在创建Service的时候，通过设置配置文件中的 spec.type 字段的值，可以以不同方式向外部暴露应用程序：
+
+- **ClusterIP**（默认）：在群集中的内部IP上公布服务，这种方式的 Service（服务）只在集群内部可以访问到
+- **NodePort**：使用 NAT 在集群中所有节点的同一端口上公布服务，可以通过访问集群中任意 节点IP + 端口号 的方式访问服务，此时 ClusterIP 的访问方式仍然可用
+- **LoadBalancer**：在云环境中，创建一个集群外部的负载均衡器，并为使用该负载均衡器的 IP 地址作为服务的访问地址，此时 ClusterIP 和 NodePort 的访问方式仍然可用
+
+
+
+<img src="images/image-20230217211134357.png" alt="image-20230217211134357" style="zoom:50%;" />
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service	# Service 名称
+  labels:     	# Service 自己的标签
+    app: nginx	# 为该 Service 设置 key 为 app，value 为 nginx 的标签
+spec:	    # Service 预期状态
+  selector:	    # 标签选择器
+    app: nginx	# 选择包含标签 app:nginx 的 Pod
+  ports:
+  - name: nginx-port	# 端口的名字
+    protocol: TCP	    # 协议类型 TCP/UDP
+    port: 80	        # 集群内的其他容器组可通过 80 端口访问 Service
+    nodePort: 32600   # 通过任意节点的 32600 端口访问 Service
+    targetPort: 80	# 将请求转发到匹配 Pod 的 80 端口
+  type: NodePort	# Serive 负载类型：ClusterIP/NodePort/LoaderBalancer
+~~~
+
+~~~bash
+# 部署
+kubectl apply -f nginx-service.yaml
+# 查看
+kubectl get svc -o wide
+~~~
+
+~~~bash
+# 访问
+curl <任意节点 IP>:32600
+~~~
+
+
+
+#### 6、伸缩容器
+
+**伸缩容器**通过更改 nginx-deployment.yaml 文件中部署的 replicas（副本数）来完成
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+# 修改副本数量为 4
+  replicas: 4
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+~~~
+
+~~~bash
+# 使用 apply 应用
+kubectl apply -f nginx-deployment.yaml
+# 查看结果
+watch kubectl get pods -o wide
+~~~
+
+
+
+#### 7、滚动更新
+
+**Rolling Update 滚动更新**通过使用新版本 Pod 逐步替代旧版本 Pod 来实现 Deployment 的更新，从而实现零停机，新版本 Pod 将在具有可用资源的 Node 上进行调度，这个过程中，Service 会持续监视 Pod 的状态，将流量始终转发到可用的 Pod 上
+
+在Kubernetes 中，更新是版本化的，任何部署更新都可以恢复为以前的版本
+
+滚动更新允许以下操作：
+
+- 将应用程序从准上线环境升级到生产环境（通过更新容器镜像）
+- 回滚到以前的版本
+- 持续集成和持续交付应用程序，无需停机
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.8   # 使用镜像 nginx:1.8 替换原来的 nginx:1.7.9
+        ports:
+        - containerPort: 80
+~~~
+
+~~~bash
+# 应用
+kubectl apply -f nginx-deployment.yaml
+# 查看
+watch kubectl get pods -l app=nginx
+~~~
+
+<img src="images/image-20230217212230637.png" alt="image-20230217212230637" style="zoom:50%;" />
+
+
+
+
+
 
 
 
@@ -979,7 +1486,55 @@ Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与�
 
 
 
-## 2、常用字段
+## 2、资源对象
+
+### 1、概述
+
+资源对象指的是 Kubernetes 系统的持久化实体，也可以叫 K8s 对象，并通过 APIServer存储在 etcd 中，这些数据/对象描述了：
+
+- 集群中运行了哪些容器化应用程序（以及在哪个节点上运行）
+- 集群中对应用程序可用的资源
+- 应用程序相关的策略定义，例如，重启策略、升级策略、容错策略
+- 其他 Kubernetes 管理应用程序时所需要的信息
+
+一个 Kubernetes 对象代表着用户的一个意图（a record of intent），一旦创建了一个 Kubernetes 对象，Kubernetes 将持续工作，以尽量实现此用户的意图，Kubernetes 对象就是告诉 Kubernetes，需要的集群中的工作负载是什么（集群的**目标状态**）
+
+所有 K8s 对象都包含两个状态：
+
+- **spec**：必须由您来提供，描述了您对该对象所期望的预期状态
+- **status**：只能由 Kubernetes 系统来修改，描述了该对象在 Kubernetes 系统中的实际状态
+
+同一个 Kubernetes 对象应该只使用一种方式管理，否则可能会出现不可预期的结果
+
+
+
+### 2、管理
+
+| 管理方式         | 操作对象                     | 推荐的环境 |
+| ---------------- | ---------------------------- | ---------- |
+| 指令性的命令行   | Kubernetes 对象              | 开发环境   |
+| 指令性的对象配置 | 单个 yaml 文件               | 生产环境   |
+| 声明式的对象配置 | 包含多个 yaml 文件的多个目录 | 生产环境   |
+
+~~~bash
+# 指令性命令行
+kubectl create deployment nginx --image nginx
+
+# 指令性 yaml
+kubectl create -f nginx.yaml
+
+# 声明式 yaml
+kubectl diff -f configs/
+kubectl apply -f configs/
+~~~
+
+
+
+
+
+
+
+## 3、常用字段
 
 ### 1、必须存在的属性
 
@@ -994,9 +1549,45 @@ Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与�
 | metadata.annotation[] | List     | 自定义注解属性列表                              |
 | spec                  | Object   | 详细定义对象，固定值写 Spec                     |
 
+**注解**：
+
+- 可以存入任意的信息，Kubernetes 的客户端或者自动化工具可以存取这些信息以实现其自定义的逻辑
+
+- ~~~yaml
+  metadata:
+    annotations:
+      key1: value1
+      key2: value2
+  ~~~
+
+- 注解的 key 有两个部分：可选的前缀和标签名，通过 / 分隔。
+
+  - 注解名：
+    - 标签名部分是必须的
+    - 不能多于 63 个字符
+    - 必须由字母、数字开始和结尾
+    - 可以包含字母、数字、减号-、下划线_、小数点.
+  - 注解前缀：
+    - 注解前缀部分是可选的
+    - 如果指定，必须是一个DNS的子域名，同 Label 前缀
+    - 不能多于 253 个字符
+    - 使用 / 和标签名分隔
+
+- 类似于下面的信息可以记录在注解中：
+
+  - 声明式配置层用到的状态信息。
+  - Build、release、image，例如：timestamp、release ID、git branch、PR number、image hash、registry address
+  - 日志、监控、分析、审计系统的参数
+  - 第三方工具所需要的信息，例如：name、version、build information、URL
+  - 轻量级的发布工具用到的信息，例如：config、checkpoint
+  - 负责人的联系方式，例如：电话号码、网址、电子信箱
+  - 用户用来记录备忘信息的说明，例如：对标准镜像做了什么样的修改、维护过程中有什么特殊信息需要记住
 
 
-### 2、spec 对象
+
+
+
+### 2、Spec 属性
 
 Spec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达该组件要达到什么预期状态
 
@@ -1041,7 +1632,7 @@ Spec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达
 
 Pod 是 Kubernetes 中可以创建和管理的最小单元，是资源对象模型中由用户创建或部署的最小资源对象模型，其他的资源对象都是用来支撑或者扩展 Pod 对象功能的，比如：控制器对象是用来管控 Pod 对象的、Service 或者 Ingress 资源对象是用来暴露 Pod 引用对象的，PersistentVolume 资源对象是用来为 Pod 提供存储等等
 
-Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成，每一个 Pod 都有一个特殊的被称为根容器的 Pause 容器，Pause 容器对应的镜像属于 Kubernetes 平台的一部分，除了 Pause 容器，每个 Pod 还包含一个或多个紧密相关的用户业务容器，以及这些容器包含的资源，这些资源包括：
+Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成，其中的每个容器都称为副本（replication），由对应的 Controller 管理，每一个 Pod 都有一个特殊的被称为根容器的 Pause 容器，Pause 容器对应的镜像属于 Kubernetes 平台的一部分，除了 Pause 容器，每个 Pod 还包含一个或多个紧密相关的用户业务容器，以及这些容器包含的资源，这些资源包括：
 
 - 共享存储：称为卷 Volumes
 - 网络：每个 Pod 在集群中有个唯一的 IP，Pod 中的 container 共享该 IP 地址
@@ -1049,19 +1640,30 @@ Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成�
 
 <img src="images/image-20230107131244951.png" alt="image-20230107131244951" style="zoom: 33%;" />
 
+某些 Pod 除了使用 app container （工作容器）以外，还会使用 init container （初始化容器），初始化容器运行并结束后，工作容器才开始启动
+
 
 
 **建议**：
 
 - 如果多个容器紧密耦合并且需要共享磁盘等资源，则应该被部署在同一个 Pod
+- 应该尽量避免在 Kubernetes 中直接创建单个 Pod，推荐的做法是使用 Controller 来管理 Pod
 
 <img src="images/image-20230216234334535.png" alt="image-20230216234334535" style="zoom:50%;" />
+
+**注意**：
+
+- Pod 由控制器依据 Pod Template 创建以后，此时再修改 Pod Template 的内容，已经创建的 Pod 不会被修改
+
+
 
 ## 2、特点
 
 同一个 Pod 中的容器总会被调度到相同 Node 节点，并在相同 Node 节点的共享上下文中运行
 
 不同节点间 Pod 的通信基于**虚拟二层网络技术**实现
+
+Pod 本身并不能自愈（self-healing）
 
 Pod 又分为普通与静态
 
@@ -1095,6 +1697,8 @@ Pod 又分为普通与静态
 
 
 ## 3、定义
+
+Pod Template 是关于 Pod 的定义，其包含在其他的 Kubernetes 对象中（例如：Deployment、StatefulSet、DaemonSet 等控制器），控制器通过 Pod Template 信息来创建 Pod
 
 配置文件（配置项尚未校对完毕）
 
@@ -1192,13 +1796,24 @@ configMap:
 
 
 
+**注意**：
+
+- imagePullPolicy 字段和 image tag的可能取值将影响到 kubelet 如何抓取镜像：
+  - Policy=IfNotPresent 仅在节点上没有该镜像时，从镜像仓库抓取
+  - Policy=Always 每次启动 Pod 时，从镜像仓库抓取
+  - Policy未填写，tag=latest 或者未填写，则同 Always 每次启动 Pod 时，从镜像仓库抓取
+  - Policy未填写，tag != latest，则同 IfNotPresent 仅在节点上没有该镜像时，从镜像仓库抓取
+  - Policy=Never，Kubernetes 假设本地存在该镜像，并且不会尝试从镜像仓库抓取镜像
+
+
+
+
+
 ## 4、使用方法
 
 在 Kubernetes 中对运行容器的要求为：容器的主程序需要一直在前台运行，而不是后台运行
 
 因此应用需要改造成前台运行的方式，例如：创建的 Docker 镜像的启动命令是后台执行程序，则在 Kubelet 创建包含这个容器的 Pod 之 后运行完该命令，就认为 Pod 已经结束，将立刻销毁该 Pod，如果为该 Pod 定义了 RC，则会陷入一个无限循环创建、销毁的过程中
-
-
 
 配置文件示例：
 
@@ -1265,6 +1880,8 @@ Pod 有两种类型：普通和静态
 
 ## 6、生命周期
 
+Pod phase 代表其所处生命周期的阶段，phase 并不是用来代表其容器的状态，也不是一个严格的状态机
+
 | 状态       | 说明                                                         |
 | ---------- | ------------------------------------------------------------ |
 | Pending    | API Server 已经创建了 Pod，但其中的容器镜像还未创建，包括镜像下载 |
@@ -1272,6 +1889,47 @@ Pod 有两种类型：普通和静态
 | Compeleted | Pod 内所有容器均成功退出，并且不会重启                       |
 | Failed     | Pod 内所有容器均退出，但至少有一个容器失败                   |
 | Unknow     | 由于未知原因无法获取 Pod 状态，例如：网络通信不畅            |
+
+
+
+Pod 内有一个状态数组描述其是否达到某些指定的条件：
+
+| 字段名             | 描述                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| type               | type 是最重要的字段，可能的取值有：<br />**PodScheduled：** Pod 已被调度到一个节点<br />**Ready：** Pod 已经可以接受服务请求，应该被添加到所匹配 Service 的负载均衡的资源池<br />**Initialized：**Pod 中所有初始化容器已成功执行<br />**Unschedulable：**不能调度该 Pod（缺少资源或者其他限制）<br />**ContainersReady：**Pod 中所有容器都已就绪 |
+| status             | 可能的取值：True、False、Unknown                             |
+| reason             | Condition 发生变化的原因，使用一个符合驼峰规则的英文单词描述 |
+| message            | Condition 发生变化的原因的详细描述，human-readable           |
+| lastTransitionTime | Condition 发生变化的时间戳                                   |
+| lastProbeTime      | 上一次针对 Pod 做健康检查/就绪检查的时间戳                   |
+
+当Pod 被创建后，Pod 将一直保留在该节点上，直到 Pod 以下情况发生：
+
+- Pod 中的容器全部结束运行
+- Pod 被删除
+- 由于节点资源不够，Pod 被驱逐
+- 节点出现故障（例如死机）
+
+
+
+Pod 代表了运行在集群节点上的进程，而进程的终止有两种方式：
+
+- gracefully terminate （优雅地终止）
+- 直接 kill，此时进程没有机会执行清理动作
+
+当用户发起删除 Pod 的指令时，Kubernetes 需要：
+
+- 让用户知道 Pod 何时被删除
+- 确保删除 Pod 的指令最终能够完成
+
+Kubernetes 收到用户删除 Pod 的指令后：
+
+1. 记录强制终止前的等待时长（grace period）
+2. 向 Pod 中所有容器的主进程发送 TERM 信号
+3. 一旦等待超时，向超时的容器主进程发送 KILL 信号
+4. 删除 Pod 在 API Server 中的记录
+
+如果要手动强制删除 Pod，必须为 kubectl delete 命令同时指定两个选项 --grace-period=0 和 --force，通常如果没有人或者控制器删除 Pod，Pod 不会自己消失，除非 Pod 处于 Scucceeded 或 Failed 的 phase，并超过了垃圾回收的时长（在 Kubernetes Master 中通过 terminated-pod-gc-threshold 参数指定），kubelet 自动将其删除
 
 
 
@@ -1283,9 +1941,25 @@ Pod 有两种类型：普通和静态
 | OnFailure | 当容器非正确终止（退出码不为 0 ），由 Kubelet 重启容器 |
 | Never     | 无论容器如何终止，都不重启                             |
 
+kubelet 将在五分钟内，按照递延的时间间隔（10s, 20s, 40s ......）尝试重启已退出的容器，并在十分钟后再次启动这个循环，直到容器成功启动，或者 Pod 被删除
+
+控制器 Deployment、StatefulSet、DaemonSet，只支持 Always 这一个选项，不支持 OnFailure 和 Never 选项
+
+
+
+Pod 重启时，所有的初始化容器都会重新执行，Pod 重启的原因可能有：
+
+- 用户更新了 Pod 的定义，并改变了初始化容器的镜像
+  - 改变任何一个初始化容器的镜像，将导致整个 Pod 重启
+  - 改变工作容器的镜像，将只重启该工作容器，而不重启 Pod
+- Pod 容器所在节点的基础设施被重启（例如：docker engine），通常只有 Node 节点的 root 用户才可以执行此操作
+- Pod 中所有容器都已经结束，restartPolicy 是 Always，且初始化容器执行的记录已经被垃圾回收，此时将重启整个 Pod
+
 
 
 ## 8、状态转换
+
+在 K8s 里面这个状态机制之间这个状态转换会产生相应的事件，而这个事件又通过类似像 normal 或者是 warning 的方式进行暴露，可以通过上层 Condition Status 相应的一系列字段来判断当前应用的具体状态并进行诊断
 
 | 包含容器数 | 当前状态 | 发生事件        | 结果状态 |           | 结果状态结果状态 |
 | ---------- | -------- | --------------- | -------- | --------- | ---------------- |
@@ -1294,6 +1968,8 @@ Pod 有两种类型：普通和静态
 | 一个       | Running  | 容器失败终止    | Running  | Running   | Failed           |
 | 多个       | Running  | 容器失败终止    | Running  | Running   | Running          |
 | 多个       | Running  | 容器被 OOM 终止 | Running  | Running   | Failed           |
+
+<img src="images/fd5234589b3e19eed61ce07381ef27e5de8f1123.451480e1.png" alt="fd5234589b3e19eed61ce07381ef27e5de8f1123.451480e1" style="zoom:50%;" />
 
 
 
@@ -1335,11 +2011,283 @@ sepc:
 
 
 
+## 10、初始化容器
+
+### 1、概述
+
+Pod 可以包含多个工作容器，也可以包含一个或多个初始化容器，初始化容器在工作容器启动之前执行，初始化容器与工作容器完全相同，除了如下几点：
+
+- 初始化容器总是运行并自动结束
+- kubelet 按顺序执行 Pod 中的初始化容器，前一个初始化容器成功结束后，下一个初始化容器才开始运行。所有的初始化容器成功执行后，才开始启动工作容器
+- 如果 Pod 的任意一个初始化容器执行失败，kubernetes 将反复重启该 Pod，直到初始化容器全部成功（除非 Pod 的 restartPolicy 被设定为 Never）
+- 初始化容器的 Resource request / limits 处理不同
+- 初始化容器不支持就绪检查，因为初始化容器必须在 Pod ready 之前运行并结束
+
+
+
+### 2、行为
+
+Pod 的启动时，首先初始化网络和数据卷，然后按顺序执行每一个初始化容器
+
+- 任何一个初始化容器都必须成功退出，才能开始下一个初始化容器
+- 如果某一个容器启动失败或者执行失败，kubelet 将根据 Pod 的 restartPolicy 决定是否重新启动 Pod
+
+只有所有的初始化容器全都执行成功，Pod 才能进入 ready 状态
+
+- 初始化容器的端口是不能够通过 kubernetes Service 访问的
+- Pod 在初始化过程中处于 Pending 状态，并且同时有一个 type 为 initializing status 为 True 的 Condition
+
+如果 Pod 重启，所有的初始化容器也将被重新执行
+
+可以重启、重试、重新执行初始化容器，因此初始化容器中的代码必须是幂等的
+
+可以组合使用就绪检查和 activeDeadlineSeconds，以防止初始化容器始终失败
+
+Pod 中不能包含两个同名的容器（初始化容器和工作容器也不能同名）
+
+
+
+### 3、配置
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-demo
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: workdir
+      mountPath: /usr/share/nginx/html
+  # 初始化容器
+  initContainers:
+  - name: install
+    image: busybox
+    command:
+    - wget
+    - "-O"
+    - "/work-dir/index.html"
+    - https://kuboard.cn
+    volumeMounts:
+    - name: workdir
+      mountPath: "/work-dir"
+  dnsPolicy: Default
+  volumes:
+  - name: workdir
+    emptyDir: {}
+~~~
+
+Pod 中初始化容器和应用程序共享了同一个数据卷，初始化容器将该共享数据卷挂载到 /work-dir 路径，应用程序容器将共享数据卷挂载到 /usr/share/nginx/html 路径，初始化容器执行完命令后，就退出执行
+
+
+
+### 4、Debug
+
+~~~bash
+kubectl logs <pod-name> -c <init-container-1>
+~~~
+
+如果 Pod 的状态以 **Init:** 开头，表示该 Pod 正在执行初始化容器
+
+| 状态                       | 描述                                                       |
+| -------------------------- | ---------------------------------------------------------- |
+| Init:N/M                   | Pod 中包含 M 个初始化容器，其中 N 个初始化容器已经成功执行 |
+| Init:Error                 | Pod 初始化容器执行失败                                     |
+| Init:CrashLoopBackOff      | Pod 初始化容器反复执行失败                                 |
+| Pending                    | Pod 还未开始执行初始化容器                                 |
+| PodInitializing or Running | Pod 已经完成初始化容器的执行                               |
+
+
+
+## 11、Disruptions
+
+### 1、概述
+
+除非人为销毁 Pod，或者出现不可避免的硬件/软件故障，否则 Pod 不会凭空消失，此类不可避免的情况，称之为非自愿的干扰
+
+例如：
+
+- 节点所在物理机的硬件故障
+- 集群管理员误删了虚拟机
+- 云供应商或管理程序故障导致虚拟机被删
+- Linux 内核故障
+- 集群所在的网络发生分片，导致节点不可用
+- 节点资源耗尽，导致 Pod 被驱逐
+
+还有一类毁坏，称之为自愿的干扰，主要包括由应用管理员或集群管理员主动执行的操作
+
+应用管理员可能执行的操作有：
+
+- 删除 Deployment 或其他用于管理 Pod 的控制器
+- 修改 Deployment 中 Pod 模板的定义，导致 Pod 重启
+- 直接删除一个 Pod
+
+集群管理员可能执行的操作有：
+
+- 排空节点，以便维修、升级、集群缩容
+- 从节点上删除某个 Pod，以使得其他的 Pod 能够调度到该节点上
+
+
+
+**注意**：
+
+- 并非所有自愿的干扰都受 Pod Disruption Budgets 限制，例如：删除 Deployment 或 Pod
+
+
+
+### 2、处理干扰
+
+弥补非自愿干扰可以采取的方法有：
+
+- 确保的 Pod 申请合适的计算资源
+- 如果需要高可用，运行多个副本
+- 如果需要更高的高可用性，将应用程序副本分布到多个机架上或分不到多个地区
+
+自愿干扰，发生频率不定，在一个基础的 Kubernetes 集群中，可能不会发生自愿干扰，当集群管理员或者托管供应商运行某些额外的服务是可能导致自愿干扰发生，例如：
+
+- 更新节点上的软件
+- 自定义实现的自动伸缩程序
+
+Kubernetes 提供了 Disruption Budget 这一特性，以在高频次自愿干扰情况下，仍然运行高可用的应用程序
+
+应用程序管理员可以为每一个应用程序创建 PodDisruptionBudget 对象（PDB），PDB 限制了多副本应用程序在自愿干扰情况发生时，最多有多少个副本可以同时停止，例如：一个 web 前端的程序需要确保可用的副本数不低于总副本数的一定比例
+
+集群管理员以及托管供应商在进行系统维护时，应该使用兼容 PodDisruptionBudget 的工具（例如：kubectl drain，此类工具调用 Eviction API，而不是直接删除 Pod 或者 Deployment，kubectl drain 命令会尝试将节点上所有的 Pod 驱逐掉，驱逐请求可能会临时被拒绝，kubectl drain 将周期性地重试失败的请求，直到节点上所有的 Pod 都以终止，或者直到超过了预先配置的超时时间
+
+PDB 指定了应用程序最少期望的副本数（相对于总副本数）例如：某个 Deployment 的 .spec.replicas 为 5，如果其对应的 PDB 允许最低 4个副本数，则 Eviction API（kubectl drain）在同一时刻最多会允许1个自愿干扰，而不是2个或更多
+
+- PDB 通过 Pod 的 .metadata.ownerReferences 查找到其对应的控制器（Deployment、StatefulSet）
+- PDB 通过控制器的 .spec.replicas 字段来确定期望的副本数
+- PDB 通过控制器的 label selector 来确定哪些 Pod 属于同一个应用程序
+- PDB 不能阻止非自愿干扰发生，但是当这类毁坏发生时，将被计入到当前毁坏数里
+- 通过 kubectl drain 驱逐 Pod 时，Pod 将被优雅地终止
+
+
+
+**注意**：
+
+- 在滚动更新过程中被删除的 Pod 也将计入到 PDB 的当前干扰数，但是控制器在执行滚动更新时，并不受 PDB 的约束，滚动更新过程中，同时可删除 Pod 数量在控制器对象的定义中规定
+
+
+
+Kubernetes 中如下因素决定了干扰发生的频率：（也即干扰时删除 Pod 的速度）
+
+- 应用程序所需要的副本数
+- 对一个 Pod 执行优雅终止（gracefully shutdown）所需要的时间
+- 新的 Pod 实例启动所需要的时间
+- 控制器的类型
+- 集群资源的容量
+
+
+
+### 3、PodDisruptionBudget
+
+使用 PodDisruptionBudget 保护应用程序：
+
+1. 首先要确定哪个应用程序需要使用 PodDisruptionBudget 保护
+2. 思考应用程序如何处理干扰
+3. 创建 PDB yaml 文件
+4. 从 yaml 文件创建 PDB 对象
+
+通常如下几种 Kubernetes 控制器创建的实例可以使用 PDB：
+
+- Deployment
+
+- ReplicationController
+- ReplicaSet
+- StatefulSet
+
+
+
+PodDisruptionBudget 包含三个字段：
+
+- .spec.selector：用于指定 PDB 适用的 Pod，此字段为必填
+- .spec.minAvailable：当完成驱逐时，最少要保留多少个 Pod 可用，该字段可以是一个整数，也可以是一个百分比
+- .spec.maxUnavailable： 当完成驱逐时，最多有多少个 Pod 被终止，该字段可以是一个整数，也可以是一个百分比
+
+
+
+**注意**：
+
+- 在一个 PodDisruptionBudget 中，只能指定 maxUnavailable 和 minAvailable 中的一个
+
+- maxUnavailable 只能应用到那些有控制器的 Pod 上
+- 通常一个 PDB 对应一个控制器创建的 Pod，例如：Deployment、ReplicaSet、StatefulSet
+- PodDisruptionBudget 只能保护应用避免受到自愿干扰的影响，而不是所有原因的毁坏
+- PDB 中 .spec.selector 字段的内容必须与控制器中 .spec.selector 字段的内容相同
+- maxUnavailable 为 0%（或0）或者 minAvailable 为 100%（或与控制器的 .spec.replicas 相等）将阻止节点排空任务
+- 当名称空间中有多个 PDB 时，必须小心，PDB 的标签选择器之间不能重叠
+
+
+
+>自 Kubernetes v 1.15 开始，PDB 支持激活了 scale subresource 的 custom controller，也可以为那些不是通过上述控制器创建的 Pod 设置 PDB，但存在一些限制条件
+>
+>- 只能使用 .spec.minAvailable，不能使用 .spec.maxUnavailable
+>- .spec.minAvailable 字段中只能使用整型数字，不能使用百分比
+
+
+
+~~~yaml
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: zookeeper
+~~~
+
+~~~bash
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+~~~
+
+~~~bash
+# 创建 pdb 对象
+kubectl apply -f mypdb.yaml
+~~~
+
+~~~bash
+# 查看 pdb 详细信息
+kubectl get poddisruptionbudgets zk-pdb -o yaml
+~~~
+
+
+
+## 12、调试
+
+通过 kubectl exec 进入容器命令行终端进行问题诊断
+
+~~~bash
+# Pod 中只有一个容器时
+kubectl exec -it pod-name /bin/bash
+
+# Pod 中有多个容器时
+kubectl exec -it pod-name -c container-name /bin/bash
+~~~
+
+使用开源工具 **kubectl-debug**
+
+
+
 # 5、Kubernetes Label
 
 ## 1、基本概念
 
-一个 Label 是一个 **k : v** 键值对，key 和 value 均自定义
+一个 Label 是一个 **k : v** 键值对，key 和 value 均自定义，但是有一定的限制，见下文
 
 Label 可以附加到各种资源对象上，如 Node、Pod、 Service、RC，一个资源对象可以定义任意数量的 Label， 同一个 Label 也可以被添加到任意数量的资源对象上
 
@@ -1350,6 +2298,96 @@ Label 的最常见的用法是使用 metadata.labels 字段，来为对象添加
 Label 附加到 Kubernetes 集群中各种资源对象上，目的就是对这些资源对象进行分组管理， 而分组管理的核心就是 Label Selector
 
 Label 与 Label Selector 都不能单独定义，必须附加在一些资源对象的定义文件上，一般附加在 RC 和 Service 的资源定义文件中
+
+
+
+标签名：
+
+- 标签名部分是必须的
+- 不能多于 63 个字符
+- 必须由字母、数字开始和结尾
+- 可以包含字母、数字、减号-、下划线_、小数点.
+
+标签前缀：
+
+- 标签前缀部分是可选的
+- 如果指定，必须是一个DNS的子域名
+  - 如果省略标签前缀，则标签的 key 将被认为是专属于用户的
+  - Kubernetes的系统组件向用户的Kubernetes对象添加标签时，必须指定一个前缀
+  - kubernetes.io/ 和 k8s.io/ 这两个前缀是 Kubernetes 核心组件预留
+- 不能多于 253 个字符
+- 使用 / 和标签名分隔
+
+标签的值：
+
+- 不能多于 63 个字符
+- 可以为空字符串
+- 如果不为空，则
+  - 必须由字母、数字开始和结尾
+  - 可以包含字母、数字、减号-、下划线_、小数点.
+
+
+
+## 2、标签选择器
+
+与 name 和 UID 不同，标签不一定是唯一的，通常 K8s对象与标签是 M：N 的关系
+
+通过使用标签选择器（Label Selector），可以选择一组对象
+
+标签选择器是 Kubernetes 中最主要的分类和筛选手段
+
+Kubernetes api server支持两种形式的标签选择器，**equality-based** 基于等式的和 **set-based** 基于集合的
+
+- 均支持 ==、=、!=
+  - == 等同于 =
+
+- 基于集合：
+  - 使用小括号表示集合
+  - 额外支持 not in、int、exists 条件
+
+标签选择器可以包含多个条件，并使用逗号分隔，逗号等同于 and，此时只有满足所有条件的 Kubernetes 对象才会被选中，如果使用空的标签选择器或者不指定选择器，其含义由具体的 API 接口决定
+
+~~~bash
+environment = production
+tier != frontend
+environment=production,tier!=frontend
+~~~
+
+~~~bash
+environment in (production, qa)
+tier notin (frontend, backend)
+# 具有 partition key
+partition
+!partition
+~~~
+
+
+
+API 查询：两种类型都能支持，但要符合 URL 编码
+
+- 基于等式的选择方式： ?labelSelector=environment%3Dproduction,tier%3Dfrontend
+- 基于集合的选择方式： ?labelSelector=environment+in+%28production%2Cqa%29%2Ctier+in+%28frontend%29
+
+
+
+Job、Deployment、ReplicaSet、DaemonSet 同时支持基于等式的选择方式和基于集合的选择方式
+
+~~~yaml
+selector:
+  matchLabels:
+    component: redis
+  matchExpressions:
+    - {key: tier, operator: In, values: [cache]}
+    - {key: environment, operator: NotIn, values: [dev]}
+~~~
+
+matchLabels 是一个 {key,value} 组成的 map，map 中的一个 {key,value} 条目相当于 matchExpressions 中的一个元素，其 key 为 map 的 key，operator 为 In， values 数组则只包含 value 一个元素
+
+matchExpression 等价于基于集合的选择方式，支持的 operator 有 In、NotIn、Exists 和 DoesNotExist，当 operator 为 In 或 NotIn 时，values 数组不能为空，所有的选择条件都以 AND 的形式合并计算，即所有的条件都满足才可以算是匹配
+
+
+
+## 3、使用
 
 ~~~yaml
 apiVersion: v1
@@ -1387,9 +2425,60 @@ spec:
 
 
 
+## 4、字段选择器
+
+字段选择器（Field Selector）可以用来基于的一个或多个字段的取值来选取一组 Kubernetes 对象，类似于 Label
+
+字段选择器本质上是一个 filter，默认情况下，没有添加 selector/filter 时，代表着指定资源类型的所有对象都被选中
+
+~~~bash
+# 选择了所有字段 status.phase 的取值为 Running 的 Pod
+kubectl get pods --field-selector status.phase=Running
+~~~
+
+不同的 Kubernetes 对象类型，可以用来查询的字段不一样。所有的对象类型都支持的两个字段是 metadata.name 和 metadata.namespace。在字段选择器中使用不支持的字段，将报错
+
+字段选择器中可以使用的操作符有 =、==、!= （= 和 == 含义相同），可以指定多个字段，用逗号 , 分隔
+
+~~~bash
+kubectl get pods --field-selector=status.phase!=Running,spec.restartPolicy=Always
+~~~
+
+字段选择器可以跨资源类型使用
+
+~~~bash
+kubectl get statefulsets,services --all-namespaces --field-selector metadata.namespace!=default
+~~~
+
+
+
 # 6、Kubernetes Controller
 
+Kubernetes 通过引入 Controller（控制器）的概念来管理 Pod 实例，在 Kubernetes 中，应该始终通过创建 Controller 来创建 Pod，而不是直接创建 Pod（非常重要）
+
+在 Kubernetes 中，每个控制器至少追踪一种类型的资源，这些资源对象中有一个 spec 字段代表了预期状态，资源对象对应的控制器负责不断地将当前状态调整到预期状态
+
+理论上，控制器可以直接执行调整动作，然而在 Kubernetes 普遍的做法是，控制器发送消息到 APIServer，间接去调整
+
+作为一个底层设计原则，Kubernetes 使用了大量的控制器，每个控制器都用来管理集群状态的某一个方面，因此可能存在多种控制器可以创建或更新相同类型的 API 对象，为了避免混淆，Kubernetes 控制器在创建新的 API 对象时，会将该对象与对应的控制器关联，例如：Deployment 和 Job，这两类控制器都创建 Pod，但是 Job Controller 不会删除 Deployment Controller 创建的 Pod，因为控制器可以通过标签信息区分哪些 Pod 是它创建的
+
+**在 Kubernetes 支持的控制器有如下几种：**
+
+- Deployment 
+- StatefulSet
+- DaemonSet
+- CronJob
+- Jobs - Run to Completion
+- ReplicaSet
+- ReplicationController
+- Garbage Collection
+- TTL Controller for Finished Resources
+
+
+
 ## 1、Replication Controller
+
+### 1、概述
 
 Replication Controller（RC）是 Kubernetes 系统中核心概念之一，当定义了一个 RC 并提交到 Kubernetes 集群中以后，Master 节点上的 Controller Manager 组件就得到通知，定期检查系统中存活的 Pod，并确保目标 Pod 实例的数量刚好等于 RC 的预期值，如果有过 多或过少的 Pod 运行，系统就会停掉或创建一些 Pod，此外可以通过修改 RC 的副本数量，来实现 Pod 的动态缩放功能
 
@@ -1397,56 +2486,227 @@ Replication Controller（RC）是 Kubernetes 系统中核心概念之一，当�
 kubectl scale rc nginx --replicas=5
 ~~~
 
-由于 Replication Controller 与 Kubernetes 代码中的模块 Replication Controller 同名， 所以在 Kubernetes v1.2 时， 它就升级成了另外一个新的概念 Replica Sets，官方解释为下一代的 RC，它与 RC 区别是：Replica Sets 支援基于集合的 Label selector，而 RC 只支持基于等式的 Label Selector
+由于 Replication Controller 与 Kubernetes 代码中的模块 Replication Controller 同名， 所以在 Kubernetes v1.2 时， 它就升级成了另外一个新的概念 ReplicaSet，官方解释为下一代的 RC，RS 与 RC 区别是：ReplicaSet 支援基于集合的 Label selector，而 RC 只支持基于等式的 Label Selector
 
-很少单独使用 Replica Set，它主要被 Deployment 这个更高层面的资源对象所使用，从而形成一整套 Pod 创建、删除、更新的编排机制
+很少单独使用 ReplicaSet 与 Replication Controller，它们主要被 Deployment 这个更高层面的资源对象所使用，从而形成一整套 Pod 创建、删除、更新的编排机制
 
 最好不要越过 RC 直接创建 Pod，因为 Replication Controller 会通过 RC 管理 Pod 副本，实现自动创建、补足、替换、删除 Pod 副本，这样就能提高应用的容灾能力，减少由于节点崩溃等意外状况造成的损失，即使应用程序只有一个 Pod 副本，也强烈建议使用 RC 来定 义 Pod
 
 
 
-## 2、Replica Set 
+**注意**：
+
+- Replication Controller 不支持基于集合的选择器，推荐使用 ReplicaSet 而不是 Replication Controller
+
+
+
+### 2、ReplicaSet 
+
+#### 1、概述
 
 Replica Set 跟 Replication Controller 没有本质的不同，只是名字不一样，并且 Replica Set 支持集合式的 Selector（Replication Controller 仅支持等式）
 
-Kubernetes 官方强烈建议避免直接使用 Replica Set，而应该通过 Deployment 来创建 RS 和 Pod，由于 Replica Set 是 Replication Controller 的代替物，因此用法基本相同
+Kubernetes 官方强烈建议避免直接使用 ReplicaSet，而应该通过 Deployment 来创建 RS 和 Pod，由于 ReplicaSet 是 Replication Controller 的代替物，因此用法基本相同
+
+ReplicaSet 创建的 Pod 中，有一个字段 metadata.**ownerReferences** 用于标识该 Pod 从属于哪一个 ReplicaSet，如果 Pod 没有 ownerReference 字段，或者 ownerReference 字段指向的对象不是一个控制器，但是该 Pod 匹配了 ReplicaSet 的 selector，则该 Pod 的 ownerReference 将被修改为该 ReplicaSet 的引用
+
+ReplicaSet的定义中，包含：
+
+- **apiVersion**：apps/v1
+- **kind**：始终为 ReplicaSet
+- **metadata**：一些元数据
+- **spec**： ReplicaSet 的详细定义
+
+- **selector**： 用于指定哪些 Pod 属于该 ReplicaSet 的管辖范围
+- **replicas**： 副本数，用于指定该 ReplicaSet 应该维持多少个 Pod 副本
+- **template**： Pod模板，在 ReplicaSet 使用 Pod 模板的定义创建新的 Pod
+  - 其中必须定义 .spec.template.metadata.labels 字段
+  - .spec.template.spec.restartPolicy 的默认值为 Always
 
 
 
-## 3、Deployment
-
-Deployment 是 Kubenetes v1.2 引入的新概念，引入的目的是为了更好的解决 Pod 的编排问题
-
-Deployment 内部使用了 Replica Set 来实现，Deployment 的定义与 Replica Set 的 定义很类似，除了 API 声明与 Kind 类型有所区别
+#### 2、使用
 
 ~~~yaml
-apiVersion: extensions/v1beta1 
-kind: Deployment
+# 创建 ReplicaSet
+apiVersion: apps/v1
+kind: ReplicaSet
 metadata:
-	name: frontend 
+  name: frontend
+  labels:
+    app: guestbook
+    tier: frontend
 spec:
-	replicas: 1 
-	selector:
-		matchLabels:
-			tier: frontend 
-			matchExpressions:
-				- {key: tier, operator: In, values: [frontend]} 
-template:
+  # 创建三副本
+  replicas: 3
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
     metadata:
-        labels:
-            app: app-demo 
-            tier: frontend
+      labels:
+        tier: frontend
     spec:
-        containers:
-            - name: tomcat-demo 
-            image: tomcat 
-            ports:
-                - containerPort: 8080
+      containers:
+      - name: nginx
+        image: nginx
+~~~
+
+~~~bash
+# 查看刚才创建的 rs
+kubectl get rs
+
+# 查看详情
+kubectl describe rs/frontend
+
+# 清理 RS 与 Pod
+# Garbage Collector 将自动删除该 ReplicaSet 所有从属的 Pod
+kubectl delete -f rs/frontend
+
+# 只删除 RS，保留从属 Pod
+kubectl delete --cascade=false
 ~~~
 
 
 
-## 4、Horizontal Pod Autoscaler
+**注意**：
+
+- 如果通过直接创建 Pod，并且标签被 RS 匹配到，则该 Pod 将会立刻被管控，如果此时 Pod 副本数量超过预期值，新 Pod 立刻终止
+- 其中 Pod Template 内的标签最好不要与其他 RS 重叠，避免被其余 RS 管控
+- 当旧 RS 被删除，只要新 RS 的 .spec.selector 字段与旧 RS 的 .spec.selector 字段相同，则新的 RS 将接管旧 RS 的从属 Pod
+  - 新的 RS 中定义的 .spec.template 对遗留下来的 Pod 不会产生任何影响
+
+- ReplicaSet 不直接支持滚动更新
+
+
+
+#### 3、伸缩
+
+RS 可以轻易的 scale up 或者 scale down，只需要修改 .spec.replicas 字段即可
+
+RS 控制器将确保与其标签选择器 .spec.selector 匹配的 Pod 数量与 replicas 指定的数量相等
+
+可以使用 Horizontal Pod Autoscalers(HPA) 对 RS 执行自动的水平伸缩，或者使用命令 kubectl autoscale rs frontend --max=10
+
+~~~bash
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-scaler
+spec:
+  scaleTargetRef:
+    kind: ReplicaSet
+    name: frontend
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+~~~
+
+
+
+## 2、Deployment
+
+### 1、概述
+
+Deployment 是 Kubenetes v1.2 引入的新概念，引入的目的是为了更好的解决 Pod 的编排问题
+
+Deployment 内部使用了 ReplicaSet 来实现，Deployment 的定义与 ReplicaSet 的 定义很类似，除了 API 声明与 Kind 类型有所区别
+
+Deployment 是一个更高级别的概念，是最常用的用于部署无状态服务的方式，并可以声明式的更新与管理 ReplicaSet、Pod，以及其他的许多有用的特性
+
+
+
+### 2、使用
+
+#### 1、创建
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+~~~
+
+~~~~bash
+# 部署 Deploy
+kubectl apply -f xxx.yaml
+~~~~
+
+可以为该命令增加 --record 选项，此举 kubectl 会将刚运行的命令写入 Deployment 的 annotation 的 kubernetes.io/change-cause，以便后续维护查看
+
+~~~bash
+# 查看 Deployment 的发布状态（rollout status），
+kubectl rollout status deployment.v1.apps/deploy-name
+
+# 查看 Deploy 创建的 RS
+kubectl get rs
+
+# 查看 Pod Label
+kubectl get pods --show-labels
+~~~
+
+
+
+**注意**：
+
+- 控制器之间的 .spec.**selector** 和 .template.metadata.**labels**，尽量确保不同，否则可能发生冲突，并产生不可预见的行为
+- pod-template-hash 标签是 Deployment 创建 RS 时添加到 RS 上的，RS 将此标签添加到 Pod 上，这个标签用于区分 Deployment 中哪个 RS 创建了哪些 Pod，切勿修改
+
+
+
+#### 2、更新
+
+当且仅当 Deployment 的 Pod template（.spec.**template**）字段中的内容发生变更时（例如：标签、容器的镜像被改变），Deployment 的发布更新（rollout）将被触发
+
+Deployment 中其他字段的变化（例如：修改 .spec.replicas）将不会触发 Deployment 的发布更新（rollout）
+
+
+
+**rollout**：
+
+- 每创建一个 Deployment，Deployment Controller 都为其创建一个 RS，并设定其副本数为期望的 Pod 数，如果 Deployment 被更新，旧的 RS 将被 Scale down，新建的 RS 将被 Scale up，直到最后新旧两个 RS，一个副本数为 .spec.replias，另一个副本数为 0
+
+
+
+~~~bash
+# 修改镜像 tag
+kubectl --record deployment.apps/nginx-deployment set image deployment.v1.apps/nginx-deployment nginx=nginx:1.9.1
+
+# 查看 RS 情况
+kubectl get rs
+~~~
+
+Deployment 的更新是通过创建一个新的 RS 并同时将旧的 RS 的副本数缩容到 0 个副本来达成的
+
+- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被关闭，默认情况下，Deployment 确保至少 .spec.replicas 的 75% 的 Pod 保持可用（25% max unavailable）
+- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被创建。默认情况下，Deployment 确保最多 .spec.replicas 的 25% 的 Pod 被创建（25% max surge）
+
+
+
+**覆盖更新**：
+
+当 Deployment 的 rollout 正在进行中的时候，如果再次更新 Deployment 的信息，此时 Deployment 将再创建一个新的 RS 并开始 scale up，将先前正在 scale up 的新 RS 也转为旧的 RS，并立刻 scale down
+
+
+
+## 3、Horizontal Pod Autoscaler
 
 Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象
 
@@ -2217,15 +3477,72 @@ kubectl edit configmap log-config
 
 # 11、Kubernetes Namspace
 
-## 1、基本概念
+## 1、Name 概念
+
+Kubernetes REST API 中，所有的对象都是通过 name 和 UID 唯一性确定，例如确定一个 RESTFUL 对象：
+
+```
+/api/v1/namespaces/{namespace}/pods/{name}
+```
+
+同一个名称空间下，同一个类型的对象，可以通过 name 唯一性确定
+
+~~~yaml
+# 例子
+apiVersion: v1
+kind: Pod
+metadata:
+	# Pod Name
+  name: nginx-demo
+spec:
+  containers:
+  # Contain Name
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+~~~
+
+
+
+## 2、基本概念
 
 Namespace 在很多情况下用于实现多用户的资源隔离，通过将集群内部的资源对象分配到不同的 Namespace 中形成逻辑上的分组，便于不同的分组在共享使用整个集群的资源同时还能被分别管理
 
-Kubernetes 集群在启动后，会创建一个名为 default 的 Namespace，如果不特别指明 Namespace，则用户创建的 Pod、RC、Service 都将被系统分到 default 的 Namspace
+Kubernetes 安装成功后，默认有初始化了三个名称空间：
+
+- **default**：默认名称空间，如果 Kubernetes 对象中不定义 metadata.namespace 字段，该对象将放在此名称空间下
+- **kube-system**：Kubernetes 系统创建的对象放在此名称空间下
+- **kube-public**：此名称空间自动在安装集群是自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），主要是为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
+
+当您创建一个 Service 时，Kubernetes 为其创建一个对应的 DNS 条目，格式为 <service-name>.<namespace-name>.svc.cluster.local，在容器中只使用 <service-name>，其DNS将解析到同名称空间下的 Service
+
+某些更底层的对象，是不在任何名称空间中的，例如 nodes、persistentVolumes、storageClass 等
 
 
 
-## 2、使用
+**注意**：
+
+- 名称空间内部的同类型对象不能重名，但是跨名称空间可以有同名同类型对象
+- 名称空间不可以嵌套，任何一个 Kubernetes 对象只能在一个名称空间中
+
+
+
+~~~bash
+# 查看名称空间
+kubectl get namespaces
+
+# 在名称空间里
+kubectl api-resources --namespaced=true
+# 不在名称空间里
+kubectl api-resources --namespaced=false
+~~~
+
+
+
+## 3、使用
+
+### 1、创建
 
 ~~~yaml
 apiVersion: v1 
@@ -2252,6 +3569,32 @@ containers:
 ~~~bash
 kubectl get pods --namespace=development
 ~~~
+
+~~~bash
+# 执行命令时指定名称空间
+kubectl run nginx --image=nginx --namespace=<您的名称空间>
+kubectl get pods --namespace=<您的名称空间>
+~~~
+
+
+
+### 2、设置名称空间偏好
+
+以通过 set-context 命令改变当前 kubectl 上下文 的名称空间，后续所有命令都默认在此名称空间下执行
+
+~~~bash
+kubectl config set-context --current --namespace=<您的名称空间>
+# 验证结果
+kubectl config view --minify | grep namespace:
+~~~
+
+
+
+
+
+
+
+
 
 
 
@@ -2415,17 +3758,24 @@ ports:
 
 Kubernetes 存在两种类型的探针：liveness probe、readiness probe
 
+- Liveness 适用场景是支持那些可以重新拉起的应用
+- Readiness 主要应对的是启动之后无法立即对外提供服务的这些应用
+
 每类探针都支持三种探测方法：
 
-- exec：通过执行命令来检查服务是否正常，针对复杂检测或无 HTTP 接口的服务，命令返回值为 0 则表示容器健康
-- httpGet：通过发送 http 请求检查服务是否正常，返回 200-399 状态码则表明容器健康
-- tcpSocket：通过容器的 IP 和 Port 执行 TCP 检查，如果能够建立 TCP 连接，则表明容器健康
+- **exec**：通过执行命令来检查服务是否正常，针对复杂检测或无 HTTP 接口的服务，命令返回值为 0 则表示容器健康
+- **httpGet**：通过发送 http 请求检查服务是否正常，返回 200-399 状态码则表明容器健康
+- **tcpSocket**：通过容器的 IP 和 Port 执行 TCP 检查，如果能够建立 TCP 连接，则表明容器健康
 
 探针探测结果:
 
-- Success：Container 通过了检查
-- Failure：Container 未通过检查
-- Unknown：未能执行检查，不采取任何措施
+- **Success**：Container 通过了检查
+- **Failure**：Container 未通过检查
+- **Unknown**：未能执行检查，不采取任何措施
+
+
+
+![35933da46310f1becb0fe2c6335968a8aecce931.a73f1073](images/35933da46310f1becb0fe2c6335968a8aecce931.a73f1073.png)
 
 
 
@@ -3069,3 +4419,51 @@ systemctl restart containerd
 ```bash
 crictl config runtime-endpoint unix:///var/run/containerd/containerd.sock
 ```
+
+
+
+## 6、Pod 停留在 Pending
+
+第一个就是 pending 状态，pending 表示调度器没有进行介入
+
+此时可以通过 kubectl describe pod 来查看相应的事件，如果由于资源或者说端口占用，或者是由于 node selector 造成 pod 无法调度的时候，可以在相应的事件里面看到相应的结果，这个结果里面会表示说有多少个不满足的 node，有多少是因为 CPU 不满足，有多少是由于 node 不满足，有多少是由于 tag 打标造成的不满足
+
+
+
+## 7、Pod 停留在 waiting
+
+那第二个状态就是 pod 可能会停留在 waiting 的状态，pod 的 states 处在 waiting 的时候，通常表示说这个 pod 的镜像没有正常拉取，
+
+原因可能是由于这个镜像是私有镜像，但是没有配置 Pod secret
+
+那第二种是说可能由于这个镜像地址是不存在的，造成这个镜像拉取不下来
+
+还有一个是说这个镜像可能是一个公网的镜像，造成镜像的拉取失败
+
+
+
+## 8、Pod 不断被拉取并且可以看到 crashing
+
+第三种是 pod 不断被拉起，而且可以看到类似像 backoff 
+
+这个通常表示说 pod 已经被调度完成了，但是启动失败，那这个时候通常要关注的应该是这个应用自身的一个状态，并不是说配置是否正确、权限是否正确，此时需要查看的应该是 pod 的具体日志
+
+
+
+## 9、Pod 处在 Runing 但是没有正常工作
+
+第四种 pod 处在 running 状态，但是没有正常对外服务
+
+那此时比较常见的一个点就可能是由于一些非常细碎的配置，类似像有一些字段可能拼写错误，造成了 yaml 下发下去了，但是有一段没有正常地生效，从而使得这个 pod 处在 running 的状态没有对外服务
+
+那此时可以通过 apply-validate-f pod.yaml 的方式来进行判断当前 yaml 是否是正常的，如果 yaml 没有问题，那么接下来可能要诊断配置的端口是否是正常的，以及 Liveness 或 Readiness 是否已经配置正确
+
+
+
+## 10、Service 无法正常的工作
+
+最后一种就是 service 无法正常工作的时候
+
+那比较常见的 service 出现问题的时候，是自己的使用上面出现了问题，因为 service 和底层的 pod 之间的关联关系是通过 selector 的方式来匹配的，也就是说 pod 上面配置了一些 label，然后 service 通过 match label 的方式和这个 pod 进行相互关联
+
+如果这个 label 配置的有问题，可能会造成这个 service 无法找到后面的 endpoint，从而造成相应的 service 没有办法对外提供服务，那如果 service 出现异常的时候，第一个要看的是这个 service 后面是不是有一个真正的 endpoint，其次来看这个 endpoint 是否可以对外提供正常的服务
