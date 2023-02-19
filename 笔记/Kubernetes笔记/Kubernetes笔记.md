@@ -4964,6 +4964,8 @@ Service 是 Kubernetes 最核心概念，通过创建 Service，同时赋予一�
 
 ## 2、定义
 
+### 1、概述
+
 ~~~yaml
 apiVersion: v1 
 kind: Service 
@@ -5010,6 +5012,155 @@ spec:
 | status.loadBalancer.ingress.hostname | String | 外部负载均衡器主机名                                         |
 
 ClusterIP：虚拟服务IP，在公网环境搭建即为 MasterIP
+
+
+
+### 2、分类
+
+Kubernetes 中可以通过不同方式发布 Service，通过 ServiceType 字段指定，该字段的默认值是 ClusterIP，可选值有：
+
+- **ClusterIP**：默认值，通过集群内部的一个 IP 地址暴露 Service，只在集群内部可以访问
+- **NodePort**：通过每一个节点上的的静态端口（NodePort）暴露 Service，同时自动创建 ClusterIP 类型的访问方式
+  - 在集群内部通过 ClusterIP : Port 访问
+  - 在集群外部通过 NodeIP : NodePort 访问
+- **LoadBalancer**：通过云服务供应商（AWS、Azure、GCE 等）的负载均衡器在集群外部暴露 Service，同时自动创建 NodePort 和 ClusterIP 类型的访问方式
+  - 在集群内部通过 ClusterIP : Port 访问
+  - 在集群外部通过 NodeIP : NodePort 访问
+  - 在集群外部通过 LoadBalancerIP : Port 访问
+- **ExternalName**：将 Service 映射到 externalName 指定的地址（例如：foo.bar.example.com），返回值是一个 CNAME 记录，不使用任何代理机制
+
+
+
+#### 1、ClusterIP
+
+查看服务代理中的 iptables 模式
+
+
+
+#### 2、NodePort
+
+对于 NodePort 类型的 Service，Kubernetes 为其分配一个节点端口，对于同一个 Service，在每个节点上的节点端口都相同
+
+该端口的范围在初始化 apiserver 时可通过参数 --service-node-port-range 指定（默认是：30000-32767）
+
+节点将该端口上的网络请求转发到对应的 Service 上，可通过 Service 的 .spec.ports[*].nodePort 字段查看该分配到的节点端口号
+
+在启动 kube-proxy 时使用参数 --nodeport-address 可指定端口可以绑定的 IP 地址段，该参数接收以逗号分隔的 CIDR 作为参数值（例如：10.0.0.0/8,192.0.2.0/25），kube-proxy 将查找本机符合该 CIDR 的 IP 地址，并将节点端口绑定到符合的 IP 地址上
+
+例如：
+
+- 如果启动 kube-proxy 时指定了参数 --nodeport-address=127.0.0.0/8，则 kube-proxy 只将阶段端口绑定到 loopback 地址上
+- --nodeport-address 的默认值是一个空列表，则 kube-proxy 将节点端口绑定到该节点所有的网络 IP 地址上
+
+可以通过 nodePort 字段指定节点端口号，但必须在 --service-node-port-range 指定的范围内，Kubernetes 在创建 Service 时将使用该节点端口，如果该端口已被占用，则创建 Service 将不能成功，在这种情况下，必须自己规划好端口使用，以避免端口冲突
+
+使用 NodePort 可以：
+
+- 根据需要配置负载均衡器
+- 配置 Kubernetes / 非 Kubernetes 的混合环境
+- 直接暴露一到多个节点的 IP 地址，以便客户端可访问 Kubernetes 中的 Service
+
+
+
+#### 3、LoadBalance
+
+在支持外部负载均衡器的云环境中（例如：GCE、AWS、Azure 等）将 .spec.type 字段设置为 LoadBalancer，Kubernetes 将为该Service 自动创建一个负载均衡器
+
+负载均衡器的创建操作异步完成，要稍等片刻才能真正完成创建，负载均衡器的信息将被回写到 Service 的 .status.loadBalancer 字段，
+
+发送到外部负载均衡器的网络请求会被转发到 Kubernetes 中的后端 Pod 上，负载均衡的实现细节由各云服务上确定
+
+如下所示：
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376
+  clusterIP: 10.0.171.239
+  loadBalancerIP: 78.11.24.19
+  type: LoadBalancer
+status:
+  loadBalancer:
+    ingress:
+      - ip: 146.148.47.155
+~~~
+
+
+
+#### 4、ExternalName
+
+ExternalName 类型的 Service 映射到一个外部的 DNS Name，而不是一个 Pod Label Selector
+
+可通过 spec.externalName 字段指定外部 DNS Name
+
+例子：名称空间 prod 中的 Service my-service 将映射到 my.database.example.com
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  namespace: prod
+spec:
+  type: ExternalName
+  externalName: my.database.example.com 
+```
+
+执行 nslookup my-service.prod.svc.cluster.local 指令时，集群的 DNS 服务将返回一个 CNAME 记录，其对应的值为 my.database.example.com
+
+访问 my-service 与访问其他类型的 Service 相比，网络请求的转发发生在 DNS level，而不是使用 proxy
+
+如果在后续想要将 my.database.example.com 对应的数据库迁移到集群内部来，可以按如下步骤进行：
+
+1. 在 Kubernetes 中部署数据库
+2. 为 Service 添加合适的 Selector 和 Endpoint
+3. 修改 Service 的类型
+
+
+
+**注意**：
+
+- ExternalName 可以接受一个 IPv4 地址型的字符串作为 .spec.externalName 的值，但是这个字符串将被认为是一个由数字组成的 DNS Name，而不是一个 IP 地址
+- 如果要 hardcode 一个 IP 地址，请考虑使用 Headless Service
+
+
+
+#### 5、External IP
+
+如果有外部 IP 路由到 Kubernetes 集群的一个或多个节点，Kubernetes Service 可以通过这些 externalIPs 进行访问
+
+externalIP 需要由集群管理员在 Kubernetes 之外配置
+
+在 Service 的定义中， externalIPs 可以和任何类型的 .spec.type 一通使用
+
+例子：客户端可通过 80.11.12.10:80 （externalIP : port） 访问 my-service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 9376
+  externalIPs:
+    - 80.11.12.10
+```
+
+
 
 
 
@@ -5165,7 +5316,7 @@ spec:
 
 
 
-## 4、虚拟 IP 和服务代理
+## 4、服务代理
 
 ### 1、概述
 
@@ -5187,7 +5338,7 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 - kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
 - kube-proxy 在其所在的节点（每个节点都有 kube-proxy）上为每一个 Service 打开一个随机端口
-- kube-proxy 设置 iptables 规则，将发送到该 Service 的 ClusterIP:Port 的请求重定向到该随机端口
+- kube-proxy 设置 iptables 规则，将发送到该 Service 的 ClusterIP / Port 的请求重定向到该随机端口
 - 任何发送到该随机端口的请求将被代理转发到该 Service 的后端 Pod 上（kube-proxy 从 Endpoint 信息中获得可用 Pod）
 - kube-proxy 在决定将请求转发到后端哪一个 Pod 时，默认使用 round-robin（轮询）算法，并会考虑到 Service 中的 SessionAffinity 的设定
 
@@ -5201,7 +5352,7 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 - kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
 - kube-proxy 在其所在的节点上为每一个 Service 设置 iptable 规则
-- iptables 将发送到 Service 的 ClusterIP:Port 的请求重定向到 Service 的后端 Pod 上
+- iptables 将发送到 Service 的 ClusterIP / Port 的请求重定向到 Service 的后端 Pod 上
   - 对于 Service 中的每一个 Endpoint，kube-proxy 设置一个 iptable 规则
   - 默认情况下，kube-proxy 随机选择一个 Service 的后端 Pod
 
@@ -5269,6 +5420,8 @@ Kubernetes 支持两种主要的服务发现模式：
 - 环境变量
 - DNS
 
+可以在 Pod 的定义中，将 enableServiceLinks 标记设置为 false，停止服务发现
+
 
 
 ### 2、环境变量
@@ -5314,6 +5467,514 @@ CoreDNS 监听 Kubernetes API 上创建和删除 Service 的事件，并为每�
   - my-service 和 my-service.my-ns 都将解析到 Service 的 Cluster IP
 
 Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的端口，假设 my-service.my-ns Service 有一个 TCP 端口名为 httptest，则可以 nslookup httptest.tcp.my-service.my-ns 以发现该Service 的 IP 地址及端口 http
+
+
+
+## 6、Headless Services
+
+Headless Service 不提供负载均衡的特性，也没有自己的 IP 地址
+
+创建 Headless Service 时，只需要指定 .spec.clusterIP 为 None
+
+Headless Service 可以用于对接其他形式的服务发现机制，而无需与 Kubernetes 的实现绑定
+
+对于 Headless Service 而言：
+
+- 没有 Cluster IP
+- kube-proxy 不处理这类 Service
+- Kubernetes 不提供负载均衡或代理支持
+
+DNS 的配置方式取决于该 Service 是否配置了 selector：
+
+- 配置了 Selector：
+  - Endpoints Controller 创建 Endpoints 记录，并修改 DNS 配置，使其直接返回指向 selector 选取的 Pod 的 IP 地址
+- 没有配置 Selector：
+  - Endpoints Controller 不创建 Endpoints 记录，DNS服务返回如下结果中的一种：
+    - 对 ExternalName 类型的 Service，返回 CNAME 记录
+    - 对于其他类型的 Service，返回与 Service 同名的 Endpoints 的 A 记录
+
+
+
+## 7、虚拟 IP
+
+### 1、避免冲突
+
+Kubernetes 的一个设计哲学是：尽量避免非人为错误产生的可能性
+
+就设计 Service 而言，Kubernetes 为每一个 Service 分配一个该 Service 专属的 IP 地址，避免端口冲突
+
+为了确保每个 Service 都有一个唯一的 IP 地址，Kubernetes 在创建 Service 之前，先更新 etcd 中的一个全局分配表，如果更新失败（例如：IP 地址已被其他 Service 占用），则 Service 不能成功创建
+
+Kubernetes 使用一个后台控制器检查该全局分配表中的 IP 地址的分配是否仍然有效，并且自动清理不再被 Service 使用的 IP 地址
+
+
+
+### 2、Service 的 IP 地址
+
+Pod 的 IP 地址路由到一个确定的目标，然而 Service 的 IP 地址则不同，通常背后并不对应一个唯一的目标
+
+kube-proxy 使用 iptables （Linux 中的报文处理逻辑）来定义虚拟 IP 地址，当客户端连接到该虚拟 IP 地址时，它们的网络请求将自动发送到一个合适的 Endpoint
+
+Service 对应的环境变量和 DNS 实际上反应的是 Service 的虚拟 IP 地址和 Port 端口
+
+
+
+### 3、user space
+
+当后端 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设 Service 的端口是 1234
+
+集群中所有的 kube-proxy 都实时监听者 Service 的创建和删除，Service 创建后，kube-proxy 将打开一个新的随机端口，并设定 iptables 的转发规则，以便将该 Service 虚拟 IP 的网络请求全都转发到这个新的随机端口上，并且 kube-proxy 将开始接受该端口上的连接
+
+当一个客户端连接到该 Service 的虚拟 IP 地址时，iptables 的规则被触发，并且将网络报文重定向到 kube-proxy 自己的随机端口上，kube-proxy 接收到请求后，选择一个后端 Pod，再将请求以代理的形式转发到该后端 Pod
+
+这意味着 Service 可以选择任意端口号，而无需担心端口冲突，客户端可以直接连接到一个 IP:Port，无需关心最终在使用哪个 Pod 提供服务
+
+
+
+### 4、iptables
+
+当后端 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设 Service 的端口是 1234
+
+集群中所有的 kube-proxy 都实时监听者 Service 的创建和删除，Service 创建后，kube-proxy 设定了一系列的 iptables 规则，这些规则可将虚拟 IP 地址映射到 per-Service 的规则，per-Service 规则进一步链接到 per-Endpoint 规则，并最终将网络请求重定向（使用 destination-NAT）到后端 Pod
+
+当一个客户端连接到该 Service 的虚拟 IP 地址时，iptables 的规则被触发，一个后端 Pod 将被选中（基于 session affinity 或者随机选择），且网络报文被重定向到该后端 Pod
+
+与 userspace proxy 不同，网络报文不再被复制到 user space，kube-proxy 也无需处理这些报文，直接将报文转发到后端 Pod
+
+在使用 node-port 或 load-balancer 类型的 Service 时，以上的代理处理过程是相同的
+
+
+
+### 5、IPVS
+
+在一个大型集群中（例如：存在 10000 个 Service），iptables 的操作将显著变慢
+
+IPVS 的设计是基于 in-kernel hash table 执行负载均衡，因此使用 IPVS 的 kube-proxy 在 Service 数量较多的情况下能够保持好的性能
+
+同时，基于 IPVS 的 kube-proxy 可以使用更复杂的负载均衡算法（最少连接数、基于地址的、基于权重的等）
+
+
+
+### 6、支持的传输协议
+
+#### 1、TCP
+
+默认值，任何类型的 Service 都支持 TCP 协议
+
+
+
+#### 2、UDP
+
+大多数 Service 都支持 UDP 协议
+
+对于 LoadBalancer 类型的 Service，是否支持 UDP 取决于云供应商是否支持该特性
+
+
+
+#### 3、HTTP
+
+如果云服务商支持，可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的 HTTP/HTTPS 反向代理，将请求转发到 Service 的 Endpoints
+
+> 使用 Ingress
+
+
+
+#### 4、Proxy Protocol
+
+如果云服务上支持（例如：AWS），可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的负载均衡器，并将连接已 PROXY 协议转发到 Service 的 Endpoints
+
+负载均衡器将先发送描述该 incoming 连接的字节串，如下所示：然后在发送来自于客户端的数据
+
+```text
+PROXY TCP4 192.0.2.202 10.0.42.7 12345 7\r\n
+```
+
+
+
+#### 5、SCTP
+
+
+
+## 8、DNS 分配
+
+### 1、概述
+
+Kubernetes 集群中运行了一组 DNS Pod，配置了对应的 Service，并由 Kubelet 将 DNS Service 的 IP 地址配置到节点上的容器中以便解析 DNS Names
+
+集群中的每一个 Service（包括 DNS 服务本身）都将分配一个 DNS Name，默认情况下客户端 Pod 的 DNS 搜索列表包括 Pod 所在的名称空间以及集群的默认域，例如：
+
+假设名称空间 bar 中有一个 Service 名为 foo：
+
+- 名称空间 bar 中的 Pod 可以通过 nslookup foo 查找到该 Service
+- 名称空间 quux 中的 Pod 可以通过 nslookup foo.bar 查找到该 Service
+
+
+
+### 2、Service
+
+#### 1、A 记录
+
+Service（Headless Service 除外）将被分配一个 DNS A 记录，格式为：my-svc.my-namespace.svc.cluster-domain.example，该 DNS 记录解析到 Service 的 ClusterIP
+
+Headless Service（没有 ClusterIP）也将被分配一个 DNS A 记录，格式为 my-svc.my-namespace.svc.cluster-domain.example，该 DNS 记录解析到 Service 所选中的一组 Pod 的 IP 地址的集合，调用者应该使用该 IP 地址集合，或者按照轮询（round-robin）的方式从集合中选择一个 IP 地址使用
+
+
+
+#### 2、SRV 记录
+
+Service（包括 Headless Service）的命名端口（有 Name 的端口）将被分配一个 SRV 记录，其格式为 my-port-name.my-port-protocol.my-svc.my-namespace.svc.cluster-domain.example：
+
+- 对于一个普通 Service（非 Headless Service）
+  - 该 SRV 记录解析到其端口号和域名 my-svc.my-namespace.svc.cluster-domain.example
+- 对于一个 Headless Service
+  - 该 SRV 记录解析到多个结果：每一个结果都对应该 Service 的一个后端 Pod，包含其端口号和 Pod 的域名 auto-generated-pod-name.my-svc.my-namespace.svc.cluster-domain.example
+
+
+
+### 3、Pod
+
+#### 1、hostname / subdomain
+
+Kubernetes 在创建 Pod 时，将 Pod 定义中的 metadata.name 的值作为 Pod 实例的 hostname
+
+Pod 定义中有一个可选字段 spec.hostname 可用来直接指定 Pod 的 hostname
+
+- 例如：某 Pod 的 spec.hostname 字段被设置为 my-host，则该 Pod 创建后 hostname 将被设为 my-host
+
+Pod 定义中还有一个可选字段 spec.subdomain 可用来指定 Pod 的 subdomain
+
+- 例如：名称空间 my-namespace 中，某 Pod 的 hostname 为 foo，并且 subdomain 为 bar，则该 Pod 的完整域名（FQDN）为 foo.bar.my-namespace.svc.cluster-domain.example
+
+例子：
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: default-subdomain
+spec:
+  selector:
+    name: busybox
+  clusterIP: None
+  ports:
+  - name: foo # Actually, no port is needed.
+    port: 1234
+    targetPort: 1234
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox1
+  labels:
+    name: busybox
+spec:
+  hostname: busybox-1
+  subdomain: default-subdomain
+  containers:
+  - image: busybox:1.28
+    command:
+      - sleep
+      - "3600"
+    name: busybox
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox2
+  labels:
+    name: busybox
+spec:
+  hostname: busybox-2
+  subdomain: default-subdomain
+  containers:
+  - image: busybox:1.28
+    command:
+      - sleep
+      - "3600"
+    name: busybox
+```
+
+如果 Pod 所在名称空间中存在一个 Headless Service，其名称与 Pod 的 subdomain 相同，则集群的 KubeDNS 服务器仍将为 Pod 的完整域名（FQDN）返回一个 A 记录
+
+- 例如：假设一个 Pod 的 hostname 为 busybox-1 且其 subdomain 为 default-subdomain，同名称空间下有一个 Headless Service 的名字为 default-subdomain
+  - 此时该 Pod 的完整域名（FQDN）为 busybox-1.default-subdomain.my-namespace.svc.cluster-domain.example
+- DNS 服务将其解析到一个 A 记录，指向 Pod 的 IP 地址，上面 yaml 文件中的 Pod busybox1 和 busybox2 都将有各自的 A 记录
+
+
+
+**注意**：
+
+- A 记录不是根据 Pod Name 创建的，而是根据 hostname 创建的，如果一个 Pod 没有 hostname 只有 subdomain，则 Kubernetes 将只为其 Headless Service 创建一个 A 记录 default-subdomain.my-namespace.svc.cluster-domain.example，该记录指向 Pod 的 IP 地址
+- Pod 必须达到就绪状态才可以拥有 A 记录，除非 Service 的字段 spec.publishNotReadyAddresses 被设置为 True
+
+
+
+#### 2、DNS Policy
+
+可以为每一个 Pod 设置其 DNS Policy
+
+Kubernetes 通过 Pod 定义中的 spec.dnsPolicy 字段设置 DNS Policy，可选的值有：
+
+- **Default**： Pod 从其所在的节点继承域名解析配置
+- **ClusterFirst**：任何集群域名后缀（例如 www.kubernetes.io），不匹配的 DNS 查询，都将被转发到 Pod 所在节点的上游 DNS 服务，集群管理员可能配置了额外的 stub-domain 及上游 DNS 服务，dnsPolicy的默认值
+- **ClusterFirstWithHostNet**： 对于运行在节点网络上的 Pod，其 dnsPolicy 必须指定为 ClusterFirstWithHostNet
+- **None**： 允许 Pod 忽略 Kubernetes 环境中的 DNS 设置，此时该 Pod 的 DNS 的所有设置必须通过 spce.dnsConfig 指定
+
+
+
+ **Default** 并非是默认的 DNS Policy。如果 spec.dnsPolicy 字段未指定，则 **ClusterFirst** 将被默认使用
+
+例子：
+
+Pod DNS Policy 必须设置为 **ClusterFirstWithHostNet**，因为它的 hostNetwork 字段为 true
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+  namespace: default
+spec:
+  containers:
+  - image: busybox:1.28
+    command:
+      - sleep
+      - "3600"
+    imagePullPolicy: IfNotPresent
+    name: busybox
+  restartPolicy: Always
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
+```
+
+
+
+#### 4、配置 Pod DNS
+
+Pod 定义中的 spec.dnsConfig 是可选字段，且可以与任何类型的 spec.dnsPolicy 配合使用
+
+如果 spec.dnsPolicy 被设置为 None，则 spec.dnsConfig 必须被指定
+
+spec.dnsConfig 中有如下字段可以配置：
+
+- **nameservers**： Pod 的 DNS Server IP 地址列表
+  - 最多可以执行 3 个 IP 地址
+  - 当 spec.dnsPolicy 为 **None**，至少需要指定一个 IP 地址，其他情况下该字段是可选的
+  - DNS Server 的 IP 地址列表将会与 DNS Policy 所产生的 DNS Server 地址列表合并（重复的条目被去除）
+- **searches**：Pod 中执行域名查询时搜索域的列表，该字段是可选的
+  - 如果指定了该字段，则指定的搜索域列表将与 DNS Policy 所产生的搜索域列表合并（重复的条目被去除）合并后的列表最多不超过 6 个域
+- **options**：可选数组，其中每个元素由 **name** 字段（必填）和 **value** 字段（选填）组成
+  - 该列表中的内容将与 DNS Policy 所产生的 DNS 选项合并（重复的条目被去除）
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: default
+  name: dns-example
+spec:
+  containers:
+    - name: test
+      image: nginx
+  dnsPolicy: "None"
+  dnsConfig:
+    nameservers:
+      - 1.2.3.4
+    searches:
+      - ns1.svc.cluster-domain.example
+      - my.dns.search.suffix
+    options:
+      - name: ndots
+        value: "2"
+      - name: edns0
+~~~
+
+上述 Pod 创建后，容器 test 的 etc/resolv.conf 文件如下所示（从 spec.dnsConfig 的配置产生），执行命令 kubectl exec -it dns-example -- cat /etc/resolv.conf 可查看该文件内容
+
+~~~bash
+nameserver 1.2.3.4
+search ns1.svc.cluster-domain.example my.dns.search.suffix
+options ndots:2 edns0
+~~~
+
+如果集群使用的是 IPv6，执行命令 kubectl exec -it dns-example -- cat /etc/resolv.conf 的输出结果如下所示：
+
+~~~bash
+nameserver fd00:79:30::a
+search default.svc.cluster-domain.example svc.cluster-domain.example cluster-domain.example
+options ndots:5
+~~~
+
+Pod 定义中的 spec.dnsConfig 和 spec.dnsPolicy=None 的兼容性如下：
+
+| Kubernetes 版本号 | 支持情况         |
+| ----------------- | ---------------- |
+| 1.14              | Stable           |
+| 1.10              | Beta（默认启用） |
+| 1.9               | Alpha            |
+
+
+
+## 9、保护 Service
+
+在将 Service 公布到互联网时，需要确保该通信渠道是安全的，为此必须：
+
+- 准备 https 证书（购买，或者自签名）
+- 将该 nginx 服务配置好，并使用该 https 证书
+- 配置 Secret，以使得其他 Pod 可以使用该证书
+
+
+
+**流程**：
+
+1. 创建密钥对
+
+   - ~~~bash
+     openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /d/tmp/nginx.key -out /d/tmp/nginx.crt -subj "/CN=my-nginx/O=my-nginx"
+     ~~~
+
+2. 将密钥对转换为 base64 编码
+
+   - ~~~bash
+     cat /d/tmp/nginx.crt | base64
+     cat /d/tmp/nginx.key | base64
+     ~~~
+
+3. 创建一个如下格式的 nginx-secrets.yaml 文件
+
+   - 使用前面命令输出的 base64 编码替换其中的内容（base64编码内容不能换行）
+
+   - 使用前面两行命令生成的结果替换 nginx.crt 和 nginx.key 的内容
+
+   - ~~~bash
+     apiVersion: "v1"
+     kind: "Secret"
+     metadata:
+       name: "nginxsecret"
+       namespace: "default"
+     data:
+       nginx.crt: "LS0tLS1CRUdJTiEJnLS0tLS0K"
+       nginx.key: "LS0tLS1CRUdJTLS0tLS0K"
+     ~~~
+
+4. 使用该文件创建 Secrets
+
+   - ~~~bash
+     # 创建 Secrets
+     kubectl apply -f nginx-secrets.yaml
+     # 查看 Secrets
+     kubectl get secrets
+     ~~~
+
+5. 修改 nginx 部署，使用 Secrets 中的 https 证书，修改 Service，使其暴露 80 端口和 443端口
+
+   - ~~~yaml
+     apiVersion: v1
+     kind: Service
+     metadata:
+       name: my-nginx
+       labels:
+         run: my-nginx
+     spec:
+       type: NodePort
+       ports:
+       - port: 80
+         targetPort: 80
+         protocol: TCP
+         name: http
+       - port: 443
+         protocol: TCP
+         name: https
+       selector:
+         run: my-nginx
+     ---
+     apiVersion: apps/v1
+     kind: Deployment
+     metadata:
+       name: my-nginx
+     spec:
+       selector:
+         matchLabels:
+           run: my-nginx
+       replicas: 1
+       template:
+         metadata:
+           labels:
+             run: my-nginx
+         spec:
+           volumes:
+           - name: secret-volume
+             secret:
+               secretName: nginxsecret
+           containers:
+           - name: nginxhttps
+             image: bprashanth/nginxhttps:1.0
+             ports:
+             - containerPort: 443
+             - containerPort: 80
+             volumeMounts:
+             - mountPath: /etc/nginx/ssl
+               name: secret-volume
+     ~~~
+
+测试：
+
+可以从任何节点访问该 nginx server
+
+~~~bash
+curl -k https://10.244.3.5
+~~~
+
+curl -k：
+
+- 在 curl 命令中指定 -k 参数，是因为在生成 https 证书时，并不知道 Pod 的 IP 地址，因此在执行 curl 命令时必须忽略 CName 不匹配的错误
+- 通过创建 Service，将 https 证书的 CName 和 Service 的实际 DNS Name 联系起来，因此可以尝试在另一个 Pod 中使用 https 证书的公钥访问 nginx Service，此时 curl 指令不在需要 -k 参数
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curl-deployment
+spec:
+  selector:
+    matchLabels:
+      app: curlpod
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: curlpod
+    spec:
+      volumes:
+      - name: secret-volume
+        secret:
+          secretName: nginxsecret
+      containers:
+      - name: curlpod
+        command:
+        - sh
+        - -c
+        - while true; do sleep 1; done
+        image: radial/busyboxplus:curl
+        volumeMounts:
+        - mountPath: /etc/nginx/ssl
+          name: secret-volume
+~~~
+
+~~~bash
+kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
+~~~
+
+
+
+## 10、暴露 Service
+
+有时需要将 Service 发布到一个外部的 IP 地址上，Kubernetes 支持如下两种方式：
+
+- NodePort
+- LoadBalancer，需要云环境支持
+
+根据保护 Service 小节的配置，假设某一节点的公网 IP 地址为 23.251.152.56，则可以使用任意一台可上网的机器执行命令 curl https://23.251.152.56:32453 -k
 
 
 
@@ -5902,6 +6563,75 @@ spec:
       targetPort: 8080
       nodePort: 30800
 ~~~
+
+
+
+## 6、Kubernetes 网络模型
+
+Docker 使用一种 host-private 的联网方式，在此情况下只有两个容器都在同一个节点上时，一个容器才可以通过网络连接另一个容器
+
+为了使 Docker 容器可以跨节点通信，必须在宿主节点的 IP 地址上分配端口，并将该端口接收到的网络请求转发（或代理）到容器，这意味着用户必须非常小心地为容器分配宿主节点的端口号，除非端口号可以自动分配
+
+在一个集群中，多个开发者之间协调分配端口号是非常困难的，Kubernetes 认为集群中的两个 Pod 应该能够互相通信，无论他们各自在哪个节点上，每一个 Pod 都拥有的 **cluster-private-IP**，因此无需在 Pod 间建立连接，或者将容器的端口映射到宿主机的端口
+
+- Pod 中的任意容器可以使用 localhost 直连同 Pod 中另一个容器的端口
+- 集群中的任意 Pod 可以使用另一的 Pod 的 **cluster-private-IP** 直连对方的端口，（无需 NAT 映射）
+
+
+
+例子：
+
+~~~yaml
+# 部署一个容器，并将容器的 80 端口暴露
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-nginx
+spec:
+  selector:
+    matchLabels:
+      run: my-nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        run: my-nginx
+    spec:
+      containers:
+      - name: my-nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+~~~
+
+~~~bash
+kubectl get pods -l run=my-nginx -o yaml | grep podIP
+~~~
+
+获取到 Pod 的 ClusterIP，可以在集群中的任意节点访问，curl xxx.xxx.xxx.xxx
+
+- 此时没有使用节点的端口
+- 没有使用 NAT 规则映射
+
+因此可以在当节点上使用 80 端口运行多个该实例
+
+~~~bash
+kubectl expose deployment/my-nginx
+~~~
+
+为该实例创建一个 Service
+
+- 该 Service 通过 Label Selector 选取包含 run: my-nginx 标签的 Pod 作为后端 Pod
+- 该 Service 暴露一个端口 80（spec.ports[*].port）
+- 该 Service 将 80 端口上接收到的网络请求转发到后端 Pod 的 80 （spec.ports[*].targetPort）端口上，支持负载均衡
+
+Service 的后端 Pod 实际上通过 Endpoints 来暴露，Kubernetes 会持续检查 Service 的 Label Selector spec.selector，并将符合条件的 Pod 更新到与 Service 同名（my-nginx）的 Endpoints 对象内，如果 Pod 终止了，该 Pod 将被自动从 Endpoints 中移除，新建的 Pod 将自动被添加到该 Endpoint
+
+此时可以在集群中的任意节点，通过 curl serviceClusterIP 访问
+
+
+
+
 
 
 
