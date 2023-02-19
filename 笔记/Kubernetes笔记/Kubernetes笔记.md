@@ -2387,6 +2387,12 @@ matchExpression 等价于基于集合的选择方式，支持的 operator 有 In
 
 
 
+**注意**：
+
+- 如果两个字段同时存在，则必须同时满足两个条件的 Pod 才被选中
+
+
+
 ## 3、使用
 
 ~~~yaml
@@ -2706,7 +2712,1351 @@ Deployment 的更新是通过创建一个新的 RS 并同时将旧的 RS 的副�
 
 
 
-## 3、Horizontal Pod Autoscaler
+#### 3、回滚
+
+默认情况下，kubernetes 将保存 Deployment 的所有更新（rollout）历史，可以设定 revision history limit 来确定保存的历史版本数量
+
+当且仅当 Deployment 的 .spec.**template** 字段被修改时（例如：修改了容器的镜像），Kubernetes 将为其创建一个 Deployment revision，Deployment 的其他更新（例如：修改 .spec.replicas 字段）将不会创建新的 Deployment reviesion
+
+~~~bash
+# 查看更新状态
+kubectl rollout status deployment.v1.apps/name
+
+# 查看更新历史
+kubectl rollout history deployment.v1.apps/name
+~~~
+
+可以通过如下方式制定 **CHANGE-CAUSE** 信息：
+
+- 为 Deployment 增加注解
+  - kubectl annotate deployment.v1.apps/nginx-deployment kubernetes.io/change-cause="image updated to 1.9.1"
+- 执行 kubectl apply 命令时，增加 --record 选项
+- 手动编辑 Deployment 的 .metadata.annotation 信息
+
+~~~bash
+# 查看特定版本信息
+kubectl rollout history deployment.v1.apps/name --revision=2
+
+# 回滚前一个版本
+kubectl rollout undo deployment.v1.apps/name
+
+# 回滚到指定版本
+kubectl rollout undo deployment.v1.apps/name --to-revision=2
+~~~
+
+
+
+#### 4、伸缩
+
+~~~bash
+kubectl scale deployment.v1.apps/name --replicas=10
+~~~
+
+如果您的集群启用了自动伸缩 HPA，执行以下命令，就可以基于 CPU 的利用率在一个最大和最小的区间自动伸缩您的 Deployment
+
+~~~bash
+kubectl autoscale deployment.v1.apps/name --min=10 --max=15 --cpu-percent=80
+~~~
+
+
+
+**按比例伸缩**：滚动更新 Deployment 过程中运行实例的多个版本
+
+如果 Deployment 正在执行滚动更新（也可能暂停了滚动更新），或者自动伸缩器对该 Deployment 执行伸缩操作，此时 Deployment Controller 会按比例将新建的 Pod 分配到当前活动的 RS ，以避免可能的风险
+
+
+
+例子：
+
+假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment Controller 需要决定如何分配新增的 5 个 Pod 副本
+
+根据按比例伸缩的原则：
+
+- 副本数多的 ReplicaSet 分配到更多比例的新 Pod
+- 副本数少的 ReplicaSet 分配到更少比例的新 Pod
+- 如果还有剩余的新 Pod 数未分配，直接追加到副本数最多的 RS
+- 副本数为 0 的 ReplicaSet，scale up 之后，副本数仍然为 0
+
+在本例中，3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
+
+
+
+#### 5、暂停和继续
+
+可以先暂停 Deployment，然后再触发一个或多个更新，最后再继续（resume）该 Deployment
+
+这种做法使可以在暂停和继续中间对 Deployment 做多次更新，而无需触发不必要的滚动更新
+
+~~~bash
+# 暂停
+kubectl rollout pause deployment.v1.apps/name
+~~~
+
+~~~bash
+# 更新
+kubectl set image deployment.v1.apps/name nginx=nginx:1.9.1
+
+# 再更新
+kubectl set resources deployment.v1.apps/name -c=nginx --limits=cpu=200m,memory=512Mi
+~~~
+
+~~~bash
+#继续
+kubectl rollout resume deployment.v1.apps/nginx-deployment
+~~~
+
+
+
+**注意**：
+
+- 不能 rollback一个已暂停的 Deployment，除非 resume 该 Deployment
+
+
+
+### 3、状态
+
+Deployment 的生命周期中，将会进入不同的状态，这些状态可能是：
+
+- **progressing**
+- **complete**
+- **fail to progress**
+
+
+
+当如下任何一个任务正在执行时，Kubernete 将 Deployment 的状态标记为 progressing：
+
+- Deployment 创建了一个新的 ReplicaSet
+- Deployment 正在 scale up 最新的 ReplicaSet
+- Deployment 正在 scale down 旧的 ReplicaSet
+- 新的 Pod 变为 就绪（ready） 或 可用（available）
+
+可以使用命令 kubectl rollout status 监控 Deployment 滚动更新的过程
+
+
+
+如果 Deployment 符合以下条件，Kubernetes 将其状态标记为 complete：
+
+- 该 Deployment 中的所有 Pod 副本都已经被更新到指定的最新版本
+- 该 Deployment 中的所有 Pod 副本都处于 可用（available） 状态
+- 该 Deployment 中没有旧的 ReplicaSet 正在运行
+
+
+
+Deployment 在更新其最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail to progress，如下原因都可能导致此现象发生：
+
+- 集群资源不够
+- 就绪检查（readiness probe）失败
+- 镜像抓取失败
+- 权限不够
+- 资源限制
+- 应用程序的配置错误导致启动失败
+
+指定 Deployment 定义中的 .spec.**progressDeadlineSeconds** 字段，Deployment Controller 在等待指定的时长后，将 Deployment 的标记为处理失败，然后更新 Deployment 的 Condition，添加如下 DeploymentCondition：
+
+- Type=Progressing
+- Status=False
+- Reason=ProgressDeadlineExceeded
+
+Type=Available 及 Status=True 代表 Deployment 具备最小可用的 Pod 数，Minimum availability 由 Deployment 中的 strategy 参数决定
+
+Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的过程中，要么已经成功完成更新并且 Pod 数达到了最小可用的数量
+
+
+
+可以针对 Failed 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
+
+- scale up / scale down
+- 回滚到前一个版本
+- 暂停（pause）Deployment，以对 Deployment 的 Pod template 执行多处更新
+
+
+
+**注意**：
+
+- Kubernetes 不会对被卡住的 Deployment 做任何操作
+
+
+
+### 4、策略
+
+**清理策略**：
+
+- 通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个旧的 ReplicaSet
+- 超出该数字的将被在后台进行垃圾回收
+- 该字段的默认值是 10
+- 如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
+
+
+
+**部署策略**：
+
+- 通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
+
+
+
+**金丝雀发布**：
+
+首先发布一个副本数为 3 ，标签为 app=x，镜像标签 v1.0 的 Deployment ，再添加一个副本数为 1，标签相同，镜像版本 v2.0 的 Deployment，此时 Service 会将流量以 3：1分发到旧新副本中
+
+**局限**：
+
+- 不能根据用户注册时间、地区等请求中的内容属性进行流量分配
+- 同一个用户如果多次调用该 Service，有可能第一次请求到了旧版本的 Pod，第二次请求到了新版本的 Pod
+
+解决方案：
+
+- Istio 灰度发布
+- 业务代码编码实现
+- Spring Cloud 灰度发布
+
+
+
+## 3、StatefulSet 
+
+### 1、概述
+
+StatefulSet 顾名思义，用于管理 Stateful 的实例
+
+StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其与 Deployment 相似，StatefulSet 基于一个 Pod 模板管理其 Pod，最大的不同在于 StatefulSet 始终将一系列不变的名字分配给其 Pod，这些 Pod 从同一个模板创建，但是并不能相互替换：每个 Pod 都对应一个特有的持久化存储标识
+
+同其他所有控制器一样，StatefulSet 也使用相同的模式运作：用户在 StatefulSet 中定义预期状态，StatefulSet 控制器执行需要的操作，以使得该结果被达成
+
+
+
+**适用场景**：
+
+- 稳定、唯一的网络标识（dnsname）
+- 每个Pod始终对应各自的存储路径（PersistantVolumeClaimTemplate）
+- 按顺序地增加副本、减少副本，并在减少副本时执行清理
+- 按顺序自动地执行滚动更新
+
+
+
+**限制**：
+
+- Pod 的存储要么由 Storage Class 对应的 PersistentVolume Provisioner 提供，要么由集群管理员事先创建
+- 删除或 scale down 一个 StatefulSet 将不会删除其对应的数据卷
+- 删除 StatefulSet 时，将无法保证 Pod 的终止是正常的，如果要按顺序 gracefully 终止 StatefulSet 中的 Pod，可以在删除 StatefulSet 前将其 scale down 到 0
+- 当使用默认的 PodManagementPolicy=OrderedReady 进行滚动更新时，可能进入一个错误状态，并需要人工介入才能修复
+
+
+
+**注意**：
+
+- 如果一个应用程序不需要稳定的网络标识，或者不需要按顺序部署、删除、增加副本，应该考虑使用 Deployment
+
+
+
+### 2、Pod 标识
+
+**唯一标识**：StatefulSet 中的 Pod 都具备一个
+
+- 序号
+- 稳定的网络标识
+- 稳定的存储
+
+该标识始终与 Pod 绑定，无论该 Pod 被调度（重新调度）到哪一个节点上，假设一个 StatefulSet 的副本数为 N，其中的每一个 Pod 都会被分配一个序号，序号的取值范围从 0 到 N - 1，并且该序号在 StatefulSet 内部是唯一的
+
+
+
+**稳定的网络 ID**：
+
+- StatefulSet 中 Pod 的 hostname 格式为 $(StatefulSet name)-$(Pod 序号)
+- StatefulSet 可以使用 Headless Service 来控制其 Pod 所在的域
+  - 该域（domain）的格式为 $(service name).$(namespace).svc.cluster.local，其中 cluster.local 是集群的域
+- StatefulSet 中每一个 Pod 将被分配一个 dnsName，格式为： $(podName).$(所在域名)
+
+
+
+**稳定的存储**：
+
+- Kubernetes 为每一个 VolumeClaimTemplate 创建一份 PersistentVolume
+- 当 Pod 被调度（或重新调度）到一个节点上，其挂载点将挂载该 PersistentVolume
+- 当 Pod 或 StatefulSet 被删除时，其关联的 PersistentVolumeClaim 以及其背后的 PersistentVolume 仍然存在
+- 如果相同的 Pod 或 StatefulSet 被再次创建，则新建的 Pod 仍将按序挂载到原来 Pod 所挂载的 PVC、PV上
+
+
+
+**Pod Name 标签**：
+
+- 当 StatefulSet 控制器创建一个 Pod 时，会为 Pod 添加一个标签 statefulset.kubernetes.io/pod-name 
+- 该标签的值为 Pod 的名字，可以利用此名字，为 StatefulSet 中的某一个特定的 Pod 关联一个 Service
+- 实际操作中，无需为 StatefulSet 中的一个特定 Pod 关联 Service，因为可以直接通过该 Pod 的 DNS Name 访问到 Pod
+
+
+
+**注意**
+
+- 需要自行为 StatefulSet 创建 Headless Service
+
+
+
+| 字段名                 | 组合一                                       | 组合二                                   | 组合三                                |
+| ---------------------- | -------------------------------------------- | ---------------------------------------- | ------------------------------------- |
+| **Cluster Domain**     | cluster.local                                | cluster.local                            | kube.local                            |
+| **Service name**       | default/nginx                                | foo/nginx                                | foo/nginx                             |
+| **StatefulSet name**   | default/web                                  | foo/web                                  | foo/web                               |
+| **StatefulSet Domain** | nginx.default.svc.cluster.local              | nginx.foo.svc.cluster.local              | nginx.foo.svc.kube.local              |
+| **Pod DNS**            | web-{0..N-1}.nginx.default.svc.cluster.local | web-{0..N-1}.nginx.foo.svc.cluster.local | web-{0..N-1}.nginx.foo.svc.kube.local |
+| **Pod name**           | web-{0..N-1}                                 | web-{0..N-1}                             | web-{0..N-1}                          |
+
+
+
+
+
+### 2、使用
+
+#### 1、创建
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  serviceName: "nginx"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  # 每一个 Pod ID 对应自己的存储卷，且 Pod 重建后，仍然能找到对应的存储卷
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      resources:
+        requests:
+          storage: 1Gi
+~~~
+
+
+
+#### 2、伸缩
+
+部署和伸缩 StatefulSet 时的执行顺序：
+
+- 在创建一个副本数为 N 的 StatefulSet 时，其 Pod 将被按 {0 ... N-1} 的顺序逐个创建
+- 在删除一个副本数为 N 的 StatefulSet （或其中所有的 Pod）时，其 Pod 将按照相反的顺序（即 {N-1 ... 0}）终止和删除
+- 执行扩容（scale up）时，新增 Pod 的所有前序 Pod 必须处于 Running 和 Ready 的状态
+- 终止和删除 StatefulSet 中的某一个 Pod 时，该 Pod 所有的后序 Pod 必须全部已终止
+
+
+
+**Pod 管理策略**：
+
+可以为 StatefulSet 设定 .spec.**podManagementPolicy** 字段，以便继续使用 StatefulSet 唯一 ID 的特性，但禁用有序创建和销毁 Pod 的特性
+
+该字段的取值如下：
+
+- **OrderedReady**
+  - OrderedReady 是 .spec.podManagementPlicy 的默认值
+- **Parallel**
+  - .spec.podManagementPlicy 的取值为 Parallel，则 StatefulSet Controller 将同时并行地创建或终止其所有的 Pod，此时 StatefulSet Controller 将不会逐个创建 Pod，等待 Pod 进入 Running 和 Ready 状态之后再创建下一个 Pod，也不会逐个终止 Pod
+
+
+
+**注意**：
+
+- StatefulSet 中 pod.spec.**terminationGracePeriodSeconds** 不能为 0
+- podManagementPolicy 只影响到伸缩（scale up/scale down）操作，更新操作不受影响
+
+
+
+#### 3、更新
+
+设定 .spec.**updateStrategy** 字段，以便在改变 StatefulSet 中 Pod 的某些字段时（container/labels/resource request/resource limit/annotation等）禁用滚动更新
+
+**On Delete**：
+
+- OnDelete 策略实现了 StatefulSet 的遗留版本（Kuberentes 1.6 及以前的版本）的行为
+- 当修改 .spec.template 的内容时，StatefulSet Controller 将不会自动更新其 Pod，必须手动删除 Pod，此时 StatefulSet Controller 在重新创建 Pod 时，使用修改过的 .spec.template 的内容创建新 Pod
+
+
+
+**Rolling Updates**：（默认值）
+
+- 该策略为 StatefulSet 实现了 Pod 的自动滚动更新
+
+- 在用户更新 StatefulSet 的 .spec.tempalte 字段时，StatefulSet Controller 将自动地删除并重建 StatefulSet 中的每一个 Pod
+
+- 处理顺序如下：
+
+  - 从序号最大的 Pod 开始，逐个删除和更新每一个 Pod，直到序号最小的 Pod 被更新
+
+  - 当正在更新的 Pod 达到了 Running 和 Ready 的状态之后，才继续更新其前序 Pod
+
+- **Partitions** 字段：
+
+  - 通过指定 .spec.updateStrategy.rollingUpdate.partition 字段，可以分片（partitioned）执行RollingUpdate 更新策略
+
+  - 当更新 StatefulSet 的 .spec.template 时：
+
+    - 序号大于或等于 .spec.updateStrategy.rollingUpdate.partition 的 Pod 将被删除重建
+
+    - 序号小于 .spec.updateStrategy.rollingUpdate.partition 的 Pod 将不会更新，及时手工删除该 Pod，kubernetes 也会使用前一个版本的 .spec.template 重建该 Pod
+
+    - 如果 .spec.updateStrategy.rollingUpdate.partition 大于 .spec.replicas，更新 .spec.tempalte 将不会影响到任何 Pod
+
+
+
+**Forced Rollback**：强制回滚
+
+- 当使用默认的 Pod 管理策略时（OrderedReady），很有可能会进入到一种卡住的状态，需要人工干预才能修复
+- 如果更新 Pod template 后，该 Pod 始终不能进入 Running 和 Ready 的状态（例如：镜像错误或应用程序配置错误），StatefulSet 将停止滚动更新并一直等待，此时，如果仅仅将 Pod template 回退到一个正确的配置仍然是不够的，由于一个已知的问题，StatefulSet 将继续等待出错的 Pod 进入就绪状态（该状态将永远无法出现），才尝试将该 Pod 回退到正确的配置
+- 在修复 Pod template 以后，还必须删除掉所有已经尝试使用有问题的 Pod template 的 Pod，StatefulSet此时才会开始使用修复了的 Pod template 重建 Pod
+
+
+
+**注意**：
+
+- 大部分情况下，不需要使用 .spec.updateStrategy.rollingUpdate.partition，除非碰到如下场景：
+  - 执行预发布
+  - 执行金丝雀更新
+  - 执行按阶段的更新
+
+
+
+## 4、DaemonSet
+
+### 1、概述
+
+DaemonSet 控制器确保所有（或一部分）的节点都运行了一个指定的 Pod 副本
+
+每当向集群中添加一个节点时，指定的 Pod 副本也将添加到该节点上，当节点从集群中移除时，Pod 也就被垃圾回收了，删除一个 DaemonSet 可以清理所有由其创建的 Pod
+
+通常情况下，一个 DaemonSet 将覆盖所有的节点
+
+典型使用场景有：
+
+- 在每个节点上运行集群的存储守护进程，例如：glusterd、ceph
+- 在每个节点上运行日志收集守护进程，例如：fluentd、logstash
+- 在每个节点上运行监控守护进程，例如：Prometheus Node Exporter、Sysdig Agent、collectd、Dynatrace OneAgent、APPDynamics Agent、Datadog agent、New Relic agent、Ganglia gmond、Instana Agent等
+- 会为某一类守护进程设置多个 DaemonSets，每一个 DaemonSet 针对不同类硬件类型设定不同的内存、CPU 请求
+
+
+
+### 2、使用
+
+#### 1、创建
+
+~~~yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd-elasticsearch
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd-elasticsearch
+        image: fluent/fluentd-kubernetes-daemonset:v1.7.1-debian-syslog-1.0
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+~~~
+
+~~~bash
+# 创建
+kubectl apply -f daemonset.yaml
+~~~
+
+DaemonSet 需要如下字段：
+
+- **apiVersion**
+- **kind**
+- **metadata**
+- **spec **
+  - restartPolicy 字段必须为 Always，或者不填（默认值为 Always）
+  - selector 是必填字段，且指定该字段时，必须与 template.metata.labels 字段匹配，不匹配的情况下创建 DaemonSet 将失败
+    - DaemonSet 创建以后，selector 字段就不可再修改，如果修改，可能导致不可预见的结果
+  - 指定 nodeSelector ，DaemonSet Controller 将只在指定的节点上创建 Pod
+  - 指定 .spec.template.spec.affinity，DaemonSet Controller 将只在与 node affinity 匹配的节点上创建 Pod
+- **template**
+  - 定义了 Pod 的模板，与定义 Pod 的 yaml 格式完全相同
+  - 除了内嵌在 DaemonSet 中以外，没有 kind、apiversion 字段以外
+  - 必须指定 .spec.template.metadata.labels 字段和 .spec.tempalte.spec 字段
+
+
+
+**注意**：
+
+- 任何情况下，不能以任何方式创建符合 DaemonSet 的 .spec.selector 选择器的 Pod，否则 DaemonSet Controller 会接管这些 Pod，并导致不可预期的行为出现
+
+
+
+#### 2、更新
+
+**更新信息**：
+
+- 在改变节点的标签时：
+  - 如果该节点匹配了 DaemonSet 的 .spec.template.spec.nodeSelector，DaemonSet 将会在该节点上创建一个 Pod
+  - 如果该节点不匹配原来匹配 DaemonSet 的 .spec.template.spec.nodeSelector，则 DaemonSet 将会删除该节点上对应的 Pod
+- 可以修改 DaemonSet 的 Pod 的部分字段，但是 DaemonSet Controller 在创建新的 Pod 时，仍然会使用原有的 Template
+- 可以删除 DaemonSet，如果在 kubectl 命令中指定 --cascade=false 选项，DaemonSet 容器组将不会被删除
+  - 如果立马再创建一个新的 DaemonSet，与之前删除的 DaemonSet 有相同的 .spec.selector，新建 DaemonSet 将直接把这些未删除的 Pod 纳入管理，DaemonSet 根据其 updateStrategy 决定是否更新这些 Pod
+
+
+
+**滚动更新**：
+
+- https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/
+
+
+
+### 3、调度原理
+
+**注意**：
+
+- **v1.12以后默认启用**
+
+DaemonSet 确保所有符合条件的节点运行了一个指定的 Pod
+
+通常 Kubernetes Scheduler 决定 Pod 在哪个节点上运行，然而如果 DaemonSet 的 Pod 由 DaemonSet Controller 创建和调度，会引发如下问题：
+
+- Pod 的行为不一致：普通的 Pod 在创建后处于 Pending 状态，并等待被调度，但是 DaemonSet Pod 创建后，初始状态不是 Pending
+- Pod 的优先权（preemption）由 Kubernetes 调度器处理，如果 Pod 优先权被启用，DaemonSet Controller 在创建和调度 Pod 时，不会考虑 Pod 的优先权
+
+Kubernetes v1.12 版本以后，默认通过 Kubernetes 调度器来调度 DaemonSet 的 Pod，DaemonSet Controller 将会向 DaemonSet 的 Pod 添加 .spec.**nodeAffinity** 字段，而不是 .spec.**nodeName** 字段，并进一步由 Kubernetes 调度器将 Pod 绑定到目标节点，如果 DaemonSet 的 Pod 已经存在了 nodeAffinity 字段，该字段的值将被替换
+
+此外， node.kubernetes.io/unschedulable:NoSchedule 容忍（toleration）将被自动添加到 DaemonSet 的 Pod 中，因此默认调度器在调度 DaemonSet 的 Pod 时可以忽略节点的 unschedulable 属性
+
+~~~yaml
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+    - matchFields:
+      - key: metadata.name
+        operator: In
+        values:
+        - target-host-name
+~~~
+
+
+
+在调度 DaemonSet 的 Pod 时，污点和容忍（taints and tolerations）会被考量到，同时以下容忍（toleration）将被自动添加到 DaemonSet 的 Pod 中：
+
+| Toleration Key                         | Effect     | Version | 描述                                                         |
+| -------------------------------------- | ---------- | ------- | ------------------------------------------------------------ |
+| node.kubernetes.io/not-ready           | NoExecute  | 1.13+   | 节点出现问题时（例如：网络故障），DaemonSet 容器组将不会从节点上驱逐 |
+| node.kubernetes.io/unreachable         | NoExecute  | 1.13+   | 节点出现问题时（例如：网络故障），DaemonSet 容器组将不会从节点上驱逐 |
+| node.kubernetes.io/disk-pressure       | NoSchedule | 1.8+    |                                                              |
+| node.kubernetes.io/memory-pressure     | NoSchedule | 1.8+    |                                                              |
+| node.kubernetes.io/unschedulable       | NoSchedule | 1.12+   | 默认调度器针对 DaemonSet 容器组，容忍节点的 unschedulable 属性 |
+| node.kubernetes.io/network-unavailable | NoSchedule | 1.12+   | 默认调度器针对 DaemonSet 容器组，在其使用 host network 时，容忍节点的 network-unavailable 属性 |
+
+
+
+### 4、通信
+
+与 DaemonSet 容器组通信的模式有：
+
+- **Push：** DaemonSet 容器组用来向另一个服务推送信息，例如：数据库的统计信息，这种情况下 DaemonSet 容器组没有客户端
+- **NodeIP + Port：** DaemonSet 容器组可以使用 hostPort，此时可通过节点的 IP 地址直接访问该容器组，客户端需要知道节点的 IP 地址，以及 DaemonSet Pod 的端口号
+- **DNS**： 创建一个 headless service，且该 Service 与 DaemonSet 有相同的 Pod Selector，此时客户端可通过该 Service 的 DNS 解析到 DaemonSet 的 IP 地址
+- **Service：** 创建一个 Service，且该 Service 与 DaemonSet 有相同的 Pod Selector，客户端通过该 Service，可随机访问到某一个节点上的 DaemonSet Pod
+
+
+
+### 5、替代选项
+
+**Init Scripts**：
+
+可以通过脚本（例如：init、upstartd、systemd）直接在节点上启动一个守护进程
+
+相对而言，DaemonSet 在处理守护进程时，有如下优势：
+
+- 使用与实例相同的方式处理守护进程的日志和监控
+- 使用与实例相同的配置语言和工具（例如：Pod template、kubectl）处理守护进程
+- 在容器中运行守护进程，可为守护进程增加 resource limits 等限定
+
+
+
+**Pods**：
+
+可以直接创建 Pod，并指定其在某一个节点上运行
+
+相对而言，使用 DaemonSet 可获得如下优势：
+
+- Pod 终止后，DaemonSet 可以立刻新建 Pod 以顶替已终止的 Pod
+- Pod 终止的原因可能是：
+  - 节点故障
+  - 节点停机维护
+
+
+
+**静态 Pod**：
+
+可以在 Kubelet 监听的目录下创建一个 Pod 的 yaml 文件，这种形式的 Pod 叫做 静态 Pod（static pod）
+
+与 DaemonSet 不同，静态 Pod 不能通过 kubectl 或者 Kuboard 进行管理
+
+静态 Pod 不依赖 Kubernetes APIServer 的特点，使得它在引导集群启动的过程中非常有用
+
+**注意**：
+
+- 静态 Pod 将来可能被不推荐使用
+
+
+
+**Deployment**：
+
+DaemonSet 和 Deployment 一样，都是用来创建长时间运行的 Pod（例如：web server、storage server 等）
+
+- Deployment 适用于无状态服务（例如：前端程序），对于这些程序而言，扩容（scale up）/ 缩容（scale down）、滚动更新等特性比精确控制 Pod 所运行的节点更重要
+- DaemonSet 更适合如下情况：
+  - Pod 的副本总是在所有（或者部分指定的）节点上运行
+  - 需要在其他 Pod 启动之前运行
+
+
+
+## 5、Job
+
+### 1、概述
+
+Kubernetes中的 Job 对象将创建一个或多个 Pod，并确保指定数量的 Pod 可以成功执行到进程正常结束：
+
+- 当 Job 创建的 Pod 执行成功并正常结束时，Job 将记录成功结束的 Pod 数量
+- 当成功结束的 Pod 达到指定的数量时，Job 将完成执行
+- 删除 Job 对象时，将清理掉由 Job 创建的 Pod
+
+例子：创建一个 Job 对象用来确保一个 Pod 的成功执行并结束，在第一个 Pod 执行失败或者被删除（例如：节点硬件故障或机器重启），该 Job 对象将创建一个新的 Pod 以重新执行
+
+
+
+~~~yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi
+spec:
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl
+        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      restartPolicy: Never
+  backoffLimit: 4
+~~~
+
+~~~bash
+# 创建
+kubectl apply -f job.yaml
+~~~
+
+
+
+Job 对象的 YAML 文件中，都需要包括如下三个字段：
+
+- .**apiVersion**
+- .**kind**
+- .**metadata**
+- .**spec**
+  - template 必填字段
+    - 与 Pod 有相同的字段内容，但由于是内嵌元素，pod template 不包括阿 apiVersion 字段和 kind 字段
+    - 除了 Pod 所需的必填字段之外，Job 中的 pod template 必须指定
+      - 合适的标签 .spec.template.spec.labels
+      - 指定合适的重启策略 .spec.template.spec.restartPolicy，此处只允许使用 Never 和 OnFailure 两个取值
+  - .spec.selector 字段是可选的，绝大部分情况下，不需要指定该字段，只有在少数情况下才需要这样做
+
+
+
+
+
+### 2、Parallel Jobs
+
+有三种主要的任务类型适合使用 Job 运行：
+
+- **Non-parallel Jobs**：
+  - 通常，只启动一个 Pod，除非该 Pod 执行失败
+  - Pod 执行成功并结束以后，Job 也立刻进入完成 completed 状态
+- **Parallel Jobs with a fixed completion count**：
+  - .spec.completions 为一个非零正整数
+  - Job 将创建至少 .spec.**completions** 个 Pod，编号为 1 - .spec.**completions**
+  - Job 记录了任务的整体执行情况，当 1 - .spec.completions 中每一个编号都有一个对应的 Pod 执行成功时，Job 进入完成状态
+- **Parallel Jobs with a work queue**：
+  - 不指定 .spec.completions，使用 .spec.**parallelism**
+  - Pod 之间必须相互之间自行协调并发，或者使用一个外部服务决定每个 Pod 各自执行哪些任务
+    - 例如：某个 Pod 可能从工作队列（work queue）中取出最多 N 个条目的批次数据
+  - 每个 Pod 都可以独立判断其他同僚（peers）是否完成，并确定整个 Job 是否完成
+  - 当  Job 中任何一个 Pod 成功结束，将不再为其创建新的 Pod
+  - 当所有的 Pod 都结束了，且至少有一个 Pod 执行成功后才结束，则 Job 判定为成功结束
+  - 一旦任何一个 Pod 执行成功并退出，Job 中的任何其他 Pod 都应停止工作和输出信息，并开始终止该 Pod 的进程
+
+
+
+**completions 和 parallelism**
+
+- 对于 non-parallel Job，.spec.completions 和 .spec.parallelism 可以不填写，默认值都为 1
+- 对于 fixed completion count Job，需要设置 .spec.completions 的期望个数，同时不设置 .spec.parallelism 字段（默认值为 1）
+- 对于 work queue Job，不能设置 .spec.completions 字段，且必须设置 .spec.parallelism 为 0 或任何正整数
+
+
+
+**Controlling Parallelism**：
+
+并发数 .spec.parallelism 可以被设置为 0 或者任何正整数，如果不设置则默认为1，如果设置为 0，则 Job 被暂停，直到该数字被调整为一个正整数
+
+实际的并发数（同一时刻正在运行的 Pod 数量）可能比设定的并发数 .spec.parallelism 要大一些或小一些，不一定严格相等，主要的原因有：
+
+- 对于 fixed completion count Job，实际并发运行的 Pod 数量不会超过剩余未完成的数量。如果 .spec.parallelism 比这个数字更大，将被忽略
+- 对于 work queue Job，任何一个 Pod 成功执行后，将不再创建新的 Pod （剩余的 Pod 将继续执行）
+- Job 控制器、可能没有足够的时间处理并发控制
+- Job 控制器创建 Pod 失败（例如：ResourceQuota 不够用，没有足够的权限等）
+- 同一个 Job 中，在已创建的 Pod 出现大量失败的情况下，Job 控制器可能限制 Pod 的创建
+- 当 Pod 被优雅地关闭时（gracefully shut down），需要等候一段时间才能结束
+
+
+
+
+
+
+
+
+
+### 3、使用
+
+#### 1、处理失败
+
+Pod 中的容器可能会因为多种原因执行失败，例如：
+
+- 容器中的进程退出了，且退出码（exit code）不为 0
+- 容器因为超出内存限制而被 Kill
+- 其他原因
+
+如果 Pod 中的容器执行失败，且 .spec.template.spec.restartPolicy=OnFailure，则 Pod 将停留在该节点上，但是容器将被重新执行，此时，实例需要处理在原节点（失败之前的节点）上重启的情况（具体来说，需要处理临时文件、锁、未完成的输出信息以及前一次执行可能遗留下来的其他东西），或者也可以设置为 .spec.template.spec.restartPolicy=Never
+
+整个 Pod 也可能因为多种原因执行失败，例如：
+
+- Pod 从节点上被驱逐（节点升级、重启、被删除等）
+- Pod 的容器执行失败，且 .spec.template.spec.restartPolicy=Never
+
+
+
+**注意**：
+
+- 即使指定 .spec.parallelism = 1、 .spec.completions = 1、 .spec.template.spec.restartPolicy=Never，同一个实例仍然可能被启动多次
+- 如果指定 .spec.parallelism、.spec.completions 的值都大于 1，则将可能有多个 Pod 同时执行，此时 Pod 还必须能够处理并发的情况
+
+
+
+#### 2、失败重试
+
+Pod backoff failure policy
+
+某些情况下（例如：配置错误），可能期望在 Job 多次重试仍然失败的情况下停止该 Job，此时可通过 .spec.backoffLimit 来设定 Job 最大的重试次数，该字段的默认值为 6
+
+Job 中的 Pod 执行失败之后，Job 控制器将按照一个指数增大的时间延迟（10s，20s，40s ... 最大为 6 分钟）来多次重新创建 Pod，如果没有新的 Pod 执行失败，则重试次数的计数将被重置
+
+如果 restartPolicy=OnFailure，执行该 Job 的容器在 Job 重试次数达到以后将被终止，这种情况使得 Job 程序的 debug 工作变得较为困难，建议在 debug 时，设置 restartPolicy=Never，或者使用日志系统确保失败的 Job 的日志不会丢失
+
+
+
+#### 3、终止和清理
+
+当 Job 完成后：
+
+- 将不会创建新的 Pod
+- 已经创建的 Pod 也不会被清理掉，此时仍然可以继续查看已结束 Pod 的日志，以检查 errors/warnings 或者其他诊断用的日志输出
+- Job 对象也仍然保留着，以便查看该 Job 的状态
+- 由用户决定是否删除已完成的 Job 及其 Pod
+  - 可通过 kubectl 命令删除 Job，例如： kubectl delete jobs/pi 或者 kubectl delete -f job.yaml
+  - 删除 Job 对象时，由该 Job 创建的 Pod 也将一并被删除
+
+Job 通常会顺利的执行下去，但是在如下情况可能会非正常终止：
+
+- 某一个 Pod 执行失败（且 restartPolicy=Never）
+- 或者某个容器执行出错（且 restartPolicy=OnFailure）
+  - 此时 Job 按照 .spec.bakcoffLimit 描述的方式进行处理
+  - 一旦重试次数达到了 .spec.backoffLimit 中的值，Job 将被标记为失败，且其创建的所有 Pod 将被终止
+- Job 中设置了 .spec.activeDeadlineSeconds，该字段限定了 Job 对象在集群中的存活时长，一旦达到 .spec.activeDeadlineSeconds 指定的时长，该 Job 创建的所有的 Pod 都将被终止，Job 的 Status 将变为 type:Failed 、 reason: DeadlineExceeded
+
+
+
+**注意**：
+
+- Job 中 .spec.activeDeadlineSeconds 字段的优先级高于 .spec.backoffLimit，因此正在重试失败 Pod 的 Job，在达到 .spec.activeDeadlineSecondes 时，将立刻停止重试，即使 .spec.backoffLimit 还未达到
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi-with-timeout
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 100
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl
+        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      restartPolicy: Never
+```
+
+
+
+**注意**：
+
+- Job 中有两个 activeDeadlineSeconds：.spec.activeDeadlineSeconds、.spec.template.spec.activeDeadlineSeconds，不要混肴
+
+
+
+#### 4、自动清理
+
+系统中已经完成的 Job 通常是不在需要继续保留的，长期在系统中保留这些对象，将给 apiserver 带来很大的压力
+
+如果通过更高级别的控制器（例如 CronJobs）来管理 Job，则 CronJob 可以根据其中定义的基于容量的清理策略（capacity-based cleanup policy）自动清理Job
+
+
+
+**TTL 机制**：
+
+除了 CronJob 之外，TTL 机制是另外一种自动清理已结束Job（Completed 或 Finished）的方式：
+
+- TTL 机制由 TTL 控制器 提供
+- 在 Job 对象中指定 .spec.ttlSecondsAfterFinished 字段可激活该特性
+
+当 TTL 控制器清理 Job 时，TTL 控制器将删除 Job 对象，以及由该 Job 创建的所有 Pod 对象，删除 Job 时，其生命周期函数将被触发，例如：finalizer
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi-with-ttl
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl
+        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      restartPolicy: Never
+```
+
+字段解释 ttlSecondsAfterFinished：
+
+- Job pi-with-ttl 的 ttlSecondsAfterFinished 值为 100，则在其结束 100 秒之后，将可以被自动删除
+- 如果 ttlSecondsAfterFinished 被设置为 0，则 TTL 控制器在 Job 执行结束后，立刻就可以清理该 Job 及其 Pod
+- 如果 ttlSecondsAfterFinished 值未设置，则 TTL 控制器不会清理该 Job
+
+
+
+### 4、模式
+
+Kubernetes Job 对象可以用来支持 Pod 的并发执行，但是：
+
+- Job 对象并非设计为支持需要紧密相互通信的 Pod 的并发执行，例如：科学计算
+- Job 对象支持并发处理一系列相互独立但是又相互关联的工作任务，例如：
+  - 发送邮件
+  - 渲染页面
+  - 转码文件
+  - 扫描 NoSQL 数据库中的主键
+  - 其他
+
+在一个复杂的系统中，可能存在多种类型的工作任务，目前只讨论批处理任务，对于批处理任务的并行计算，存在着几种模式，它们各自有自己的优缺点：
+
+- 每个工作任务一个 Job 对象 VS 一个 Job 对象负责所有的工作任务
+  - 当工作任务特别多时，第二种选择更合适一些
+  - 第一种选择将为管理员和系统带来很大的额外开销，因为要管理很多数量的 Job 对象
+- Pod 的数量与工作任务的数量相等 VS 每个Pod可以处理多个工作任务
+  - 第一种选择通常只需要对现有的代码或容器做少量的修改
+  - 第二种选择更适合工作任务的数量特别多的情况，相较于第一种选择可以降低系统开销
+- 使用工作队列：
+  - 需要运行一个队列服务
+  - 需要对已有的程序或者容器做修改，以便其可以配合队列工作
+  - 如果是一个已有的程序，改造时可能存在难度
+
+优缺点归纳如下表所示，其中第二列到第四列罗列了主要考虑的对比因素：
+
+| 模式                                   | 单个Job对象 | Pod的数量少于工作任务？ | 是否无需修改已有代码？ | 是否可兼容kube1.1 |
+| -------------------------------------- | ----------- | ----------------------- | ---------------------- | ----------------- |
+| Job Template Expansion                 |             |                         | ✓                      | ✓                 |
+| Queue with Pod Per Work Item           | ✓           |                         | 有时候                 | ✓                 |
+| Queue with Variable Pod Count          | ✓           | ✓                       |                        | ✓                 |
+| Single Job with Static Work Assignment | ✓           |                         | ✓                      |                   |
+
+当指定 .spec.completions 时，Job 控制器创建的每个 Pod 都有一个相同的 spec，这意味着，同一个 Job 创建的所有的 Pod 都使用：
+
+- 相同的执行命令
+- 相同的容器镜像
+- 相同的数据卷
+- 相同的环境变量（例如：不同时间点创建的Pod，Service的环境变量可能会不同）
+
+Job 的不同模式从本质上讲，就是如何为一组工作任务分配 Pod，下表总结了不同的模式下 .spec.parallelism 和 .spec.completions 字段的设置（表中 W 代表工作任务的数量）
+
+| 模式                                   | .spec.completions | .spec.parallelism |
+| -------------------------------------- | ----------------- | ----------------- |
+| Job Template Expansion                 | 1                 | should be 1       |
+| Queue with Pod Per Work Item           | W                 | any               |
+| Queue with Variable Pod Count          | 1                 | Any               |
+| Single Job with Static Work Assignment | W                 | any               |
+
+
+
+### 5、特殊操作
+
+在创建 Job 时，系统默认将为其指定一个 .spec.selector 的取值，并确保其不会与任何其他 Job 重叠
+
+在少数情况下，仍然可能需要覆盖这个自动设置 .spec.selector 的取值，在做此项操作时，您必须十分小心：
+
+- 如果指定的 .spec.selector 不能确定性的标识出该 Job 的 Pod，可能会选中无关的 Pod 
+  - （例如：selector 可能选中其他控制器创建的 Pod）
+  - 则与该 Job 不相关的 Pod 可能被删除
+  - 该 Job 可能将不相关的 Pod 纳入到 .spec.completions 的计数
+  - 一个或多个 Job 可能不能够创建 Pod，或者不能够正常结束
+- 如果指定的 .spec.selector 不是唯一的，则其他控制器（例如：Deployment、StatefulSet 等）及其 Pod 的行为也将难以预测
+
+
+
+实际使用 .spec.selector 的例子：假设 Job old 已经运行，此时希望已经创建的 Pod 继续运行，但是又想要修改该 Job 的 名字，同时想要使该 Job 新建的 Pod 使用新的 template，此时绝对不能够修改已有的 Job 对象，因为这些字段都是不可修改的，但是可以执行命令 kubectl delete jobs/old --cascade=false，以删除 Job old 但是保留其创建的 Pod
+
+- 在删除之前，先记录 Job old 的 selector，执行命令：
+
+  ```sh
+  kubectl get job old -o yaml
+  ```
+
+  输出结果如下所示：
+
+  ```yaml
+  kind: Job
+  metadata:
+    name: old
+    ...
+  spec:
+    selector:
+      matchLabels:
+        controller-uid: a8f3d00d-c6d2-11e5-9f87-42010af00002
+    ...
+  ```
+
+- 创建新的 Job new，并使用已有的 selector，由于已创建的 Pod 带有标签 controller-uid=a8f3d00d-c6d2-11e5-9f87-42010af00002，这些 Pod 也将被新的 Job new 所管理，使用类似如下的 yaml 文件创建 Job new
+
+  ```yaml
+  kind: Job
+  metadata:
+    name: new
+    ...
+  spec:
+    manualSelector: true
+    selector:
+      matchLabels:
+        controller-uid: a8f3d00d-c6d2-11e5-9f87-42010af00002
+  ```
+
+  
+
+**注意**：
+
+- 如果不使用系统自动创建的 .spec.selector 时，需要在 Job new 中指定 .spec.manualSelector: true
+- 新建的 Job new 其 uid 将不同于 a8f3d00d-c6d2-11e5-9f87-42010af00002，但是设置 .spec.manualSelector: true 意味着，系统将使用用户指定的 .spec.selector，而不是使用 Job new 的 uid 作为 .spec.selector 的取值
+
+
+
+### 6、替代选项
+
+**直接创建的Pod（Bare Pod）**：
+
+- 当 Pod 所在的节点重启或者出现故障，Pod 将被终止，且不会被自动重启
+- 如果使用 Job，则 Job 控制器将会创建新的 Pod 以替代已经故障节点上的 Pod，基于此原因，即使实例只需要一个 Pod 执行某项任务，仍然推荐使用 Job，而不是直接创建 Pod
+
+
+
+**Replication Controller**：
+
+- Job 是对 Replication Controller、Deployment 的一种有效补充
+  - Replication Controller 和 Deployment 用来管理那些期望其一直运行的实例（例如：web server）
+  - Job 则用于管理那些期望其执行并结束的应用（例如：批处理任务）
+    - Job 的 Pod 中，RestartPolicy 必须为 OnFailure 或者 Never（如果不设定 RestartPolicy，其默认值为 Always）
+
+
+
+**通过 Job 启动控制器 Pod**：
+
+- 存在这样一种操作模式：使用一个 Job 创建一个 Pod，该 Pod 接着创建其他的 Pod，并作为一种自定义的控制器来管理这些 Pod
+  - 这种做法提供了最大程度的自由度和灵活性，但是某种程度上非常难以上手，且与 Kubernetes 的相关度不高
+
+- 这种模式的一个例子有：某个 Job 创建一个 Pod，该 Pod 执行一段脚本，在脚本中：
+
+  - 启动 Spark master controller
+
+  - 运行 spark driver
+
+  - 执行清理操作
+
+- 这种做法的优点在于，通过 Job 可以确保整个过程最终能够完成执行，但是需要自己编写脚本，以控制应该创建什么样的 Pod，如何在 Pod 上分配执行任务。
+
+
+
+**Cron Jobs**：
+
+- 可以使用 CronJob 来创建 Job，与 Unix/Linux 工具 cron 相似，CronJob 将在指定的日期和时间执行
+
+
+
+## 6、CronJob
+
+### 1、概述
+
+CronJob 按照预定的时间计划（schedule）创建 Job
+
+一个 CronJob 对象类似于 crontab (cron table) 文件中的一行记录，该对象根据 Cron 格式定义的时间计划，周期性地创建 Job 对象
+
+所有 CronJob 的 schedule 中所定义的时间，都是基于 Master 所在时区来进行计算的
+
+CronJob 只负责按照时间计划的规定创建 Job 对象，由 Job 来负责管理具体 Pod 的创建和执行
+
+
+
+与其他所有 Kubernetes 对象一样，CronJob 对象需要：
+
+- **apiVersion**
+
+- **kind**
+
+- **metadata**
+
+- **spec**
+
+  - .spec.schedule 是一个必填字段
+
+    - 类型为 Cron 格式的字符串，例如 0 * * * * 或者 @hourly，该字段定义了 CronJob 应该何时创建和执行 Job
+    - 该字段同样支持 vixie cron step 值（step values），参考 FreeBSD manual
+      - 例如：指定 CronJob 每隔两个小时执行一次，可以有如下三种写法：
+        - 0 0,2,4,5,6,8,12,14,16,17,20,22 * * *
+        - 使用 范围值 + Step 值的写法：0 0-23/2 * * *
+        - Step 也可以跟在一个星号后面，如 0 */2 * * *
+
+  - .spec.jobTemplate 字段是必填字段
+
+    - 该字段的结构与 Job 相同，只是不需要 apiVersion 和 kind
+
+  - .spec.startingDeadlineSeconds 为可选字段
+
+    - 代表着从计划的时间点开始，最迟多少秒之内必须启动 Job，如果超过了这个时间点，CronJob 就不会为其创建 Job，并将其记录为一次错过的执行次数，如果该字段未指定，则 Job 必须在指定的时间点执行
+
+    - 如果 .spec.startingDeadlineSeconds 未指定，CronJob 控制器计算从 .status.lastScheduleTime 开始到现在为止总共错过的执行次数
+
+      - 例如：某一个 CronJob 应该每分钟执行一次，.status.lastScheduleTime 的值是 上午5:00，假设现在已经是上午7:00，这意味着已经有 120 次执行时间点被错过，因此该 CronJob 将不再执行了
+
+        - 如果 .spec.startingDeadlineSeconds 字段被设置为一个非空的值，则 CronJob 控制器计算将从 .spec.startingDeadlineSeconds 秒以前到现在这个时间段内错过的执行次数
+
+        - 例如：假设该字段被设置为 200，控制器将只计算过去 200 秒内错过的执行次数
+
+  - .spec.concurrencyPolicy 是选填字段
+
+    - 指定了如何控制该 CronJob 创建的 Job 的并发性，可选的值有：
+      - Allow： 默认值，允许并发运行 Job
+      - Forbid： 不允许并发运行 Job，如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将跳过新的执行时间点，保留仍在运行的 Job，且不会在此刻创建新的 Job
+      - Replace： 如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将创建一个新的 Job 以替代正在执行的 Job
+
+  - .spec.suspend 是选填字段
+
+    - 如果该字段设置为 true，所有的后续执行都将挂起，该字段不会影响到已经创建的 Job，默认值为 false
+    - suspend 的时间段内，如果恰好存在执行计划时间点，则这些执行时间计划都被记录下来，如果不指定 .spec.startingDeadlineSeconds，并将 .spec.suspend 字段从 true 修改为 false，则挂起的这段时间内的执行计划都将被立刻执行
+
+  - .spec.successfulJobsHistoryLimit 和 .spec.failedJobsHistoryLimit 字段是可选的
+
+    - 这些字段指定了 CronJob 应该保留多少个 completed 和 failed 的 Job 记录
+      - .spec.successfulJobsHistoryLimit 的默认值为 3
+      - .spec.failedJobsHistoryLimit 的默认值为 1
+    - 如果将其设置为 0，则 CronJob 不会保留已经结束的 Job 的记录
+
+
+
+**注意**：
+
+- 所有对 CronJob 对象作出的修改，尤其是 .spec 的修改，都只对修改之后新建的 Job 有效，已经创建的 Job 不会受到影响
+- Concurrency policy 只对由同一个 CronJob 创建的 Job 生效，如果有多个 CronJob，则他们各自创建的 Job 之间不会相互影响。
+
+
+
+### 2、限制
+
+一个 CronJob 在时间计划中的每次执行时刻，都创建大约一个 Job 对象
+
+这里用到了大约，是因为在少数情况下会创建两个 Job 对象，或者不创建 Job 对象，尽管 K8S 尽最大的可能性避免这种情况的出现，但是并不能完全杜绝此现象的发生，因此 Job 程序必须是幂等的
+
+当以下两个条件都满足时，Job 将至少运行一次：
+
+- startingDeadlineSeconds 被设置为一个较大的值，或者不设置该值（默认值将被采纳）
+- concurrencyPolicy 被设置为 Allow
+
+对于每一个 CronJob，CronJob Controller 将检查自上一次执行的时间点到现在为止有多少次执行被错过了，如果错过的执行次数超过了 100，则 CronJob 控制器将不再创建 Job 对象，并记录如下错误：
+
+```text
+Cannot determine if job needs to be started. Too many missed start time (> 100). Set or decrease .spec.startingDeadlineSeconds or check clock skew.
+```
+
+非常重要的一点是，如果设置了 **startingDeadlineSeconds** （非空 nil），控制器将计算从 startingDeadlineSeconds 秒之前到现在为止的时间段被错过的执行次数，而不是计算从上一次执行的时间点到现在为止的时间段被错过的执行次数
+
+- 例如：如果 startingDeadlineSeconds 被设置为 200，则控制器将计算过去 200 秒内，被错过的执行次数
+
+当 CronJob 在其计划的时间点应该创建 Job 时却创建失败，此时 CronJob 被认为错过了一次执行
+
+- 例如：如果 concurrencyPolicy 被设置为 Forbid 且 CronJob 上一次创建的 Job 仍然在运行，此时 CronJob 再次遇到一个新的计划执行时间点并尝试创建一个 Job，该此创建尝试将失败，并被认为错过了一次执行
+- 假设某个 CronJob 被设置为：自 08:30:00 开始，每分钟创建一个新的 Job，且 CronJob 的 startingDeadlineSeconds 字段未被设置，如果 CronJob 控制器恰好在 08:29:00 到 10:21:00 这个时间段出现故障（例如：Crash），则该 CronJob 将不会再次执行，因为其错过的执行次数已经超过了 100
+- 假设某个 CronJob 被设置为：自 08:30:00 开始，每分钟创建一个新的 Job，且 CronJob 的 startingDeadlineSeconds 字段被设置为 200 秒，同样如果 CronJob 控制器恰好在 08:29:00 到 10:21:00 这个时间段出现故障（时间段与上个例子相同），此时 CronJob 控制器将在 10:22:00 为该 CronJob 创建一个 Job，这是因为在这个例子中，控制器将只计算过去 200 秒中错过的执行次数（大约 3 次），而不是从上一次执行的时间点开始计算错过的执行次数
+
+
+
+### 2、使用
+
+#### 1、创建
+
+~~~yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+~~~
+
+~~~bash
+kubectl apply -f cjob.yaml
+~~~
+
+直接使用命令行创建
+
+~~~bash
+kubectl run hello --schedule="*/1 * * * *" --restart=OnFailure --image=busybox -- /bin/sh -c "date; echo Hello from the Kubernetes cluster"
+~~~
+
+~~~bash
+# 查看
+kubectl get cronjob hello
+~~~
+
+
+
+#### 2、删除
+
+删除 CronJob 时，将移除该 CronJob 创建的所有 Job 和 Pod，并且 CronJob 控制器将不会为其在创建任何新的 Job
+
+~~~bash
+kubectl delete cronjob hello
+~~~
+
+
+
+## 7、Garbage Collection
+
+### 1、概述
+
+Kubernetes Garbage Collector（垃圾回收器）的作用是删除那些曾经有 owner，后来又不再有 owner 的对象
+
+
+
+### 2、所有者和从属对象
+
+**Owner**：
+
+- 是其他 Kubernetes 对象的所有者
+
+**Dependent**：
+
+- 被拥有的对象为拥有者的从属对象
+
+例如：ReplicaSet 是一组 Pod 的所有者，在这里 Pod 是 ReplicaSet 的从属对象
+
+每一个从属对象都有一个 metadata.**ownerReferences** 字段，标识其拥有者是哪一个对象
+
+某些情况下，Kubernetes将自动设置 ownerReferences 字段
+
+- 例如：创建一个 ReplicaSet 时，Kubernetes 自动设置该 ReplicaSet 创建的 Pod 中的 ownerReferences 字段
+  - 自版本 1.8 开始，对于 ReplicationController、ReplicaSet、StatefulSet、DaemonSet、Deployment、Job、CronJob 等创建或管理的对象，Kubernetes 都将自动为其设置 ownerReference 的值
+
+可以通过修改 ownerReference 字段，手动设置所有者和从属对象的关系
+
+~~~yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: my-repset
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      pod-is-for: garbage-collection-example
+  template:
+    metadata:
+      labels:
+        pod-is-for: garbage-collection-example
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+~~~
+
+~~~bash
+# 创建上方实例后，查看其内 ownerReferences 详细信息
+kubectl get pods --output=yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  ...
+  ownerReferences:
+  - apiVersion: apps/v1
+    controller: true
+    blockOwnerDeletion: true
+    kind: ReplicaSet
+    name: my-repset
+    uid: d9607e19-f88f-11e6-a518-42010a800195
+    ...
+~~~
+
+
+
+**注意**：
+
+- 在 Kubernetes 的设计里，跨名称空间的所有者与从属对象的关系是不被允许的
+  - 这意味着：
+    - 名称空间级别上，所有者与从属对象处于同一级
+    - 集群级别上，所有者与从属对象处于同一级
+
+
+
+### 3、删除从属对象
+
+当删除某个对象时，可以指定该对象的从属对象是否同时被自动删除，这种操作叫做级联删除（cascading deletion）
+
+级联删除有两种模式：后台（background）和前台（foreground）
+
+如果删除对象时不删除自动删除其从属对象，此时从属对象被认为是孤儿（或孤立的 orphaned）
+
+
+
+**Foreground 级联删除**：
+
+- 在 Foreground 级联删除模式下，所有者对象先进入正在删除（deletion in progress）状态，此时：
+
+  - 所有者对象仍然可以通过 REST API 查询到（可通过 kubectl 或 kuboard 查询到）
+
+  - 所有者对象的 deletionTimestamp 字段被设置
+
+  - 所有者对象的 metadata.finalizers 包含值 foregroundDeletion
+
+一旦所有者对象被设置为  deletion in progress 状态，垃圾回收器将删除其从属对象，当垃圾回收器已经删除了所有的 blocking 从属对象（ownerReference.blockOwnerDeletion=true）以后，将删除所有者对象
+
+
+
+**注意**：
+
+- foregroundDeletion 模式下，只有 ownerReference.blockOwnerDeletion=true 的对象将阻止所有者对象的删除
+  - 在 Kubernetes 版本 1.7 开始，增加了 admission controller，可以基于所有者对象的删除权限配置限制用户是否可以设置 blockOwnerDeletion 字段为 true，因此未经授权的从属对象将不能阻止所有者对象的删除
+
+- 如果对象的 ownerReferences 字段由控制器自动设置（例如：Deployment、ReplicaSet），blockOwnerDeletion 也将被自动设置，无需手工修改该字段的取值
+
+
+
+**Background 级联删除**：
+
+- 在 background 级联删除模式下，Kubernetes 将立刻删除所有者对象，并由垃圾回收器在后台删除其从属对象
+
+
+
+**设置级联删除策略**：
+
+- 在删除对象时，通过参数 deleteOptions 的 propagationPolicy 字段，可以设置级联删除的策略
+  - 可选的值有： Orphan、Foreground、Background
+
+默认值：
+
+- 在 Kubernetes 1.9 之前，许多类型控制器的默认垃圾回收策略都是 orphan，例如：ReplicationController、ReplicaSet、StatefulSet、DaemonSet、Deployment
+- 对于 apiVersion 为 extensions/v1beta1、apps/v1beta1、apps/v1beta2 的对象，除非特殊指定，垃圾回收策略默认为 orphan
+- 在 Kubernetes 1.9 中，对于所有 apiVersion 为 apps/v1 的对象，从属对象默认都将被删除
+
+
+
+也可以通过参数 --cascade，kubectl delete 命令也可以选择不同的级联删除策略：
+
+- --cascade=true 级联删除
+- --cascade=false 不级联删除 orphan
+
+~~~bash
+# 不删除从属对象
+kubectl delete replicaset my-repset --cascade=false
+~~~
+
+
+
+## 8、Horizontal Pod Autoscaler
 
 Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象
 
@@ -3124,8 +4474,6 @@ systemctl restart nfs-server
 # 从节点挂载
 mount 196.198.168.168:/home/data /home/data
 ~~~
-
-
 
 
 
@@ -3602,7 +4950,15 @@ kubectl config view --minify | grep namespace:
 
 ## 1、基本概念
 
-Service 是 Kubernetes 最核心概念，通过创建 Service，可以为一组具有相同功能的容器应用提供一个统一的入口地址，并且将请求负载分发到后端的各个容器应用上
+Kubernetes 中 Pod 是随时可以消亡的（节点故障、容器内应用程序错误等原因），并且若是使用 Deployment 维持副本数量，Pod 的 IP 会随着其重建而改变
+
+这就导致如下问题：
+
+- 如果某些 Pod 为其他 Pod 提供接口，接口方 Pod 集合不断变化（IP 地址也跟着变化）的情况下，调用方 Pod 如何才能知道应该将请求发送到哪个 IP 地址，而 Service 存在的意义，就是为了解决这个问题
+
+Service 是 Kubernetes 最核心概念，通过创建 Service，同时赋予一个唯一的 DNS Name，通过 Label Selector 可以选择一组具有相同功能的容器应用并提供一个统一的入口地址，将请求负载分发到后端的各个容器应用上
+
+对外提供服务的应用程序需要通过某种机制来实现，对于容器应用最简便的方式就是通过 TCP/IP 机制及监听 IP 和端口号来实现
 
 
 
@@ -3657,75 +5013,92 @@ ClusterIP：虚拟服务IP，在公网环境搭建即为 MasterIP
 
 
 
-## 2、使用
+## 3、使用
 
-对外提供服务的应用程序需要通过某种机制来实现，对于容器应用最简便的方式就是通过 TCP/IP 机制及监听 IP 和端口号来实现
+### 1、创建
+
+**有 Label Selector**
+
+Kubernetes Servies 是一个 RESTFull 接口对象，可通过 yaml 文件创建
 
 ~~~yaml
-# 首先创建具备一个基本功能的服务
 apiVersion: v1
-kind: ReplicationController 
+kind: Service
 metadata:
-	name: mywebapp 
+# service name
+  name: my-service
 spec:
-	replicas: 2 
-template:
-	metadata:
-		name: mywebapp 
-		labels:
-			app: mywebapp 
-	spec:
-		containers:
-			- name: mywebapp 
-			image: tomcat 
-			ports:
-				- containerPort: 8080
+  selector:
+  # 选取的 pod
+    app: MyApp
+  ports:
+    - protocol: TCP
+    # 自身端口
+      port: 9376
+      # 目标端口
+      targetPort: 9376
 ~~~
 
-可以通过 
+Kubernetes 将为该 Service 分配一个 IP 地址（ClusterIP 或 集群内 IP），供 Service Proxy 使用
 
-~~~bash
-kubectl get pods -l app=mywebapp -o yaml | grep podIP
-~~~
+Kubernetes 将不断扫描符合该 Selector 的 Pod，并将最新的结果更新到与 Service 同名的 Endpoint 对象中
 
-来获取 Pod 的 IP 地址和端口号来访问 Tomcat 服务，但是直接通过 Pod 的 IP 地址和端口访问应用服务是不可靠的，因为当 Pod 所在的 Node 发生故障时， Pod 将被 Kkubernetes 重新调度到另一台 Node，Pod 的地址会发生改变
 
-可以通过配置文件来定义 Service，通过 kubectl create 来创建，就可以通过 Service 地址来访问后端的 Pod
+
+**注意**：
+
+- Service 从自身的 IP 和 port 接收请求，并将请求映射到符合条件的 Pod 的 targetPort，为了方便默认 targetPort 的取值 与 port 字段相同
+- Pod 的定义中，Port 可能被赋予了一个名字，可以在 Service 的 targetPort 字段引用这些名字，而不是直接写端口号
+  - 这种做法使得将来修改后端监听的端口号，而无需影响到前端程序
+- Service 中可以定义多个端口，不同的端口可以使用相同或不同的传输协议
+
+
+
+**无 Label Selector**
+
+Service 通常用于提供对 Kubernetes Pod 的访问，但是也可以将其用于任何其他形式的后端
+
+例如：
+
+- 在生产环境中使用一个 Kubernetes 外部的数据库集群，在测试环境中使用 Kubernetes 内部的数据库
+- 将 Service 指向另一个名称空间中的 Service，或者另一个 Kubernetes 集群中的 Service
+- 将的程序迁移到 Kubernetes，但是根据迁移路径，只将一部分后端程序运行在 Kubernetes 中
 
 ~~~yaml
-apiVersion: v1 
-kind: Service 
+apiVersion: v1
+kind: Service
 metadata:
-	name: mywebAppService 
+  name: my-service
 spec:
-	ports:
-		- port: 8081
-		targetPort: 8080 
-	selector:
-		app: mywebapp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376
 ~~~
 
-有时一个容器应用可能需要提供多个端口的服务，那么在 Service 的定义中也可以相应地将多个端口对应到多个应用服务
+因为该 Service 没有 selector，相应的 Endpoint 对象就无法自动创建，需要手动创建一个 Endpoint 对象，以便将该 Service 映射到后端服务真实的 IP 地址和端口
 
 ~~~yaml
-# 多端口 Service
-apiVersion: v1 
-kind: Service 
+apiVersion: v1
+kind: Endpoints
 metadata:
-	name: mywebAppService
-spec:
-	ports:
-		- port: 8080
-		targetPort: 8080 
-		name: web
-		- port: 8005
-		targetPort: 8005 
-		name: management
-    selector:
-        app: mywebapp
+# 一定要同名
+  name: my-service
+subsets:
+  - addresses:
+      - ip: 192.0.2.42
+    ports:
+      - port: 9376
 ~~~
 
-假如应用系统需要将一个外部数据库作为后端服务进行连接，或将另一个集群或 Namespace 中的服务作为服务的后端，这时可以通过创建一个无 Label Selector 的 Service 来实现
+
+
+**注意**：
+
+- Endpoint 中的 IP 地址不可以是 loopback（127.0.0.0/8 IPv4 或 ::1/128 IPv6），或 link-local（169.254.0.0/16 IPv4、224.0.0.0/24 IPv4 或 fe80::/64 IPv6）
+- Endpoint 中的 IP 地址不可以是集群中其他 Service 的 ClusterIP
+
+例子：
 
 ~~~yaml
 # 外部服务 Service
@@ -3749,6 +5122,198 @@ subsets:
 ports:
 	- port: 8080
 ~~~
+
+
+
+**多端口 Service**
+
+可以在一个 Service 对象中定义多个端口，此时必须为每个端口定义一个名字
+
+端口的名字必须符合 Kubernetes 的命名规则，且端口的名字只能包含小写字母、数字、-，并且必须以数字或字母作为开头及结尾
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 9376
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 9377
+~~~
+
+
+
+### 2、使用自定义的 IP 地址
+
+创建 Service 时，如果指定 .spec.**clusterIP** 字段，可以使用自定义的 Cluster IP 地址
+
+该 IP 地址必须是 apiServer 中配置字段 service-cluster-ip-range CIDR 范围内的合法 IPv4 或 IPv6 地址，否则不能创建成功
+
+可能用到自定义 IP 地址的场景：
+
+- 想要重用某个已经存在的 DNS 条目
+- 遗留系统是通过 IP 地址寻址，且很难改造
+
+
+
+## 4、虚拟 IP 和服务代理
+
+### 1、概述
+
+Kubernetes 集群中的每个节点都运行了一个 kube-proxy，负责为 Service（ExternalName 类型的除外）提供虚拟 IP 访问
+
+Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
+
+| 代理模式              | Kubernetes 版本 | 是否默认 |
+| --------------------- | --------------- | -------- |
+| User space proxy mode | v1.0 +          |          |
+| Iptables proxy mode   | v1.1 +          | 默认     |
+| Ipvs proxy mode       | v1.8 +          |          |
+
+
+
+### 2、User space
+
+**在 user space proxy mode 下：**
+
+- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
+- kube-proxy 在其所在的节点（每个节点都有 kube-proxy）上为每一个 Service 打开一个随机端口
+- kube-proxy 设置 iptables 规则，将发送到该 Service 的 ClusterIP:Port 的请求重定向到该随机端口
+- 任何发送到该随机端口的请求将被代理转发到该 Service 的后端 Pod 上（kube-proxy 从 Endpoint 信息中获得可用 Pod）
+- kube-proxy 在决定将请求转发到后端哪一个 Pod 时，默认使用 round-robin（轮询）算法，并会考虑到 Service 中的 SessionAffinity 的设定
+
+<img src="images/image-20230219155351485.png" alt="image-20230219155351485" style="zoom:67%;" />
+
+
+
+### 3、Iptables proxy
+
+**在 iptables proxy mode 下：**
+
+- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
+- kube-proxy 在其所在的节点上为每一个 Service 设置 iptable 规则
+- iptables 将发送到 Service 的 ClusterIP:Port 的请求重定向到 Service 的后端 Pod 上
+  - 对于 Service 中的每一个 Endpoint，kube-proxy 设置一个 iptable 规则
+  - 默认情况下，kube-proxy 随机选择一个 Service 的后端 Pod
+
+<img src="images/image-20230219155523136.png" alt="image-20230219155523136" style="zoom:67%;" />
+
+
+
+**iptables proxy mode 的优点：**
+
+- 更低的系统开销：在 linux netfilter 处理请求，无需在 userspace 和 kernel space 之间切换
+- 更稳定
+
+**与 user space mode 的差异：**
+
+- 使用 iptables mode 时，如果第一个 Pod 没有响应，则创建连接失败
+- 使用 user space mode 时，如果第一个 Pod 没有响应，kube-proxy 会自动尝试连接另外一个后端 Pod
+
+可以配置 Pod 就绪检查（readiness probe）确保后端 Pod 正常工作，此时在 iptables 模式下 kube-proxy 将只使用健康的后端 Pod，从而避免了 kube-proxy 将请求转发到已经存在问题的 Pod 上
+
+
+
+### 4、Ipvs proxy
+
+**在 IPVS proxy mode 下：**
+
+- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
+- kube-proxy 根据监听到的事件，调用 netlink 接口，创建 IPVS 规则，并且将 Service / Endpoint 的变化同步到 IPVS 规则中
+- 当访问一个 Service 时，IPVS 将请求重定向到后端 Pod
+
+<img src="images/image-20230219162205004.png" alt="image-20230219162205004" style="zoom:67%;" />
+
+
+
+**IPVS 模式的优点**：
+
+IPVS proxy mode 基于 netfilter 的 hook 功能，与 iptables 代理模式相似，但是 IPVS 代理模式使用 hash table 作为底层的数据结构，并在 kernel space 运作，这就意味着
+
+- IPVS 代理模式可以比 iptables 代理模式有更低的网络延迟，在同步代理规则时，也有更高的效率
+- 与 user space 代理模式 / iptables 代理模式相比，IPVS 模式可以支持更大的网络流量
+
+**IPVS 提供更多的负载均衡选项：**
+
+- rr: round-robin
+- lc: least connection (最小打开的连接数)
+- dh: destination hashing
+- sh: source hashing
+- sed: shortest expected delay
+- nq: never queue
+
+
+
+**注意**：
+
+- 如果要使用 IPVS 模式，必须在启动 kube-proxy 前为节点的 linux 启用 IPVS
+- kube-proxy 以 IPVS 模式启动时，如果发现节点的 linux 未启用 IPVS，则退回到 iptables 模式
+
+
+
+## 5、服务发现
+
+### 1、概述
+
+Kubernetes 支持两种主要的服务发现模式：
+
+- 环境变量
+- DNS
+
+
+
+### 2、环境变量
+
+kubelet 查找有效的 Service，并针对每一个 Service，向其所在节点上的 Pod 注入一组环境变量
+
+支持的环境变量有：
+
+- Docker links 兼容的环境变量
+- {SVCNAME}_SERVICE_HOST 和 {SVCNAME}_SERVICE_PORT
+  - Service name 被转换为大写
+  - 小数点 . 被转换为下划线 _
+
+例如：Service redis-master 暴露 TCP 端口 6379，其 Cluster IP 为 10.0.0.11，对应的环境变量如下所示：
+
+~~~bash
+REDIS_MASTER_SERVICE_HOST=10.0.0.11
+REDIS_MASTER_SERVICE_PORT=6379
+REDIS_MASTER_PORT=tcp://10.0.0.11:6379
+REDIS_MASTER_PORT_6379_TCP=tcp://10.0.0.11:6379
+REDIS_MASTER_PORT_6379_TCP_PROTO=tcp
+REDIS_MASTER_PORT_6379_TCP_PORT=6379
+REDIS_MASTER_PORT_6379_TCP_ADDR=10.0.0.11
+~~~
+
+如果要在 Pod 中使用基于环境变量的服务发现方式，必须先创建 Service，再创建 Service 调用的 Pod，否则，Pod 中不会有该 Service 对应的环境变量
+
+如果使用基于 DNS 的服务发现，则无需担心这个创建顺序的问题
+
+
+
+### 3、DNS
+
+现版本默认已经安装了 DNS 服务，Core DNS
+
+CoreDNS 监听 Kubernetes API 上创建和删除 Service 的事件，并为每一个 Service 创建一条 DNS 记录，集群中所有的 Pod 都可以使用 DNS Name 解析到 Service 的 IP 地址
+
+例如：
+
+- 名称空间 my-ns 中的 Service my-service，将对应一条 DNS 记录 my-service.my-ns
+  - 名称空间 my-ns 的 Pod 可以直接 nslookup my-service （my-service.my-ns 也可以）
+  - 其他名称空间的 Pod 必须使用 my-service.my-ns，也即追加名称空间
+  - my-service 和 my-service.my-ns 都将解析到 Service 的 Cluster IP
+
+Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的端口，假设 my-service.my-ns Service 有一个 TCP 端口名为 httptest，则可以 nslookup httptest.tcp.my-service.my-ns 以发现该Service 的 IP 地址及端口 http
 
 
 
@@ -4467,3 +6032,17 @@ crictl config runtime-endpoint unix:///var/run/containerd/containerd.sock
 那比较常见的 service 出现问题的时候，是自己的使用上面出现了问题，因为 service 和底层的 pod 之间的关联关系是通过 selector 的方式来匹配的，也就是说 pod 上面配置了一些 label，然后 service 通过 match label 的方式和这个 pod 进行相互关联
 
 如果这个 label 配置的有问题，可能会造成这个 service 无法找到后面的 endpoint，从而造成相应的 service 没有办法对外提供服务，那如果 service 出现异常的时候，第一个要看的是这个 service 后面是不是有一个真正的 endpoint，其次来看这个 endpoint 是否可以对外提供正常的服务
+
+
+
+## 11、为何不使用 round-robin DNS
+
+许多用户都对 Kubernetes 为何使用服务代理将接收到的请求转发给后端服务，而不是使用其他途径
+
+例如：是否可以为 Service 配置一个 DNS 记录，将其解析到多个 A value（如果是 IPv6 则是 AAAA value），并依赖 round-robin（循环）解析
+
+Kubernetes 使用在 Service 中使用 proxy 的原因大致有如下几个：
+
+- DNS 软件都不确保严格检查 TTL（Time to live），并且在缓存的 DNS 解析结果应该过期以后，仍然继续使用缓存中的记录
+- 某些应用程序只做一次 DNS 解析，并一直使用缓存下来的解析结果
+- 即使应用程序对 DNS 解析做了合适的处理，但如果 DNS 记录设置过短（或者 0）的 TTL 值，将给 DNS 服务器带来过大的负载
