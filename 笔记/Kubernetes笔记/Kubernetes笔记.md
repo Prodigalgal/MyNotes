@@ -18,11 +18,11 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 - 不依赖于生产环境基础结构，使得测试、生产能提供一致环境
 - 便于监控与管理
 
+<img src="images/image-20230220205457511.png" alt="image-20230220205457511" style="zoom:70%;" />
 
 
-## 2、功能与架构
 
-### 1、功能
+## 2、功能
 
 **自动装箱**：基于容器对应用运行环境的资源配置要求，自动部署应用容器
 
@@ -51,17 +51,26 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 
 
 
-### 2、架构
+## 3、架构
 
-#### 1、Master
+### 1、Master
 
-**Master Node**：集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller MangerServer 所组成，拥有 Master 组件
+#### 1、概述
 
-**Master 组件**：是集群的控制平台（control plane）：负责集群中的全局决策（例如，调度），探测并响应集群事件（例如，当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller MangerServer 所组成，拥有 Master 组件
 
-Master 组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
 
-Master 组件：
+
+#### 2、组件
+
+- 是集群的控制平台（control plane）：负责集群中的全局决策（例如，调度），探测并响应集群事件（例如，当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+
+- Master 组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
+
+
+
+
+**Master 组件包含**：
 
 - **kube-apiserver**：
   - 提供 Kubernetes API，Kubernetes控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
@@ -106,34 +115,11 @@ Master 组件：
 
 
 
-#### 2、Node
+### 2、Node
 
-##### 1、Node 组件
+#### 1、概述
 
 **Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 Node 组件例如：kubelet、kube proxy 和 ContainerRuntime
-
-**Node 组件**：Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
-
-- **kubelet**：
-  - 运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态
-  - 其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态
-  - 注意：Kubelet 不管理不是通过 Kubernetes 创建的容器
-- **kube-proxy**：
-  - 网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
-  - 其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
-  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
-- **容器运行时**：
-  - 负责运行容器
-  - Kubernetes 支持多种容器引擎：
-    - Docker
-    - containerd
-    - cri-o
-    - rktlet
-    - 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
-
-
-
-##### 2、Node 信息
 
 每个 Node 都有自身的状态，Node 状态包含如下信息：（这些信息由节点上的 kubelet 收集）
 
@@ -182,6 +168,7 @@ Master 组件：
     - 该节点可调度的最大 Pod 数量
 
 - **Info**：
+
   - 描述了节点的基本信息，例如：
     - Linux 内核版本
     - Kubernetes 版本（kubelet 和 kube-proxy 的版本）
@@ -197,7 +184,30 @@ kubectl describe node <node-name>
 
 
 
-##### 3、Node 管理
+#### 2、组件
+
+Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
+
+- **kubelet**：
+  - 运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态
+  - 其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态
+  - 注意：Kubelet 不管理不是通过 Kubernetes 创建的容器
+- **kube-proxy**：
+  - 网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
+  - 其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
+  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
+- **容器运行时**：
+  - 负责运行容器
+  - Kubernetes 支持多种容器引擎：
+    - Docker
+    - containerd
+    - cri-o
+    - rktlet
+    - 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
+
+
+
+#### 3、Node 管理
 
 与 Pod 和 Service 不一样，节点并不是由 Kubernetes 创建的，节点由云供应商（例如：Google Compute Engine、阿里云等）创建，或者节点已经存在于本地物理机/虚拟机的资源池
 
@@ -214,11 +224,7 @@ metadata:
     name: "my-first-k8s-node"
 ~~~
 
-Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述），并且基于 metadata.name 字段对节点进行健康检查，如果节点有效（节点组件正在运行），则可以向该节点调度 Pod，否则该节点 API 对象将被忽略，并且 K8s 会一直检测节点的状态，直到节点变为有效状态或者由集群管理员手动删除节点
-
-
-
-##### 4、Node Controller
+Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述），并且基于 metadata.name 字段对节点进行健康检查，如果节点有效（节点组件正在运行），则可以向该节点调度 Pod，否则该节点 API 对象将被忽略，并且 Kubernetes 的节点控制器会一直检测节点的状态，直到节点变为有效状态或者由集群管理员手动删除节点
 
 节点控制器是一个负责管理节点的 Kubernetes master 组件，主要功能：
 
@@ -241,7 +247,7 @@ Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述）�
     - 只有在 NodeStatus 发生改变，或者足够长的时间未接收到 NodeStatus 更新时，节点控制器才更新 node-lease（默认为1分钟，比节点失联的超时时间 40 秒要更长）
     - 由于 node-lease 比 NodeStatus 更轻量级，该特性显著提高了节点心跳机制的效率，并使 Kubernetes 性能和可伸缩性得到了提升
 
-在 Kubernetes v1.4 中，优化了节点控制器的逻辑以便更好的处理大量节点不能触达 Master 的情况（例如：Master 出现网络故障），主要的优化点在于，节点控制器在决定是否执行 Pod 驱逐的动作时，会检查集群中所有节点的状态
+在 Kubernetes v1.4 中，优化了节点控制器的逻辑使其更好的处理大量节点不能触达 Master 的情况（例如：Master 出现网络故障），主要的优化点在于，节点控制器在决定是否执行 Pod 驱逐的动作时，会检查集群中所有节点的状态
 
 大多数情况下，节点控制器限制了驱逐 Pod 的速率为 --node-eviction-rate （默认值是0.1）每秒，即节点控制器每 10 秒驱逐 1 个 Pod
 
@@ -263,7 +269,7 @@ Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述）�
 
 
 
-##### 5、节点自注册
+#### 5、节点自注册
 
 如果 kubelet 的启动参数 --register-node为 true（默认为 true），kubelet 会尝试将自己注册到 API Server
 
@@ -281,7 +287,7 @@ kubelet自行时，将使用如下选项：
 
 
 
-##### 6、手动管理节点
+#### 6、手动管理节点
 
 如果管理员想要手动创建节点 API 对象，可以将 kubelet 的启动参数 --register-node 设置为 false
 
@@ -300,28 +306,34 @@ kubelet自行时，将使用如下选项：
 kubectl cordon $NODENAME
 ```
 
-z**注意**：
+**注意**：
 
 - DaemonSet Controller 创建的 Pod 将绕过 Kubernetes 调度器，并且忽略节点的 unschedulable 属性
   - Daemons 守护进程属于节点，尽管该节点在准备重启前，已经排空了上面所有的应用程序
 
 
 
-##### 7、节点容量
+#### 7、节点容量
 
 节点 API 对象中描述了节点的容量（Capacity），例如：CPU数量、内存大小等信息
 
-通常节点在向 APIServer 注册的同时，在节点 API 对象里汇报了其容量（Capacity），如果手动管理节点，需要在添加节点时自己设置节点的容量
+通常节点在向 APIServer 注册的同时，在节点 API 对象里汇报了其容量（Capacity），如果手动管理节点，需要在添加节点时手动设置节点的容量
 
-Kubernetes 调度器在调度 Pod 到节点上时，将确保节点上有足够的资源，也即调度器检查节点上所有容器的资源请求之和不大于节点的容量，并且只能检查由 kubelet 启动的容器，不包括直接由容器引擎启动的容器，更不包括不在容器里运行的进程
-
-可以显示的为 Pod 以外的进程预留资源，参考 reserve resources for system daemons
+Kubernetes 调度器在调度 Pod 到节点上时，调度器将检查节点上所有容器的资源 request ≤ 节点的容量，但只能检查由 kubelet 启动的容器，不包括由容器运行时直接启动的容器，以及不在容器里运行的进程
 
 
 
-#### 3、Addons
+**注意**：
 
-Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功能特性
+- 可以显示的为 Pod 以外的进程预留资源
+
+
+
+### 3、Addons
+
+#### 1、概述
+
+Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功能特性（插件）
 
 由于其提供集群级别的功能特性，addons 使用到的 Kubernetes 资源都放置在 kube-system 名称空间下
 
@@ -351,9 +363,70 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 
 
-### 3、套件
 
-#### 1、Kubeadm
+
+### 4、集群通信
+
+**Node To Master**：
+
+所有从集群访问 Master 节点的通信，都是通过 APIServer （没有任何其他 Master 组件发布远程调用接口）
+
+通常安装 Kubernetes 时，APIServer 监听 HTTPS 端口（443），并且配置了一种或多种客户端认证方式，至少需要配置一种形式的授权方式，尤其是匿名访问或 Service Account Tokens 被启用的情况下
+
+节点上必须配置集群（APIServer）的公钥根证书（public root certificate），在提供有效的客户端身份认证的情况下，节点可以安全地访问 APIServer，例如：在 Google Kubernetes Engine 的默认 K8s 安装里，通过客户端证书为 kubelet 提供客户端身份认证
+
+对于需要调用 APIServer 接口的 Pod，应该为其关联 Service Account，此时 Kubernetes 将在创建 Pod 时自动为其注入公钥根证书（public root certificate）以及一个有效的 bearer token（放在 HTTP 请求头 Authorization 字段）
+
+所有名称空间中，都默认配置了名为 Kubernetes 的 Service，该 Service 对应一个虚拟 IP（默认为 10.96.0.1）将发送到该地址的请求将由 kube-proxy 转发到 APIServer 的 HTTPS 端口上
+
+得益于这些措施，默认情况下从集群（节点以及节点上运行的 Pod）访问 Master 的连接是安全的，可以通过不受信的网络或公网连接 Kubernetes 集群
+
+
+
+**Master To Node**：
+
+从 Master（APIServer）到 Node 存在着两条主要的通信路径：
+
+- apiserver 访问集群中每个节点上的 kubelet 进程
+- 使用 apiserver 的 proxy 功能，从 apiserver 访问集群中的任意节点、Pod、Service
+
+
+
+**apiserver to kubelet**：
+
+apiserver 在如下情况下访问 kubelet：
+
+- 抓取 Pod 的日志
+- 通过 kubectl exec -it 指令（或 kuboard 的终端界面）获得容器的命令行终端
+- 提供 kubectl port-forward 功能
+
+这些连接的访问端点是 kubelet 的 HTTPS 端口，默认情况下，apiserver 不校验 kubelet 的 HTTPS 证书，这种情况下，连接可能会收到 man-in-the-middle 攻击，因此该连接如果在不受信网络或者公网上运行时，是不安全的
+
+如果要校验 kubelet 的 HTTPS 证书，可以通过 --kubelet-certificate-authority 参数为 apiserver 提供校验 kubelet 证书的根证书，否则建议开启 Kubelet authentication/authorization 以保护 kubelet API
+
+
+
+**apiserver to nodes, pods, services**：
+
+从 apiserver 到 节点、Pod、Service 的连接使用的是 HTTP 连接，没有进行身份认证，也没有进行加密传输，也可以通过增加 https 作为 节点、Pod、Service 请求 URL 的前缀，但是 HTTPS 证书并不会被校验，也无需客户端身份认证，因此该连接是无法保证一致性的
+
+目前，此类连接如果运行在非受信网络或公网上时，是不安全的
+
+
+
+**SSH**：
+
+Kubernetes 支持 SSH隧道（tunnel）来保护 Master --> Node 访问路径，APIServer 将向集群中的每一个节点建立一个 SSH 隧道（连接到端口 22 的 ssh 服务）并通过隧道传递所有发向 kubelet、node、pod、service 的请求
+
+SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通信方式
+
+
+
+# 2、Kubernetes 集群搭建
+
+## 1、套件概述
+
+### 1、Kubeadm
 
 Kubeadm 是官方社区推出的一个用于快速部署 Kubernetes 集群的工具
 
@@ -364,9 +437,9 @@ Kubeadm 是官方社区推出的一个用于快速部署 Kubernetes 集群的工
 
 
 
-#### 2、Kubectl
+### 2、Kubectl
 
-##### 1、基本介绍
+#### 1、基本介绍
 
 Kubectl 是 Kubernetes 命令行工具，可以让用户对 Kubernetes 集群运行命令
 
@@ -391,7 +464,7 @@ kubectl [command] [type] [name] [flags]
 
 
 
-##### 2、命令指南
+#### 2、命令指南
 
 **基础命令**：
 
@@ -494,15 +567,15 @@ echo "source <(kubectl completion bash)" >> ~/.bashrc
 
 
 
-#### 3、Kubelet
+### 3、Kubelet
 
 Kubelet 是在每个 Node 节点上运行的主要节点代理，用于在集群中的每个节点上启动 Pod 和容器等
 
 
 
-#### 4、容器运行时
+### 4、容器运行时
 
-##### 1、概述
+#### 1、概述
 
 v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dockershim，但是自 v1.24 版起，Dockershim 已从 Kubernetes 项目中移除，所以需要在集群内每个节点上安装一个容器运行时以使 Pod 可以运行在上面，v1.26 要求使用符合容器运行时接口（CRI）的运行时
 
@@ -538,7 +611,7 @@ FOO_SERVICE_PORT=<Service的端口>
 
 
 
-##### 2、RunTime Class
+#### 2、RunTime Class
 
 使用 RuntimeClass 这一特性可以为容器选择运行时的容器引擎，以在性能和安全之间取得平衡
 
@@ -588,7 +661,7 @@ kubelet 将依据这个字段使用指定的 RuntimeClass 来运行该 Pod，如
 
 
 
-##### 3、容器钩子
+#### 3、容器钩子
 
 Kubernetes中为容器提供了两个 hook（钩子函数）：
 
@@ -644,66 +717,9 @@ spec:
 
 
 
-### 4、集群通信
-
-**Node To Master**：
-
-所有从集群访问 Master 节点的通信，都是通过 APIServer （没有任何其他 Master 组件发布远程调用接口）
-
-通常安装 Kubernetes 时，APIServer 监听 HTTPS 端口（443），并且配置了一种或多种客户端认证方式，至少需要配置一种形式的授权方式，尤其是匿名访问或 Service Account Tokens 被启用的情况下
-
-节点上必须配置集群（APIServer）的公钥根证书（public root certificate），在提供有效的客户端身份认证的情况下，节点可以安全地访问 APIServer，例如：在 Google Kubernetes Engine 的默认 K8s 安装里，通过客户端证书为 kubelet 提供客户端身份认证
-
-对于需要调用 APIServer 接口的 Pod，应该为其关联 Service Account，此时 Kubernetes 将在创建 Pod 时自动为其注入公钥根证书（public root certificate）以及一个有效的 bearer token（放在 HTTP 请求头 Authorization 字段）
-
-所有名称空间中，都默认配置了名为 Kubernetes 的 Service，该 Service 对应一个虚拟 IP（默认为 10.96.0.1）将发送到该地址的请求将由 kube-proxy 转发到 APIServer 的 HTTPS 端口上
-
-得益于这些措施，默认情况下从集群（节点以及节点上运行的 Pod）访问 Master 的连接是安全的，可以通过不受信的网络或公网连接 Kubernetes 集群
 
 
-
-**Master To Node**：
-
-从 Master（APIServer）到 Node 存在着两条主要的通信路径：
-
-- apiserver 访问集群中每个节点上的 kubelet 进程
-- 使用 apiserver 的 proxy 功能，从 apiserver 访问集群中的任意节点、Pod、Service
-
-
-
-**apiserver to kubelet**：
-
-apiserver 在如下情况下访问 kubelet：
-
-- 抓取 Pod 的日志
-- 通过 kubectl exec -it 指令（或 kuboard 的终端界面）获得容器的命令行终端
-- 提供 kubectl port-forward 功能
-
-这些连接的访问端点是 kubelet 的 HTTPS 端口，默认情况下，apiserver 不校验 kubelet 的 HTTPS 证书，这种情况下，连接可能会收到 man-in-the-middle 攻击，因此该连接如果在不受信网络或者公网上运行时，是不安全的
-
-如果要校验 kubelet 的 HTTPS 证书，可以通过 --kubelet-certificate-authority 参数为 apiserver 提供校验 kubelet 证书的根证书，否则建议开启 Kubelet authentication/authorization 以保护 kubelet API
-
-
-
-**apiserver to nodes, pods, services**：
-
-从 apiserver 到 节点、Pod、Service 的连接使用的是 HTTP 连接，没有进行身份认证，也没有进行加密传输，也可以通过增加 https 作为 节点、Pod、Service 请求 URL 的前缀，但是 HTTPS 证书并不会被校验，也无需客户端身份认证，因此该连接是无法保证一致性的
-
-目前，此类连接如果运行在非受信网络或公网上时，是不安全的
-
-
-
-**SSH**：
-
-Kubernetes 支持 SSH隧道（tunnel）来保护 Master --> Node 访问路径，APIServer 将向集群中的每一个节点建立一个 SSH 隧道（连接到端口 22 的 ssh 服务）并通过隧道传递所有发向 kubelet、node、pod、service 的请求
-
-SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通信方式
-
-
-
-# 2、Kubernetes 集群搭建
-
-## 1、搭建需求
+## 2、搭建需求
 
 ### 1、部署方式
 
@@ -860,7 +876,7 @@ SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通�
 
 
 
-## 2、包管理器安装版
+## 3、包管理器安装版
 
 **注意**：内网外网搭建的区别
 
@@ -1478,19 +1494,11 @@ systemctl start docker
 
 
 
-# 3、Kubernetes 资源清单
+# 3、Kubernetes 对象
 
 ## 1、基本概念
 
-Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与部署，这种文件叫做资源清单文件，通过 kubectl 命令使用资源清单文件可以实现对大量的资源对象进行编排
-
-
-
-## 2、资源对象
-
-### 1、概述
-
-资源对象指的是 Kubernetes 系统的持久化实体，也可以叫 K8s 对象，并通过 APIServer存储在 etcd 中，这些数据/对象描述了：
+Kubernetes  对象指的是集群系统的持久化实体，也可以叫 K8s 对象，并通过 APIServer 存储在 etcd 中，这些数据 / 对象描述了：
 
 - 集群中运行了哪些容器化应用程序（以及在哪个节点上运行）
 - 集群中对应用程序可用的资源
@@ -1501,14 +1509,23 @@ Kubernetes 通过声明 yml 文件来解决资源管理和资源对象编排与�
 
 所有 K8s 对象都包含两个状态：
 
-- **spec**：必须由您来提供，描述了您对该对象所期望的预期状态
+- **spec**：必须由用户来提供，描述了用户对该对象所期望的预期状态
 - **status**：只能由 Kubernetes 系统来修改，描述了该对象在 Kubernetes 系统中的实际状态
 
 同一个 Kubernetes 对象应该只使用一种方式管理，否则可能会出现不可预期的结果
 
+以下列举的内容都是 Kubernetes 中的对象，这些对象都可以在 yaml 文件中作为一种 API 类型来配置
+
+| 类别 | 名称                                                         |
+| :--- | :----------------------------------------------------------- |
+| 资源 | Pod、ReplicaSet、ReplicationController、Deployment、StatefulSet、DaemonSet、Job、CronJob、HorizontalPodAutoscaling、Node、Namespace、Service、Ingress、Label、CustomResourceDefinition |
+| 存储 | Volume、PersistentVolume、Secret、ConfigMap                  |
+| 策略 | SecurityContext、ResourceQuota、LimitRange                   |
+| 身份 | ServiceAccount、Role、ClusterRole                            |
 
 
-### 2、管理
+
+## 2、对象管理
 
 | 管理方式         | 操作对象                     | 推荐的环境 |
 | ---------------- | ---------------------------- | ---------- |
@@ -1530,17 +1547,59 @@ kubectl apply -f configs/
 
 
 
+## 3、Name 与 UID
+
+### 1、概述
+
+集群中的每一个对象使用一个 **Name** 来标识在同类资源中的唯一性，使用一个 **UID** 来标识在整个集群中的唯一性
+
+比如：在同一个名字空间中只能有一个名为 myapp-1234 的 Pod，但是可以命名一个 Pod 和一个 Deployment 同为 myapp-1234
+
+> 对于用户提供的非唯一性的属性，Kubernetes 提供了 Label 和 Annotation 机制
 
 
 
+### 2、Name
 
-## 3、常用字段
+客户端提供的字符串，引用资源 URL 中的对象，如：/api/v1/pods/appname
 
-### 1、必须存在的属性
+某一时刻只能有一个给定类型的对象具有给定的名称，也即同类型不能同名称，但是如果删除该对象，则可以创建同名的新对象
+
+名称在同一资源的所有 API 版本中必须是唯一的，这些 API 资源通过各自的 API 组、资源类型、名字空间、名称来区分
+
+
+
+**注意**：
+
+- API 版本在此规则处于无关性
+
+
+
+### 3、ID
+
+Kubernetes 系统生成的字符串，唯一标识对象
+
+在 Kubernetes 集群的整个生命周期中创建的每个对象都有一个不同的 UID，它旨在区分类似实体的历史事件
+
+Kubernetes UID 是全局唯一标识符，UUID 是标准化的，见 ISO/IEC 9834-8 和 ITU-T X.667
+
+
+
+## 3、资源清单
+
+### 1、概述
+
+Kubernetes 通过声明 yaml 文件来解决资源管理和资源对象编排与部署，这种文件叫做资源清单文件
+
+通过 kubectl 命令使用资源清单文件可以实现对大量的资源对象进行编排
+
+
+
+### 2、必须属性
 
 | 参数名                | 字段类型 | 说明                                            |
 | --------------------- | -------- | ----------------------------------------------- |
-| version               | String   | K8S API 版本，使用 kubectl api-version 命令查询 |
+| apiVersion            | String   | K8S API 版本，使用 kubectl api-version 命令查询 |
 | kind                  | String   | yml 文件定义的资源类型，比如：Pod               |
 | metadata              | Object   | 元数据对象，固定值写 metadata                   |
 | metadata.name         | String   | 元数据对象的名字，比如：Pod 的名字              |
@@ -1587,11 +1646,11 @@ kubectl apply -f configs/
 
 
 
-### 2、Spec 属性
+### 3、spec 属性
 
-Spec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达该组件要达到什么预期状态
+sspec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达该组件要达到什么预期状态
 
-每个 K8s 对象都有 Spec 属性，只是其中的参数有所不同
+每个 K8s 对象都有 spec 属性，只是其中的参数有所不同
 
 | 参数名                                      | 字段类型 | 说明                                                         |
 | ------------------------------------------- | -------- | ------------------------------------------------------------ |
@@ -2455,6 +2514,52 @@ kubectl get pods --field-selector=status.phase!=Running,spec.restartPolicy=Alway
 ~~~bash
 kubectl get statefulsets,services --all-namespaces --field-selector metadata.namespace!=default
 ~~~
+
+
+
+## 5、Finalizers
+
+### 1、概述
+
+Finalizer 是带有命名空间的键，告诉 Kubernetes 等到特定的条件被满足后， 再完全删除被标记为删除的资源
+
+Finalizer 提醒控制器清理被删除的对象拥有的资源
+
+当用户告诉 Kubernetes 删除一个指定了 Finalizer 的对象时， Kubernetes API 通过填充 .metadata.**deletionTimestamp** 来标记要删除的对象， 且返回 202 状态码(HTTP 已接受)，然后使其进入只读状态，此时控制平面或其他组件会采取 Finalizer 所定义的行动， 而目标对象仍然处于终止中（Terminating）的状态，这些行动完成后，控制器会删除目标对象相关的 Finalizer，当 metadata.**finalizers** 字段为空时，Kubernetes 认为删除已完成并删除目标对象
+
+可以使用 Finalizer 控制资源的垃圾收集，例如：可以定义一个 Finalizer，在删除目标资源前清理相关资源或基础设施
+
+可以通过使用 Finalizers 提醒控制器在删除目标资源前执行特定的清理任务， 来控制资源的垃圾收集
+
+Finalizers 通常不指定要执行的代码，它们通常是特定资源上的键的列表，类似于注解，Kubernetes 自动指定了一些 Finalizers，支持自定义
+
+
+
+### 2、工作流程
+
+当使用清单文件创建资源时，可以在 metadata.finalizers 字段指定 Finalizers
+
+当试图删除该资源时，处理删除请求的 API 服务器会注意到 finalizers 字段中的值， 并进行以下操作：
+
+- 修改对象，将开始执行删除的时间添加到 metadata.deletionTimestamp 字段
+- 禁止对象被删除，直到其 metadata.finalizers 字段为空
+- 返回 202 状态码（HTTP Accepted）
+
+管理 finalizer 的控制器注意到对象上发生的更新操作，对象的 metadata.deletionTimestamp 被设置，意味着已经请求删除该对象
+
+然后控制器会试图满足资源的 Finalizers 的条件，每当一个 Finalizer 的条件被满足时，控制器就会从资源的 finalizers 字段中删除该键
+
+当 finalizers 字段为空时，deletionTimestamp 字段被设置的目标对象会被自动删除，也可以使用 Finalizers 来阻止删除未被管理的资源
+
+例子：kubernetes.io/pv-protection， 它用来防止意外删除 PersistentVolume 对象，当一个 PersistentVolume 对象被 Pod 使用时， Kubernetes 会添加 pv-protection Finalizer，如果试图删除 PersistentVolume，它将进入 Terminating 状态， 但是控制器因为该 Finalizer 存在而无法删除该资源，当 Pod 停止使用 PersistentVolume 时， Kubernetes 清除 pv-protection Finalizer，控制器就会删除该卷
+
+
+
+**注意**：
+
+- 在某些情况下，Finalizers 会阻止依赖对象的删除， 这可能导致目标属主对象被保留的时间比预期的长，而没有被完全删除，在这些情况下，应该检查目标属主和附属对象上的 Finalizers 和属主引用，来排查原因
+- 当对象卡在删除状态的情况下，要避免手动移除 Finalizers，以允许继续删除操作，因为 Finalizers 通常有特殊原因才添加到资源上，所以强行删除它们会导致集群出现问题
+  - 如果一定要删除，只有了解 finalizer 的用途时才能这样做，并且应该通过一些其他方式来完成，例如：手动清除其余的依赖对象
 
 
 
@@ -3920,6 +4025,19 @@ kubectl delete cronjob hello
 
 Kubernetes Garbage Collector（垃圾回收器）的作用是删除那些曾经有 owner，后来又不再有 owner 的对象
 
+垃圾收集允许系统清理如下资源：
+
+- 终止的 Pod
+- 已完成的 Job
+- 不再存在属主引用的对象
+- 未使用的容器和容器镜像
+- 动态制备的、StorageClass 回收策略为 Delete 的 PV 卷
+- 阻滞或者过期的 CertificateSigningRequest (CSR)
+- 在以下情形中删除了的节点对象：
+  - 当集群使用云控制器管理器运行于云端时
+  - 当集群使用类似于云控制器管理器的插件运行在本地环境中时
+  - 节点租约对象
+
 
 
 ### 2、所有者和从属对象
@@ -3934,14 +4052,13 @@ Kubernetes Garbage Collector（垃圾回收器）的作用是删除那些曾经�
 
 例如：ReplicaSet 是一组 Pod 的所有者，在这里 Pod 是 ReplicaSet 的从属对象
 
-每一个从属对象都有一个 metadata.**ownerReferences** 字段，标识其拥有者是哪一个对象
+每一个**从属对象**都有一个 metadata.**ownerReferences** 字段，标识其拥有者是哪一个对象
 
-某些情况下，Kubernetes将自动设置 ownerReferences 字段
+Kubernetes 会自动为一些对象的附属资源设置属主引用的值（自版本 1.8 开始），这些对象包含 ReplicaSet、DaemonSet、Deployment、Job、CronJob、ReplicationController
+
+可以手动改变这个字段的值，以此配置这些关系，然而通常不需要这么做，推荐让 Kubernetes 自动管理附属关系
 
 - 例如：创建一个 ReplicaSet 时，Kubernetes 自动设置该 ReplicaSet 创建的 Pod 中的 ownerReferences 字段
-  - 自版本 1.8 开始，对于 ReplicationController、ReplicaSet、StatefulSet、DaemonSet、Deployment、Job、CronJob 等创建或管理的对象，Kubernetes 都将自动为其设置 ownerReference 的值
-
-可以通过修改 ownerReference 字段，手动设置所有者和从属对象的关系
 
 ~~~yaml
 apiVersion: apps/v1
@@ -3994,6 +4111,8 @@ metadata:
 
 ### 3、删除从属对象
 
+#### 1、概述
+
 当删除某个对象时，可以指定该对象的从属对象是否同时被自动删除，这种操作叫做级联删除（cascading deletion）
 
 级联删除有两种模式：后台（background）和前台（foreground）
@@ -4002,41 +4121,44 @@ metadata:
 
 
 
-**Foreground 级联删除**：
+#### 2、Foreground
 
-- 在 Foreground 级联删除模式下，所有者对象先进入正在删除（deletion in progress）状态，此时：
+在 Foreground 级联删除模式下，所有者对象先进入正在删除（deletion in progress）状态，此时：
 
-  - 所有者对象仍然可以通过 REST API 查询到（可通过 kubectl 或 kuboard 查询到）
+- 所有者对象仍然可以通过 REST API 查询到
 
-  - 所有者对象的 deletionTimestamp 字段被设置
+- 所有者对象的 deletionTimestamp 字段被设置
 
-  - 所有者对象的 metadata.finalizers 包含值 foregroundDeletion
+- 所有者对象的 metadata.**finalizers** 包含值 foregroundDeletion
 
-一旦所有者对象被设置为  deletion in progress 状态，垃圾回收器将删除其从属对象，当垃圾回收器已经删除了所有的 blocking 从属对象（ownerReference.blockOwnerDeletion=true）以后，将删除所有者对象
+一旦所有者对象被设置为  deletion in progress 状态，垃圾回收器将删除其从属对象，但是从属对象如果被设置为ownerReference.blockOwnerDeletion=true 则会阻止垃圾回收器，当所有从属对象都被删除后，将删除所有者对象
 
 
 
 **注意**：
 
-- foregroundDeletion 模式下，只有 ownerReference.blockOwnerDeletion=true 的对象将阻止所有者对象的删除
+- foregroundDeletion 模式下，设置为 ownerReference.**blockOwnerDeletion**=true 的从属对象将阻止所有者对象的删除
   - 在 Kubernetes 版本 1.7 开始，增加了 admission controller，可以基于所有者对象的删除权限配置限制用户是否可以设置 blockOwnerDeletion 字段为 true，因此未经授权的从属对象将不能阻止所有者对象的删除
-
-- 如果对象的 ownerReferences 字段由控制器自动设置（例如：Deployment、ReplicaSet），blockOwnerDeletion 也将被自动设置，无需手工修改该字段的取值
-
-
-
-**Background 级联删除**：
-
-- 在 background 级联删除模式下，Kubernetes 将立刻删除所有者对象，并由垃圾回收器在后台删除其从属对象
+  - 但是在级联删除策略为 Orphan 时，控制器在删除所有者对象后，将忽略从属对象
+  
+- 如果对象的 ownerReferences 字段由控制器自动设置（例如：Deployment、ReplicaSet），blockOwnerDeletion 也将被自动设置，通常无需手工修改该字段的取值
 
 
 
-**设置级联删除策略**：
+#### 3、Background
 
-- 在删除对象时，通过参数 deleteOptions 的 propagationPolicy 字段，可以设置级联删除的策略
-  - 可选的值有： Orphan、Foreground、Background
+在 background 级联删除模式下，Kubernetes 将立刻删除所有者对象，并由垃圾回收器在后台删除其从属对象
 
-默认值：
+默认情况下，Kubernetes 使用后台级联删除方案，除非手动设置使用前台删除， 或者选择遗弃依赖对象
+
+
+
+#### 4、设置级联删除策略
+
+在删除对象时，通过参数 **deleteOptions** 的 **propagationPolicy** 字段，可以设置级联删除的策略
+- 可选的值有： **Orphan**、**Foreground**、**Background**
+
+默认值：Orphan
 
 - 在 Kubernetes 1.9 之前，许多类型控制器的默认垃圾回收策略都是 orphan，例如：ReplicationController、ReplicaSet、StatefulSet、DaemonSet、Deployment
 - 对于 apiVersion 为 extensions/v1beta1、apps/v1beta1、apps/v1beta2 的对象，除非特殊指定，垃圾回收策略默认为 orphan
@@ -4053,6 +4175,47 @@ metadata:
 # 不删除从属对象
 kubectl delete replicaset my-repset --cascade=false
 ~~~
+
+
+
+### 4、容器与镜像的回收
+
+#### 1、概述
+
+kubelet 会每五分钟对未使用的镜像执行一次垃圾收集， 每分钟对未使用的容器执行一次垃圾收集
+
+应该避免使用外部的垃圾收集工具，因为外部工具可能会破坏 kubelet 的行为，移除应该保留的容器
+
+要配置对未使用容器和镜像的垃圾收集选项，可以使用一个 配置文件，基于 KubeletConfiguration 资源类型来调整与垃圾收集相关的 kubelet 行为
+
+
+
+#### 2、容器垃圾收集
+
+kubelet 会基于如下变量对所有未使用的容器执行垃圾收集操作，这些变量均可自定义的：
+
+- **MinAge**：kubelet 可以回收某个容器时该容器的最小年龄，设置为 0 表示禁止使用此规则
+- **MaxPerPodContainer**：每个 Pod 可以包含的已死亡的容器个数上限，设置为小于 0 的值表示禁止使用此规则
+- **MaxContainers**：集群中可以存在的已死亡的容器个数上限，设置为小于 0 的值意味着禁止应用此规则
+
+除以上变量之外，kubelet 还会回收无标识、已删除的容器，通常从最近未使用的容器开始
+
+当保持每个 Pod 的最大数量的容器（MaxPerPodContainer）会使得全局的已死亡容器个数超出上限 （MaxContainers）时，MaxPerPodContainers 和 MaxContainers 之间可能会出现冲突。，在这种情况下，kubelet 会调整 MaxPerPodContainer 来解决这一冲突，最坏的情形是将 MaxPerPodContainer 降为 1，并驱逐最近未使用的容器，此外当隶属于某已被删除的 Pod 的容器的年龄超过 MinAge 时，它们也会被删除
+
+
+
+#### 3、镜像生命周期
+
+Kubernetes 通过**镜像管理器（Image Manager）** 来管理所有镜像的生命周期，其是 kubelet 的一部分，工作时与 [cadvisor](https://github.com/google/cadvisor/) 协同
+
+kubelet 在作出垃圾收集决定时会考虑如下磁盘用量约束：
+
+- HighThresholdPercent
+- LowThresholdPercent
+
+磁盘用量超出所配置的 HighThresholdPercent 值时会触发垃圾收集， 垃圾收集器会基于镜像上次被使用的时间来按顺序删除它们，首先删除的是最近未使用的镜像
+
+kubelet 会持续删除镜像，直到磁盘用量到达 LowThresholdPercent 值为止
 
 
 
@@ -4252,7 +4415,7 @@ template:
 
 虽然 PVC 允许用户使用抽象存储资源，但是 PV 对于不同的问题，用户通常需要具有不同属性（例如：性能）
 
-集群管理员需要提供各种 PV，而不仅仅是大小和访问模式，并且不会让用户了解这些卷的实现方式，对于这些需求，需要使用 StorageClass 资源，StorageClass 为管理员提供了一种描述他们提供的存储类的方法
+集群管理员需要提供各种 PV，而不仅仅是大小和访问模式，并且不会让用户了解这些卷的实现方式，对于这些需求，需要使用 StorageClass 资源，StorageClass 为管理员提供了一种描述提供的存储类的方法
 
 不同的类可能映射到服务质量级别，或备份策略，或者由群集管理员确定的任意策略，Kubernetes 本身对于什么类别代表是不言而喻的，这个概念有时在其他存储系统中称为配置文件
 
@@ -4827,13 +4990,13 @@ kubectl edit configmap log-config
 
 ## 1、Name 概念
 
-Kubernetes REST API 中，所有的对象都是通过 name 和 UID 唯一性确定，例如确定一个 RESTFUL 对象：
+Kubernetes REST API 中，所有的对象都是通过 Name 和 UID 唯一性确定，例如：确定一个 RESTFUL 对象：
 
 ```
 /api/v1/namespaces/{namespace}/pods/{name}
 ```
 
-同一个名称空间下，同一个类型的对象，可以通过 name 唯一性确定
+同一个名称空间下，限定一个类型的对象，可以通过 Name 唯一性确定
 
 ~~~yaml
 # 例子
@@ -4853,6 +5016,12 @@ spec:
 
 
 
+**注意**：
+
+- 所有的名字空间名称都必须是合法的 RFC 1123 DNS 标签
+
+
+
 ## 2、基本概念
 
 Namespace 在很多情况下用于实现多用户的资源隔离，通过将集群内部的资源对象分配到不同的 Namespace 中形成逻辑上的分组，便于不同的分组在共享使用整个集群的资源同时还能被分别管理
@@ -4861,11 +5030,10 @@ Kubernetes 安装成功后，默认有初始化了三个名称空间：
 
 - **default**：默认名称空间，如果 Kubernetes 对象中不定义 metadata.namespace 字段，该对象将放在此名称空间下
 - **kube-system**：Kubernetes 系统创建的对象放在此名称空间下
-- **kube-public**：此名称空间自动在安装集群是自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），主要是为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
+- **kube-public**：此名称空间在安装集群时自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），其为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
+- **kube-node-lease**：该名字空间包含用于与各个节点关联的 Lease 对象，节点租约允许 kubelet 发送心跳， 由此控制面能够检测到节点故障
 
-当您创建一个 Service 时，Kubernetes 为其创建一个对应的 DNS 条目，格式为 <service-name>.<namespace-name>.svc.cluster.local，在容器中只使用 <service-name>，其DNS将解析到同名称空间下的 Service
-
-某些更底层的对象，是不在任何名称空间中的，例如 nodes、persistentVolumes、storageClass 等
+某些更底层的对象不被名称空间约束，例如：nodes、persistentVolumes、storageClass 等
 
 
 
@@ -4935,14 +5103,6 @@ kubectl config set-context --current --namespace=<您的名称空间>
 # 验证结果
 kubectl config view --minify | grep namespace:
 ~~~
-
-
-
-
-
-
-
-
 
 
 
@@ -5601,7 +5761,9 @@ PROXY TCP4 192.0.2.202 10.0.42.7 12345 7\r\n
 
 Kubernetes 集群中运行了一组 DNS Pod，配置了对应的 Service，并由 Kubelet 将 DNS Service 的 IP 地址配置到节点上的容器中以便解析 DNS Names
 
-集群中的每一个 Service（包括 DNS 服务本身）都将分配一个 DNS Name，默认情况下客户端 Pod 的 DNS 搜索列表包括 Pod 所在的名称空间以及集群的默认域，例如：
+集群中的每一个 Service（包括 DNS 服务本身）都将分配一个 DNS Name，例如：当创建一个 Service 时，Kubernetes 为其创建一个对应的 DNS 条目，格式为 **\<service-name>.\<namespace-name>.svc.cluster.local**，在容器内使用 **\<service-name>**，其DNS将解析到同名称空间下的 Service
+
+默认情况下客户端 Pod 的 DNS 搜索列表包括 Pod 所在的名称空间以及集群的默认域，如果希望跨名字空间访问，则需要使用完全限定域名（FQDN）例如：
 
 假设名称空间 bar 中有一个 Service 名为 foo：
 
@@ -6096,6 +6258,8 @@ Kubernetes 的资源分为两种属性：（未来 Kubernetes 会加入更多资
 
 <img src="images/image-20230112153405208.png" alt="image-20230112153405208" style="zoom:80%;" />
 
+
+
 ## 2、调度流程
 
 调度主要分为以下几个部分：（简略版）
@@ -6231,12 +6395,6 @@ spec:
             	- name: myapp
             	image: ikubernetes/myapp:v1
 ~~~
-
-
-
-
-
-
 
 
 
@@ -6631,7 +6789,73 @@ Service 的后端 Pod 实际上通过 Endpoints 来暴露，Kubernetes 会持续
 
 
 
+## 7、命名约束
 
+### DNS 子域名
+
+很多资源类型需要可以用作 DNS 子域名的名称
+
+DNS 子域名的定义可参见 RFC 1123，这一要求意味着名称必须满足如下规则：
+
+- 不能超过 253 个字符
+- 只能包含小写字母、数字，以及 '-' 和 '.'
+- 必须以字母数字开头
+- 必须以字母数字结尾
+
+
+
+### RFC 1123 标签名
+
+某些资源类型需要其名称遵循 RFC 1123 所定义的 DNS 标签标准
+
+命名必须满足如下规则：
+
+- 最多 63 个字符
+- 只能包含小写字母、数字，以及 '-'
+- 必须以字母数字开头
+- 必须以字母数字结尾
+
+
+
+### RFC 1035 标签名
+
+某些资源类型需要其名称遵循 RFC 1035 所定义的 DNS 标签标准
+
+命名必须满足如下规则：
+
+- 最多 63 个字符
+- 只能包含小写字母、数字，以及 '-'
+- 必须以字母开头
+- 必须以字母数字结尾
+
+
+
+### 路径分段名称
+
+某些资源类型要求名称能被安全地用作路径中的片段
+
+换句话说，其名称不能包含： **.** **..** **/** 或 **%**
+
+下面是一个名为 nginx-demo 的 Pod 的配置清单：
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-demo
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+~~~
+
+
+
+**注意**：
+
+- 某些资源类型可能具有额外的命名约束
 
 
 
@@ -6776,3 +7000,18 @@ Kubernetes 使用在 Service 中使用 proxy 的原因大致有如下几个：
 - DNS 软件都不确保严格检查 TTL（Time to live），并且在缓存的 DNS 解析结果应该过期以后，仍然继续使用缓存中的记录
 - 某些应用程序只做一次 DNS 解析，并一直使用缓存下来的解析结果
 - 即使应用程序对 DNS 解析做了合适的处理，但如果 DNS 记录设置过短（或者 0）的 TTL 值，将给 DNS 服务器带来过大的负载
+
+
+
+## 12、nfs-provisioner 无法自动创建 PV
+
+报错如下：
+
+![QQ图片20230220205102](images/QQ图片20230220205102.png)
+
+1.20 的变更说明中看到其中一条说明为：Stop propagating SelfLink (deprecated in 1.16) in kube-apiserver
+
+而由于 nfs-provisioner 的实现是基于 selfLink 功能（同时也会影响其他用到 selfLink 这个功能的第三方软件）
+
+解决方法：使用更新的 nfs-subdir-external-provisioner 镜像版本
+
