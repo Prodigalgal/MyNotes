@@ -1868,7 +1868,7 @@ configMap:
 
 
 
-## 4、使用方法
+## 4、使用
 
 在 Kubernetes 中对运行容器的要求为：容器的主程序需要一直在前台运行，而不是后台运行
 
@@ -1939,7 +1939,7 @@ Pod 有两种类型：普通和静态
 
 ## 6、生命周期
 
-Pod phase 代表其所处生命周期的阶段，phase 并不是用来代表其容器的状态，也不是一个严格的状态机
+Pod phase 代表其所处生命周期的阶段，phase 并不是用来代表其**容器**的状态，也不是一个严格的状态机
 
 | 状态       | 说明                                                         |
 | ---------- | ------------------------------------------------------------ |
@@ -1992,7 +1992,7 @@ Kubernetes 收到用户删除 Pod 的指令后：
 
 
 
-## 7、重启策略
+## 7、容器重启策略
 
 | 策略      | 说明                                                   |
 | --------- | ------------------------------------------------------ |
@@ -2013,6 +2013,12 @@ Pod 重启时，所有的初始化容器都会重新执行，Pod 重启的原因
   - 改变工作容器的镜像，将只重启该工作容器，而不重启 Pod
 - Pod 容器所在节点的基础设施被重启（例如：docker engine），通常只有 Node 节点的 root 用户才可以执行此操作
 - Pod 中所有容器都已经结束，restartPolicy 是 Always，且初始化容器执行的记录已经被垃圾回收，此时将重启整个 Pod
+
+
+
+**注意**：
+
+- 区分 Pod 重启与容器重启
 
 
 
@@ -2389,7 +2395,7 @@ Label 与 Label Selector 都不能单独定义，必须附加在一些资源对�
 
 ## 2、标签选择器
 
-与 name 和 UID 不同，标签不一定是唯一的，通常 K8s对象与标签是 M：N 的关系
+与 Name 和 UID 不同，标签不一定是唯一的，通常 K8s对象与标签是 M：N 的关系
 
 通过使用标签选择器（Label Selector），可以选择一组对象
 
@@ -2452,45 +2458,7 @@ matchExpression 等价于基于集合的选择方式，支持的 operator 有 In
 
 
 
-## 3、使用
-
-~~~yaml
-apiVersion: v1
-kind: ReplicationController 
-metadata:
-	name: nginx 
-spec:
-	replicas: 3 
-	selector:
-		app: nginx
-		
-	template:
-        metadata:
-            labels:
-                app: nginx 
-        spec:
-            containers:
-                - name: nginx 
-                image: nginx 
-                ports:
-                    - containerPort: 80
--------------------------------------
-apiVersion: v1 
-kind: Service 
-metadata: 
-	name: nginx
-spec:
-	type: NodePort 
-	ports:
-		- port: 80
-	nodePort: 3333 
-	selector:
-		app: nginx
-~~~
-
-
-
-## 4、字段选择器
+## 3、字段选择器
 
 字段选择器（Field Selector）可以用来基于的一个或多个字段的取值来选取一组 Kubernetes 对象，类似于 Label
 
@@ -2517,11 +2485,11 @@ kubectl get statefulsets,services --all-namespaces --field-selector metadata.nam
 
 
 
-## 5、Finalizers
+## 4、Finalizers
 
 ### 1、概述
 
-Finalizer 是带有命名空间的键，告诉 Kubernetes 等到特定的条件被满足后， 再完全删除被标记为删除的资源
+Finalizer 是带有名称空间的键，告诉 Kubernetes 等到特定的条件被满足后， 再完全删除被标记为删除的资源
 
 Finalizer 提醒控制器清理被删除的对象拥有的资源
 
@@ -2560,6 +2528,16 @@ Finalizers 通常不指定要执行的代码，它们通常是特定资源上的
 - 在某些情况下，Finalizers 会阻止依赖对象的删除， 这可能导致目标属主对象被保留的时间比预期的长，而没有被完全删除，在这些情况下，应该检查目标属主和附属对象上的 Finalizers 和属主引用，来排查原因
 - 当对象卡在删除状态的情况下，要避免手动移除 Finalizers，以允许继续删除操作，因为 Finalizers 通常有特殊原因才添加到资源上，所以强行删除它们会导致集群出现问题
   - 如果一定要删除，只有了解 finalizer 的用途时才能这样做，并且应该通过一些其他方式来完成，例如：手动清除其余的依赖对象
+
+
+
+## 5、名字空间选择算符
+
+可以使用 **namespaceSelector** 选择匹配的名字空间，namespaceSelector 是对名字空间集合进行标签查询的机制，亲和性条件会应用到 namespaceSelector 所选择的名字空间和 namespaces 字段中所列举的名字空间之上
+
+**注意**：
+
+- 空的 namespaceSelector **{}** 会匹配所有名字空间，而 null 或者空的 namespaces 列表以及 null 值 namespaceSelector 意味着当前 Pod 的名字空间
 
 
 
@@ -2982,24 +2960,25 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 
 
 
-### 4、策略
+### 4、清理策略
 
-**清理策略**：
+通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个旧的 ReplicaSet
 
-- 通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个旧的 ReplicaSet
-- 超出该数字的将被在后台进行垃圾回收
-- 该字段的默认值是 10
-- 如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
+超出该数字的将被在后台进行垃圾回收
 
+该字段的默认值是 10
 
-
-**部署策略**：
-
-- 通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
+如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
 
 
 
-**金丝雀发布**：
+### 5、部署策略
+
+通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
+
+
+
+### 6、金丝雀发布
 
 首先发布一个副本数为 3 ，标签为 app=x，镜像标签 v1.0 的 Deployment ，再添加一个副本数为 1，标签相同，镜像版本 v2.0 的 Deployment，此时 Service 会将流量以 3：1分发到旧新副本中
 
@@ -3411,7 +3390,7 @@ nodeAffinity:
 
 
 
-### 4、通信
+### 4、通信模式
 
 与 DaemonSet 容器组通信的模式有：
 
@@ -5591,7 +5570,7 @@ kubelet 查找有效的 Service，并针对每一个 Service，向其所在节�
 支持的环境变量有：
 
 - Docker links 兼容的环境变量
-- {SVCNAME}_SERVICE_HOST 和 {SVCNAME}_SERVICE_PORT
+- {SVCNAME}\_SERVICE_HOST 和 {SVCNAME}_SERVICE_PORT
   - Service name 被转换为大写
   - 小数点 . 被转换为下划线 _
 
@@ -5622,11 +5601,11 @@ CoreDNS 监听 Kubernetes API 上创建和删除 Service 的事件，并为每�
 例如：
 
 - 名称空间 my-ns 中的 Service my-service，将对应一条 DNS 记录 my-service.my-ns
-  - 名称空间 my-ns 的 Pod 可以直接 nslookup my-service （my-service.my-ns 也可以）
-  - 其他名称空间的 Pod 必须使用 my-service.my-ns，也即追加名称空间
+  - 名称空间 my-ns 的 Pod 可以直接访问到 my-service （my-service.my-ns 也可以）
+  - 其他名称空间的 Pod 必须使用想要访问到则追加名称空间 my-service.my-ns
   - my-service 和 my-service.my-ns 都将解析到 Service 的 Cluster IP
 
-Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的端口，假设 my-service.my-ns Service 有一个 TCP 端口名为 httptest，则可以 nslookup httptest.tcp.my-service.my-ns 以发现该Service 的 IP 地址及端口 http
+Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的端口，假设 my-service.my-ns Service 有一个 TCP 端口名为 httptest，则可以通过 httptest.tcp.my-service.my-ns 以发现该Service 的 IP 地址及端口 http
 
 
 
@@ -6144,16 +6123,20 @@ kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
 
 ## 1、基本概念
 
-Kubernetes 存在两种类型的探针：liveness probe、readiness probe
+probe 是由 kubelet 对容器执行的定期诊断，要执行诊断，kubelet 既可以在容器内执行代码，也可以发出一个网络请求
 
-- Liveness 适用场景是支持那些可以重新拉起的应用
-- Readiness 主要应对的是启动之后无法立即对外提供服务的这些应用
+Kubernetes 存在三种类型的探针：liveness probe、readiness probe、startup Probe
 
-每类探针都支持三种探测方法：
+- Liveness：适用场景是支持那些可以重新拉起的实例，默认成功
+- Readiness：主要应对的是启动之后无法立即对外提供服务的实例，默认失败
+- startup：主要应对启动时间较常的实例
+
+每类探针都支持四种探测方法：
 
 - **exec**：通过执行命令来检查服务是否正常，针对复杂检测或无 HTTP 接口的服务，命令返回值为 0 则表示容器健康
 - **httpGet**：通过发送 http 请求检查服务是否正常，返回 200-399 状态码则表明容器健康
 - **tcpSocket**：通过容器的 IP 和 Port 执行 TCP 检查，如果能够建立 TCP 连接，则表明容器健康
+- **gRPC**：执行一个远程过程调用，如果响应的状态是 SERVING，则认为诊断成功
 
 探针探测结果:
 
@@ -6169,26 +6152,44 @@ Kubernetes 存在两种类型的探针：liveness probe、readiness probe
 
 ## 2、Liveness Probe
 
-存活探针用于判断容器是否存活，即 Pod 是否为 running 状态
+存活探针用于判断容器是否运行
+
+Liveness 探测的结果会存储在 LivenessManager中，kubelet 在 syncPod 时，发现该容器的 Liveness 探针检测失败时，会将其加入待启动的容器列表中，在之后的操作中会重新创建该容器
 
 有时应用程序可能因为某些原因（后端服务故障等）导致暂时无法对外提供服务，但应用软件没有终止，导致 Kubernetes 无法隔离有故障的 Pod，调用者可能会访问到有故障的 Pod，导致业务不稳定，Kubernetes 提供存活探针来检测应用程序是否正常运行，并且对相应状况进行相应的补救措施
 
 - 如果存活探针探测到容器不健康，则 Kubelet 将 kill 掉容器，并执行容器的重启策略
-- 如果一个容器不包含存活探针，则 Kubelet 认为容器的存活探针的返回值为健康
+- 如果一个容器不包含存活探针，则 Kubelet 认为容器的存活探针的返回值为健康，默认返回 Success
+
+如果容器能够在遇到问题或不健康的情况下自行崩溃，则不一定需要存活态探针，kubelet 将根据 Pod 的 restartPolicy 自动修复
+
+> 一般情况下存活探针与就绪探针会搭配使用，因为单单使用存活探针无法阻止流量导向问题容器
 
 
 
 ## 3、Readiness Probe
 
-就绪探针用于判断容器是否启动完成，即容器的 Ready 状态是否为 True，如果就绪探针探测失败，则容器的 Ready 状态将为 False，控制器将此 Pod 的 Endpoint 从对应的 Service 的 Endpoint 列表中移除，且不将任何请求调度到此 Pod，直到下次探测成功
+就绪探针用于判断容器是否启动完成，Pod 的 Condition 里的 Ready 为 True 时，kubelet 才会认定该 Pod 处于就绪状态，如果就绪探针探测失败，则 Pod 的 Condition 里的 Ready 状态将为 False，端点控制器将此 Pod 的 Endpoint 从对应的 Service 的 Endpoint 列表中移除，且不将任何请求调度到此 Pod，直到下次探测成功
 
 通过使用就绪探针，Kubernetes 能够等待应用程序完全启动，才允许服务将流量发送到新副本
+
+Readiness 检查结果会通过 SetContainerReadiness 函数，设置到 Pod 的 Status 中，从而更新 Pod 的 Ready Condition
 
 比如：使用 Tomcat 的应用程序来说，并不是简单地说 Tomcat 启动成功就可以对外提供服务的，还需要等待 Spring 容器初始化，数据库连接等等。对于 Spring Boot 应用，默认的 actuator 带有 /health 接口，可以用来进行启动成功的判断
 
 
 
-## 4、示例
+## 4、Startup Probe
+
+指示 Pod 中的容器是否都已经启动完毕，如果提供了启动探针，则所有其他探针都会被禁用，直到此探针成功为止，如果启动探测失败，kubelet 将杀死容器， 而容器依照重启策略进行重启，如果容器没有提供启动探测，则默认状态为 Success
+
+使用启动探针，将不再需要配置一个较长的存活探针初次探测时间以及探测间隔，从而允许使用远远超出存活态时间间隔所允许的时长
+
+比如：如果容器启动时间通常超出 initialDelaySeconds + failureThreshold × periodSeconds 总值，应该设置一个启动探针，对存活探针所使用的同一端点执行检查，periodSeconds 的默认值是 10 秒，应该将其 failureThreshold 设置得足够高，以便容器有充足的时间完成启动，并且避免更改存活态探针所使用的默认值，这一设置有助于减少死锁状况的发生
+
+
+
+## 5、示例
 
 ~~~yaml
 apiVersion: v1
@@ -6313,26 +6314,51 @@ Priorities 优先级是由一系列键值对组成的，键是该优先级的名
 
 
 
-## 3、Node 调度亲和性
+## 3、NodeSelector
+
+### 1、概述
+
+与很多其他 Kubernetes 对象类似，节点也有标签，可以手动地添加标签
+
+Kubernetes 会为集群中所有节点添加一些标准的标签
+
+通过使用节点标签，可以让 Pod 调度到特定节点组，以此确保特定的 Pod 只能运行在具有一定隔离性、安全性、监管属性的节点
+
+NodeSelector 是节点选择约束的最简单形式，可以将 NodeSelector 字段添加到 Pod 的 spec 中，设置目标节点所具有的节点标签， Kubernetes 只会将 Pod 调度到拥有所指定的标签的节点上
+
+
+
+## 4、Node 亲和性
 
 ### 1、概述
 
 节点亲和性规则：
 
-- 硬亲和性 required 
-- 软亲和性 preferred
+- 硬亲和性 **requiredDuringSchedulingIgnoredDuringExecution**：规则不满足时，Pod 会置于 Pending 状态
+- 软亲和性 **preferredDuringSchedulingIgnoredDuringExecution**：规则不满足时，会选择一个不匹配的节点
 
-硬亲和性规则不满足时，Pod 会置于 Pending 状态，软亲和性规则不满足时，会选择一个不匹配的节点，当节点标签改变而不再符合此节点亲和性规则时，不会将 Pod 从该节点移出，仅对新建的 Pod 对象生效
+IgnoredDuringExecution表示：当节点标签改变而不再符合此节点亲和性规则时，不会将 Pod 从该节点移出，仅对新建的 Pod 对象生效
+
+与 NodeSelector 相比：
+
+- 亲和性表达能力更强，NodeSelector 只能选择拥有所有指定标签的节点，亲和性提供对选择逻辑的更强控制能力
+- 可以标明某规则是软需求，这样调度器在无法找到匹配节点时仍然调度该 Pod
+
+
+
+**注意**：
+
+- 如果同时指定了 **nodeSelector** 和 **nodeAffinity**，两者必须都要满足，才能将 Pod 调度到候选节点上
+- nodeAffinity 下的 nodeSelectorTerms 中多个条件按**或**组合，只要满足其一即可调度
+- nodeSelectorTerms 下的 matchExpressions 多个条件按**与**组合，全部满足即可调度
 
 
 
 ### 2、硬亲和性
 
-requiredDuringSchedulingIgnoredDuringExecution
+使用 Pod 的 .spec.affinity.nodeAffinity 字段来设置节点亲和性
 
-方式一：Pod 使用 spec.nodeSelector (基于等值关系) 
-
-方式二：Pod 使用 spec.affinity 支持 matchExpressions 属性 (复杂标签选择机制)
+支持 matchExpressions 属性 (复杂标签选择机制)
 
 ~~~bash
 # 调度至 foo 域的节点
@@ -6343,58 +6369,400 @@ kubectllabelnodeskube-node1zone=foo
 apiVersion: v1
 kind: Pod
 metadata:
-	name: with-required-nodeaffinity
+  name: with-node-affinity
 spec:
-	affinity:
-		nodeAffinity:
-			requiredDuringSchedulingIgnoredDuringExecution: # 定义硬亲和性
-				nodeSelectorTerms:
-					- matchExpressions: # 集合选择器
-					-{key:zone,operator: In, values: ["foo"]}
-	containers:
-		- name: myapp
-		image: ikubernetes/myapp:v1
+  affinity:
+    nodeAffinity:
+    # 定义硬亲和性
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        # 复杂标签选择器
+        - matchExpressions:
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values:
+            - antarctica-east1
+            - antarctica-west1
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: another-node-label-key
+            operator: In
+            values:
+            - another-node-label-value
+  containers:
+  - name: with-node-affinity
+    image: registry.k8s.io/pause:2.0
 ~~~
+
+在这一示例中，所应用的规则如下：
+
+- 节点**必须**包含一个键名为 topology.kubernetes.io/zone 的标签， 并且该标签的取值必须为 antarctica-east1 或 antarctica-west1
+- 节点**最好**具有一个键名为 another-node-label-key 且取值为 another-node-label-value 的标签
 
 
 
 ### 3、软亲和性
 
-preferredDuringSchedulingIgnoredDuringExecution
-
 柔性控制逻辑，当条件不满足时，能接受被编排于其他不符合条件的节点，权重 weight 定义优先级，1-100 值越大优先级越高
 
 ~~~yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
-	name: myapp-deploy-with-node-affinity
+  name: with-affinity-anti-affinity
 spec:
-	replicas: 2
-	selector:
-		matchLabels:
-			app: myapp
-	template:
-		metadata:
-			name: myapp-pod
-			labels:
-				app: myapp
-		spec:
-            affinity:
-            	nodeAffinity:
-            		preferredDuringSchedulingIgnoredDuringExecution: # 节点软亲和性
-            		- weight:60
-            			preference:
-            				matchExpressions:
-            					- {key:zone,operator:In, values:["foo"]}
-            		- weight:30
-            			preference:
-            				matchExpressions:
-            					- {key:ssd,operator:Exists,values:[]}
-            containers:
-            	- name: myapp
-            	image: ikubernetes/myapp:v1
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: label-1
+            operator: In
+            values:
+            - key-1
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: label-2
+            operator: In
+            values:
+            - key-2
+  containers:
+  - name: with-node-affinity
+    image: registry.k8s.io/pause:2.0
 ~~~
+
+在这一示例中：
+
+- 如果存在两个候选节点，都满足规则， 其中一个节点具有标签 label-1:key-1，另一个节点具有标签 label-2:key-2， 调度器会考察各个节点的 weight 取值，并将该权重值添加到节点的其他得分值之上
+
+
+
+### 5、反亲和性
+
+可以在 matchExpressions 中使用 NotIn 和 DoesNotExist 可用来实现节点反亲和性行为
+
+
+
+## 5、Pod 亲和性
+
+### 1、概述
+
+与节点亲和性类似，Pod 的亲和性 / 反亲和性也有两种类型：
+
+- requiredDuringSchedulingIgnoredDuringExecution
+- preferredDuringSchedulingIgnoredDuringExecution
+
+使用 Pod 亲和性，需要 Pod spec 中的 .affinity.**podAffinity** 字段
+
+使用 Pod 反亲和性，需要 Pod spec 中的 .affinity.**podAntiAffinity** 字段
+
+Pod 亲和性 / 反亲和性可以基于已经在节点上运行的 **Pod** 的标签来约束 Pod 可以调度到的节点，而不是基于节点上的标签，以此定义规则允许哪些 Pod 可以被放置在一起
+
+Pod 亲和性 / 反亲和性的规则：如果 X 上已经运行了一个或多个满足规则 Y 的 Pod， 则这个 Pod 在亲和的情况下，应该运行在 X 上，反亲和则相反
+
+- X 可以是节点、机架、云提供商的可用区、地理区域等拓扑域
+  - 通过 **topologyKey** 来表达拓扑域 X 的概念，其取值是系统用来标示域的节点标签键
+- Y 则是 Kubernetes 尝试满足的规则
+  - 通过**标签选择算符**的形式来表达规则 Y，并可根据需要指定关联的名字空间列表，Pod 在 Kubernetes 中是名称空间作用域的对象，因此 Pod 的标签也隐式地具有名称空间属性，针对 Pod 标签的所有标签选择算符都要指定名称空间，Kubernetes 会在指定的名称空间内寻找标签
+
+原则上，topologyKey 可以是任何合法的标签键，出于性能和安全原因，topologyKey 有一些限制：
+
+- 对于 Pod 亲和性而言，在 required 和 preferred 中，topologyKey 不允许为空
+- 对于 Pod 反亲和性而言，在 required  中，准入控制器 LimitPodHardAntiAffinityTopology 要求 topologyKey 只能是 kubernetes.io/hostname，如果希望使用其他定制拓扑逻辑， 可以更改准入控制器或者禁用之
+
+可以指定 labelSelector 要匹配的命名空间列表，方法是在 labelSelector 和 topologyKey 所在的同一层次上设置 namespaces，如果 namespaces 被忽略或者为空，则默认为 Pod 亲和性 / 反亲和性定义的所在名称空间
+
+
+
+**注意**：
+
+- Pod 间亲和性 / 反亲和性都需要相当的计算量，因此会在大规模集群中显著降低调度速度，不建议在包含数百个节点的集群中使用
+
+
+
+### 2、硬亲和性
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-pod-affinity
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In
+            values:
+            - S1
+        topologyKey: topology.kubernetes.io/zone
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: security
+              operator: In
+              values:
+              - S2
+          topologyKey: topology.kubernetes.io/zone
+  containers:
+  - name: with-pod-affinity
+    image: registry.k8s.io/pause:2.0
+~~~
+
+本示例定义了一条 Pod 亲和性规则和一条 Pod 反亲和性规则：
+
+- Pod 亲和性配置为 requiredDuringSchedulingIgnoredDuringExecution 类型
+  - 需要节点携带 topology.kubernetes.io/zone=V 标签并运行至少一个携带 security=S1 标签的 Pod，才可将 Pod 调度到其上
+- Pod 反亲和性配置为 preferredDuringSchedulingIgnoredDuringExecution 类型
+  - 如果节点携带 topology.kubernetes.io/zone=V 标签并且运行至少一个携带 security=S2 标签的 Pod，不可将 Pod 调度到其上
+
+
+
+### 3、软亲和性
+
+查看 Pod 硬亲和性
+
+
+
+### 4、反亲和性
+
+查看 Pod 硬亲和性
+
+
+
+## 6、NodeName
+
+### 1、概述
+
+nodeName 是比亲和性或者 nodeSelector 更为直接的形式
+
+nodeName 是 Pod spec 中的一个字段，如果 nodeName 字段不为空，则调度器不会调度 Pod，直接使用指定节点上的 kubelet 去尝试将该 Pod 放到指定节点
+
+nodeName 规则的优先级高于 nodeSelector、亲和性、非亲和性规则
+
+使用 nodeName 来选择节点的方式有一些局限性：
+
+- 如果指定节点不存在，则 Pod 无法运行，而且在某些情况下可能会被自动删除
+- 如果指定节点无法提供用来运行 Pod 所需的资源，Pod 会失败， 而其失败原因中会给出是否因为内存或 CPU 不足而造成无法运行
+- 在云环境中的节点名称并不总是可预测的，也不总是稳定的
+
+
+
+**注意**：
+
+- nodeName 旨在供自定义调度程序或需要绕过任何已配置调度程序的高级场景使用
+
+
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  nodeName: kube-01
+~~~
+
+此例中的 Pod 只能运行在 kube-01 中
+
+
+
+## 7、拓扑约束
+
+### 1、概述
+
+可以使用拓扑分布约束（Topology Spread Constraints） 来控制 Pod 在集群内故障域之间的分布， 故障域：区域（Region）、可用区（Zone）、节点和其他用户自定义的拓扑域，这样做有助于提升性能、实现高可用或提升资源利用率
+
+使用场景：
+
+- 将 Pod 分散到节点中，避免单点故障
+- 将 Pod 分散到可用域中，降低网络通信成本
+
+需要使用 **topologySpreadConstraints** 字段来规定拓扑约束
+
+
+
+### 2、约束定义
+
+topologySpreadConstraints 这个字段的用法如下所示：
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+spec:
+  # 配置一个拓扑分布约束
+  topologySpreadConstraints:
+    - maxSkew: <integer>
+      minDomains: <integer> # 可选；自从 v1.25 开始成为 Beta
+      topologyKey: <string>
+      whenUnsatisfiable: <string>
+      labelSelector: <object>
+      matchLabelKeys: <list> # 可选；自从 v1.25 开始成为 Alpha
+      nodeAffinityPolicy: [Honor|Ignore] # 可选；自从 v1.26 开始成为 Beta
+      nodeTaintsPolicy: [Honor|Ignore] # 可选；自从 v1.26 开始成为 Beta
+  ### 其他 Pod 字段置于此处
+~~~
+
+可以运行 kubectl explain Pod.spec.topologySpreadConstraints 获取更多解释
+
+可以定义一个或多个 topologySpreadConstraints 条目以指示 kube-scheduler 如何将每个新 Pod 与跨集群的现有 Pod 相关联
+
+这些字段包括：
+
+- **maxSkew**：
+  - 描述这些 Pod 可能被均匀分布的程度，必须指定此字段且该数值必须大于零，其语义将随着 **whenUnsatisfiable** 的值发生变化
+    - 如果选择 whenUnsatisfiable: DoNotSchedule，则 maxSkew 表示目标拓扑域中匹配 Pod 的数量与全局最小值之间的最大允许差值
+      - 全局最小值：符合条件的拓扑域中匹配 Pod 的最小数量，如果符合条件的域数量小于 MinDomains 则为零
+      - 例如：有 3 个拓扑域，分别包含 2、2 和 1 个匹配的 Pod，则全局最小值为 1
+    - 如果选择 whenUnsatisfiable: ScheduleAnyway，则该调度器会偏向能够降低偏差值的拓扑域
+
+- **minDomains**：
+  - 表示符合条件的域的最小数量，域是拓扑的一个特定实例，符合条件的域是其节点与节点选择器匹配的域
+  - 此字段是可选的
+  - 指定的 minDomains 值必须大于 0，可以结合 whenUnsatisfiable: DoNotSchedule 仅指定 minDomains
+  - 当符合条件的、拓扑键匹配的域的数量小于 minDomains 时，拓扑分布将全局最小值（global minimum）设为 0， 然后进行 skew 计算
+  - 当符合条件的拓扑键匹配域的个数等于或大于 minDomains 时，该值对调度没有影响
+  - 如果未指定 minDomains，则约束行为类似于 minDomains 等于 1
+  - **说明**：
+    - 在 1.25 中默认被禁用，可以通过启用 MinDomainsInPodTopologySpread 特性门控来启用该字段
+
+- **topologyKey**：
+  - 节点标签的键
+  - 如果节点使用此键标记并且具有相同的标签值，则将这些节点视为处于同一拓扑域中
+  - 将拓扑域中（即键值对）的每个实例称为一个域，调度器将尝试在每个拓扑域中放置数量均衡的 Pod，另外将符合条件的域定义为其节点满足 nodeAffinityPolicy 和 nodeTaintsPolicy 要求的域
+- **whenUnsatisfiable**：
+  - 指示如果 Pod 不满足分布约束时如何处理：
+    - DoNotSchedule：（默认）告诉调度器不要调度
+    - ScheduleAnyway：告诉调度器仍然继续调度，只是根据如何能将偏差最小化来对节点进行排序
+- **labelSelector**：
+  - 用于查找匹配的 Pod
+  - 匹配此标签的 Pod 将被统计，以确定相应拓扑域中 Pod 的数量
+
+- **matchLabelKeys**：
+
+  - 一个 Pod 标签键的列表，用于选择需要计算的拓扑域的 Pod 集合
+  - 这些键值标签与 labelSelector 进行逻辑**与**运算，以选择一组已有的 Pod，通过这些 Pod 计算新 Pod 的调度方式
+  - Pod 标签中不存在的键将被忽略，null 或空列表意味着仅与 labelSelector 匹配
+
+  - 借助 matchLabelKeys，用户无需在变更 Pod 修订版本时更新 pod.spec，控制器或 Operator 只需要将不同修订版的 label 键设为不同的值，调度器将根据 matchLabelKeys 自动确定取值
+    - 例如：如果用户使用 Deployment， 则可以使用由 Deployment 控制器自动添加的、以 pod-template-hash 为键的标签来区分单个 Deployment 的不同修订版
+  - **说明**：
+    - 1.25 中新增的一个 Alpha 字段，必须启用 MatchLabelKeysInPodTopologySpread 特性门控才能使用此字段
+
+  ```yaml
+      topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            matchLabelKeys:
+              - app
+              - pod-template-hash
+  ```
+
+- **nodeAffinityPolicy**：
+
+  - 表示在计算 Pod 拓扑分布偏差时将如何处理 Pod 的 nodeAffinity / nodeSelector
+  - 选项为：
+    - **Honor**：只有与 nodeAffinity / nodeSelector 匹配的节点才会包括到计算中
+    - **Ignore**：nodeAffinity/nodeSelector 被忽略，所有节点均包括到计算中
+    - 如果此值为 nil，此行为等同于 Honor 策略
+
+  - **说明：**
+    - 1.26 中默认启用的一个 Beta 级别字段，通过禁用 NodeInclusionPolicyInPodTopologySpread 特性门控来禁用此字段
+
+- **nodeTaintsPolicy**：
+
+  - 表示在计算 Pod 拓扑分布偏差时将如何处理节点污点
+
+  - 选项为：
+
+    - **Honor**：包括不带污点的节点以及污点被新 Pod 所容忍的节点
+    - **Ignore**：节点污点被忽略。包括所有节点
+
+    - 如果此值为 null，此行为等同于 Ignore 策略
+
+  - **说明：**
+    - 在 1.26 版本默认启用，可以通过禁用 NodeInclusionPolicyInPodTopologySpread 特性门控来禁用此字段
+
+
+
+**注意**：
+
+- 当 Pod 定义了不止一个 topologySpreadConstraint，这些约束之间是逻辑与的关系，kube-scheduler 会为新的 Pod 寻找一个能够满足所有约束的节点
+- 多拓扑约束容易出现冲突，导致 Pod 处于 Pending 状态
+  - 建议提高 Skew 或者使用 ScheduleAnyway
+
+
+
+~~~yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+  labels:
+    foo: bar
+spec:
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        foo: bar
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: zone
+            operator: NotIn
+            values:
+            - zoneC
+  containers:
+  - name: pause
+    image: registry.k8s.io/pause:3.1
+~~~
+
+<img src="images/image-20230221231944811.png" alt="image-20230221231944811" style="zoom:50%;" />
+
+此例子中有两个可用区，三个Zone拓扑域，五个Node拓扑域
+
+~~~text
+NAME    STATUS   ROLES    AGE     VERSION   LABELS
+node1   Ready    <none>   4m26s   v1.16.0   node=node1,zone=zoneA
+node2   Ready    <none>   3m58s   v1.16.0   node=node2,zone=zoneA
+node3   Ready    <none>   3m17s   v1.16.0   node=node3,zone=zoneB
+node4   Ready    <none>   2m43s   v1.16.0   node=node4,zone=zoneB
+node5   Ready    <none>   2m43s   v1.16.0   node=node5,zone=zoneC
+~~~
+
+使用 topologyKey 规定必须放在 Zone 域中，但是使用节点亲和度要求节点不能携带 zone=zoneC 的标签，因此 mypod 只能被调度到 ZoneB 的 Node4
+
+
+
+### 3、使用 Pod 亲和性
+
+亲和性 VS 反亲和性：
+
+- 亲和性：吸引 Pod，可以尝试将任意数量的 Pod 集中到符合条件的拓扑域中
+
+- 反亲和性：驱逐 Pod，如果将此设为 required 模式， 则只有单个 Pod 可以调度到单个拓扑域，如果选择 preferred 模式， 则将丢失强制执行此约束的能力
+
+要实现更细粒度的控制，可以设置拓扑分布约束来将 Pod 分布到不同的拓扑域下，从而实现高可用性或节省成本，这也有助于工作负载的滚动更新和平稳地扩展副本规模
 
 
 
