@@ -5565,7 +5565,7 @@ Kubernetes 支持两种主要的服务发现模式：
 
 ### 2、环境变量
 
-kubelet 查找有效的 Service，并针对每一个 Service，向其所在节点上的 Pod 注入一组环境变量
+kubelet 查找有效的 Service，并针对每一个 Service，向 kubelet 所在节点上的 Pod 注入一组环境变量
 
 支持的环境变量有：
 
@@ -5586,9 +5586,9 @@ REDIS_MASTER_PORT_6379_TCP_PORT=6379
 REDIS_MASTER_PORT_6379_TCP_ADDR=10.0.0.11
 ~~~
 
-如果要在 Pod 中使用基于环境变量的服务发现方式，必须先创建 Service，再创建 Service 调用的 Pod，否则，Pod 中不会有该 Service 对应的环境变量
+如果要在 Pod 中使用基于环境变量的服务发现方式，必须先创建 Service，再创建 Service 调用的 Pod，否则 Pod 中不会有该 Service 对应的环境变量
 
-如果使用基于 DNS 的服务发现，则无需担心这个创建顺序的问题
+如果使用基于 DNS 的服务发现，则无需担心创建顺序的问题
 
 
 
