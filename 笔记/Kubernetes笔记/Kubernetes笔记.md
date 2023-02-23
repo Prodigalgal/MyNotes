@@ -2348,7 +2348,127 @@ kubectl exec -it pod-name -c container-name /bin/bash
 
 
 
-# 5、Kubernetes Label
+# 5、Kubernetes Namspace
+
+## 1、Name 概念
+
+Kubernetes REST API 中，所有的对象都是通过 Name 和 UID 唯一性确定，例如：确定一个 RESTFUL 对象：
+
+```
+/api/v1/namespaces/{namespace}/pods/{name}
+```
+
+同一个名称空间下，限定一个类型的对象，可以通过 Name 唯一性确定
+
+~~~yaml
+# 例子
+apiVersion: v1
+kind: Pod
+metadata:
+	# Pod Name
+  name: nginx-demo
+spec:
+  containers:
+  # Contain Name
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+~~~
+
+
+
+**注意**：
+
+- 所有的名字空间名称都必须是合法的 RFC 1123 DNS 标签
+
+
+
+## 2、基本概念
+
+Namespace 在很多情况下用于实现多用户的资源隔离，通过将集群内部的资源对象分配到不同的 Namespace 中形成逻辑上的分组，便于不同的分组在共享使用整个集群的资源同时还能被分别管理
+
+Kubernetes 安装成功后，默认有初始化了三个名称空间：
+
+- **default**：默认名称空间，如果 Kubernetes 对象中不定义 metadata.namespace 字段，该对象将放在此名称空间下
+- **kube-system**：Kubernetes 系统创建的对象放在此名称空间下
+- **kube-public**：此名称空间在安装集群时自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），其为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
+- **kube-node-lease**：该名字空间包含用于与各个节点关联的 Lease 对象，节点租约允许 kubelet 发送心跳， 由此控制面能够检测到节点故障
+
+某些更底层的对象不被名称空间约束，例如：nodes、persistentVolumes、storageClass 等
+
+
+
+**注意**：
+
+- 名称空间内部的同类型对象不能重名，但是跨名称空间可以有同名同类型对象
+- 名称空间不可以嵌套，任何一个 Kubernetes 对象只能在一个名称空间中
+
+
+
+~~~bash
+# 查看名称空间
+kubectl get namespaces
+
+# 在名称空间里
+kubectl api-resources --namespaced=true
+# 不在名称空间里
+kubectl api-resources --namespaced=false
+~~~
+
+
+
+## 3、使用
+
+### 1、创建
+
+~~~yaml
+apiVersion: v1 
+kind: Namespace 
+metadata:
+	name: development
+
+---------------------
+
+apiVersion: v1 
+kind: Pod 
+metadata:
+	name: busybox 
+	namespace: development
+spec:
+containers:
+    - image: busybox 
+    command:
+    	- sleep
+    	- -"3600"
+    name: busybox
+~~~
+
+~~~bash
+kubectl get pods --namespace=development
+~~~
+
+~~~bash
+# 执行命令时指定名称空间
+kubectl run nginx --image=nginx --namespace=<您的名称空间>
+kubectl get pods --namespace=<您的名称空间>
+~~~
+
+
+
+### 2、设置名称空间偏好
+
+以通过 set-context 命令改变当前 kubectl 上下文 的名称空间，后续所有命令都默认在此名称空间下执行
+
+~~~bash
+kubectl config set-context --current --namespace=<您的名称空间>
+# 验证结果
+kubectl config view --minify | grep namespace:
+~~~
+
+
+
+# 6、Kubernetes Label
 
 ## 1、基本概念
 
@@ -2541,7 +2661,11 @@ Finalizers 通常不指定要执行的代码，它们通常是特定资源上的
 
 
 
-# 6、Kubernetes Controller
+
+
+
+
+# 7、Kubernetes Controller
 
 Kubernetes 通过引入 Controller（控制器）的概念来管理 Pod 实例，在 Kubernetes 中，应该始终通过创建 Controller 来创建 Pod，而不是直接创建 Pod（非常重要）
 
@@ -4264,7 +4388,7 @@ spec:
 
 
 
-# 7、Kubernetes Volume
+# 8、Kubernetes Volume
 
 ## 1、基本概念
 
@@ -4381,7 +4505,7 @@ template:
 
 
 
-# 8、Kubernetes PVC\PV
+# 9、Kubernetes PVC\PV
 
 ## 1、基本概念
 
@@ -4619,7 +4743,11 @@ mount 196.198.168.168:/home/data /home/data
 
 
 
-# 9、Kubernetes Secret
+# 10、Kubernetes StorageClass
+
+
+
+# 11、Kubernetes Secret
 
 ## 1、基本概念
 
@@ -4764,7 +4892,7 @@ spec:
 
 
 
-# 10、Kubernetes configMap
+# 12、Kubernetes configMap
 
 ## 1、基本概念
 
@@ -4965,127 +5093,7 @@ kubectl edit configmap log-config
 
 
 
-# 11、Kubernetes Namspace
-
-## 1、Name 概念
-
-Kubernetes REST API 中，所有的对象都是通过 Name 和 UID 唯一性确定，例如：确定一个 RESTFUL 对象：
-
-```
-/api/v1/namespaces/{namespace}/pods/{name}
-```
-
-同一个名称空间下，限定一个类型的对象，可以通过 Name 唯一性确定
-
-~~~yaml
-# 例子
-apiVersion: v1
-kind: Pod
-metadata:
-	# Pod Name
-  name: nginx-demo
-spec:
-  containers:
-  # Contain Name
-  - name: nginx
-    image: nginx:1.14.2
-    ports:
-    - containerPort: 80
-~~~
-
-
-
-**注意**：
-
-- 所有的名字空间名称都必须是合法的 RFC 1123 DNS 标签
-
-
-
-## 2、基本概念
-
-Namespace 在很多情况下用于实现多用户的资源隔离，通过将集群内部的资源对象分配到不同的 Namespace 中形成逻辑上的分组，便于不同的分组在共享使用整个集群的资源同时还能被分别管理
-
-Kubernetes 安装成功后，默认有初始化了三个名称空间：
-
-- **default**：默认名称空间，如果 Kubernetes 对象中不定义 metadata.namespace 字段，该对象将放在此名称空间下
-- **kube-system**：Kubernetes 系统创建的对象放在此名称空间下
-- **kube-public**：此名称空间在安装集群时自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），其为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
-- **kube-node-lease**：该名字空间包含用于与各个节点关联的 Lease 对象，节点租约允许 kubelet 发送心跳， 由此控制面能够检测到节点故障
-
-某些更底层的对象不被名称空间约束，例如：nodes、persistentVolumes、storageClass 等
-
-
-
-**注意**：
-
-- 名称空间内部的同类型对象不能重名，但是跨名称空间可以有同名同类型对象
-- 名称空间不可以嵌套，任何一个 Kubernetes 对象只能在一个名称空间中
-
-
-
-~~~bash
-# 查看名称空间
-kubectl get namespaces
-
-# 在名称空间里
-kubectl api-resources --namespaced=true
-# 不在名称空间里
-kubectl api-resources --namespaced=false
-~~~
-
-
-
-## 3、使用
-
-### 1、创建
-
-~~~yaml
-apiVersion: v1 
-kind: Namespace 
-metadata:
-	name: development
-
----------------------
-
-apiVersion: v1 
-kind: Pod 
-metadata:
-	name: busybox 
-	namespace: development
-spec:
-containers:
-    - image: busybox 
-    command:
-    	- sleep
-    	- -"3600"
-    name: busybox
-~~~
-
-~~~bash
-kubectl get pods --namespace=development
-~~~
-
-~~~bash
-# 执行命令时指定名称空间
-kubectl run nginx --image=nginx --namespace=<您的名称空间>
-kubectl get pods --namespace=<您的名称空间>
-~~~
-
-
-
-### 2、设置名称空间偏好
-
-以通过 set-context 命令改变当前 kubectl 上下文 的名称空间，后续所有命令都默认在此名称空间下执行
-
-~~~bash
-kubectl config set-context --current --namespace=<您的名称空间>
-# 验证结果
-kubectl config view --minify | grep namespace:
-~~~
-
-
-
-# 12、Kubernetes Service
+# 13、Kubernetes Service
 
 ## 1、基本概念
 
@@ -6119,7 +6127,7 @@ kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
 
 
 
-# 13、Kubernetes Probe
+# 14、Kubernetes Probe
 
 ## 1、基本概念
 
@@ -6224,7 +6232,7 @@ spec:
 
 
 
-# 14、Kubernetes Scheduler
+# 15、Kubernetes Scheduler
 
 ## 1、基本概念
 
@@ -6328,7 +6336,47 @@ NodeSelector 是节点选择约束的最简单形式，可以将 NodeSelector �
 
 
 
-## 4、Node 亲和性
+## 4、NodeName
+
+### 1、概述
+
+nodeName 是比亲和性或者 nodeSelector 更为直接的形式
+
+nodeName 是 Pod spec 中的一个字段，如果 nodeName 字段不为空，则调度器不会调度 Pod，直接使用指定节点上的 kubelet 去尝试将该 Pod 放到指定节点
+
+nodeName 规则的优先级高于 nodeSelector、亲和性、非亲和性规则
+
+使用 nodeName 来选择节点的方式有一些局限性：
+
+- 如果指定节点不存在，则 Pod 无法运行，而且在某些情况下可能会被自动删除
+- 如果指定节点无法提供用来运行 Pod 所需的资源，Pod 会失败， 而其失败原因中会给出是否因为内存或 CPU 不足而造成无法运行
+- 在云环境中的节点名称并不总是可预测的，也不总是稳定的
+
+
+
+**注意**：
+
+- nodeName 旨在供自定义调度程序或需要绕过任何已配置调度程序的高级场景使用
+
+
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  nodeName: kube-01
+~~~
+
+此例中的 Pod 只能运行在 kube-01 中
+
+
+
+## 5、Node 亲和性
 
 ### 1、概述
 
@@ -6447,7 +6495,7 @@ spec:
 
 
 
-## 5、Pod 亲和性
+## 6、Pod 亲和性
 
 ### 1、概述
 
@@ -6539,47 +6587,186 @@ spec:
 
 
 
-## 6、NodeName
+## 7、污点与容忍度
 
 ### 1、概述
 
-nodeName 是比亲和性或者 nodeSelector 更为直接的形式
+污点（Taints）：设置于节点上，允许节点排斥一类 Pod
 
-nodeName 是 Pod spec 中的一个字段，如果 nodeName 字段不为空，则调度器不会调度 Pod，直接使用指定节点上的 kubelet 去尝试将该 Pod 放到指定节点
+容忍度（Tolerations）：设置于 Pod，允许但不强制要求 Pod 调度到具有匹配污点的节点上
 
-nodeName 规则的优先级高于 nodeSelector、亲和性、非亲和性规则
-
-使用 nodeName 来选择节点的方式有一些局限性：
-
-- 如果指定节点不存在，则 Pod 无法运行，而且在某些情况下可能会被自动删除
-- 如果指定节点无法提供用来运行 Pod 所需的资源，Pod 会失败， 而其失败原因中会给出是否因为内存或 CPU 不足而造成无法运行
-- 在云环境中的节点名称并不总是可预测的，也不总是稳定的
+污点和容忍度共同作用，确保 Pod 不会被调度到不适当的节点，当一个或多个污点应用于节点，这标志着该节点不应该接受任何不容忍污点的 Pod
 
 
 
 **注意**：
 
-- nodeName 旨在供自定义调度程序或需要绕过任何已配置调度程序的高级场景使用
+- 因为 Master 节点存在污点，所以 Pod 不会调度到 Master 节点
 
 
 
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-  nodeName: kube-01
+### 2、污点
+
+#### 1、概述
+
+使用 **kubectl taint** 命令可以给某个 Node 设置污点，Node 被设置污点之后就和 Pod 之间存在一种排斥关系，可以让 Node 拒绝 Pod 调度，甚至将 Node 上已经存在的 Pod 驱逐
+
+每个污点有一个 key 和 value 作为污点的标签，effect 描述污点的作用
+
+当前taint effect支持如下选项：
+
+- **NoSchedule**：表示 K8s 将不会把 Pod 调度到具有该污点的 Node 上
+- **PreferNoSchedule**：表示 K8s 将尽量避免把 Pod 调度到具有该污点的 Node 上
+- **NoExecute**：表示 K8s 将不会把 Pod 调度到具有该污点的Node节点上，甚至会将 Node 上已经存在的 Pod 驱逐
+
+
+
+**注意**：
+
+- NoExecute 会影响已经在节点上运行的 Pod
+  - 如果 Pod 不能容忍 effect 值为 NoExecute 的 taint，那么 Pod 马上被驱逐
+  - 如果 Pod 能够容忍 effect 值为 NoExecute 的 taint
+    - 且在 toleration 定义中没有指定 tolerationSeconds，则 Pod 会在这个节点上一直运行
+    - 在 toleration 定义中指定了 tolerationSeconds，则表示 pod 还能在这个节点上继续运行的时间长度
+- 尽量不调度到某个节点，并不表示不会调度
+
+
+
+#### 2、使用
+
+~~~bash
+kubectl taint nodes node1 key1=value1:NoSchedule
 ~~~
 
-此例中的 Pod 只能运行在 kube-01 中
+给节点 node1 增加一个污点，键名是 key1，键值是 value1，效果是 NoSchedule，表示只有拥有和这个污点相匹配的容忍度的 Pod 才能够被调度到 node1
+
+~~~bash
+kubectl taint nodes node1 key1=value1:NoSchedule-
+~~~
+
+移除上述命令所添加的污点
 
 
 
-## 7、拓扑约束
+### 3、容忍度
+
+#### 1、概述
+
+容忍度允许调度器将 Pod 调度到带有对应污点的 Node
+
+容忍度允许调度但并不保证调度，作为调度功能的一部分， 调度器也会评估其他参数
+
+
+
+#### 2、使用
+
+在 Pod spec 中为 Pod 设置容忍度
+
+~~~yaml
+tolerations:
+- key: "key1"
+  operator: "Equal"
+  value: "value1"
+  effect: "NoSchedule"
+  
+tolerations:
+- key: "key1"
+  operator: "Exists"
+  effect: "NoSchedule"
+  tolerationSeconds: 3600
+~~~
+
+如果一个 Pod 拥有其中的任何一个容忍度，都能够被调度到 node1
+
+**operator**：一个容忍度和一个污点相匹配是指它们有一样的键名和效果，并且：
+
+- 如果 operator 是 Exists，此时容忍度不能指定 value
+- 如果 operator 是 Equal ，则它们的 value 应该相等
+
+
+
+**注意**：
+
+- 存在两种特殊情况：
+  - 如果容忍度的 key 为空且 operator 为 Exists， 表示这个容忍度与任意的 key、value、effect 都匹配，即这个容忍度能容忍任何污点
+  - 如果容忍度的 effect 为空，则该容忍度可以与所有键名为 key1 的污点相匹配
+
+
+
+### 4、多污点与多容忍度
+
+可以在同一个 Node 上设置多个污点，在同一个 Pod 上设置多个容忍度
+
+Kubernetes 处理多个污点和容忍度的方式就像一个过滤器：从节点的污点开始，忽略可以被 Pod 容忍度匹配的污点，保留不可忽略的污点，且不可忽略污点的 effect 对 Pod 具有显示效果：
+
+- 如果过滤后有至少一个不可忽略污点，且 effect 为 NoSchedule，那么 Kubernetes 将不调度 Pod 到该节点
+- 如果过滤后没有 effect 为 NoSchedule 的污点，但至少有一个不可忽略污点，且 effect 为 PreferNoSchedule，那么 Kubernetes 将尽量不调度 Pod 到该节点
+- 如果过滤后至少有一个不可忽略污点，且 effect 为 NoExecute，那么 Pod 将从该节点被驱逐，即使 Pod 已经在该节点运行，并且不会被调度到该节点
+
+
+
+### 5、使用场景
+
+以下场景适合使用污点与容忍度
+
+- **专用节点**：如果想将某些节点专门分配给特定的一组用户使用，可以给这些节点添加一个污点，然后给这组用户的 Pod 添加一个对应的容忍度（通过编写一个自定义的准入控制器），如此拥有对应容忍度的 Pod 就能够被调度到专用节点，同时也能够被调度到集群中的其它节点，如果希望这些 Pod 只能被调度到上述专用节点， 那么还需要给这些专用节点另外添加一个和污点类似的 label，dedicated=groupName， 同时还要在自定义的准入控制器中给 Pod 增加节点亲和性要求，要求上述 Pod 只能被调度到添加了 dedicated=groupName 标签的节点上
+  - kubectl taint nodes nodename dedicated=groupName:NoSchedule
+
+- **配备了特殊硬件的节点**：在部分节点配备了特殊硬件（比如：GPU）的集群， 希望不需要这类硬件的 Pod 不要被调度到这些特殊节点，以便为需要这类硬件的 Pod 保留资源，要达到这个目的，可以先给配备特殊硬件的节点添加污点，然后给需要使用特殊硬件的 Pod 添加一个相匹配的容忍度，之后和专用节点的例子类似，添加这个容忍度的最简单的方法是使用自定义准入控制器，推荐使用扩展资源来表示特殊硬件，给配置了特殊硬件的节点添加污点时包含扩展资源名称， 然后运行一个 ExtendedResourceToleration 准入控制器，此时因为节点已经被设置污点了，没有对应容忍度的 Pod 不会被调度到这些节点，当创建一个使用了扩展资源的 Pod 时，ExtendedResourceToleration 准入控制器会自动给 Pod 加上正确的容忍度，这样 Pod 就会被自动调度到这些配置了特殊硬件的节点上，这种方式能够确保配置了特殊硬件的节点专门用于运行需要这些硬件的 Pod， 并且无需手动给这些 Pod 添加容忍度
+  - kubectl taint nodes nodename special=true:NoSchedule
+  - kubectl taint nodes nodename special=true:PreferNoSchedule
+
+- **基于污点的驱逐**：这是在每个 Pod 中配置的，在节点出现问题时的驱逐行为
+
+
+
+### 6、基于污点的驱逐
+
+当某种条件为真时，节点控制器会自动给节点添加一个污点，当前内置的污点包括：
+
+- node.kubernetes.io/not-ready：节点未准备好，相当于节点状态 Ready 的值为 False
+- node.kubernetes.io/unreachable：节点控制器访问不到节点，相当于节点状态 Ready 的值为 Unknown
+- node.kubernetes.io/memory-pressure：节点存在内存压力
+- node.kubernetes.io/disk-pressure：节点存在磁盘压力
+- node.kubernetes.io/pid-pressure: 节点的 PID 压力
+- node.kubernetes.io/network-unavailable：节点网络不可用
+- node.kuberne、tes.io/unschedulable: 节点不可调度
+- node.cloudprovider.kubernetes.io/uninitialized：如果 kubelet 启动时指定了一个外部云平台驱动，它将给当前节点添加一个污点将其标志为不可用，在 cloud-controller-manager 的一个控制器初始化这个节点后，kubelet 将删除这个污点
+
+- 当节点被驱逐时，节点控制器或者 kubelet 会添加带有 NoExecute 效果的相关污点
+
+如果节点异常状态恢复正常，kubelet 或节点控制器能够移除相关的污点
+
+Controller Plane 会限制对节点群添加污点的速率，主要是为了当出现多节点不可达时，触发的大量驱逐（例如：网络中断），为此也可以在 Pod 设置 tolerationSeconds，让 Pod 在此时间段内维系于 Node 之上，当 Node 恢复正常后，继续运行
+
+
+
+**注意**：
+
+- Kubernetes 会自动给 Pod 添加针对 node.kubernetes.io/not-ready 和 node.kubernetes.io/unreachable 的容忍度，且配置 tolerationSeconds=300， 除非用户自身或者某控制器显式设置此容忍度
+  - 自动添加的这些容忍度意味着 Pod 可以在检测到对应的问题时，在 5 分钟内保持绑定在该节点上
+
+**注意**：
+
+- DaemonSet 中的 Pod 被创建时，针对以下污点自动添加 NoExecute 的容忍度，并且不会指定 tolerationSeconds，这保证了出现上述问题时 DaemonSet 中的 Pod 永远不会被驱逐：
+  - node.kubernetes.io/unreachable
+  - node.kubernetes.io/not-ready
+
+- DaemonSet 控制器自动为所有守护进程添加如下 NoSchedule 容忍度，以防 DaemonSet 崩溃，确保向后兼容，也可以选择自由向 DaemonSet 添加容忍度：
+
+  - node.kubernetes.io/memory-pressure
+
+  - node.kubernetes.io/disk-pressure
+
+  - node.kubernetes.io/pid-pressure (1.14 或更高版本)
+
+  - node.kubernetes.io/unschedulable (1.10 或更高版本)
+
+  - node.kubernetes.io/network-unavailable (只适合主机网络配置)
+
+
+
+## 8、拓扑约束
 
 ### 1、概述
 
@@ -6591,6 +6778,8 @@ spec:
 - 将 Pod 分散到可用域中，降低网络通信成本
 
 需要使用 **topologySpreadConstraints** 字段来规定拓扑约束
+
+**拓扑域**：表示集群中的某一类地方，比如：某节点群、某机架、某可用区或、某地域等，这些都可以作为某种拓扑域
 
 
 
@@ -6754,7 +6943,7 @@ node5   Ready    <none>   2m43s   v1.16.0   node=node5,zone=zoneC
 
 
 
-### 3、使用 Pod 亲和性
+### 3、结合亲和性
 
 亲和性 VS 反亲和性：
 
@@ -6763,6 +6952,44 @@ node5   Ready    <none>   2m43s   v1.16.0   node=node5,zone=zoneC
 - 反亲和性：驱逐 Pod，如果将此设为 required 模式， 则只有单个 Pod 可以调度到单个拓扑域，如果选择 preferred 模式， 则将丢失强制执行此约束的能力
 
 要实现更细粒度的控制，可以设置拓扑分布约束来将 Pod 分布到不同的拓扑域下，从而实现高可用性或节省成本，这也有助于工作负载的滚动更新和平稳地扩展副本规模
+
+
+
+### 4、拓扑感知路由服务
+
+Service 转发主要是 Node 上的 kube-proxy 进程通过 watch apiserver 获取 Service 对应的 Endpoint，再写入 iptables 或 ipvs 规则来实现的，对于 Headless Service，主要是通过 kube-dns 或 CoreDNS 动态解析到不同 Endpoint ip 来实现的
+
+实现 Service 就近转发的关键点就在于将流量转发到跟当前节点在同一拓扑域的 Endpoint 上，也就是会进行一次 Endpoint 筛选，选出一部分符合当前节点拓扑域的 Endpoint 进行转发
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx
+  topologyKeys: ["kubernetes.io/hostname", "topology.kubernetes.io/zone", "*"]
+~~~
+
+当前 topology key 支持以下可能的值（未来会增加更多）:
+
+- kubernetes.io/hostname：节点的 hostname，通常将它放列表中第一个，表示如果本机有 Endpoint 就直接转发到本机的
+- topology.kubernetes.io/zone：节点所在的可用区，通常将它放在 kubernetes.io/hostname 后面，表示如果本机没有对应 Endpoint，就转发到当前可用区其它节点上的 Endpoint（部分云厂商跨可用区通信会收取额外的流量费用）
+- topology.kubernetes.io/region：表示节点所在的地域，表示转发到当前地域的 Endpoint，这个用的应该会比较少，因为通常集群所有节点都只会在同一个地域，如果节点跨地域了，节点之间通信延时将会很高
+- *：忽略拓扑域，匹配所有 Endpoint，相当于一个保底策略，避免丢包，只能放在列表末尾
+
+
+
+**注意**：
+
+- topologyKeys 与 externalTrafficPolicy=Local 不兼容且互斥，如果 externalTrafficPolicy 为 Local，就不能定义 topologyKeys，反之亦然
 
 
 
@@ -7094,13 +7321,246 @@ spec:
 
 ## 6、Kubernetes 网络模型
 
+### 1、概述
+
+对于 Pod 如何接入网络，Kubernetes 要求所有的网络插件实现必须满足如下条件：
+
+- 任意 Pod 可以与其他任意 Pod 直接通信，无需使用 NAT 映射
+- 任意 Node 可以与任意 Pod 直接通信，无需使用 NAT 映射
+- Pod 内部获取到的 IP 地址与其他 Pod、Node 通信时的 IP 地址是同一个
+
+在这些限制条件下，需要解决如下四种完全不同的网络使用场景问题：
+
+1. Container To Container
+2. Pod To Pod
+3. Pod To Service
+4. Internet To Service
+
+
+
+### 2、Container To Container
+
+通常认为虚拟机中的网络通信是直接使用以太网设备进行的，如下图所示：
+
+<img src="images/image-20230223225241760.png" alt="image-20230223225241760" style="zoom:50%;" />
+
+实际情况比这个示意图更加复杂一些，Linux系统中，每一个进程都在一个 network namespace 中进行通信，而 network namespace 为进程提供了一个逻辑上的全新的网络堆栈（包含自己的路由、防火墙规则、网络设备）
+
+~~~bash
+# 创建一个新的 netns
+ip netns add ns1
+
+# 查看所有 netns
+ip netns
+ls /var/run/netns
+~~~
+
+默认情况下，Linux 将所有的进程都分配到 root network namespace，以使得进程可以访问外部网络，如下图所示：
+
+<img src="images/image-20230223225536014.png" alt="image-20230223225536014" style="zoom:50%;" />
+
+在 Kubernetes 中，Pod 是一组容器的集合，这一组容器将共享一个 network namespace
+
+Pod 中所有的容器都：
+
+- 使用该 network namespace 提供的同一个 IP 地址以及同一个端口空间
+- 可以通过 localhost 直接与同一个 Pod 中的另一个容器通信
+
+Kubernetes 为每一个 Pod 都创建了一个 network namespace，在 Pod 中创建新的容器时都将加入该 network namespace，因此这些容器都在同一个共享的 network namespace 中
+
+<img src="images/image-20230223225819533.png" alt="image-20230223225819533" style="zoom:50%;" />
+
+
+
+### 3、Pod To Pod
+
+在 Kubernetes 中，每一个 Pod 都有一个真实的 IP 地址，并且每一个 Pod 都可以使用此 IP 地址与其他 Pod 通信，不管两个 Pod 是在同一个节点上，还是集群中的不同节点上
+
+从 Pod 的视角来看，Pod 是在自身所在的 network namespace 与同节点上另外一个 Pod 的 network namespace 通信
+
+在 Linux 上，不同的 network namespace 可以通过 Virtual Ethernet Device 或 veth pair（跨多个名称空间的虚拟网卡）进行通信
+
+为连接 Pod 的 network namespace，可以将 veth pair 的一端连接到 root network namespace，另一端连接到 Pod 的 network namespace，每一组 veth pair 类似于一条网线，连接两端并使流量通过，Node 上有多少个 Pod，就会设置多少组 veth pair
+
+~~~bash
+# 使用 ip addr 查看有多少个 veth
+# 一个 veth 代表一个 Pod
+ip addr
+~~~
+
+下图展示了 veth pair 连接 Pod 到 root namespace 的情况：
+
+<img src="images/image-20230223230329527.png" alt="image-20230223230329527" style="zoom:50%;" />
+
+此时从 Pod 的角度来看，各自都有以太网卡以及 IP 地址，并且都连接到了 Node 的 root network namespace，但是为了让 Pod 可以互相通过 root network namespace 通信，Linux 使用 network bridge（网桥）
+
+Linux Ethernet bridge 是一个虚拟的 Layer 2 网络设备，可用来连接两个或多个网段（network segment）
+
+网桥的工作原理是，在源与目标之间维护一个转发表（forwarding table），检查通过网桥的数据包目标地址（destination）并匹配转发表，决定是否将数据包转发到与网桥相连的另一个网段，桥接过程使用网络中具备唯一性的网卡 MAC 地址来判断是否桥接或丢弃数据
+
+网桥实现了 ARP 协议，用以发现链路层与 IP 地址绑定的 MAC 地址，当网桥收到数据帧时，网桥将该数据帧广播到所有连接的设备上（除了发送者以外），对该数据帧做出响应的设备被记录到一个查找表中（lookup table），后续网桥再收到发向同一个 IP 地址的流量时，将使用查找表（lookup table）来找到对应的 MAC 地址，并转发数据包
+
+<img src="images/image-20230223230934193.png" alt="image-20230223230934193" style="zoom:50%;" />
+
+**Pod 同节点**：
+
+在 network namespace 将每一个 Pod 隔离到各自的网络堆栈的情况下
+
+- 虚拟以太网设备（virtual Ethernet device）将每一个 network namespace 连接到 root network namespace
+- 网桥将 network namespace 又连接到一起
+
+此时 Pod 可以向同一节点上的另一个 Pod 发送网络报文了，下图演示了同节点上，网络报文从一个 Pod 传递到另一个 Pod 的情况
+
+<img src="images/pod-to-pod-same-node.90e4d5a2.gif" alt="pod-to-pod-same-node.90e4d5a2" style="zoom:50%;" />
+
+1. Pod1 发送一个数据包到其自己的默认以太网设备 eth0
+   - 对 Pod1 来说：eth0 通过 veth0 连接到 root network namespace
+2. 网桥 cbr0 中为 veth0 配置了一个网段，一旦数据包到达网桥，网桥使用 ARP 协议解析出正确的目标网段 veth1
+3. 网桥 cbr0 将数据包发送到 veth1
+4. 数据包到达 veth1 时，被直接转发到 Pod2 的 network namespace 中的 eth0 网络设备
+
+在整个数据包传递过程中，每一个 Pod 都只和自身的 eth0 通信，但数包会被路由到正确的 Pod 上
+
+Kubernetes 的网络模型规定，在跨节点的情况下 Pod 也必须可以通过 IP 地址访问，也就是说 Pod 的 IP 地址必须始终对集群中其他 Pod 可见，且从 Pod 内部和从 Pod 外部来看，Pod 的 IP 地址都是相同的
+
+
+
+**Pod 不同节点**：
+
+Kubernetes 网络模型要求 Pod 的 IP 在整个网络中都可访问，但是并不指定如何实现这一点，因此这是由具体所使用的网络插件去实现，但是网络插件之间的理念是相同的，有些模式是确立的
+
+通常集群中每个 Node 都被分配了一个 CIDR 网段，指定了该 Node 上的 Pod 可用的 IP 地址段，一旦发送到该 CIDR 网段的流量到达节点，就由节点负责将流量继续转发给对应的 Pod，下图展示了两个节点之间的数据报文传递过程：
+
+<img src="images/pod-to-pod-different-nodes.4187b249.gif" alt="pod-to-pod-different-nodes.4187b249" style="zoom:50%;" />
+
+1. 数据包从 Pod1 的网络设备 eth0 出发，eth0 通过 veth0 连接到 root network namespace
+2. 数据包到达 root network namespace 中的网桥 cbr0
+   - 网桥上执行 ARP 失败，因为与网桥连接的所有设备中，没有与该数据包匹配的 MAC 地址
+   - 一旦 ARP 失败，网桥会将数据包发送到默认路由（root network namespace 中的 eth0 设备）
+   - 此时，数据包离开节点进入网络
+3. 假设网络可以根据各节点的 CIDR 网段，将数据包路由到正确的节点
+   - 如何使得数据包可以从一个节点路由到匹配的节点，这与具体的网络插件实现相关的
+4. 数据包进入目标节点的 root network namespace（VM2 上的 eth0）后，通过网桥路由到正确的虚拟网络设备（veth1）
+5. 最终数据包通过 veth1 发送到对应 Pod 的 eth0，完成了数据包传递的过程
+
+通常来说，每个节点知道如何将数据包分发到目标 Pod 所在节点上，一旦一个数据包到达目标节点，数据包的传递方式与同节点上不同 Pod 之间数据包传递的方式就是一样的
+
+
+
+### 4、Pod To Service
+
+然而 Pod 的 IP 地址并非是固定不变的，随着 Pod 的重新调度（例如：水平伸缩、应用程序崩溃、节点重启等），Pod 的 IP 地址将会改变，此时客户端无法得知该访问哪一个 IP 地址，Kubernetes Service 的概念用于解决此问题
+
+一个 Kubernetes Service 管理了一组 Pod 的状态，可以追踪一组 Pod 的 IP 地址的动态变化过程
+
+一个 Service 拥有一个 IP 地址，并且充当了一组 Pod 的 IP 地址的虚拟 IP 地址，任何发送到 Service 的 IP 地址的数据包将被负载均衡到该 Service 对应的 Pod 上，因此 Service 关联的 Pod 可以动态变化，客户端只需要知道 Service 的 IP 地址即可（该地址不会发生变化）
+
+从效果上来说，Kubernetes 自动为 Service 创建和维护了集群内部的分布式负载均衡，因此发送到 Service IP 地址的数据包可以分发到 Service 对应的健康 Pod 上
+
+
+
+**netfilter**：
+
+Kubernetes 利用 Linux 内建的网络框架 netfilter 来实现负载均衡
+
+Netfilter 是由 Linux 提供的一个框架，可以通过自定义 handler 的方式来实现多种网络相关的操作
+
+Netfilter 提供了许多用于数据包过滤、网络地址转换、端口转换的功能，通过这些功能使得自定义的 handler 可以在网络上转发数据包、禁止数据包发送到敏感的地址等
+
+
+
+**iptables**：
+
+iptables 是一个 user space 应用程序，可以提供基于决策表的规则系统，并使用 netfilter 操作或转换数据包
+
+在 Kubernetes 中，kube-proxy 控制器监听 apiserver 中的变化，并配置 iptables 规则
+
+当 Service 或 Pod 发生变化时（例如：Service 被分配了 IP 地址，或者新的 Pod 被关联到 Service），kube-proxy 控制器将更新 iptables 规则，以便将发送到 Service 的数据包正确地路由到后端 Pod 上
+
+iptables 规则将监听所有发向 Service 的虚拟 IP 的数据包，并将这些数据包随机的转发到该 Service 对应的可用 Pod 的 IP 地址，同时 iptables 规则将修改数据包的目标 IP 地址（从 Service 的 IP 地址修改为选中的 Pod 的 IP 地址）
+
+当 Pod 被创建或者被终止时，iptables 的规则也被对应的修改，换句话说 iptables 承担了从 Service IP 地址到实际 Pod IP 地址的负载均衡的工作
+
+在返回数据包的路径上，数据包从目标 Pod 发出，此时 iptables 规则又将数据包的源 IP 从源 Pod 的 IP 地址替换为 Service 的 IP 地址，从请求的发起方来看，就好像始终只是在和 Service 的 IP 地址通信一样
+
+
+
+**IPVS**：
+
+Kubernetes v1.11 开始，提供了另一个选择用来实现集群内部的负载均衡：IPVS
+
+IPVS（IP Virtual Server）也是基于 netfilter 构建的，在 Linux 内核中实现了传输层的负载均衡
+
+IPVS 被合并到 LVS（Linux Virtual Server）当中，充当一组服务器的负载均衡器
+
+IPVS 可以转发 TCP / UDP 请求到实际的服务器上，使得一组实际的服务器看起来像是只通过一个单一 IP 地址访问的服务一样，这个特点天然适合用在 Kubernetes Service 的场景，因此当声明一个 Kubernetes Service 时，可以指定是使用 iptables 还是 IPVS 来提供集群内的负载均衡
+
+IPVS 是专为负载均衡设计的，并且使用更有效率的数据结构（hash tables），相较于 iptables，可以支持更大数量的网络规模
+
+当创建使用 IPVS 形式的 Service 时，Kubernetes 执行了如下三个操作：
+
+- 在节点上创建一个 dummy IPVS interface
+- 将 Service 的 IP 地址绑定到该 dummy IPVS interface
+- 为每一个 Service IP 地址创建 IPVS 服务器
+
+
+
+**Pod To Service**：
+
+<img src="images/pod-to-service.6718b584.gif" alt="pod-to-service.6718b584" style="zoom:50%;" />
+
+在 Pod 和 Service 之间路由数据包时，数据包的发起和以前一样：
+
+1. 数据包首先通过 Pod1 的 eth0 网卡发出到达 veth0
+2. 数据包经过 veth0 到达网桥 cbr0
+3. 网桥上的 APR 协议查找不到该 Service，所以数据包被发送到 root network namespace 中的默认路由 eth0
+   1. 在数据包被 eth0 接受之前，数据包将通过 iptables 过滤
+   2. iptables 使用其规则（由 kube-proxy 根据 Service、Pod 的变化在节点上创建的 iptables 规则）重写数据包的目标地址（从 Service 的 IP 地址修改为某一个具体 Pod 的 IP 地址）
+4. 数据包现在的目标地址是 Pod4，而不是 Service 的虚拟 IP 地址
+   - iptables 使用 Linux 内核的 conntrack 工具包来记录了具体选择了哪一个 Pod，以便将未来的数据包路由到同一个 Pod
+5. 数据包后续如何发送到 Pod4 上，其路由方式与 Pod To Pod 的网络描述相同
+
+
+
+**Service To Pod**：
+
+<img src="images/service-to-pod.4393f600.gif" alt="service-to-pod.4393f600" style="zoom:50%;" />
+
+1. 接收到此请求的 Pod4 将会发送返回数据包，数据包中源 IP 为接收请求 Pod4 的 IP，目标 IP 为发送对应请求的 Pod1 的 IP
+2. 当数据包进入节点后，数据包将经过 iptables 的过滤，此时记录在 conntrack 中的信息将被用来修改数据包的源地址
+   - 从接收请求的 Pod4 的 IP 地址修改为 Service 的 IP 地址
+3. 然后数据包将通过网桥、veth0
+4. 最终到达 Pod1 的网卡 eth0
+
+
+
+**使用 DNS**：
+
+Kubernetes 也可以使用 DNS，以避免将 Service 的 cluster IP 地址硬编码到应用程序当中。Kubernetes DNS 是 Kubernetes 上运行的一个普通的 Service。每一个节点上的 `kubelet` 都使用该 DNS Service 来执行 DNS 名称的解析。集群中每一个 Service（包括 DNS Service 自己）都被分配了一个 DNS 名称。DNS 记录将 DNS 名称解析到 Service 的 ClusterIP 或者 Pod 的 IP 地址。[SRV 记录](https://kuboard.cn/learning/k8s-intermediate/service/dns.html#srv-记录) 用来指定 Service 的已命名端口。
+
+DNS Pod 由三个不同的容器组成：
+
+- `kubedns`：观察 Kubernetes master 上 Service 和 Endpoints 的变化，并维护内存中的 DNS 查找表
+- `dnsmasq`：添加 DNS 缓存，以提高性能
+- `sidecar`：提供一个健康检查端点，可以检查 `dnsmasq` 和 `kubedns` 的健康状态
+
+DNS Pod 被暴露为 Kubernetes 中的一个 Service，该 Service 及其 ClusterIP 在每一个容器启动时都被传递到容器中（环境变量及 /etc/resolves），因此，每一个容器都可以正确的解析 DNS。DNS 条目最终由 `kubedns` 解析，`kubedns` 将 DNS 的所有信息都维护在内存中。`etcd` 中存储了集群的所有状态，`kubedns` 在必要的时候将 `etcd` 中的 key-value 信息转化为 DNS 条目信息，以重建内存中的 DNS 查找表。
+
+CoreDNS 的工作方式与 `kubedns` 类似，但是通过插件化的架构构建，因而灵活性更强。自 Kubernetes v1.11 开始，CoreDNS 是 Kubernetes 中默认的 DNS 实现。
+
+
+
+### 5、Internet To Service
+
+
+
 Docker 使用一种 host-private 的联网方式，在此情况下只有两个容器都在同一个节点上时，一个容器才可以通过网络连接另一个容器
 
 为了使 Docker 容器可以跨节点通信，必须在宿主节点的 IP 地址上分配端口，并将该端口接收到的网络请求转发（或代理）到容器，这意味着用户必须非常小心地为容器分配宿主节点的端口号，除非端口号可以自动分配
 
 在一个集群中，多个开发者之间协调分配端口号是非常困难的，Kubernetes 认为集群中的两个 Pod 应该能够互相通信，无论他们各自在哪个节点上，每一个 Pod 都拥有的 **cluster-private-IP**，因此无需在 Pod 间建立连接，或者将容器的端口映射到宿主机的端口
 
-- Pod 中的任意容器可以使用 localhost 直连同 Pod 中另一个容器的端口
+- Pod 中的任意容器可以使用 localhost 直连通同一个 Pod 中另一个容器的端口
 - 集群中的任意 Pod 可以使用另一的 Pod 的 **cluster-private-IP** 直连对方的端口，（无需 NAT 映射）
 
 
