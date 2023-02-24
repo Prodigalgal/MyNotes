@@ -2334,6 +2334,38 @@ kubectl get poddisruptionbudgets zk-pdb -o yaml
 
 ## 12、调试
 
+先用 Deployment 创建两个 Pod
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+~~~
+
+
+
+### 1、使用 exec
+
 通过 kubectl exec 进入容器命令行终端进行问题诊断
 
 ~~~bash
@@ -2341,10 +2373,60 @@ kubectl get poddisruptionbudgets zk-pdb -o yaml
 kubectl exec -it pod-name /bin/bash
 
 # Pod 中有多个容器时
-kubectl exec -it pod-name -c container-name /bin/bash
+# kubectl exec ${POD_NAME} -c ${CONTAINER_NAME} -- ${CMD} ${ARG1} ${ARG2} ... ${ARGN}
+kubectl exec -it pod-name -c container-name -- sh
 ~~~
 
-使用开源工具 **kubectl-debug**
+
+
+### 2、使用 debug
+
+~~~bash
+kubectl run ephemeral-demo --image=registry.k8s.io/pause:3.1 --restart=Never
+~~~
+
+debug 对于 Pod 内容器不包含 shell 等工具时调试非常方便
+
+~~~bash
+kubectl debug -it ephemeral-demo --image=busybox:1.28 --target=ephemeral-demo
+~~~
+
+此命令添加一个新的 busybox 容器并将其连接到该容器
+
+- --target 参数指定另一个容器的进程名称空间，这个指定进程名称空间的操作是必需的，因为 kubectl run 不能在它创建的 Pod 中启用共享进程命名空间
+
+~~~bash
+kubectl debug ephemeral-demo -it --image=ubuntu --share-processes --copy-to=ephemeral-demo-debug
+~~~
+
+此命令创建了一个 ephemeral-demo 的副本，并添加了一个用于调试的 ubuntu 容器
+
+- 如果没有使用 --container 指定新的容器名，kubectl debug 会自动生成的
+- --share-processes 允许在此 Pod 中的其他容器中查看该容器的进程
+
+
+
+**注意**：
+
+- 不要忘记清理调试容器
+
+
+
+## 13、临时容器
+
+临时容器与其他容器的不同之处在于，它们缺少对资源或执行的保证，并且永远不会自动重启，因此不适用于构建应用程序，临时容器使用与常规容器相同的 ContainerSpec 节来描述，但许多字段是不兼容和不允许的
+
+- 临时容器没有端口配置，因此像 ports、livenessProbe、readinessProbe 是不允许的
+- Pod 资源分配是不可变的，因此 resources 配置是不允许的
+- 有关允许字段的完整列表，请参见 [EphemeralContainer 参考文档](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#ephemeralcontainer-v1-core) 
+
+临时容器是 Ephemeralcontainers 处理器进行创建的，而不是直接添加到 pod.spec，因此无法使用 kubectl edit 来添加一个临时容器，且与常规容器一样，将临时容器添加到 Pod 后，将不能更改或删除临时容器
+
+临时容器在现有 Pod 中临时运行，以便完成用户发起的操作，可以使用临时容器来检查服务，但不是用它来构建应用程序
+
+当由于容器崩溃或容器镜像不包含调试工具而导致 kubectl exec 无用时， 临时容器对于交互式故障排查很有用
+
+使用临时容器时， 启用进程名字空间共享很有帮助， 可以查看其他容器中的进程
 
 
 
@@ -4427,8 +4509,6 @@ spec:
 
 
 
-
-
 ## 3、hostPath 
 
 hostPath 属性的 Volume 使得对应的容器能够访问当前宿主机上的指定目录，例如：需要运行一个访问 Docker 系统目录的容器，那么就使用 /var/lib/docker 目录作为一个 hostDir 类型的 Volume，或者要在一个容器内部运行 CAdvisor，那么就使用 /dev/cgroups 目录作为一个 hostDir 类型的 Volume
@@ -4462,6 +4542,28 @@ spec:
 ## 3、nfs 
 
 nfs 类型的 Volume 允许一块现有的网络硬盘在同一个 Pod 内的容器间共享
+
+需要先安装 nfs server
+
+~~~bash
+yum install -y nfs-kernel-server
+
+apt-get install nfs-kernel-server rpcbind -y
+~~~
+
+~~~bash
+# 所有节点都要创建该目录
+mkdir -p /home/data
+# 主节点开放
+echo "/home/data *(insecure,rw,sync,no_root_squash)" > /etc/exports
+# 主节点重启服务
+systemctl restart nfs-server
+~~~
+
+~~~bash
+# 从节点挂载
+mount 196.198.168.168:/home/data /home/data
+~~~
 
 ~~~yaml
 apiVersion: apps/v1  # for versions before 1.9.0 use apps/v1beta2 
@@ -4505,6 +4607,207 @@ template:
 
 
 
+建议阅读完 PV\PVC 后再看第四五小节
+
+
+
+## 4、Projected Volume
+
+### 1、概述
+
+一个 projected 卷可以将若干现有的卷源映射到同一个目录之上
+
+目前，以下类型的卷源可以被投射：
+
+- secret
+- downwardAPI
+- configMap
+- serviceAccountToken
+
+所有的卷源都要求处于 Pod 所在的同一个名字空间内
+
+
+
+### 2、使用
+
+每个被投射的卷源都列举在 spec 的 sources 下面，参数几乎相同，只有两个例外：
+
+- 对于 Secret，secretName 字段被改为 name 以便于 ConfigMap 的命名一致
+- defaultMode 只能在投射层级设置，不能在卷源层级设置，不过可以显式地为每个投射单独设置 mode 属性
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-test
+spec:
+  containers:
+  - name: container-test
+    image: busybox:1.28
+    volumeMounts:
+    - name: all-in-one
+      mountPath: "/projected-volume"
+      readOnly: true
+  volumes:
+  - name: all-in-one
+    projected:
+      sources:
+      - secret:
+          name: mysecret
+          items:
+            - key: username
+              path: my-group/my-username
+      - secret:
+          name: mysecret2
+          items:
+            - key: password
+              path: my-group/my-password
+              # 单独设置 mode
+              mode: 511
+      - downwardAPI:
+          items:
+            - path: "labels"
+              fieldRef:
+                fieldPath: metadata.labels
+            - path: "cpu_limit"
+              resourceFieldRef:
+                containerName: container-test
+                resource: limits.cpu
+      # 将当前服务账号的令牌注入到 Pod 中特定路径下
+      # 此 Pod 中的容器可以使用该令牌访问 Kubernetes API 服务器
+      - serviceAccountToken:
+          # 包含令牌所针对的受众
+          # 收到令牌的主体必须使用令牌受众中所指定的某个标识符来标识自身，否则应该拒绝该令牌
+          # 此字段是可选的，默认值为 API 服务器的标识
+          audience: api
+          # 服务账号令牌预期的生命期长度，默认值为 1 小时，必须至少为 10 分钟（600 秒）
+          # 也可以通过设置 API 服务器的命令行参数 --service-account-max-token-expiration 来为其设置最大值上限
+          expirationSeconds: 3600
+          # 给出与投射卷挂载点之间的相对路径
+          path: token
+      - configMap:
+          name: myconfigmap
+          items:
+            - key: config
+              path: my-group/my-config
+~~~
+
+
+
+**注意**：
+
+- 在某 Pod 被创建后为其添加的临时容器不会更改创建该 Pod 时设置的卷权限
+- 如果 Pod 的 serviceAccountToken 卷权限被设为 0600，则临时容器必须使用相同的 runAsUser 才能读取令牌
+
+
+
+## 5、Ephemeral Volume
+
+### 1、概述
+
+有些应用程序需要额外的存储，但并不关心数据在重启后是否仍然可用
+
+- 缓存服务经常受限于内存大小，而且可以将不常用的数据转移到比内存慢的存储中，对总体性能的影响并不大
+- 有些应用程序需要以文件形式注入的只读数据，比如：配置数据或密钥
+
+临时卷就是为此类用例设计的，因为卷会遵从 Pod 的生命周期，与 Pod 一起创建和删除， 所以停止和重新启动 Pod 时，不会受持久卷在何处可用的限制
+
+临时卷在 Pod spec 中以内联方式定义，这简化了应用程序的部署和管理
+
+
+
+Kubernetes 为了不同的用途，支持几种不同类型的临时卷：
+
+- emptyDir：Pod 启动时为空，存储空间来自本地的 kubelet 根目录（通常是根磁盘）或内存
+
+- configMap、downwardAPI、secret：将不同类型的 Kubernetes 数据注入到 Pod 中
+- CSI 临时卷：类似于前面的卷类型，但由专门支持此特性的指定 CSI 驱动程序提供
+- 通用临时卷：它可以由所有支持持久卷的存储驱动程序提供
+
+emptyDir、configMap、downwardAPI、secret 是作为本地临时存储提供的，它们由各个节点上的 kubelet 管理
+
+
+
+**注意**：
+
+- CSI 临时卷必须由第三方 CSI 存储驱动程序提供
+
+- 通用临时卷可以由第三方 CSI 存储驱动程序提供，也可以由支持动态制备的任何其他存储驱动程序提供
+  - 一些专门为 CSI 临时卷编写的 CSI 驱动程序，不支持动态制备：因此这些驱动程序不能用于通用临时卷
+- 使用第三方驱动程序的优势：可以提供 Kubernetes 本身不支持的功能， 例如：与 kubelet 管理的磁盘具有不同性能的存储，或者用来注入不同的数据
+
+
+
+### 2、使用
+
+**通用临时卷**：类似于 emptyDir 卷，因为它为每个 Pod 提供临时数据存放目录， 在最初制备完毕时一般为空
+
+不过通用临时卷也有一些额外的功能特性：
+
+- 存储可以是本地的，也可以是网络连接的
+- 卷可以有固定的大小，Pod 不能超量使用
+- 卷可能有一些初始数据，这取决于驱动程序和参数
+
+- 支持典型的卷操作，前提是相关的驱动程序也支持该操作，包括：快照、克隆、调整大小、存储容量跟踪
+
+~~~yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: my-app
+spec:
+  containers:
+    - name: my-frontend
+      image: busybox:1.28
+      volumeMounts:
+      - mountPath: "/scratch"
+        name: scratch-volume
+      command: [ "sleep", "1000000" ]
+  volumes:
+    - name: scratch-volume
+      ephemeral:
+        volumeClaimTemplate:
+          metadata:
+            labels:
+              type: my-frontend-volume
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: "scratch-storage-class"
+            resources:
+              requests:
+                storage: 1Gi
+~~~
+
+
+
+### 3、生命周期
+
+临时卷控制器在 Pod 所属的命名空间中创建一个实际的 PVC 对象，因此支持完整的 PVC Template 字段， 并确保删除 Pod 时，同步删除 PVC
+
+如上一个例子的设置将触发卷的绑定或制备，相应动作或者在 StorageClass 使用即时绑定模式时立即执行， 或者当 Pod 被暂时性调度到某节点时执行 (WaitForFirstConsumer 卷绑定模式)
+
+对于通用的临时卷，建议采用后者，这样调度器就可以自由地为 Pod 选择合适的节点，对于即时绑定，调度器则必须选出一个节点，使得在卷可用时，能立即访问该卷
+
+就资源所有权而言，拥有通用临时存储的 Pod 是提供临时存储（ephemeral storage）的 PVC 的所有者， 当 Pod 被删除时，Kubernetes 垃圾收集器会删除 PVC，然后 PVC 通常会触发卷的删除，因为存储类的默认回收策略是删除卷，可以使用带有 retain 回收策略的 StorageClass 创建准临时（quasi-ephemeral）本地存储：该存储比 Pod 寿命长，在这种情况下，需要确保单独进行卷清理
+
+
+
+### 4、PVC 命名
+
+自动创建的 PVC 采取确定性的命名机制：名称是 Pod 名称和卷名称的组合，中间由连字符(-)连接
+
+- 在上面的示例中，PVC 将命名为 my-app-scratch-volume
+
+这种确定性的命名机制使得与 PVC 交互变得更容易，因为一旦知道 Pod 名称和卷名，就不必搜索它
+
+这种命名机制也引入了潜在的冲突， 不同的 Pod 之间（名为 pod-a 的 Pod 挂载名为 scratch 的卷，和名为 pod 的 Pod 挂载名为 a-scratch 的卷，这两者均会生成名为 pod-a-scratch 的 PVC），或者在 Pod 和手工创建的 PVC 之间可能出现冲突
+
+以下冲突会被检测到：
+
+- 如果 PVC 是为 Pod 创建的，那么它只用于临时卷，此检测基于所有权关系，现有的 PVC 不会被覆盖或修改，但这并不能解决冲突，因为如果没有正确的 PVC，Pod 就无法启动
+
+
+
 # 9、Kubernetes PVC\PV
 
 ## 1、基本概念
@@ -4530,9 +4833,9 @@ template:
 
 
 
-## 2、生命周期
+## 2、PV/PVC 生命周期
 
-PV 是群集中的资源，PVC 是对这些资源的请求，并且还充当对资源的检查
+PV 是群集中的资源，PVC 是对这些资源的请求，并且充当对资源的检查
 
 PV 和 PVC 之间的相互作用遵循以下生命周期：
 
@@ -4543,18 +4846,20 @@ PV 和 PVC 之间的相互作用遵循以下生命周期：
     - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
 
     - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
-
   - Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态
   - Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
   - Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
   - Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
     - 保留策略：允许人工处理保留的数据
-    - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持
     - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持
+      - 仅 NFS 和 HostPath 支持回收（Recycle）
+    - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持
 
  
 
-## 3、PV 类型
+## 3、PV
+
+### 1、类型
 
 ~~~tex
 GCEPersistentDisk
@@ -4581,136 +4886,106 @@ StorageOS
 
 
 
-## 4、PV 卷阶段状态
+### 2、阶段状态
 
-Available：资源尚未被 claim 使用 
+**Available**：资源尚未被 PVC 使用 
 
-Bound：卷已经被绑定到 claim 了 
+**Bound**：卷已经被绑定到 PVC 
 
-Released：claim 被删除，卷处于释放状态，但未被集群回收
+**Released**：PVC 被删除，卷处于释放状态，但未被集群回收
 
-Failed：卷自动回收失败
+**Failed**：卷自动回收失败
 
 
 
-## 5、例子
+### 3、使用
 
-### 1、创建 PV
+每个 PV 对象都包含 spec 部分和 status 部分，PersistentVolume 对象的名称必须是合法的 DNS 子域名
+
+- **capacity**：卷容量，到 1.26.1 版本唯一可以限定的卷资源，未来可能支持 IOPS、吞吐量
+- **volumeModes**：卷模式，支持 FileSystem、Block，默认是 FS
+  - FileSystem：如果被 Pod 挂载到某个目录，如果卷的存储来自某块设备而该设备目前为空，Kuberneretes 会在第一次挂载卷之前在设备上创建文件系统
+  - Block：将卷作为原始块设备来交给 Pod 使用，此类卷上没有任何文件系统，此种模式可以加快 Pod 访问卷，因为 Pod 和卷之间不存在文件系统层，但是 Pod 中运行的实例必须知道如何处理原始块设备
+- **accessModes**：卷访问模式
+  - **ReadWriteOnce**：卷可以被一个节点以读写方式挂载，RWO 访问模式允许运行在同一节点上的多个 Pod 访问卷
+  - **ReadOnlyMany**：卷可以被多个节点以只读方式挂载
+  - **ReadWriteMany**：卷可以被多个节点以读写方式挂载
+  - **ReadWriteOncePod**：卷可以被单个 Pod 以读写方式挂载，如果想确保整个集群中只有一个 Pod 可以读取或写入该 PVC
+- **storageClassName**：每个 PV 可以属于某个 StorageClass，可以不设置或设置为““
+  - 通过该属性将 PV 设定为某个类
+  - 特定类的 PV 卷只能绑定到请求该类的 PVC
+  - 未设置该属性的 PV 没有类设定，只能绑定到那些没有指定特定类的 PVC
+- **nodeAffinity**：节点亲和性，通过设置此属性，约束哪些节点可以访问此卷，使用此卷的 Pod 只会被调度到符合此卷节点亲和性规则的节点上
 
 ~~~yaml
-# 创建 5 个 pv，存储大小各不相同，是否可读也不相同
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-	name: pv001
-	labels:
-		name: pv001
+  name: pv0003
 spec:
-	nfs:
-		path: /data/volumes/v1
-	server: nfs
-	accessModes: ["ReadWriteMany","ReadWriteOnce"]
-	capacity:
-		storage: 2Gi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-	name: pv002
-	labels:
-		name: pv002
-spec:
-	nfs:
-		path: /data/volumes/v2
-	server: nfs
-	accessModes: ["ReadWriteOnce"]
-	capacity:
-		storage: 5Gi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-	name: pv003
-	labels:
-		name: pv003
-spec:
-	nfs:
-		path: /data/volumes/v3
-	server: nfs
-	accessModes: ["ReadWriteMany","ReadWriteOnce"]
-	capacity:
-		storage: 20Gi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-	name: pv004
-	labels:
-		name: pv004
-spec:
-	nfs:
-		path: /data/volumes/v4
-	server: nfs
-	accessModes: ["ReadWriteMany","ReadWriteOnce"]
-	capacity:
-		storage: 10Gi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-	name: pv005
-	labels:
-		name: pv005
-spec:
-	nfs:
-		path: /data/volumes/v5
-	server: nfs
-	accessModes: ["ReadWriteMany","ReadWriteOnce"]
-	capacity:
-    	storage: 15Gi
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: slow
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /tmp
+    server: 172.17.0.2
 ~~~
 
 ~~~bash
 # 创建
 kubectl apply -f pv-damo.yaml
-
 # 查询
 kubectl get pv
 ~~~
 
 
 
-### 2、创建 PVC
+**注意**：
+
+- 使用 PV 通常需要一些辅助卷类型的程序，上述例子中使用的 NFS，因此需要在节点安装 NFS 来支持挂载
+
+
+
+## 4、PVC
+
+### 1、使用
+
+每个 PVC 对象都有 spec 和 status 部分，PVC 对象的名称必须是合法的 DNS 子域名
+
+- **accessModes**：与需要申请的 PV 相同
+- **volumeMode**：与需要申请的 PV 相同
+- **resources**：与需要申请的 PV 相同
+- **matchLabels**：标签选择算符，进一步过滤卷集合
+- **matchExpressions**：与 matchLabels 作用相同，只不过支持数组与 In、NotIn、Exists、DoesNotExists
+- **storageClassName**：与需要申请的 PV 相同，如果设置为”“，则被视为申请设置 SC 为""的 PV，如果没有设置，则需 判断 DefaultStorageClass 准入控制器插件是否被启用
+  - 如果启用，管理员可以设置一个默认的 SC，所有未设置 SC 的 PVC 都只能绑定到隶属于默认 SC 的 PV，如果为设置默认 SC 则与准入控制器未启动相同处理方法
+  - 如果未启动，则不存在默认 SC，所有将 SC 设置为 “” 的 PVC 将绑定到将 SC 也设置为 “” 的 PV，如果稍后默认 SC 可用了，将会更新 PVC 到动态制备的 PV
 
 ~~~yaml
-# 创建一个 pvc，需要 6G 存储；所以不会匹配 pv001、pv002、pv003
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-	name: mypvc
-	namespace: default
+  name: myclaim
 spec:
-	accessModes: ["ReadWriteMany"]
-	resources:
-		requests:
-			storage: 6Gi
----
-apiVersion: v1
-kind: Pod
-metadata:
-	name: vol-pvc
-	namespace: default
-spec:
-	volumes:
-		- name: html
-		persistentVolumeClaim:
-			claimName: mypvc
-	containers:
-		- name: myapp
-		image: ikubernetes/myapp:v1
-        volumeMounts:
-            - name: html
-            mountPath: /usr/share/nginx/html/
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: slow
+  selector:
+    matchLabels:
+      release: "stable"
+    matchExpressions:
+      - {key: environment, operator: In, values: [dev]}
 ~~~
 
 ~~~bash
@@ -4723,27 +4998,316 @@ kubectl get pvc, pv
 
 
 
-### 3、安装 nfs
+**注意**：
 
-创建目录，开放权限
-
-~~~bash
-# 所有节点都要创建该目录
-mkdir -p /home/data
-# 主节点开放
-echo "/home/data *(insecure,rw,sync,no_root_squash)" > /etc/exports
-# 主节点重启服务
-systemctl restart nfs-server
-~~~
-
-~~~bash
-# 从节点挂载
-mount 196.198.168.168:/home/data /home/data
-~~~
+- 截止到 1.26.1 版本，如果设置了 selector，PVC 将使用 SC 动态制备
+- 使用 Many 模式（ROX、RWX）来挂载申领的操作只能在同一名字空间内进行
 
 
 
 # 10、Kubernetes StorageClass
+
+## 1、概述
+
+Kubernetes 提供了一套可以自动创建 PV 的机制（Dynamic Provisioning），而这个机制的核心在于 StorageClass 这个 API 对象
+
+StorageClass 为管理员提供了描述存储类的方法，不同的类型可以映射到不同的服务质量等级或备份策略，或是由集群管理员制定的任意策略，Kubernetes 本身并不清楚各种类代表的什么，但是用户通过 SC 可以清楚的知道其对应的储存资源的具体特征
+
+- 例如：不同的读写速度，并发性能
+
+当用户使用 PVC Template 向 K8s 提交 PCV 申请储存空间时，K8s 会寻找一个对应的 StorageClass，并调用其中定义的存储制备器，创建所需的 PV
+
+- 每个 StorageClass 都有一个存储制备器
+
+StorageClass 与 PVC Template 分别解决了 PV 与 PVC 难以管理的问题，SC 可以动态制备 PV，PVCT 可以动态创建 PVC
+
+- 先创建 PV，在创建 PVC 并绑定，叫做静态供给
+- 使用 SC 自然就是动态供给
+
+<img src="./images/20201222102732501.png" alt="20201222102732501" style="zoom:70%;" />
+
+
+
+## 2、使用
+
+StorageClass 对象的命名很重要，用户使用这个命名来请求资源，当创建 StorageClass 对象时，管理员设置 StorageClass 对象的命名和其他参数，一旦创建了 SC 对象就不能再对其更新
+
+管理员可以为没有申请绑定到特定 StorageClass 的 PVC 指定一个默认的 StorageClass
+
+每个 StorageClass 都包含 provisioner、parameters 和 reclaimPolicy 字段， 这些字段在 StorageClass 动态制备 PV 时使用
+
+- **provisioner**：创建某种 PV 用到的存储插件，即存储制备器
+- **reclaimPolicy**：回收策略，可设置为 Delete、Retain，默认是 Delete
+- **allowVolumeExpansion**：设置为 true 则允许用户通过 PVC 扩容卷，但是不允许缩小卷
+- **mountOptions**：指定挂载的选项，需要卷插件支持，如果不支持则制备失败
+  - 挂载选项在 SC 与 PV 上均不会验证，如果挂载无效，则 PV 挂载操作失败
+- **volumeBindingMode**：控制动态制备与卷绑定的发生时间，默认使用 Immediate
+  - Immediate：一旦创建了 PVC 则完成动态制备和卷绑定，先于 Pod 调度，因此与 Pod 的调度约束无关
+  - WaitForFirstConsumer：延迟 PV 的绑定和制备，直到使用该 PVC 的 Pod 被创建，PV 会根据 Pod 的多方面调度约束来选择制备
+- **allowedTopologies**：允许限制拓扑域，将动态制备限制在特定的拓扑域
+
+其余参数：Storage Classes 还有一些参数描述了存储类的卷，但是具体由哪些，取决于制备器可以接受不同的参数
+
+~~~yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+- matchLabelExpressions:
+  - key: failure-domain.beta.kubernetes.io/zone
+    values:
+    - us-central-1a
+    - us-central-1b
+~~~
+
+~~~yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: example-nfs
+provisioner: example.com/external-nfs
+parameters:
+  server: nfs-server.example.com
+  path: /share
+  readOnly: "false"
+~~~
+
+上述 NFS 例子中可以被接受的参数：
+
+- **server**：NFS 服务器的主机名或 IP 地址
+- **path**：NFS 服务器导出的路径
+- **readOnly**：是否将存储挂载为只读的标志（默认为 false）
+
+上述 NFS 例子的效果：
+
+- 自动创建的 PV 以 ${namespace}-${pvcName}-${pvName} 这样的命名格式创建在 NFS 服务器上的共享数据目录中
+- 而当这个 PV 被回收后会以 archieved-${namespace}-${pvcName}-${pvName} 这样的命名格式存在 NFS 服务器上
+
+
+
+**注意**：
+
+- 选择 WaitForFirstConsumer 模式，切勿在 Pod 中使用 nodeName 来指定节点亲和性，如果在这种情况下使用 nodeName，Pod 将会绕过调度程序，PVC 将停留在 Pending 状态
+  - 但是可以在 NodeSelector 中使用节点主机标签，kubernetes.io/hostname: w01
+- 将 StorageClass 对象的注解 storageclass.kubernetes.io/is-default-class 赋值为 true，可以将其设置为默认 SC
+  - 如果默认 SC 大于一个，则 DefaultStorageClass 准入控制插件将会静止所有 PVC 创建
+
+
+
+## 3、NFS 制备器
+
+首先每台节点均安装 NFS
+
+### 1、创建 ServiceAccount
+
+~~~yaml
+# 唯一需要修改的地方只有namespace,根据实际情况定义
+apiVersion: v1
+# 创建一个用户，用来管理 NFS 制备器在集群中的运行权限
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  namespace: default
+---
+# 创建集群角色
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  # 角色名
+  name: nfs-client-provisioner-runner
+# 角色权限
+rules:
+  - apiGroups: [""]
+    # 允许操作的资源
+    resources: ["nodes"]
+    # 允许操作的权限
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+# 将集群角色与用户绑定
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    # 被绑定的用户名
+    name: nfs-client-provisioner
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  # 绑定的角色名
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# 创建角色
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  # 角色名
+  name: leader-locking-nfs-client-provisioner
+  # 集群角色不需要名称空间，角色需要
+  namespace: default
+rules:
+  # 权限
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# 角色绑定
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    # 被绑定的用户名
+    name: nfs-client-provisioner
+    namespace: default
+roleRef:
+  kind: Role
+  # 绑定的角色名
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+~~~
+
+
+
+### 2、创建 SC
+
+~~~yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  name: nfs-storage
+# 制备器名称要与制备器的 yaml 文件中的环境变量 PROVISIONER_NAME 一致
+provisioner: nfs-provisioner
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+~~~
+
+
+
+### 3、创建 Provisioner
+
+~~~yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-client-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      # 指定为上文创建的 SA
+      serviceAccountName: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          # 指定镜像版本，在 1.26.1 的情况下 selflink 被关闭，需要新的 provisioner 解决
+          image: registry.cn-beijing.aliyuncs.com/mydlq/nfs-subdir-external-provisioner:v4.0.0
+          # 挂在数据卷到容器指定目录
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              # 制备器名称，需要与 SC yaml 中的 provisioner 一致
+              value: nfs-provisioner
+            - name: NFS_SERVER
+              # NFS SERVER IP
+              value: 192.168.100.130
+            - name: NFS_PATH
+              # NFS SERVER 目录
+              value: /home/data
+      volumes:
+        - name: nfs-client-root
+          nfs:
+          	# NFS SERVER IP
+            server: 192.168.100.130
+            # NFS SERVER 目录
+            path: /home/data
+~~~
+
+
+
+### 4、创建 Pod 验证
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  serviceName: "nginx"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "nfs-storage"  # 使用新建的sc
+      resources:
+        requests:
+          storage: 10Mi
+~~~
 
 
 
@@ -4861,7 +5425,7 @@ spec:
 
 
 
-## 4、kubernetes.io/dockerconfigjson
+## 4、dockerconfigjson
 
 使用 Kuberctl 创建 docker registry 认证的 secret
 
@@ -6781,6 +7345,10 @@ Controller Plane 会限制对节点群添加污点的速率，主要是为了当
 
 **拓扑域**：表示集群中的某一类地方，比如：某节点群、某机架、某可用区或、某地域等，这些都可以作为某种拓扑域
 
+- 例如：所有节点都具有Zone标签，但是只有Zone标签值相同的，可以算在一个拓扑域中
+
+<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20230224110517130.png" alt="image-20230224110517130" style="zoom:50%;" />
+
 
 
 ### 2、约束定义
@@ -6990,6 +7558,14 @@ spec:
 **注意**：
 
 - topologyKeys 与 externalTrafficPolicy=Local 不兼容且互斥，如果 externalTrafficPolicy 为 Local，就不能定义 topologyKeys，反之亦然
+
+
+
+# 16、Kubernetes 资源限制
+
+
+
+
 
 
 
