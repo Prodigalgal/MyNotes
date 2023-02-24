@@ -4406,17 +4406,48 @@ kubelet 会持续删除镜像，直到磁盘用量到达 LowThresholdPercent 值
 
 ## 8、Horizontal Pod Autoscaler
 
-Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象
+### 1、概述
+
+Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象与控制器
 
 通过追踪分析 RC 控制的所有目标 Pod 的负载变化情况，来确定是否需要针对性地调整目标 Pod 的副本数，这是 HPA 的实现原理
 
-Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式，手动模式通过 kubectl scale 命令对一个 Deployment/RC 进行 Pod 副本数量的设置，自动模式则需要用户根据某个性能指标或者自定义业务指标，并指定 Pod 副本数量的范围，系统将自动在这个范围内根据性 能指标的变化进行调整
+- 水平扩缩意味着对增加的负载响应部署更多的 Pod，垂直扩缩意味着将更多资源（例如：内存或 CPU）分配给已经为工作负载运行的 Pod
+
+Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式，手动模式通过 kubectl scale 命令对一个 Deployment/RC 进行 Pod 副本数量的设置，自动模式则需要用户根据某个性能指标或者自定义业务指标，来指定 Pod 副本数量的范围，系统将自动在这个范围内根据性能指标的变化进行调整
+
+
+
+**注意**：
+
+- 水平 Pod 自动扩缩不适用于无法扩缩的对象（例如：DaemonSet）
+
+
+
+### 2、原理
+
+Kubernetes 将水平 Pod 自动扩缩实现为一个间歇运行的控制回路（它不是一个连续的过程）
+
+间隔由 kube-controller-manager 的 --horizontal-pod-autoscaler-sync-period 参数设置（默认间隔为 15 秒）
+
+在每个时间段内，控制器管理器会根据每个 HPA 定义的指标查询资源利用率，控制器管理器找到由 scaleTargetRef 定义的目标资源，然后根据目标资源的 .spec.selector 标签选择 Pod，并从资源指标 API（针对每个 Pod 的资源指标）或自定义指标获取指标 API（适用于所有其他指标）
+
+对于按 Pod 统计的资源指标（如：CPU），控制器从资源指标 API 中获取每一个 HPA 指定的 Pod 的度量值，如果设置了目标使用率，控制器计算每个 Pod 中容器资源使用率，如果设置了 target 值，将直接使用原始数据（不计算百分比），然后控制器根据平均的资源使用率或原始值计算出扩缩的比例，进而计算出目标副本数，需要注意的是如果 Pod 某些容器不支持资源采集，那么控制器将不会使用该 Pod 的资源使用率，下面的算法细节章节将会介绍详细的算法
+
+- 如果 Pod 使用自定义指示，控制器机制与资源指标类似，区别在于自定义指标只使用原始值，而不是使用率
+- 如果 Pod 使用对象指标和外部指标（每个指标描述一个对象信息），这个指标将直接根据目标设定值相比较，并生成一个上面提到的扩缩比例，在 autoscaling/v2 版本 API 中，这个指标也可以根据 Pod 数量平分后再计算
+
+<img src="./images/image-20230224170946385.png" alt="image-20230224170946385" style="zoom:67%;" />
+
+
 
 **手动扩容和缩容**：
 
 ~~~bash
 kubectl scale deployment frontend --replicas 1
 ~~~
+
+
 
 **自动扩容和缩容**：
 
