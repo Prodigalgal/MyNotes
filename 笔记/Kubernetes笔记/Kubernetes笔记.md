@@ -8143,34 +8143,140 @@ IPVS 是专为负载均衡设计的，并且使用更有效率的数据结构（
 
 **使用 DNS**：
 
-Kubernetes 也可以使用 DNS，以避免将 Service 的 cluster IP 地址硬编码到应用程序当中。Kubernetes DNS 是 Kubernetes 上运行的一个普通的 Service。每一个节点上的 `kubelet` 都使用该 DNS Service 来执行 DNS 名称的解析。集群中每一个 Service（包括 DNS Service 自己）都被分配了一个 DNS 名称。DNS 记录将 DNS 名称解析到 Service 的 ClusterIP 或者 Pod 的 IP 地址。[SRV 记录](https://kuboard.cn/learning/k8s-intermediate/service/dns.html#srv-记录) 用来指定 Service 的已命名端口。
+Kubernetes 也可以使用 DNS，以避免将 Service 的 ClusterIP 地址硬编码到应用程序当中
+
+Kubernetes DNS 是 Kubernetes 上运行的一个普通的 Service
+
+每一个节点上的 kubelet 都使用该 DNS Service 来执行 DNS 名称的解析，集群中每一个 Service（包括 DNS Service 自己）都被分配了一个 DNS 名称
+
+- DNS 记录将 DNS 名称解析到 Service 的 ClusterIP 或者 Pod 的 IP 地址
+
+- SRV 记录 用来指定 Service 的已命名端口
 
 DNS Pod 由三个不同的容器组成：
 
-- `kubedns`：观察 Kubernetes master 上 Service 和 Endpoints 的变化，并维护内存中的 DNS 查找表
-- `dnsmasq`：添加 DNS 缓存，以提高性能
-- `sidecar`：提供一个健康检查端点，可以检查 `dnsmasq` 和 `kubedns` 的健康状态
+- kubeDNS：观察 Kubernetes master 上 Service 和 Endpoints 的变化，并维护内存中的 DNS 查找表
+- DNSmasq：添加 DNS 缓存，以提高性能
+- sidecar：提供一个健康检查端点，可以检查 dnsmasq 和 kubedns 的健康状态
 
-DNS Pod 被暴露为 Kubernetes 中的一个 Service，该 Service 及其 ClusterIP 在每一个容器启动时都被传递到容器中（环境变量及 /etc/resolves），因此，每一个容器都可以正确的解析 DNS。DNS 条目最终由 `kubedns` 解析，`kubedns` 将 DNS 的所有信息都维护在内存中。`etcd` 中存储了集群的所有状态，`kubedns` 在必要的时候将 `etcd` 中的 key-value 信息转化为 DNS 条目信息，以重建内存中的 DNS 查找表。
+DNS Pod 被暴露为 Kubernetes 中的一个 Service，该 Service 的 ClusterIP 在每一个容器启动时都被传递到容器中（环境变量及 /etc/resolves），因此每一个容器都可以正确的解析 DNS
 
-CoreDNS 的工作方式与 `kubedns` 类似，但是通过插件化的架构构建，因而灵活性更强。自 Kubernetes v1.11 开始，CoreDNS 是 Kubernetes 中默认的 DNS 实现。
+DNS 条目最终由 kubedns 解析，kubedns 将 DNS 的所有信息都维护在内存中，etcd 中存储了集群的所有状态，kubedns 在必要的时候会将 etcd 中的 key-value 信息转化为 DNS 条目信息，以重建内存中的 DNS 查找表
+
+CoreDNS 的工作方式与 kubedns 类似，只是通过插件化的架构构建，因而灵活性更强，自 Kubernetes v1.11 开始，CoreDNS 是 Kubernetes 中默认的 DNS 实现
 
 
 
 ### 5、Internet To Service
 
+#### 1、概述
 
+##### 1、集群访问外网
+
+将网络流量从集群内的一个节点路由到公共网络是与具体网络以及实际网络配置紧密相关的
+
+假设：每一个节点都被分配了一个内网地址（private IP address），集群节点之间可以使用内网地址互相访问
+
+为了访问外部网络，通常会在 VPS 中添加互联网网关（Internet Gateway），以实现如下两个目的：
+
+- 作为 VPS 路由表中访问外网的目标地址
+- 提供网络地址转换（NAT），将节点的内网地址映射到一个外网地址，以使外网可以访问内网上的节点
+
+在有互联网网关（Internet Gateway）的情况下，虚拟机可以任意访问互联网，但是 Pod 有自己的 VIP 地址，且该 VIP 地址与其所在节点的 IP 地址不一样，互联网网关上的 NAT 地址映射只能够转换节点的 IP 地址，因为网关不知道每个节点（虚拟机）上运行了哪些 Pod （互联网网关不知道 Pod 的存在）
+
+1. 数据包从 Pod 的 network namespace 发出
+2. 通过 veth0 到达节点的 root network namespace
+3. 由于网桥 cbr0 上找不到数据包目标地址对应的网段，数据包将被网桥转发到 root network namespace 的网卡 eth0，
+   - 在数据包到达 eth0 之前，iptables 将过滤该数据包
+   - 在此处，数据包的源地址是一个 Pod，如果仍然使用此源地址，互联网网关将拒绝此数据包，因为其 NAT 只能识别与节点相连的 IP 地址，因此需要 iptables 执行源地址转换（source NAT），如此对互联网网关来说，该数据包就是从节点发出的，而不是从 Pod 发出的
+4. 数据包从节点发送到互联网网关
+   - 互联网网关再次执行源地址转换（source NAT），将数据包的源地址从节点的内网地址修改为网关的外网地址
+5. 最终数据包被发送到互联网
+
+<img src="images/pod-to-internet.986cf745.gif" alt="pod-to-internet.986cf745" style="zoom:50%;" />
+
+
+
+##### 2、外网访问集群
+
+入方向访问同样跟具体的网络紧密相关，通常来说，入方向访问在不同的网络堆栈上有两个解决方案：
+
+1. Service LoadBalancer
+2. Ingress Controller
+
+
+
+#### 2、 Layer 4：LoadBalancer
+
+当创建 Kubernetes Service 时，可以指定其类型为 LoadBalancer
+
+LoadBalancer 的实现由 cloud controller 提供，cloud controller 可以调用云供应商 IaaS 层的接口，为 Kubernetes Service 创建负载均衡器，用户可以将请求发送到负载均衡器来访问 Kubernetes 中的 Service
+
+- 如果自建 Kubernetes 集群，可以使用 NodePort 类型的 Service，并手动创建负载均衡器
+
+在 AWS，负载均衡器可以将网络流量分发到其目标服务器组（即 Kubernetes 集群中的所有节点），一旦数据包到达节点，Service 的 iptables 规则将确保其被转发到 Service 的一个后端 Pod
+
+
+
+**LoadBalancer To Service**：
+
+从 Pod 到外网的相应数据包将包含 Pod 的 IP 地址，但是外网需要的是负载均衡器的 IP 地址
+
+- iptables 和 conntrack 被用来重写返回路径上的正确的 IP 地址
+
+下图描述了一个负载均衡器和三个集群节点：
+
+1. 请求数据包从外网发送到负载均衡器
+2. 负载均衡器将数据包随机分发到其中的一个节点，此处假设数据包被分发到了一个没有对应 Pod 的节点（VM2）上
+3. 在 VM2 节点上，kube-proxy 在节点上安装的 iptables 规则会将该数据包的目标地址判定到对应的 Pod 上（集群内负载均衡将生效）
+4. iptables 完成 NAT 映射，并将数据包转发到目标 Pod
+
+<img src="images/internet-to-service.b2991f5e.gif" alt="internet-to-service.b2991f5e" style="zoom:50%;" />
+
+
+
+#### 3、Layer 7：Ingress 控制器
+
+Layer 7 网络入方向访问功能在网络堆栈的 HTTP/HTTPS 协议层面工作，并且依赖于 KUbernetes Service
+
+要实现 Layer 7 网络入方向访问，首先需要将 Service 指定为 NodtePort 类型，此时 Kubernetes master 将会为该 Service 分配一个节点端口，每一个节点上的 iptables 都会将此端口上的请求转发到 Service 的后端 Pod 上，此时 Service To Pod 的路由和数据包的传递与上文描述的 Service To Pod 相同
+
+Ingress 是一个高度抽象的 HTTP 负载均衡器，可以将 HTTP 请求映射到 Kubernetes Service，在不同的 Kubernetes 集群中，Ingress 的具体实现可能是不一样的
+
+与 Layer 4 的网络负载均衡器相似，HTTP 负载均衡器只理解节点的 IP 地址（而不是 Pod 的 IP 地址），因此也同样利用了集群内部通过 iptables 实现的负载均衡特性
+
+
+
+**Ingress To Service**：
+
+与 LoadBalancer-to-Service 的数据包传递非常相似。核心差别是：
+
+- Ingress 能够解析 URL 路径（可基于路径进行路由）
+- Ingress 连接到 Service 的 NodePort
+
+下图展示了 Ingress To Service 的数据包传递过程：
+
+1. 创建 Ingress 之后，cloud controller 将会为其创建一个新的 Ingress Load Balancer
+2. 由于 Load Balancer 并不知道 Pod 的 IP 地址，当路由到达 Ingress Load Balancer 之后，会被转发到集群中的节点的端口上（Service NodePort）
+3. 节点上的 iptables 规则将数据包转发到合适的 Pod
+4. Pod 接收到数据包
+
+从 Pod 返回的响应数据包将包含 Pod 的 IP 地址，但是请求客户端需要的是 Ingress Load Balancer 的 IP 地址，此时 iptables 和 conntrack 会重写返回路径上的 IP 地址
+
+<img src="images/ingress-to-service.1a08f351.gif" alt="ingress-to-service.1a08f351" style="zoom:50%;" />
+
+
+
+### 6、例子
 
 Docker 使用一种 host-private 的联网方式，在此情况下只有两个容器都在同一个节点上时，一个容器才可以通过网络连接另一个容器
 
 为了使 Docker 容器可以跨节点通信，必须在宿主节点的 IP 地址上分配端口，并将该端口接收到的网络请求转发（或代理）到容器，这意味着用户必须非常小心地为容器分配宿主节点的端口号，除非端口号可以自动分配
 
-在一个集群中，多个开发者之间协调分配端口号是非常困难的，Kubernetes 认为集群中的两个 Pod 应该能够互相通信，无论他们各自在哪个节点上，每一个 Pod 都拥有的 **cluster-private-IP**，因此无需在 Pod 间建立连接，或者将容器的端口映射到宿主机的端口
+在一个集群中，多个开发者之间协调分配端口号是非常困难的，Kubernetes 认为集群中的两个 Pod 应该能够互相通信，无论各自在哪个节点上，每一个 Pod 都拥有的 Cluster-Private-IP，因此无需在 Pod 间建立连接，或者将容器的端口映射到宿主机的端口
 
-- Pod 中的任意容器可以使用 localhost 直连通同一个 Pod 中另一个容器的端口
-- 集群中的任意 Pod 可以使用另一的 Pod 的 **cluster-private-IP** 直连对方的端口，（无需 NAT 映射）
-
-
+- Pod 中的任意容器可以使用 Localhost 直连通同一个 Pod 中另一个容器的端口
+- 集群中的任意 Pod 可以使用另一的 Pod 的 Cluster-Private-IP 直连对方的端口（无需 NAT 映射）
 
 例子：
 
