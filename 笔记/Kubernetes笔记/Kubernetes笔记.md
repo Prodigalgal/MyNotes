@@ -5706,8 +5706,6 @@ Service 是 Kubernetes 最核心概念，通过创建 Service，同时赋予一�
 
 ## 2、定义
 
-### 1、概述
-
 ~~~yaml
 apiVersion: v1 
 kind: Service 
@@ -5757,7 +5755,7 @@ ClusterIP：虚拟服务IP，在公网环境搭建即为 MasterIP
 
 
 
-### 2、分类
+## 3、分类
 
 Kubernetes 中可以通过不同方式发布 Service，通过 ServiceType 字段指定，该字段的默认值是 ClusterIP，可选值有：
 
@@ -5773,13 +5771,13 @@ Kubernetes 中可以通过不同方式发布 Service，通过 ServiceType 字段
 
 
 
-#### 1、ClusterIP
+### 1、ClusterIP
 
 查看服务代理中的 iptables 模式
 
 
 
-#### 2、NodePort
+### 2、NodePort
 
 对于 NodePort 类型的 Service，Kubernetes 为其分配一个节点端口，对于同一个 Service，在每个节点上的节点端口都相同
 
@@ -5804,7 +5802,7 @@ Kubernetes 中可以通过不同方式发布 Service，通过 ServiceType 字段
 
 
 
-#### 3、LoadBalance
+### 3、LoadBalance
 
 在支持外部负载均衡器的云环境中（例如：GCE、AWS、Azure 等）将 .spec.type 字段设置为 LoadBalancer，Kubernetes 将为该Service 自动创建一个负载均衡器
 
@@ -5837,7 +5835,7 @@ status:
 
 
 
-#### 4、ExternalName
+### 4、ExternalName
 
 ExternalName 类型的 Service 映射到一个外部的 DNS Name，而不是一个 Pod Label Selector
 
@@ -5875,7 +5873,7 @@ spec:
 
 
 
-#### 5、External IP
+### 5、External IP
 
 如果有外部 IP 路由到 Kubernetes 集群的一个或多个节点，Kubernetes Service 可以通过这些 externalIPs 进行访问
 
@@ -5904,13 +5902,9 @@ spec:
 
 
 
+## 4、使用
 
-
-## 3、使用
-
-### 1、创建
-
-**有 Label Selector**
+### 1、有 Label Selector
 
 Kubernetes Servies 是一个 RESTFull 接口对象，可通过 yaml 文件创建
 
@@ -5947,7 +5941,7 @@ Kubernetes 将不断扫描符合该 Selector 的 Pod，并将最新的结果更�
 
 
 
-**无 Label Selector**
+### 2、无 Label Selector
 
 Service 通常用于提供对 Kubernetes Pod 的访问，但是也可以将其用于任何其他形式的后端
 
@@ -5972,17 +5966,27 @@ spec:
 因为该 Service 没有 selector，相应的 Endpoint 对象就无法自动创建，需要手动创建一个 Endpoint 对象，以便将该 Service 映射到后端服务真实的 IP 地址和端口
 
 ~~~yaml
-apiVersion: v1
-kind: Endpoints
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
 metadata:
-# 一定要同名
-  name: my-service
-subsets:
+  name: my-service-1 # 按惯例将服务的名称用作 EndpointSlice 名称的前缀
+  labels:
+    # 应设置 kubernetes.io/service-name 标签
+    # 设置其值以匹配服务的名称
+    kubernetes.io/service-name: my-service
+addressType: IPv4
+ports:
+  - name: '' # 留空，因为 port 9376 未被 IANA 分配为已注册端口
+    appProtocol: http # 为每个 Port 指定应用协议的方式
+    protocol: TCP
+    port: 9376
+endpoints:
   - addresses:
-      - ip: 192.0.2.42
-    ports:
-      - port: 9376
+      - "10.4.5.6" # 此列表中的 IP 地址可以按任何顺序显示
+      - "10.1.2.3"
 ~~~
+
+当手动为 Service 创建 EndpointSlice 对象时，需要为 EndpointSlice 命名，命名空间中的每个 EndpointSlice 必须有一个唯一的名称，通过在 EndpointSlice 的 labels 设置 kubernetes.io/service-name 标签可以将 EndpointSlice 链接到服务
 
 
 
@@ -5990,6 +5994,7 @@ subsets:
 
 - Endpoint 中的 IP 地址不可以是 loopback（127.0.0.0/8 IPv4 或 ::1/128 IPv6），或 link-local（169.254.0.0/16 IPv4、224.0.0.0/24 IPv4 或 fe80::/64 IPv6）
 - Endpoint 中的 IP 地址不可以是集群中其他 Service 的 ClusterIP
+- 访问没有选择算符的 Service，与有选择算符的 Service 的原理相同
 
 例子：
 
@@ -6008,7 +6013,9 @@ spec:
 apiVersion: v1
 kind: Endpoints 
 metadata:
-	name: my-service 
+	name: my-service-1
+	labels:
+    kubernetes.io/service-name: my-service
 subsets:
 	- addresses:
 	- IP: 10.254.74.3
@@ -6018,7 +6025,7 @@ ports:
 
 
 
-**多端口 Service**
+### 3、多端口 Service
 
 可以在一个 Service 对象中定义多个端口，此时必须为每个端口定义一个名字
 
@@ -6058,7 +6065,7 @@ spec:
 
 
 
-## 4、服务代理
+## 5、服务代理
 
 ### 1、概述
 
@@ -6153,7 +6160,7 @@ IPVS proxy mode 基于 netfilter 的 hook 功能，与 iptables 代理模式相�
 
 
 
-## 5、服务发现
+## 6、服务发现
 
 ### 1、概述
 
@@ -6212,7 +6219,9 @@ Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的
 
 
 
-## 6、Headless Services
+## 7、Headless Services
+
+### 1、概述
 
 Headless Service 不提供负载均衡的特性，也没有自己的 IP 地址
 
@@ -6229,15 +6238,18 @@ Headless Service 可以用于对接其他形式的服务发现机制，而无需
 DNS 的配置方式取决于该 Service 是否配置了 selector：
 
 - 配置了 Selector：
-  - Endpoints Controller 创建 Endpoints 记录，并修改 DNS 配置，使其直接返回指向 selector 选取的 Pod 的 IP 地址
+  - Endpoints Controller 创建 EndpointSlice 记录，并且修改 DNS 配置返回 A 或 AAA 条记录（IPv4 或 IPv6 地址），直达 Service 对应的后端 Pod
 - 没有配置 Selector：
-  - Endpoints Controller 不创建 Endpoints 记录，DNS服务返回如下结果中的一种：
+  - Endpoints Controller 不创建 EndpointSlice 记录，DNS服务返回如下结果中的一种：
     - 对 ExternalName 类型的 Service，返回 CNAME 记录
-    - 对于其他类型的 Service，返回与 Service 同名的 Endpoints 的 A 记录
+    - 对于其他类型的 Service
+      - 针对 Service 的就绪端点的所有 IP 地址，查找和配置 DNS A / AAAA 条记录
+        - 对于 IPv4 端点，DNS 系统创建 A 条记录
+        - 对于 IPv6 端点，DNS 系统创建 AAAA 条记录
 
 
 
-## 7、虚拟 IP
+## 8、虚拟 IP
 
 ### 1、避免冲突
 
@@ -6337,7 +6349,7 @@ PROXY TCP4 192.0.2.202 10.0.42.7 12345 7\r\n
 
 
 
-## 8、DNS 分配
+## 9、DNS 分配
 
 ### 1、概述
 
@@ -6559,7 +6571,7 @@ Pod 定义中的 spec.dnsConfig 和 spec.dnsPolicy=None 的兼容性如下：
 
 
 
-## 9、保护 Service
+## 10、保护 Service
 
 在将 Service 公布到互联网时，需要确保该通信渠道是安全的，为此必须：
 
@@ -6711,7 +6723,7 @@ kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
 
 
 
-## 10、暴露 Service
+## 11、暴露 Service
 
 有时需要将 Service 发布到一个外部的 IP 地址上，Kubernetes 支持如下两种方式：
 
@@ -6722,7 +6734,55 @@ kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
 
 
 
-# 14、Kubernetes Probe
+# 14、Kubernetes Endpoints
+
+## 1、EndpointSlices
+
+### 1、概述
+
+EndpointSlices 对象表示针对 Service 的后端网络端点的子集（切片）
+
+Kubernetes 集群会跟踪每个 EndpointSlice 表示的端点数量，如果服务的端点太多以至于达到阈值，Kubernetes 会添加另一个空的 EndpointSlice 并在其中存储新的端点信息，默认情况下，一旦某个 EndpointSlice 包含至少 100 个端点，Kubernetes 就会创建一个新的 EndpointSlice，但在需要添加额外的端点之前，Kubernetes 不会创建新的 EndpointSlice
+
+
+
+对于你自己或在你自己代码中创建的 EndpointSlice，你还应该为 endpointslice.kubernetes.io/managed-by 标签拣选一个值。如果你创建自己的控制器代码来管理 EndpointSlice， 请考虑使用类似于 "my-domain.example/name-of-controller" 的值。 如果你使用的是第三方工具，请使用全小写的工具名称，并将空格和其他标点符号更改为短划线 (-)。 如果人们直接使用 kubectl 之类的工具来管理 EndpointSlices，请使用描述这种手动管理的名称， 例如 "staff" 或 "cluster-admins"。你应该避免使用保留值 "controller"， 该值标识由 Kubernetes 自己的控制平面管理的 EndpointSlices。
+
+
+
+## 2、Endpoints
+
+### 1、概述 
+
+在 Kubernetes API 中，Endpoints （该资源类别为复数）定义了网络端点的列表，通常由 Service 引用，以定义可以将流量发送到哪些 Pod
+
+
+
+**注意**：
+
+- 推荐用 EndpointSlice API 替换 Endpoints
+
+
+
+### 2、超出容量的端点
+
+Kubernetes 会限制单个 Endpoints 对象中可以容纳的端点数量
+
+当一个 Service 有超过 1000 个后端网络端点时，Kubernetes 会截断 Endpoints 对象中的数据，由于一个 Service 可以链接多个 EndpointSlice，所以 1000 个后备端点的限制仅影响旧版的 Endpoints API
+
+这种情况下，Kubernetes 最多选择 1000 个后端网络端点存储到 Endpoints 对象中，并在 Endpoints: endpoints.kubernetes.io/over-capacity: truncated 上设置注解，如果后端 Pod 的数量低于 1000，控制平面会移除该注解
+
+流量仍会发送到后端，但任何依赖旧版 Endpoints API 的负载均衡机制最多只能将流量发送到 1000 个可用的后端网络端点
+
+
+
+**注意**：
+
+- 相同的 API 限制意味着不能手动将 Endpoints 更新为拥有超过 1000 个端点
+
+
+
+# 15、Kubernetes Probe
 
 ## 1、基本概念
 
@@ -6827,7 +6887,7 @@ spec:
 
 
 
-# 15、Kubernetes Scheduler
+# 16、Kubernetes Scheduler
 
 ## 1、基本概念
 
@@ -7592,7 +7652,7 @@ spec:
 
 
 
-# 16、Kubernetes 资源限制
+# 17、Kubernetes 资源限制
 
 
 
