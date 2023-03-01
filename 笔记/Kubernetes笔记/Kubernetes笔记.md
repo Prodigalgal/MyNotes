@@ -6052,7 +6052,7 @@ spec:
 
 
 
-### 2、使用自定义的 IP 地址
+### 4、使用自定义的 IP 地址
 
 创建 Service 时，如果指定 .spec.**clusterIP** 字段，可以使用自定义的 Cluster IP 地址
 
@@ -6065,11 +6065,129 @@ spec:
 
 
 
-## 5、服务代理
+### 5、支持的传输协议
+
+#### 1、TCP
+
+默认值，任何类型的 Service 都支持 TCP 协议
+
+
+
+#### 2、UDP
+
+大多数 Service 都支持 UDP 协议
+
+对于 LoadBalancer 类型的 Service，是否支持 UDP 取决于云供应商是否支持该特性
+
+
+
+#### 3、HTTP
+
+如果云服务商支持，可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的 HTTP/HTTPS 反向代理，将请求转发到 Service 的 Endpoints
+
+> 使用 Ingress
+
+
+
+#### 4、Proxy Protocol
+
+如果云服务上支持（例如：AWS），可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的负载均衡器，并将连接已 PROXY 协议转发到 Service 的 Endpoints
+
+负载均衡器将先发送描述该 incoming 连接的字节串，如下所示：然后在发送来自于客户端的数据
+
+```text
+PROXY TCP4 192.0.2.202 10.0.42.7 12345 7\r\n
+```
+
+
+
+#### 5、SCTP
+
+
+
+### 6、会话亲和性
+
+如果要确保来自特定客户端的连接每次都传递给同一个 Pod，可以通过设置 Service 的 .spec.**sessionAffinity** 为 ClientIP 来设置基于客户端 IP 地址的会话亲和性（默认为 None）
+
+还可以通过设置 Service 的 .spec.sessionAffinityConfig.clientIP.**timeoutSeconds** 来设置最大会话粘性时间（默认值为 10800，即 3 小时）
+
+
+
+### 7、流量策略
+
+#### 1、内部流量策略
+
+可以设置 .spec.**internalTrafficPolicy** 字段来控制来自内部源的流量如何被路由
+
+有效值为：
+
+- Cluster：会将内部流量路由到所有准备就绪的端点
+- Local：仅会将流量路由到本地节点准备就绪的端点
+
+
+
+**注意**：
+
+- 如果流量策略为 Local 但在本地节点没有匹配的端点，那么 kube-proxy 会丢弃该流量
+
+
+
+#### 2、外部流量策略
+
+可以设置 .**spec.externalTrafficPolicy** 字段来控制从外部源路由的流量
+
+有效值为：
+
+- Cluster：将外部流量路由到所有准备就绪的端点
+- Local：仅会将流量路由到本地节点上准备就绪的端点
+
+
+
+**注意**：
+
+- 如果流量策略为 Local 并且在本地节点没有匹配的端点，那么 kube-proxy 不会转发该 Service 相关的任何流量
+
+
+
+#### 3、终止中端点优先策略
+
+如果 kube-proxy 启用了 **ProxyTerminatingEndpoints** 且流量策略为 Local，则 kube-proxy 会检查本地节点是否具有匹配的本地端点以及是否所有匹配的本地端点都被标记为终止中，如果有匹配的本地端点并且**所有匹配的**本地端点都被标记为终止中，则 kube-proxy 会将流量转发到这些终止的端点，否则 kube-proxy 会始终选择将流量转发到并未处于终止中的端点
+
+这种转发行为使得 NodePort 和 LoadBalancer Service 能有条不紊地腾空设置了 externalTrafficPolicy: Local 的连接
+
+例如：当一个 Deployment 被滚动更新时，处于负载均衡器后端的 Node 可能会将该 Deployment 的 N 个副本缩减到 0 个副本，在某些情况下，外部负载均衡器可能在两次执行健康检查探针之间将流量发送到具有 0 个副本的 Node，这会导致服务出现错误，而将流量路由到处于终止中的端点可确保正在缩减 Pod 的 Node 能够正常接收流量，并逐渐降低指向那些处于终止中的 Pod 的流量，到 Pod 完成终止时，外部负载均衡器应该已经发现 Node 的健康检查失败并从后端池中完全移除该 Node
+
+
+
+## 5、虚拟 IP
 
 ### 1、概述
 
-Kubernetes 集群中的每个节点都运行了一个 kube-proxy，负责为 Service（ExternalName 类型的除外）提供虚拟 IP 访问
+Kubernetes 的一个设计哲学是：尽量避免非人为错误产生的可能性
+
+就设计 Service 而言，Kubernetes 为每一个 Service 分配一个该 Service 专属的 IP 地址，避免端口冲突
+
+kube-proxy 组件负责为 Service （ExternalName 类型除外），实现虚拟 IP 机制
+
+为了确保每个 Service 都有一个唯一的 IP 地址，Kubernetes 在创建 Service 之前，先更新 etcd 中的一个全局分配表，如果更新失败（例如：IP 地址已被其他 Service 占用），则 Service 不能成功创建
+
+Kubernetes 使用一个后台控制器检查该全局分配表中的 IP 地址的分配是否仍然有效，并且自动清理不再被 Service 使用的 IP 地址
+
+
+
+### 2、Service 的 IP 地址
+
+Pod 的 IP 地址路由到一个确定的目标，然而 Service 的 IP 地址则不同，通常背后并不对应一个唯一的目标
+
+kube-proxy 使用 iptables（Linux 中的报文处理逻辑）来定义虚拟 IP 地址，当客户端连接到该虚拟 IP 地址时，它们的网络请求将自动发送到一个合适的 Endpoint
+
+Service 对应的环境变量和 DNS 实际上反应的是 Service 的虚拟 IP 地址和 Port 端口
+
+
+
+## 6、服务代理
+
+### 1、概述
 
 Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
@@ -6083,13 +6201,19 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 ### 2、User space
 
-**在 user space proxy mode 下：**
+1. 集群中所有的 kube-proxy 都实时监听 Kubernetes Master 添加和移除 Service / Endpoint 的事件
+   - 当 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设用户设定 Service 的端口是 1234
 
-- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
-- kube-proxy 在其所在的节点（每个节点都有 kube-proxy）上为每一个 Service 打开一个随机端口
-- kube-proxy 设置 iptables 规则，将发送到该 Service 的 ClusterIP / Port 的请求重定向到该随机端口
-- 任何发送到该随机端口的请求将被代理转发到该 Service 的后端 Pod 上（kube-proxy 从 Endpoint 信息中获得可用 Pod）
-- kube-proxy 在决定将请求转发到后端哪一个 Pod 时，默认使用 round-robin（轮询）算法，并会考虑到 Service 中的 SessionAffinity 的设定
+2. 此时 kube-proxy 在其所在的节点（每个节点都有 kube-proxy）上为每一个 Service 打开一个随机端口
+   - 该 Service 虚拟 IP 的网络请求全都转发到这个新的随机端口上，并且 kube-proxy 将开始接受该端口上的连接
+
+3. kube-proxy 会设置 iptables 规则，将发送到该 Service 的 ClusterIP:Port 的请求重定向到该随机端口
+   - 当一个客户端连接到该 Service 的虚拟 IP 地址时，iptables 的规则被触发
+
+4. 任何发送到该随机端口的请求将被 kube-proxy 以代理的形式转发到该 Service 的后端 Pod 上
+   - kube-proxy 从 Endpoint 信息中获得可用 Pod
+
+5. kube-proxy 在决定将请求转发到后端哪一个 Pod 时，默认使用 round-robin（轮询）算法，并会考虑到 Service 中的 SessionAffinity 的设定
 
 <img src="images/image-20230219155351485.png" alt="image-20230219155351485" style="zoom:67%;" />
 
@@ -6097,13 +6221,13 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 ### 3、Iptables proxy
 
-**在 iptables proxy mode 下：**
+1. 集群中所有的 kube-proxy 都实时监听 Kubernetes Master 添加和移除 Service / Endpoint 的事件
+   - 当 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设用户设定 Service 的端口是 1234
 
-- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
-- kube-proxy 在其所在的节点上为每一个 Service 设置 iptable 规则
-- iptables 将发送到 Service 的 ClusterIP / Port 的请求重定向到 Service 的后端 Pod 上
-  - 对于 Service 中的每一个 Endpoint，kube-proxy 设置一个 iptable 规则
-  - 默认情况下，kube-proxy 随机选择一个 Service 的后端 Pod
+2. 当 Service 创建后，kube-proxy 设定了一系列的 iptables 规则，这些规则可将虚拟 IP 地址映射到 per-Service 的规则，per-Service 规则进一步链接到 per-Endpoint 规则
+3. 然后由 iptables 将发送到 Service 的 ClusterIP:Port 的请求使用 NAT 重定向到 Service 的后端 Pod 上
+  - 对于 Service 中的每一个 Endpoint，kube-proxy 设置对应的 iptable 规则
+  - 默认情况下，iptables 随机选择一个 Service 的后端 Pod
 
 <img src="images/image-20230219155523136.png" alt="image-20230219155523136" style="zoom:67%;" />
 
@@ -6111,13 +6235,14 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 **iptables proxy mode 的优点：**
 
-- 更低的系统开销：在 linux netfilter 处理请求，无需在 userspace 和 kernel space 之间切换
+- 更低的系统开销：在 linux netfilter 处理请求，无需在 user space 和 kernel space 之间切换
 - 更稳定
 
 **与 user space mode 的差异：**
 
 - 使用 iptables mode 时，如果第一个 Pod 没有响应，则创建连接失败
 - 使用 user space mode 时，如果第一个 Pod 没有响应，kube-proxy 会自动尝试连接另外一个后端 Pod
+- 网络报文不再被复制到 user space，kube-proxy 也无需处理这些报文，直接将报文转发到后端 Pod
 
 可以配置 Pod 就绪检查（readiness probe）确保后端 Pod 正常工作，此时在 iptables 模式下 kube-proxy 将只使用健康的后端 Pod，从而避免了 kube-proxy 将请求转发到已经存在问题的 Pod 上
 
@@ -6125,11 +6250,10 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 
 ### 4、Ipvs proxy
 
-**在 IPVS proxy mode 下：**
-
-- kube-proxy 监听 Kubernetes Master 以获得添加和移除 Service / Endpoint 的事件
-- kube-proxy 根据监听到的事件，调用 netlink 接口，创建 IPVS 规则，并且将 Service / Endpoint 的变化同步到 IPVS 规则中
-- 当访问一个 Service 时，IPVS 将请求重定向到后端 Pod
+1. 集群中所有的 kube-proxy 都实时监听 Kubernetes Master 添加和移除 Service / Endpoint 的事件
+   - 当 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设用户设定 Service 的端口是 1234
+2. kube-proxy 根据监听到的事件，调用 netlink 接口，创建 IPVS 规则，并且将 Service / Endpoint 的变化同步到 IPVS 规则中
+3. 当访问一个 Service 时，IPVS 将请求重定向到后端 Pod
 
 <img src="images/image-20230219162205004.png" alt="image-20230219162205004" style="zoom:67%;" />
 
@@ -6160,7 +6284,7 @@ IPVS proxy mode 基于 netfilter 的 hook 功能，与 iptables 代理模式相�
 
 
 
-## 6、服务发现
+## 7、服务发现
 
 ### 1、概述
 
@@ -6219,7 +6343,7 @@ Kubernetes 同样支持 DNS SRV（Service）记录，用于查找一个命名的
 
 
 
-## 7、Headless Services
+## 8、Headless Services
 
 ### 1、概述
 
@@ -6246,106 +6370,6 @@ DNS 的配置方式取决于该 Service 是否配置了 selector：
       - 针对 Service 的就绪端点的所有 IP 地址，查找和配置 DNS A / AAAA 条记录
         - 对于 IPv4 端点，DNS 系统创建 A 条记录
         - 对于 IPv6 端点，DNS 系统创建 AAAA 条记录
-
-
-
-## 8、虚拟 IP
-
-### 1、避免冲突
-
-Kubernetes 的一个设计哲学是：尽量避免非人为错误产生的可能性
-
-就设计 Service 而言，Kubernetes 为每一个 Service 分配一个该 Service 专属的 IP 地址，避免端口冲突
-
-为了确保每个 Service 都有一个唯一的 IP 地址，Kubernetes 在创建 Service 之前，先更新 etcd 中的一个全局分配表，如果更新失败（例如：IP 地址已被其他 Service 占用），则 Service 不能成功创建
-
-Kubernetes 使用一个后台控制器检查该全局分配表中的 IP 地址的分配是否仍然有效，并且自动清理不再被 Service 使用的 IP 地址
-
-
-
-### 2、Service 的 IP 地址
-
-Pod 的 IP 地址路由到一个确定的目标，然而 Service 的 IP 地址则不同，通常背后并不对应一个唯一的目标
-
-kube-proxy 使用 iptables （Linux 中的报文处理逻辑）来定义虚拟 IP 地址，当客户端连接到该虚拟 IP 地址时，它们的网络请求将自动发送到一个合适的 Endpoint
-
-Service 对应的环境变量和 DNS 实际上反应的是 Service 的虚拟 IP 地址和 Port 端口
-
-
-
-### 3、user space
-
-当后端 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设 Service 的端口是 1234
-
-集群中所有的 kube-proxy 都实时监听者 Service 的创建和删除，Service 创建后，kube-proxy 将打开一个新的随机端口，并设定 iptables 的转发规则，以便将该 Service 虚拟 IP 的网络请求全都转发到这个新的随机端口上，并且 kube-proxy 将开始接受该端口上的连接
-
-当一个客户端连接到该 Service 的虚拟 IP 地址时，iptables 的规则被触发，并且将网络报文重定向到 kube-proxy 自己的随机端口上，kube-proxy 接收到请求后，选择一个后端 Pod，再将请求以代理的形式转发到该后端 Pod
-
-这意味着 Service 可以选择任意端口号，而无需担心端口冲突，客户端可以直接连接到一个 IP:Port，无需关心最终在使用哪个 Pod 提供服务
-
-
-
-### 4、iptables
-
-当后端 Service 被创建时，Kubernetes Master 为其分配一个虚拟 IP 地址（假设是 10.0.0.1），并假设 Service 的端口是 1234
-
-集群中所有的 kube-proxy 都实时监听者 Service 的创建和删除，Service 创建后，kube-proxy 设定了一系列的 iptables 规则，这些规则可将虚拟 IP 地址映射到 per-Service 的规则，per-Service 规则进一步链接到 per-Endpoint 规则，并最终将网络请求重定向（使用 destination-NAT）到后端 Pod
-
-当一个客户端连接到该 Service 的虚拟 IP 地址时，iptables 的规则被触发，一个后端 Pod 将被选中（基于 session affinity 或者随机选择），且网络报文被重定向到该后端 Pod
-
-与 userspace proxy 不同，网络报文不再被复制到 user space，kube-proxy 也无需处理这些报文，直接将报文转发到后端 Pod
-
-在使用 node-port 或 load-balancer 类型的 Service 时，以上的代理处理过程是相同的
-
-
-
-### 5、IPVS
-
-在一个大型集群中（例如：存在 10000 个 Service），iptables 的操作将显著变慢
-
-IPVS 的设计是基于 in-kernel hash table 执行负载均衡，因此使用 IPVS 的 kube-proxy 在 Service 数量较多的情况下能够保持好的性能
-
-同时，基于 IPVS 的 kube-proxy 可以使用更复杂的负载均衡算法（最少连接数、基于地址的、基于权重的等）
-
-
-
-### 6、支持的传输协议
-
-#### 1、TCP
-
-默认值，任何类型的 Service 都支持 TCP 协议
-
-
-
-#### 2、UDP
-
-大多数 Service 都支持 UDP 协议
-
-对于 LoadBalancer 类型的 Service，是否支持 UDP 取决于云供应商是否支持该特性
-
-
-
-#### 3、HTTP
-
-如果云服务商支持，可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的 HTTP/HTTPS 反向代理，将请求转发到 Service 的 Endpoints
-
-> 使用 Ingress
-
-
-
-#### 4、Proxy Protocol
-
-如果云服务上支持（例如：AWS），可以使用 LoadBalancer 类型的 Service 设定一个 Kubernetes 外部的负载均衡器，并将连接已 PROXY 协议转发到 Service 的 Endpoints
-
-负载均衡器将先发送描述该 incoming 连接的字节串，如下所示：然后在发送来自于客户端的数据
-
-```text
-PROXY TCP4 192.0.2.202 10.0.42.7 12345 7\r\n
-```
-
-
-
-#### 5、SCTP
 
 
 
