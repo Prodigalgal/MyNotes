@@ -2269,3 +2269,16 @@ Go 的编译使用命令 go build、go install 除非仅写一个 main 函数，
 - 可以添加参数 go build -gcflags "-N -l"，可以更好的便于 gdb 详细参见 http://golang.org/doc/gdb
 
 - gdb 全局变量注意点，如有全局变量 a，则应写为 p 'main.a'；注意但引号不可少；  
+
+
+
+## 4、GOPROXY中的direct意义
+
+direct 为特殊指示符，用于指示 Go 回源到模块版本的源地址去抓取(比如：GitHub 等)，当值列表中上一个 Go module proxy 返回 404 或 410 错误时，Go 自动尝试列表中的下一个，直到遇见 direct 时回源，遇见 EOF 时终止并抛出类似 “invalid version: unknown revision...” 的错误
+
+
+
+
+
+
+

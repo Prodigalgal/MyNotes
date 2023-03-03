@@ -476,7 +476,7 @@ kubectl [command] [type] [name] [flags]
 | set     | 在对象上设定特定的功能                           |
 | get     | 显示一个或多个的资源                             |
 | explain | 显示文档参考资料                                 |
-| edit    | 使用默认编辑器编辑一个资源                       |
+| edit    | 使用默认编辑器直接编辑一个资源，保存后会立即生效 |
 | delete  | 通过文件、标准输入、资源名称、标签选择器删除资源 |
 
 
@@ -747,6 +747,7 @@ spec:
 - 集群中所有机器之间网络互通
 
   - ~~~bash
+    # RHEL系
     # 公网 VPS IP 一般不会直接绑定在网卡上
     # 检查公网 IP 是否绑定在网卡上
     ip a | grep xx.xx.xx.xx
@@ -769,6 +770,25 @@ spec:
     BOOTPROTO=static
     IPADDR=公网IP
     NETMASK=255.255.255.0
+    
+    # Ubuntu系
+    # 修改 /etc/netplan/00-installer-config.yaml
+    network:
+      ethernets:
+        ens33:
+          dhcp4: false
+          addresses:
+          # 静态 IP \ 公网 IP
+            - 192.168.100.136/24
+            # 网关
+          gateway4: 192.168.100.1
+          nameservers:
+            addresses:
+            # DNS
+              - 114.114.114.114
+      version: 2
+    chmod -R 777 /etc/netplan/00-installer-config.yaml
+    netplan apply
     ~~~
 
 - 可以访问外网，需要拉取镜像
@@ -874,6 +894,16 @@ spec:
   ntpdate time.windows.com
   ~~~
 
+**个人喜好**：
+
+- ~~~bash
+  # 允许 Root 账号密码登录
+  sudo passwd root
+  sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
+  sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
+  sudo service sshd restart
+  ~~~
+
 
 
 ## 3、包管理器安装版
@@ -897,9 +927,8 @@ spec:
 yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++ tc
 ~~~
 
-
-
 ~~~bash
+# RHEL系
 # k8s 国外直接使用 google 配置仓库文件，省事
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
@@ -927,7 +956,22 @@ yum config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/
 # 安装四件套
 yum install -y kubectl kubelet kubeadm containerd
 
+# Ubuntu系
+curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable"
+curl https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | apt-key add - 
+cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
+deb https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main
+EOF
+
+apt-get update
+apt-get install -y kubelet kubeadm kubectl containerd
+systemctl start kubelet && systemctl enable kubelet 
+
 # 安装完 containerd 先启动一次生成配置文件
+# 如果没有，则手动生成
+mkdir /etc/containerd/
+containerd config default > /etc/containerd/config.toml
 ~~~
 
 
@@ -5526,27 +5570,29 @@ cat docs/user-guide/configmap/kubectl/ui.properties
 kubectl create configmap game-config --from-file=docs/user-guide/configmap/kubectl
 ~~~
 
---from-file 指定目录下的所有文件，都会被读取然后在 configMap 里面创建一个键值对，键的名字就是文件名，值就是文件的内容
+--from-file 指定目录，目录下的所有文件都会被读取，然后在 configMap 里面创建一个键值对，键的名字就是文件名，值就是文件的内容
 
 
 
 ### 2、使用文件创建
 
-只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap
-
 ~~~bash
 kubectl create configmap game-config-2 --from-file=docs/user- guide/configmap/kubectl/game.properties
+
+kubectl create configmap game-config-2 \
+--from-file=docs/user- guide/configmap/kubectl/game.properties\
+--from-file=docs/user- guide/configmap/kubectl/ui.properties
 
 kubectl get configmaps game-config-2 -o yaml
 ~~~
 
---from-file 这个参数可以使用多次，使用两次分别指定上个创建方式中的两个配置文件，效果就跟指定整个目录是一样的
+只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap，其内的键值对与上文效果一样
+
+--from-file 这个参数可以使用多次，使用两次与上文效果一样
 
 
 
 ### 3、使用字面量创建
-
-使用字面量创建，利用 -from-literal 参数传递配置信息，该参数可以使用多次
 
 ~~~bash
 kubectl create configmap special-config \
@@ -5555,6 +5601,8 @@ kubectl create configmap special-config \
 
 kubectl get configmaps special-config -o yaml
 ~~~
+
+使用字面量创建，利用 -from-literal 参数传递配置信息，该参数可以使用多次
 
 
 
@@ -5673,6 +5721,10 @@ spec:
 			- name: config-volume
 			configMap:
 				name: special-config
+				# 来自 ConfigMap 的一组键，将被创建为文件
+              items:
+              - key: "game.properties"
+                path: "game.properties"
 ~~~
 
 
@@ -8481,6 +8533,27 @@ spec:
 **注意**：
 
 - 某些资源类型可能具有额外的命名约束
+
+
+
+## 8、手动升级 Containerd
+
+~~~bash
+wget https://github.com/containerd/containerd/releases/download/v1.6.17/containerd-1.6.17-linux-amd64.tar.gz
+tar xvf containerd-1.6.17-linux-amd64.tar.gz
+systemctl stop containerd
+cd bin
+cp * /usr/bin/ -r
+systemctl start containerd
+
+wget https://github.com/containerd/containerd/releases/download/v1.7.0/cri-containerd-1.7.0-rc.1-linux-amd64.tar.gz
+tar xvf cri-containerd-1.7.0-rc.1-linux-amd64.tar.gz
+systemctl stop containerd
+cp ./etc/* /etc -r
+cp ./opt/* /opt -r
+cp ./usr/* /usr -r
+systemctl restart containerd
+~~~
 
 
 
