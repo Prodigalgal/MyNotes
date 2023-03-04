@@ -6816,13 +6816,75 @@ kubectl exec xxxxx --curl https://my-nginx --cacert /etc/nginx/ssl/nginx.crt
 
 ### 1、概述
 
-EndpointSlices 对象表示针对 Service 的后端网络端点的子集（切片）
+EndpointSlices 对象表示针对 Service 的后端网络端点的子集（切片），Kubernetes 控制面会自动为设置了选择算符的 Service 创建 EndpointSlice，并且 Kubernetes 会跟踪每个 EndpointSlice 表示的端点数量，如果服务的端点太多以至于达到阈值，Kubernetes 会添加另一个空的 EndpointSlice 并在其中存储新的端点信息，默认情况下，一旦某个 EndpointSlice 包含至少 100 个端点，Kubernetes 就会创建一个新的 EndpointSlice，但在需要添加额外的端点之前，Kubernetes 不会创建新的 EndpointSlice，这些 EndpointSlice 将包含对与 Service 选择算符匹配的所有 Pod 的引用
 
-Kubernetes 集群会跟踪每个 EndpointSlice 表示的端点数量，如果服务的端点太多以至于达到阈值，Kubernetes 会添加另一个空的 EndpointSlice 并在其中存储新的端点信息，默认情况下，一旦某个 EndpointSlice 包含至少 100 个端点，Kubernetes 就会创建一个新的 EndpointSlice，但在需要添加额外的端点之前，Kubernetes 不会创建新的 EndpointSlice
+EndpointSlice 通过唯一的协议、端口号、Service 名称将网络端点组织在一起
+
+- 设置一个属主（owner）引用
+- 设置 kubernetes.io/service-name 标签
+
+EndpointSlice 的名称必须是合法的 DNS 子域名
+
+EndpointSlices 为 Endpoints 提供了一种可扩缩和可拓展的替代方案
 
 
 
-对于你自己或在你自己代码中创建的 EndpointSlice，你还应该为 endpointslice.kubernetes.io/managed-by 标签拣选一个值。如果你创建自己的控制器代码来管理 EndpointSlice， 请考虑使用类似于 "my-domain.example/name-of-controller" 的值。 如果你使用的是第三方工具，请使用全小写的工具名称，并将空格和其他标点符号更改为短划线 (-)。 如果人们直接使用 kubectl 之类的工具来管理 EndpointSlices，请使用描述这种手动管理的名称， 例如 "staff" 或 "cluster-admins"。你应该避免使用保留值 "controller"， 该值标识由 Kubernetes 自己的控制平面管理的 EndpointSlices。
+**注意**：
+
+- 为了防止多个实体管理 EndpointSlice 错乱，应该为 ES 的 endpointslice.kubernetes.io/managed-by 标签设置一个值
+  - 如果使用自定义控制器代码来管理 EndpointSlice， 考虑使用类似于 my-domain.example/name-of-controller 的值
+  - 如果使用的是第三方工具，请使用全小写的工具名称，并将空格和其他标点符号更改为短划线 (-)
+  - 如果直接使用 kubectl 之类的工具来管理 EndpointSlices，请使用描述这种手动管理的名称， 例如：staff 或 cluster-admins，应该避免使用保留值 controller，该值标识由 Kubernetes 自带的控制平面管理的 EndpointSlices
+
+
+
+### 2、使用
+
+~~~yaml
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: example-abc
+  labels:
+    kubernetes.io/service-name: example
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 80
+endpoints:
+  - addresses:
+      - "10.1.2.3"
+    conditions:
+      ready: true
+    hostname: pod-1
+    nodeName: node-1
+    zone: us-west2-a
+~~~
+
+EndpointSlice 支持三种地址类型：但是每个 ES 只能同时支持一种类型，例如：一个 Service 对应两种类型，那么将有两个 ES 匹配
+
+- IPv4
+- IPv6
+- FQDN
+
+EndpointSlice 存储了端点的状况，分别是
+
+- ready：映射 Pod 的 Ready 状况的，对于处于运行中的 Pod，它的 Ready 状况为 True，则对应 ES 的状况也为 true
+  - 当 Pod 处于终止中，ready 永远不会为 true
+    - 但是如果 Service 的 spec.publishNotReadyAddresses 设置为 true，则这些 Service 对应的端点的 ready 状况永远为 true
+  - 应参考 serving 状况来检查处于终止中的 Pod 的就绪情况
+
+- serving：
+  - serving 状况与 ready 状况相同，不同之处在于它不考虑终止状态
+  - 如果 ES 的使用者关心 Pod 终止时的就绪情况，则应检查此状况
+- terminating：
+  - 表示端点是否处于终止中的状况，对于 Pod 来说，这是设置了删除时间戳的 Pod
+
+EndpointSlice 中的端点都包含一定的拓扑信息，包括：端点的位置、对应节点、可用区的信息
+
+- nodeName：端点所在的 Node 名称
+- zone：端点所处的可用区
 
 
 
@@ -6830,7 +6892,16 @@ Kubernetes 集群会跟踪每个 EndpointSlice 表示的端点数量，如果服
 
 ### 1、概述 
 
-在 Kubernetes API 中，Endpoints （该资源类别为复数）定义了网络端点的列表，通常由 Service 引用，以定义可以将流量发送到哪些 Pod
+Endpoints （该资源类别为复数）定义了网络端点的列表，通常由 Service 引用，以定义可以将流量发送到哪些 Pod
+
+每个 Endpoints 资源可能会被转译到多个 EndpointSlices 中去，当 Endpoints 资源中包含多个子网或者包含多个 IP 协议族（IPv4 和 IPv6）的端点时，就有可能发生这种状况，每个子网最多有 1000 个地址会被镜像到 EndpointSlice 中
+
+控制面对 Endpoints 资源进行映射的例外情况有：
+
+- Endpoints 标签 endpointslice.kubernetes.io/skip-mirror 值为 true
+- Endpoints 包含标签 control-plane.alpha.kubernetes.io/leader
+- 对应的 Service 资源不存在
+- 对应的 Service 的选择算符不为空
 
 
 
