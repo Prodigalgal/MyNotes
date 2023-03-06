@@ -1893,3 +1893,25 @@ nohup java -jar /root/work/EatWhatSpecial-0.0.1.jar &
 docker run -itd --name=t -p 8888:8080 -v /data/tomcat/webapps:/usr/local/tomcat/webapps tomcat:9.0
 ```
 
+
+
+## 虚拟机扩容
+
+~~~bash
+fdisk /dev/sda
+# 输入 n 全部默认回车即可
+# 输入 w 保存退出
+
+# 查找卷组名
+vgscan
+
+# 将新 part 添加到卷组中
+vgextend ubuntu-vg /dev/sda4
+
+# 增加10G的空间到 lvm 逻辑卷
+lvextend -L +10G /dev/mapper/ubuntu--vg-ubuntu--lv
+
+# 对扩容后的逻辑卷刷新
+resize2fs -f /dev/mapper/ubuntu--vg-ubuntu--lv
+~~~
+

@@ -2600,7 +2600,7 @@ kubectl config view --minify | grep namespace:
 
 一个 Label 是一个 **k : v** 键值对，key 和 value 均自定义，但是有一定的限制，见下文
 
-Label 可以附加到各种资源对象上，如 Node、Pod、 Service、RC，一个资源对象可以定义任意数量的 Label， 同一个 Label 也可以被添加到任意数量的资源对象上
+同一个 Label 也可以被添加到任意数量的各种资源对象上，如 Node、Pod、 Service、RC，一个资源对象可以定义任意数量的 Label
 
 Label 通常在资源对象定义时确定，也可以在对象创建后动态添加或删除
 
@@ -2641,20 +2641,22 @@ Label 与 Label Selector 都不能单独定义，必须附加在一些资源对�
 
 ## 2、标签选择器
 
+### 1、概述
+
 与 Name 和 UID 不同，标签不一定是唯一的，通常 K8s对象与标签是 M：N 的关系
 
-通过使用标签选择器（Label Selector），可以选择一组对象
+通过使用标签选择器（Label Selector），可以选择一组对象，标签选择器是 Kubernetes 中最主要的分类和筛选手段
 
-标签选择器是 Kubernetes 中最主要的分类和筛选手段
 
-Kubernetes api server支持两种形式的标签选择器，**equality-based** 基于等式的和 **set-based** 基于集合的
 
-- 均支持 ==、=、!=
+### 2、API Server
+
+Kubernetes **api server**支持两种形式的标签选择器，**equality-based** 基于等式的和 **set-based** 基于集合的
+
+- 基于等式：==、=、!=
   - == 等同于 =
-
-- 基于集合：
-  - 使用小括号表示集合
-  - 额外支持 not in、int、exists 条件
+- 基于集合：使用小括号表示集合
+  - 额外支持 notin、in、exists、dosenotexists 条件
 
 标签选择器可以包含多个条件，并使用逗号分隔，逗号等同于 and，此时只有满足所有条件的 Kubernetes 对象才会被选中，如果使用空的标签选择器或者不指定选择器，其含义由具体的 API 接口决定
 
@@ -2672,8 +2674,6 @@ partition
 !partition
 ~~~
 
-
-
 API 查询：两种类型都能支持，但要符合 URL 编码
 
 - 基于等式的选择方式： ?labelSelector=environment%3Dproduction,tier%3Dfrontend
@@ -2681,7 +2681,9 @@ API 查询：两种类型都能支持，但要符合 URL 编码
 
 
 
-Job、Deployment、ReplicaSet、DaemonSet 同时支持基于等式的选择方式和基于集合的选择方式
+### 3、其他资源对象
+
+**Job、Deployment、ReplicaSet、DaemonSet** 等同样支持基于等式和基于集合
 
 ~~~yaml
 selector:
@@ -2692,9 +2694,13 @@ selector:
     - {key: environment, operator: NotIn, values: [dev]}
 ~~~
 
-matchLabels 是一个 {key,value} 组成的 map，map 中的一个 {key,value} 条目相当于 matchExpressions 中的一个元素，其 key 为 map 的 key，operator 为 In， values 数组则只包含 value 一个元素
+**matchLabels**：
 
-matchExpression 等价于基于集合的选择方式，支持的 operator 有 In、NotIn、Exists 和 DoesNotExist，当 operator 为 In 或 NotIn 时，values 数组不能为空，所有的选择条件都以 AND 的形式合并计算，即所有的条件都满足才可以算是匹配
+- 是一个 {key,value} 组成的 map，map 中的一个 {key,value} 条目相当于 matchExpressions 中的一个元素，其 key 为 map 的 key，operator 为 In， values 数组则只包含 value 一个元素
+
+**matchExpression**：
+
+- 等价于基于集合的选择方式，支持的 operator 有 In、NotIn、Exists 和 DoesNotExist，当 operator 为 In 或 NotIn 时，values 数组不能为空，所有的选择条件都以 AND 的形式合并计算，即所有的条件都满足才可以算是匹配
 
 
 
@@ -2787,7 +2793,19 @@ Finalizers 通常不指定要执行的代码，它们通常是特定资源上的
 
 
 
+## 6、使用 kubectl 给资源打标签
 
+~~~bash
+# 查看资源对象标签
+kubectl get pod -n default --show-labels
+
+# 打标签
+# 添加参数 --overwrite 可更新标签
+kubectl label pod -n default podname key=value
+
+# 删除标签
+kubectl label pod -n default podname key-
+~~~
 
 
 
@@ -3012,17 +3030,15 @@ kubectl get pods --show-labels
 
 #### 2、更新
 
-当且仅当 Deployment 的 Pod template（.spec.**template**）字段中的内容发生变更时（例如：标签、容器的镜像被改变），Deployment 的发布更新（rollout）将被触发
+当且仅当 Deployment 的 Pod template（.spec.**template**）字段中的内容发生变更时（例如：标签、容器的镜像被改变），Deployment 的滚动更新（rollout）将被触发
 
-Deployment 中其他字段的变化（例如：修改 .spec.replicas）将不会触发 Deployment 的发布更新（rollout）
+Deployment 中其他字段的变化（例如：修改 .spec.replicas）将不会触发 Deployment 的滚动更新（rollout）
 
 
 
-**rollout**：
+**滚动更新**：
 
 - 每创建一个 Deployment，Deployment Controller 都为其创建一个 RS，并设定其副本数为期望的 Pod 数，如果 Deployment 被更新，旧的 RS 将被 Scale down，新建的 RS 将被 Scale up，直到最后新旧两个 RS，一个副本数为 .spec.replias，另一个副本数为 0
-
-
 
 ~~~bash
 # 修改镜像 tag
@@ -3034,8 +3050,8 @@ kubectl get rs
 
 Deployment 的更新是通过创建一个新的 RS 并同时将旧的 RS 的副本数缩容到 0 个副本来达成的
 
-- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被关闭，默认情况下，Deployment 确保至少 .spec.replicas 的 75% 的 Pod 保持可用（25% max unavailable）
-- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被创建。默认情况下，Deployment 确保最多 .spec.replicas 的 25% 的 Pod 被创建（25% max surge）
+- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被关闭，默认情况下，Deployment 确保至少 .spec.replicas 的 75% 的 Pod 保持可用（25% maxUnavailable）
+- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被创建，默认情况下，Deployment 确保最多 .spec.replicas 的 25% 的 Pod 被创建（25% maxSurge）
 
 
 
@@ -3097,12 +3113,6 @@ kubectl autoscale deployment.v1.apps/name --min=10 --max=15 --cpu-percent=80
 
 如果 Deployment 正在执行滚动更新（也可能暂停了滚动更新），或者自动伸缩器对该 Deployment 执行伸缩操作，此时 Deployment Controller 会按比例将新建的 Pod 分配到当前活动的 RS ，以避免可能的风险
 
-
-
-例子：
-
-假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment Controller 需要决定如何分配新增的 5 个 Pod 副本
-
 根据按比例伸缩的原则：
 
 - 副本数多的 ReplicaSet 分配到更多比例的新 Pod
@@ -3110,7 +3120,7 @@ kubectl autoscale deployment.v1.apps/name --min=10 --max=15 --cpu-percent=80
 - 如果还有剩余的新 Pod 数未分配，直接追加到副本数最多的 RS
 - 副本数为 0 的 ReplicaSet，scale up 之后，副本数仍然为 0
 
-在本例中，3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
+例子：假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，在杀死两个旧 Pod 之后，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment Controller 需要决定如何分配新增的 5 个 Pod 副本，根据按比例伸缩原则，其中 3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
 
 
 
@@ -3148,6 +3158,8 @@ kubectl rollout resume deployment.v1.apps/nginx-deployment
 
 ### 3、状态
 
+#### 1、概述
+
 Deployment 的生命周期中，将会进入不同的状态，这些状态可能是：
 
 - **progressing**
@@ -3155,6 +3167,8 @@ Deployment 的生命周期中，将会进入不同的状态，这些状态可能
 - **fail to progress**
 
 
+
+#### 2、progressing
 
 当如下任何一个任务正在执行时，Kubernete 将 Deployment 的状态标记为 progressing：
 
@@ -3167,6 +3181,8 @@ Deployment 的生命周期中，将会进入不同的状态，这些状态可能
 
 
 
+#### 3、complete
+
 如果 Deployment 符合以下条件，Kubernetes 将其状态标记为 complete：
 
 - 该 Deployment 中的所有 Pod 副本都已经被更新到指定的最新版本
@@ -3175,7 +3191,11 @@ Deployment 的生命周期中，将会进入不同的状态，这些状态可能
 
 
 
-Deployment 在更新其最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail to progress，如下原因都可能导致此现象发生：
+#### 4、fail to progress
+
+Deployment 在更新最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail to progress
+
+如下原因都可能导致此现象发生：
 
 - 集群资源不够
 - 就绪检查（readiness probe）失败
@@ -3184,7 +3204,9 @@ Deployment 在更新其最新的 ReplicaSet 时，可能卡住而不能达到 co
 - 资源限制
 - 应用程序的配置错误导致启动失败
 
-指定 Deployment 定义中的 .spec.**progressDeadlineSeconds** 字段，Deployment Controller 在等待指定的时长后，将 Deployment 的标记为处理失败，然后更新 Deployment 的 Condition，添加如下 DeploymentCondition：
+
+
+指定 Deployment spec 中的 .**progressDeadlineSeconds** 字段，Deployment Controller 将在等待指定的时长后，将 Deployment 的标记为 fail to progress，然后更新 Deployment 的 Condition，添加如下 DeploymentCondition：
 
 - Type=Progressing
 - Status=False
@@ -3196,7 +3218,7 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 
 
 
-可以针对 Failed 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
+可以针对 fail to progress 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
 
 - scale up / scale down
 - 回滚到前一个版本
@@ -3225,6 +3247,15 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 ### 5、部署策略
 
 通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
+
+当指定为 **rollingUpdate** 时，可以设定更新行为的规约：
+
+- strategy.rollingUpdate.**maxSurge**：最大新 Pod 数量
+  - 可以是整数或者百分比，默认为 25%
+  - 例如：设置为 30%，则滚动更新期间，可以直接先添加原本 30% 的新 Pod 数量，当旧 Pod 被杀死，可以继续扩容
+- strategy.rollingUpdate.**maxUnavailable**：最大不可用 Pod 数量
+  - 可以是整数或者百分比，默认为 25%
+  - 例如：设置为 30%，则滚动更新期间，可以直接先缩容到原本的 70%，当新 Pod 就绪，可以继续缩容
 
 
 
@@ -4637,7 +4668,11 @@ systemctl restart nfs-server
 
 ~~~bash
 # 从节点挂载
-mount 196.198.168.168:/home/data /home/data
+mount 192.168.100.130:/home/data /home/data
+
+# 开机自动挂载
+vim /etc/rc.d/rc.local
+mount 192.168.100.130:/home/data /home/data
 ~~~
 
 ~~~yaml
@@ -7187,7 +7222,7 @@ spec:
 - 硬亲和性 **requiredDuringSchedulingIgnoredDuringExecution**：规则不满足时，Pod 会置于 Pending 状态
 - 软亲和性 **preferredDuringSchedulingIgnoredDuringExecution**：规则不满足时，会选择一个不匹配的节点
 
-IgnoredDuringExecution表示：当节点标签改变而不再符合此节点亲和性规则时，不会将 Pod 从该节点移出，仅对新建的 Pod 对象生效
+IgnoredDuringExecution 表示：当节点标签改变而不再符合此节点亲和性规则时，不会将 Pod 从该节点移出，仅对新建的 Pod 对象生效
 
 与 NodeSelector 相比：
 
@@ -7199,8 +7234,26 @@ IgnoredDuringExecution表示：当节点标签改变而不再符合此节点亲�
 **注意**：
 
 - 如果同时指定了 **nodeSelector** 和 **nodeAffinity**，两者必须都要满足，才能将 Pod 调度到候选节点上
-- nodeAffinity 下的 nodeSelectorTerms 中多个条件按**或**组合，只要满足其一即可调度
-- nodeSelectorTerms 下的 matchExpressions 多个条件按**与**组合，全部满足即可调度
+- nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution 下的多个 nodeSelectorTerms 条件按**或**组合，只要满足其一即可调度
+- nodeSelectorTerms 下的多个 matchExpressions 条件按**与**组合，全部满足即可调度
+
+
+
+~~~yaml
+# 需要（拥有 zoneA） 或 （拥有 zoneC，但不能拥有 zoneB）
+requiredDuringSchedulingIgnoredDuringExecution:
+- nodeSelectorTerms:
+  - matchExpressions:
+      - key: zoneB
+        operator: DoesNotExist
+  - matchExpressions:
+      - key: zoneC
+        operator: Exists
+- nodeSelectorTerms:
+    - matchExpressions:
+        - key: zoneA
+          operator: Exists
+~~~
 
 
 
@@ -7301,16 +7354,18 @@ spec:
 
 ### 1、概述
 
-与节点亲和性类似，Pod 的亲和性 / 反亲和性也有两种类型：
+与节点亲和性类似，Pod 的亲和性 / 反亲和性有两种类型：
 
-- requiredDuringSchedulingIgnoredDuringExecution
+- requiredDuringSchedulingIgnoredDuringExecution：
 - preferredDuringSchedulingIgnoredDuringExecution
 
 使用 Pod 亲和性，需要 Pod spec 中的 .affinity.**podAffinity** 字段
 
 使用 Pod 反亲和性，需要 Pod spec 中的 .affinity.**podAntiAffinity** 字段
 
-Pod 亲和性 / 反亲和性可以基于已经在节点上运行的 **Pod** 的标签来约束 Pod 可以调度到的节点，而不是基于节点上的标签，以此定义规则允许哪些 Pod 可以被放置在一起
+Pod 亲和性 / 反亲和性可以基于已经在节点上运行的 **Pod** 的标签来约束 Pod 可以调度到的节点，而不是基于节点上的标签，以此规定哪些 Pod 可以被放置在一起
+
+
 
 Pod 亲和性 / 反亲和性的规则：如果 X 上已经运行了一个或多个满足规则 Y 的 Pod， 则这个 Pod 在亲和的情况下，应该运行在 X 上，反亲和则相反
 
@@ -7318,6 +7373,8 @@ Pod 亲和性 / 反亲和性的规则：如果 X 上已经运行了一个或多�
   - 通过 **topologyKey** 来表达拓扑域 X 的概念，其取值是系统用来标示域的节点标签键
 - Y 则是 Kubernetes 尝试满足的规则
   - 通过**标签选择算符**的形式来表达规则 Y，并可根据需要指定关联的名字空间列表，Pod 在 Kubernetes 中是名称空间作用域的对象，因此 Pod 的标签也隐式地具有名称空间属性，针对 Pod 标签的所有标签选择算符都要指定名称空间，Kubernetes 会在指定的名称空间内寻找标签
+
+
 
 原则上，topologyKey 可以是任何合法的标签键，出于性能和安全原因，topologyKey 有一些限制：
 
@@ -7330,7 +7387,7 @@ Pod 亲和性 / 反亲和性的规则：如果 X 上已经运行了一个或多�
 
 **注意**：
 
-- Pod 间亲和性 / 反亲和性都需要相当的计算量，因此会在大规模集群中显著降低调度速度，不建议在包含数百个节点的集群中使用
+- Pod 间亲和性 / 反亲和性需要相当的计算量，因此会在大规模集群中显著降低调度速度，**不建议在包含数百个节点的集群中使用**
 
 
 
@@ -7343,7 +7400,9 @@ metadata:
   name: with-pod-affinity
 spec:
   affinity:
+  	# Pod 亲和性
     podAffinity:
+      # 硬
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchExpressions:
@@ -7352,7 +7411,9 @@ spec:
             values:
             - S1
         topologyKey: topology.kubernetes.io/zone
+   	# Pod 反亲和性
     podAntiAffinity:
+      # 软
       preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 100
         podAffinityTerm:
@@ -7373,29 +7434,52 @@ spec:
 - Pod 亲和性配置为 requiredDuringSchedulingIgnoredDuringExecution 类型
   - 需要节点携带 topology.kubernetes.io/zone=V 标签并运行至少一个携带 security=S1 标签的 Pod，才可将 Pod 调度到其上
 - Pod 反亲和性配置为 preferredDuringSchedulingIgnoredDuringExecution 类型
-  - 如果节点携带 topology.kubernetes.io/zone=V 标签并且运行至少一个携带 security=S2 标签的 Pod，不可将 Pod 调度到其上
+  - 如果节点携带 topology.kubernetes.io/zone=V 标签并且运行至少一个携带 security=S2 标签的 Pod，不可将 Pod 调度到其上，但是为软性调度，实在没条件可以调度
 
 
 
 ### 3、软亲和性
 
-查看 Pod 硬亲和性
+查看 Pod 硬亲和性示例
 
 
 
 ### 4、反亲和性
 
-查看 Pod 硬亲和性
+查看 Pod 硬亲和性示例
 
 
 
-## 7、污点与容忍度
+## 7、亲和/反亲和策略比较
+
+| 调度策略        | 匹配标签 | 操作符                                  | 拓扑域支持 | 调度目标                      |
+| --------------- | -------- | --------------------------------------- | ---------- | ----------------------------- |
+| nodeAffinity    | node     | In、NotIn、Exists、DoesNotExist、Gt、Lt | 否         | node                          |
+| podAffinity     | pod      | In、NotIn、Exists、DoesNotExist         | 是         | Pod 与指定 Pod 同一拓扑域     |
+| podAnitAffinity | pod      | In、NotIn、Exists、DoesNotExist         | 是         | Pod 与指定 Pod 不在同一拓扑域 |
+
+- In：label 的值在某个列表中
+- NotIn：label 的值不在某个列表中
+- Gt：label 的值大于某个值
+- Lt：label 的值小于某个值
+- Exists：某个 label 存在
+- DoesNotExist：某个 label 不存在
+
+
+
+**注意**：
+
+- 无论是 Pod / Node 的软亲和 / 软反亲和性，都不具备完全的可控性
+
+
+
+## 8、污点与容忍度
 
 ### 1、概述
 
-污点（Taints）：设置于节点上，允许节点排斥一类 Pod
+污点（Taints）：设置于 Node 上，允许 Node 排斥一类 Pod
 
-容忍度（Tolerations）：设置于 Pod，允许但不强制要求 Pod 调度到具有匹配污点的节点上
+容忍度（Tolerations）：设置于 Pod，允许但不强制要求 Pod 调度到具有匹配污点的 Node 上
 
 污点和容忍度共同作用，确保 Pod 不会被调度到不适当的节点，当一个或多个污点应用于节点，这标志着该节点不应该接受任何不容忍污点的 Pod
 
@@ -7411,11 +7495,11 @@ spec:
 
 #### 1、概述
 
-使用 **kubectl taint** 命令可以给某个 Node 设置污点，Node 被设置污点之后就和 Pod 之间存在一种排斥关系，可以让 Node 拒绝 Pod 调度，甚至将 Node 上已经存在的 Pod 驱逐
+使用 **kubectl taint** 命令可以给某个 Node 设置污点，Node 被设置污点之后就和 Pod 之间存在一种排斥关系，可以让 Node 拒绝 Pod 调度，甚至驱逐 Node 上已经存在的 Pod
 
-每个污点有一个 key 和 value 作为污点的标签，effect 描述污点的作用
+每个污点有一个 **key** 和 **value** 作为污点的标签，**effect** 描述污点的作用
 
-当前taint effect支持如下选项：
+Taint effect 可选值如下：
 
 - **NoSchedule**：表示 K8s 将不会把 Pod 调度到具有该污点的 Node 上
 - **PreferNoSchedule**：表示 K8s 将尽量避免把 Pod 调度到具有该污点的 Node 上
@@ -7429,24 +7513,30 @@ spec:
   - 如果 Pod 不能容忍 effect 值为 NoExecute 的 taint，那么 Pod 马上被驱逐
   - 如果 Pod 能够容忍 effect 值为 NoExecute 的 taint
     - 且在 toleration 定义中没有指定 tolerationSeconds，则 Pod 会在这个节点上一直运行
-    - 在 toleration 定义中指定了 tolerationSeconds，则表示 pod 还能在这个节点上继续运行的时间长度
+    - 在 toleration 定义中指定了 tolerationSeconds，则表示 Pod 还能在这个节点上继续运行的时间长度
 - 尽量不调度到某个节点，并不表示不会调度
 
 
 
 #### 2、使用
 
+给节点 node1 增加一个污点，键名是 key1，键值是 value1，效果是 NoSchedule，表示只有拥有和这个污点相匹配的容忍度的 Pod 才能够被调度到 node1
+
 ~~~bash
 kubectl taint nodes node1 key1=value1:NoSchedule
 ~~~
 
-给节点 node1 增加一个污点，键名是 key1，键值是 value1，效果是 NoSchedule，表示只有拥有和这个污点相匹配的容忍度的 Pod 才能够被调度到 node1
+移除上述命令所添加的污点
 
 ~~~bash
 kubectl taint nodes node1 key1=value1:NoSchedule-
 ~~~
 
-移除上述命令所添加的污点
+查看节点具备的污点
+
+~~~bash
+kubectl describe nodes node1 | grep Taints
+~~~
 
 
 
@@ -7467,14 +7557,14 @@ kubectl taint nodes node1 key1=value1:NoSchedule-
 ~~~yaml
 tolerations:
 - key: "key1"
-  operator: "Equal"
+  operator: Equal
   value: "value1"
   effect: "NoSchedule"
   
 tolerations:
 - key: "key1"
-  operator: "Exists"
-  effect: "NoSchedule"
+  operator: Exists
+  value: "value1"
   tolerationSeconds: 3600
 ~~~
 
@@ -7483,15 +7573,15 @@ tolerations:
 **operator**：一个容忍度和一个污点相匹配是指它们有一样的键名和效果，并且：
 
 - 如果 operator 是 Exists，此时容忍度不能指定 value
-- 如果 operator 是 Equal ，则它们的 value 应该相等
+- 如果 operator 是 Equal ，则 Node 和 Pod 的 value 应该相等
 
 
 
 **注意**：
 
-- 存在两种特殊情况：
-  - 如果容忍度的 key 为空且 operator 为 Exists， 表示这个容忍度与任意的 key、value、effect 都匹配，即这个容忍度能容忍任何污点
-  - 如果容忍度的 effect 为空，则该容忍度可以与所有键名为 key1 的污点相匹配
+- operator 为 Exists 存在两种特殊情况：
+  - 如果 tolerations 的 key 为空 ， 表示这个 tolerations 与任意的 key、value、effect 都匹配，即这个 tolerations 能容忍任何 taint
+  - 如果 tolerations 的 effect 为空，则该 tolerations  可以与所有键名为设定值的 taint 相匹配
 
 
 
@@ -7499,11 +7589,11 @@ tolerations:
 
 可以在同一个 Node 上设置多个污点，在同一个 Pod 上设置多个容忍度
 
-Kubernetes 处理多个污点和容忍度的方式就像一个过滤器：从节点的污点开始，忽略可以被 Pod 容忍度匹配的污点，保留不可忽略的污点，且不可忽略污点的 effect 对 Pod 具有显示效果：
+Kubernetes 处理多个污点和容忍度的方式就像一个过滤器：从节点的污点开始，排除可以被 Pod 容忍度匹配的污点，保留不可排除的污点，且不可排除污点的 effect 对 Pod 的调度具有显示效果：
 
-- 如果过滤后有至少一个不可忽略污点，且 effect 为 NoSchedule，那么 Kubernetes 将不调度 Pod 到该节点
-- 如果过滤后没有 effect 为 NoSchedule 的污点，但至少有一个不可忽略污点，且 effect 为 PreferNoSchedule，那么 Kubernetes 将尽量不调度 Pod 到该节点
-- 如果过滤后至少有一个不可忽略污点，且 effect 为 NoExecute，那么 Pod 将从该节点被驱逐，即使 Pod 已经在该节点运行，并且不会被调度到该节点
+- 如果过滤后有至少一个不可排除污点，且 effect 为 NoSchedule，那么 Kubernetes 将不调度 Pod 到该 Node
+- 如果过滤后没有 effect 为 NoSchedule 的污点，但至少有一个不可排除污点，且 effect 为 PreferNoSchedule，那么 Kubernetes 将尽量不调度 Pod 到该 Node
+- 如果过滤后至少有一个不可排除污点，且 effect 为 NoExecute，那么 Pod 将从该 Node 被驱逐，即使 Pod 已经在该 Node 运行，并且不会被调度到该 Node
 
 
 
@@ -7568,7 +7658,7 @@ Controller Plane 会限制对节点群添加污点的速率，主要是为了当
 
 
 
-## 8、拓扑约束
+## 9、拓扑约束
 
 ### 1、概述
 
@@ -7583,7 +7673,7 @@ Controller Plane 会限制对节点群添加污点的速率，主要是为了当
 
 **拓扑域**：表示集群中的某一类地方，比如：某节点群、某机架、某可用区或、某地域等，这些都可以作为某种拓扑域
 
-- 例如：所有节点都具有Zone标签，但是只有Zone标签值相同的，可以算在一个拓扑域中
+- 例如：所有节点都具有 Zone 标签，但是只有 Zone 标签值相同的，可以算在一个拓扑域中
 
 <img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20230224110517130.png" alt="image-20230224110517130" style="zoom:50%;" />
 
@@ -7619,13 +7709,15 @@ spec:
 这些字段包括：
 
 - **maxSkew**：
+  
   - 描述这些 Pod 可能被均匀分布的程度，必须指定此字段且该数值必须大于零，其语义将随着 **whenUnsatisfiable** 的值发生变化
     - 如果选择 whenUnsatisfiable: DoNotSchedule，则 maxSkew 表示目标拓扑域中匹配 Pod 的数量与全局最小值之间的最大允许差值
       - 全局最小值：符合条件的拓扑域中匹配 Pod 的最小数量，如果符合条件的域数量小于 MinDomains 则为零
-      - 例如：有 3 个拓扑域，分别包含 2、2 和 1 个匹配的 Pod，则全局最小值为 1
-    - 如果选择 whenUnsatisfiable: ScheduleAnyway，则该调度器会偏向能够降低偏差值的拓扑域
-
+        - 例如：有 3 个拓扑域，分别包含 2、2 和 1 个匹配的 Pod，则全局最小值为 1
+    - 如果选择 whenUnsatisfiable: ScheduleAnyway，则 maxSkew 表示目标允许差值，调度器此时会偏向能够降低偏差值的拓扑域
+  
 - **minDomains**：
+  
   - 表示符合条件的域的最小数量，域是拓扑的一个特定实例，符合条件的域是其节点与节点选择器匹配的域
   - 此字段是可选的
   - 指定的 minDomains 值必须大于 0，可以结合 whenUnsatisfiable: DoNotSchedule 仅指定 minDomains
@@ -7634,19 +7726,21 @@ spec:
   - 如果未指定 minDomains，则约束行为类似于 minDomains 等于 1
   - **说明**：
     - 在 1.25 中默认被禁用，可以通过启用 MinDomainsInPodTopologySpread 特性门控来启用该字段
-
+  
 - **topologyKey**：
   - 节点标签的键
   - 如果节点使用此键标记并且具有相同的标签值，则将这些节点视为处于同一拓扑域中
-  - 将拓扑域中（即键值对）的每个实例称为一个域，调度器将尝试在每个拓扑域中放置数量均衡的 Pod，另外将符合条件的域定义为其节点满足 nodeAffinityPolicy 和 nodeTaintsPolicy 要求的域
+  - 将拓扑域中每个实例（键值对相同的一组 Node）称为一个域，调度器将尝试在每个域中放置数量均衡的 Pod，另外还需要满足符合条件的域定义的 nodeAffinityPolicy 和 nodeTaintsPolicy
 - **whenUnsatisfiable**：
+  
   - 指示如果 Pod 不满足分布约束时如何处理：
     - DoNotSchedule：（默认）告诉调度器不要调度
     - ScheduleAnyway：告诉调度器仍然继续调度，只是根据如何能将偏差最小化来对节点进行排序
 - **labelSelector**：
+  
   - 用于查找匹配的 Pod
   - 匹配此标签的 Pod 将被统计，以确定相应拓扑域中 Pod 的数量
-
+  
 - **matchLabelKeys**：
 
   - 一个 Pod 标签键的列表，用于选择需要计算的拓扑域的 Pod 集合
@@ -7686,7 +7780,7 @@ spec:
   - 选项为：
 
     - **Honor**：包括不带污点的节点以及污点被新 Pod 所容忍的节点
-    - **Ignore**：节点污点被忽略。包括所有节点
+    - **Ignore**：节点污点被忽略，包括所有节点
 
     - 如果此值为 null，此行为等同于 Ignore 策略
 
@@ -7700,8 +7794,6 @@ spec:
 - 当 Pod 定义了不止一个 topologySpreadConstraint，这些约束之间是逻辑与的关系，kube-scheduler 会为新的 Pod 寻找一个能够满足所有约束的节点
 - 多拓扑约束容易出现冲突，导致 Pod 处于 Pending 状态
   - 建议提高 Skew 或者使用 ScheduleAnyway
-
-
 
 ~~~yaml
 kind: Pod
