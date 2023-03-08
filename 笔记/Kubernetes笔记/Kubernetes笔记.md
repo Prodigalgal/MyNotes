@@ -3326,10 +3326,12 @@ StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其�
 
 **稳定的网络 ID**：
 
-- StatefulSet 中 Pod 的 hostname 格式为：**$(StatefulSet name)-$(Pod 序号)**
+- StatefulSet 中 Pod 的 hostname 格式为：**$(StatefulSet Name) - $(Pod 序号)**
+  - 同时也是 PodName
+
 - StatefulSet 可以使用 Headless Service 来控制其 Pod 所在的域
-  - 该域（domain）的格式为：**$(service name).$(namespace).svc.cluster.local**，其中 cluster.local 是集群的域
-- StatefulSet 中每一个 Pod 将被分配一个 DNSName，格式为： **$(podName).$(所在域名)**
+  - 该域（domain）的格式为：**$(Service Name).$(Namespace).svc.cluster.local**，其中 cluster.local 是集群的域
+- StatefulSet 中每一个 Pod 将被分配一个 DNSName，格式为： **$(PodName).$(所在域名)**
 
 
 
@@ -3356,16 +3358,17 @@ StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其�
 
 
 
-| 字段名                 | 组合一                                       | 组合二                                   | 组合三                                |
-| ---------------------- | -------------------------------------------- | ---------------------------------------- | ------------------------------------- |
-| **Cluster Domain**     | cluster.local                                | cluster.local                            | kube.local                            |
-| **Service name**       | default/nginx                                | foo/nginx                                | foo/nginx                             |
-| **StatefulSet name**   | default/web                                  | foo/web                                  | foo/web                               |
-| **StatefulSet Domain** | nginx.default.svc.cluster.local              | nginx.foo.svc.cluster.local              | nginx.foo.svc.kube.local              |
-| **Pod DNS**            | web-{0..N-1}.nginx.default.svc.cluster.local | web-{0..N-1}.nginx.foo.svc.cluster.local | web-{0..N-1}.nginx.foo.svc.kube.local |
-| **Pod name**           | web-{0..N-1}                                 | web-{0..N-1}                             | web-{0..N-1}                          |
+**例子**：
 
-
+| 字段名                   | 组合一                              | 组合二                          | 组合三                       |
+| ------------------------ | ----------------------------------- | ------------------------------- | ---------------------------- |
+| **ClusterDomain**        | cluster.local                       | cluster.local                   | kube.local                   |
+| **Namespace**            | default                             | foo                             | foo                          |
+| **Servicename**          | nginx                               | nginx                           | nginx                        |
+| **StatefulSetname**      | web                                 | web                             | web                          |
+| **StatefulSetDomain**    | nginx.default.svc.cluster.local     | nginx.foo.svc.cluster.local     | nginx.foo.svc.kube.local     |
+| **PodName**\\**PodHost** | a-{0..N-1}                          | b-{0..N-1}                      | c-{0..N-1}                   |
+| **PodDNS**               | a-0.nginx.default.svc.cluster.local | b-0.nginx.foo.svc.cluster.local | c-0.nginx.foo.svc.kube.local |
 
 
 
@@ -6007,7 +6010,7 @@ spec:
     app: MyApp
   ports:
     - protocol: TCP
-    # 自身端口
+   	  # 自身端口
       port: 9376
       # 目标端口
       targetPort: 9376

@@ -8,32 +8,24 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   namespace: es
-  name: sirc-elasticsearch-config
+  name: elasticsearch-config
   labels:
-    app: elasticsearch
+    app: elasticsearch-configMap
 data:
   # 具体挂载的配置文件
-  elasticsearch.yml: |+
-    cluster.name: crawl
+  elasticsearch.yml: |-
+    cluster.name: es-cluster
     # 环境变量，通过 kubectl explain pod.spec.containers.env.valueFrom.fieldRef 获取
-    node.name: ${MY_POD_NAME} 
+    node.name: ${MY_POD_NAME}
     path.data: /usr/share/elasticsearch/data
     path.logs: /usr/share/elasticsearch/logs
     network.host: 0.0.0.0
     http.port: 9200
-    #transport.tcp.port: 9300
-    #node.roles: [master, data]
-    cluster.initial_master_nodes: ["elasticsearch-0","elasticsearch-1","elasticsearch-2"]
-    discovery.seed_hosts: ["elasticsearch-0.esc-svc.es:9300","elasticsearch-1.esc-svc.es:9300","elasticsearch-2.esc-svc.es:9300"]
-    #discovery.zen.ping.unicast.hosts: ["elasticsearch-0.esc-svc.es:9300","elasticsearch-1.esc-svc.es:9300","elasticsearch-2.esc-svc.es:9300"]
-    #node.data: true
-    #node.master: true
     http.cors.enabled: true
     http.cors.allow-origin: "*"
-    #bootstrap.system_call_filter: false
     xpack.security.enabled: false
-    indices.fielddata.cache.size: 60%
-    indices.queries.cache.size: 40%
+    cluster.initial_master_nodes: [ "elasticsearch-0.esc-svc","elasticsearch-1.esc-svc","elasticsearch-1.esc-svc" ]
+    discovery.seed_hosts: [ "elasticsearch-0.esc-svc","elasticsearch-1.esc-svc","elasticsearch-1.esc-svc" ]
 ---
 # 创建 StatefulSet，ES 属于数据库类型的应用
 apiVersion: apps/v1
@@ -54,37 +46,63 @@ spec:
       labels:
         app: elasticsearch
     spec:
+      initContainers:
+        - name: es-cluster-kernel-init
+          image: busybox
+          # 初始化容器执行的命令，调整内核参数
+          command: [ "sysctl", "-w", "vm.max_map_count=262144" ]
+          # 开启特权模式
+          securityContext:
+            privileged: true
+        - name: es-cluster-permissions
+          image: alpine:3.6
+          # 初始化容器执行的命令，调整权限
+          command: [ "chmod", "-R", "4775", "/usr/share/elasticsearch/data" ]
+          # 开启特权模式
+          securityContext:
+            privileged: true
+            # 或许还需要设置 ulimit
+#        - name: es-cluster-ulimit
+#          image: busybox
+#          command: [ "sh", "-c", "ulimit -n 65536" ]
+#          securityContext:
+#            privileged: true
+          # 定义存储卷挂载，这里主要是将主容器挂载的存储首先挂载到初始化容器，权限调整后，主容器方可使用
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
       containers:
-      - name: elasticsearch
-        image: elasticsearch:8.6.2
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 9200
-        env:
-        - name: MY_POD_NAME
-          valueFrom:
-            fieldRef:
-              # metadata.name 获取自己 pod 名称添加到环境变量 MY_POD_NAME, status.hostIP 获取自己 ip
-              fieldPath: metadata.name
-        volumeMounts:
-          # 挂载配置
-          - name: elasticsearch-config
-            mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
-            subPath: elasticsearch.yml
-          # 挂载数据
-          - name: es-data
-            mountPath: /usr/share/elasticsearch/data
+        - name: elasticsearch
+          image: elasticsearch:8.6.2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9200
+            - containerPort: 9300
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            # 挂载配置
+            - name: es-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+            # 挂载数据
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
       volumes:
-      - name: elasticsearch-config
-        # configMap 挂载
-        configMap:
-          name: sirc-elasticsearch-config
+        - name: es-config
+          # configMap 挂载
+          configMap:
+            name: elasticsearch-config
   # 这步自动创建 pvc，并挂载动态 pv
   volumeClaimTemplates:
     - metadata:
         name: es-data
+        namespace: es
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ "ReadWriteOnce" ]
         storageClassName: "nfs-storage"
         resources:
           requests:
@@ -99,6 +117,11 @@ metadata:
 spec:
   ports:
     - port: 9200
+      targetPort: 9200
+      name: outer
+    - port: 9300
+      targetPort: 9300
+      name: inner
   clusterIP: None
   selector:
     app: elasticsearch
@@ -112,6 +135,8 @@ metadata:
 spec:
   ports:
     - port: 9200
+      nodePort: 31920
+      name: outer
   type: NodePort
   selector:
     app: elasticsearch
