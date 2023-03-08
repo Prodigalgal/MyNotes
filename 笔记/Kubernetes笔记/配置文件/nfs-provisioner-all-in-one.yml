@@ -1,0 +1,135 @@
+# 唯一需要修改的地方只有namespace, 根据实际情况定义
+apiVersion: v1
+# 创建一个用户，用来管理 NFS 制备器在集群中的运行权限
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  namespace: default
+---
+# 创建集群角色
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  # 角色名
+  name: nfs-client-provisioner-runner
+# 角色权限
+rules:
+  - apiGroups: [""]
+    # 允许操作的资源
+    resources: ["nodes"]
+    # 允许操作的权限
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+# 将集群角色与用户绑定
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    # 被绑定的用户名
+    name: nfs-client-provisioner
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  # 绑定的角色名
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# 创建角色
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  # 角色名
+  name: leader-locking-nfs-client-provisioner
+  # 集群角色不需要名称空间，角色需要
+  namespace: default
+rules:
+  # 权限
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# 角色绑定
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    # 被绑定的用户名
+    name: nfs-client-provisioner
+    namespace: default
+roleRef:
+  kind: Role
+  # 绑定的角色名
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  name: nfs-storage
+# 制备器名称要与制备器的 yaml 文件中的环境变量 PROVISIONER_NAME 一致
+provisioner: nfs-provisioner
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-client-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      # 指定为上文创建的 SA
+      serviceAccountName: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          # 指定镜像版本，在 1.26.1 的情况下 selflink 被关闭，需要新的 provisioner 解决
+          image: registry.cn-beijing.aliyuncs.com/mydlq/nfs-subdir-external-provisioner:v4.0.0
+          # 挂在数据卷到容器指定目录
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              # 制备器名称，需要与 SC yaml 中的 provisioner 一致
+              value: nfs-provisioner
+            - name: NFS_SERVER
+              # NFS SERVER IP
+              value: 192.168.100.130
+            - name: NFS_PATH
+              # NFS SERVER 目录
+              value: /data
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            # NFS SERVER IP
+            server: 192.168.100.130
+            # NFS SERVER 目录
+            path: /data

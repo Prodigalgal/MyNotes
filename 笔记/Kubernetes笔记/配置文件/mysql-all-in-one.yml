@@ -1,0 +1,68 @@
+# 定义 MySQL 的 Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-root-password
+type: Opaque
+data:
+  # fuckharkadmin
+  password: ZnVja2hhcmthZG1pbg==
+---
+# 定义 MySQL 的 StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: mysql
+  name: mysql
+spec:
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql:latest
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-root-password
+              key: password
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysqlvolume
+          mountPath: /var/lib/mysql
+  # pvct 自动创建
+  volumeClaimTemplates:
+    - metadata:
+        name: mysqlvolume
+      spec:
+        storageClassName: "nfs-storage"
+        accessModes: [ "ReadWriteMany" ]
+        resources:
+          requests:
+            storage: 1Gi
+---
+# 定义 MySQL 的 Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: svc-mysql
+  name: svc-mysql
+spec:
+  selector:
+    app: mysql
+  type: NodePort
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+    nodePort: 31306

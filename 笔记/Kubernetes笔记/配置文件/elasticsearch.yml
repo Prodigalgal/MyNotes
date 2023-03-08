@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: es
+---
+# 创建 ConfigMap 用于挂载配置文件
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: es
+  name: sirc-elasticsearch-config
+  labels:
+    app: elasticsearch
+data:
+  # 具体挂载的配置文件
+  elasticsearch.yml: |+
+    cluster.name: crawl
+    # 环境变量，通过 kubectl explain pod.spec.containers.env.valueFrom.fieldRef 获取
+    node.name: ${MY_POD_NAME} 
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+    network.host: 0.0.0.0
+    http.port: 9200
+    #transport.tcp.port: 9300
+    #node.roles: [master, data]
+    cluster.initial_master_nodes: ["elasticsearch-0","elasticsearch-1","elasticsearch-2"]
+    discovery.seed_hosts: ["elasticsearch-0.esc-svc.es:9300","elasticsearch-1.esc-svc.es:9300","elasticsearch-2.esc-svc.es:9300"]
+    #discovery.zen.ping.unicast.hosts: ["elasticsearch-0.esc-svc.es:9300","elasticsearch-1.esc-svc.es:9300","elasticsearch-2.esc-svc.es:9300"]
+    #node.data: true
+    #node.master: true
+    http.cors.enabled: true
+    http.cors.allow-origin: "*"
+    #bootstrap.system_call_filter: false
+    xpack.security.enabled: false
+    indices.fielddata.cache.size: 60%
+    indices.queries.cache.size: 40%
+---
+# 创建 StatefulSet，ES 属于数据库类型的应用
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # pod + n = pod name
+  name: elasticsearch
+  namespace: es
+spec:
+  # 填写无头服务的名称
+  serviceName: "esc-svc"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+      - name: elasticsearch
+        image: elasticsearch:8.6.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9200
+        env:
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              # metadata.name 获取自己 pod 名称添加到环境变量 MY_POD_NAME, status.hostIP 获取自己 ip
+              fieldPath: metadata.name
+        volumeMounts:
+          # 挂载配置
+          - name: elasticsearch-config
+            mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+            subPath: elasticsearch.yml
+          # 挂载数据
+          - name: es-data
+            mountPath: /usr/share/elasticsearch/data
+      volumes:
+      - name: elasticsearch-config
+        # configMap 挂载
+        configMap:
+          name: sirc-elasticsearch-config
+  # 这步自动创建 pvc，并挂载动态 pv
+  volumeClaimTemplates:
+    - metadata:
+        name: es-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "nfs-storage"
+        resources:
+          requests:
+            storage: 1Gi
+---
+# 创建 Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: esc-svc
+  namespace: es
+spec:
+  ports:
+    - port: 9200
+  clusterIP: None
+  selector:
+    app: elasticsearch
+---
+# 创建 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: es-svc
+  namespace: es
+spec:
+  ports:
+    - port: 9200
+  type: NodePort
+  selector:
+    app: elasticsearch

@@ -3326,10 +3326,10 @@ StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其�
 
 **稳定的网络 ID**：
 
-- StatefulSet 中 Pod 的 hostname 格式为 $(StatefulSet name)-$(Pod 序号)
+- StatefulSet 中 Pod 的 hostname 格式为：**$(StatefulSet name)-$(Pod 序号)**
 - StatefulSet 可以使用 Headless Service 来控制其 Pod 所在的域
-  - 该域（domain）的格式为 $(service name).$(namespace).svc.cluster.local，其中 cluster.local 是集群的域
-- StatefulSet 中每一个 Pod 将被分配一个 dnsName，格式为： $(podName).$(所在域名)
+  - 该域（domain）的格式为：**$(service name).$(namespace).svc.cluster.local**，其中 cluster.local 是集群的域
+- StatefulSet 中每一个 Pod 将被分配一个 DNSName，格式为： **$(podName).$(所在域名)**
 
 
 
@@ -3346,7 +3346,7 @@ StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其�
 
 - 当 StatefulSet 控制器创建一个 Pod 时，会为 Pod 添加一个标签 statefulset.kubernetes.io/pod-name 
 - 该标签的值为 Pod 的名字，可以利用此名字，为 StatefulSet 中的某一个特定的 Pod 关联一个 Service
-- 实际操作中，无需为 StatefulSet 中的一个特定 Pod 关联 Service，因为可以直接通过该 Pod 的 DNS Name 访问到 Pod
+- 实际操作中，无需为 StatefulSet 中的一个特定 Pod 关联 Service，因为可以直接通过该 Pod 的 DNSName 访问到 Pod
 
 
 
@@ -5216,7 +5216,7 @@ parameters:
 ### 1、创建 ServiceAccount
 
 ~~~yaml
-# 唯一需要修改的地方只有namespace,根据实际情况定义
+# 唯一需要修改的地方只有namespace, 根据实际情况定义
 apiVersion: v1
 # 创建一个用户，用来管理 NFS 制备器在集群中的运行权限
 kind: ServiceAccount
@@ -6510,7 +6510,9 @@ Pod 定义中有一个可选字段 spec.hostname 可用来直接指定 Pod 的 h
 
 Pod 定义中还有一个可选字段 spec.subdomain 可用来指定 Pod 的 subdomain
 
-- 例如：名称空间 my-namespace 中，某 Pod 的 hostname 为 foo，并且 subdomain 为 bar，则该 Pod 的完整域名（FQDN）为 foo.bar.my-namespace.svc.cluster-domain.example
+- 例如：名称空间 my-namespace 中，某 Pod 的 hostname 为 foo，并且 subdomain 为 bar，则该 Pod 的完整域名（FQDN）为：
+  - foo.bar.my-namespace.svc.cluster-domain.example
+
 
 例子：
 
