@@ -4668,7 +4668,7 @@ systemctl restart nfs-server
 
 ~~~bash
 # 从节点挂载
-mount 192.168.100.130:/home/data /home/data
+mount 192.168.100.130:/data /data
 
 # 开机自动挂载
 vim /etc/rc.d/rc.local
@@ -4705,13 +4705,13 @@ template:
 			value: "redis"
 		# 持久化挂接位置，在 docker 中
 		volumeMounts:
-			- name: redis-persistent-storage 
+			- name: redis-persistent-storage
 			mountPath: /data
 		volumes:
 			# 宿主机上的目录
-			- name: redis-persistent-storage 
+			- name: redis-persistent-storage
 			nfs:
-				path: /k8s-nfs/redis/data 
+				path: /k8s-nfs/redis/data
 				server: 192.168.126.112
 ~~~
 
@@ -8099,6 +8099,22 @@ kubectl delete service svc-mysql -n dev
 
 
 
+## 2、搭建日志监控平台
+
+选用 Elasticsearch 作为存储端，Logging Operator 搭建剩余部分
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 扩展
 
 ## 1、OCI
@@ -8875,4 +8891,37 @@ Kubernetes 使用在 Service 中使用 proxy 的原因大致有如下几个：
 而由于 nfs-provisioner 的实现是基于 selfLink 功能（同时也会影响其他用到 selfLink 这个功能的第三方软件）
 
 解决方法：使用更新的 nfs-subdir-external-provisioner 镜像版本
+
+
+
+## 13、修改 config.toml 文件后无法连接到集群
+
+设置 config.toml 的 config_path 后，其下没有对应配置文件
+
+~~~toml
+[plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = ""
+~~~
+
+containerd 启动报错
+
+~~~bash
+level=warning msg="failed to load plugin io.containerd.grpc.v1.cri" error="invalid plugin config: `mirrors` cannot be set when `config_path` is provided"
+~~~
+
+crictl 无法连接上 containerd，报错
+
+~~~bash
+FATA[0000] validate service connection: CRI v1 runtime API is not implemented for endpoint "unix:///run/containerd/containerd.sock": rpc error: code = Unimplemented desc = unknown service runtime.v1.RuntimeService
+~~~
+
+将 config.toml 文件修改回去，分发到所有节点上，重启所有节点的 containerd 即可
+
+
+
+
+
+
+
+
 
