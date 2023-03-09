@@ -3,6 +3,16 @@ kind: Namespace
 metadata:
   name: es
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-password
+  namespace: elasticsearch
+data:
+  ES_PASSWORD: RWxhc3RpY3NlYXJjaDJPMjE=
+  ES_USER: ZWxhc3RpYw==
+type: Opaque
+---
 # 创建 ConfigMap 用于挂载配置文件
 apiVersion: v1
 kind: ConfigMap
@@ -23,9 +33,9 @@ data:
     http.port: 9200
     http.cors.enabled: true
     http.cors.allow-origin: "*"
-    xpack.security.enabled: false
-    cluster.initial_master_nodes: [ "elasticsearch-0.esc-svc","elasticsearch-1.esc-svc","elasticsearch-1.esc-svc" ]
-    discovery.seed_hosts: [ "elasticsearch-0.esc-svc","elasticsearch-1.esc-svc","elasticsearch-1.esc-svc" ]
+    xpack.security.enabled: true
+    cluster.initial_master_nodes: [ "elasticsearch-0","elasticsearch-1","elasticsearch-2" ]
+    discovery.seed_hosts: [ "elasticsearch-0.esc-svc","elasticsearch-1.esc-svc","elasticsearch-2.esc-svc" ]
 ---
 # 创建 StatefulSet，ES 属于数据库类型的应用
 apiVersion: apps/v1
@@ -57,20 +67,18 @@ spec:
         - name: es-cluster-permissions
           image: alpine:3.6
           # 初始化容器执行的命令，调整权限
-          command: [ "chmod", "-R", "4775", "/usr/share/elasticsearch/data" ]
+          command: [ "chmod", "-R", "777", "/usr/share/elasticsearch/data" ]
           # 开启特权模式
           securityContext:
             privileged: true
-            # 或许还需要设置 ulimit
-#        - name: es-cluster-ulimit
-#          image: busybox
-#          command: [ "sh", "-c", "ulimit -n 65536" ]
-#          securityContext:
-#            privileged: true
-          # 定义存储卷挂载，这里主要是将主容器挂载的存储首先挂载到初始化容器，权限调整后，主容器方可使用
           volumeMounts:
             - name: es-data
               mountPath: /usr/share/elasticsearch/data
+        - name: es-cluster-ulimit
+          image: busybox
+          command: [ "sh", "-c", "ulimit -n 65536" ]
+          securityContext:
+            privileged: true
       containers:
         - name: elasticsearch
           image: elasticsearch:8.6.2
@@ -83,6 +91,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-password
+                  key: ES_PASSWORD
           volumeMounts:
             # 挂载配置
             - name: es-config
@@ -102,8 +115,9 @@ spec:
         name: es-data
         namespace: es
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "nfs-storage"
+        accessModes:
+          - ReadWriteMany
+        storageClassName: nfs-storage
         resources:
           requests:
             storage: 1Gi
@@ -116,15 +130,49 @@ metadata:
   namespace: es
 spec:
   ports:
-    - port: 9200
-      targetPort: 9200
-      name: outer
     - port: 9300
       targetPort: 9300
       name: inner
   clusterIP: None
   selector:
     app: elasticsearch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: es
+  labels:
+    app: kibana
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: kibana:8.6.2
+          imagePullPolicy: Always
+          env:
+            - name: ELASTICSEARCH_URL
+              value: http://es-svc.es.svc.cluster.local:9200
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-password
+                  key: ES_USER
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-password
+                  key: ES_PASSWORD
+          ports:
+            - containerPort: 5601
 ---
 # 创建 Service
 apiVersion: v1
@@ -140,3 +188,18 @@ spec:
   type: NodePort
   selector:
     app: elasticsearch
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kb-svc
+  namespace: es
+  labels:
+    app: kibana
+spec:
+  ports:
+    - port: 5601
+      nodePort: 31560
+  type: NodePort
+  selector:
+    app: kibana
