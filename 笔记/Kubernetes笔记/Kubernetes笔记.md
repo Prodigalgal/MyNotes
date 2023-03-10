@@ -567,6 +567,24 @@ echo "source <(kubectl completion bash)" >> ~/.bashrc
 
 
 
+#### 3、使用技巧
+
+##### 1、使用 -o 参数截取属性
+
+使用 -o 与 go-template 参数可以将资源的参数部分截取
+
+~~~bash
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ .data }}'
+~~~
+
+如果属性存在字符 **-** 则会报错，需要使用 index 并将属性用空格分隔而不是字符 **.**
+
+~~~bash
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ index .data "admin-user" }}
+~~~
+
+
+
 ### 3、Kubelet
 
 Kubelet 是在每个 Node 节点上运行的主要节点代理，用于在集群中的每个节点上启动 Pod 和容器等
@@ -5445,6 +5463,12 @@ Secret 有三种类型：
 
 
 
+**注意**：
+
+- Secret 是命名空间级别的资源，不能跨命名空间共享
+
+
+
 ## 2、Service Account
 
 ~~~bash
@@ -5527,9 +5551,9 @@ spec:
 				- name: pod-1
 				image: hub.atguigu.com/library/myapp:v1
 				ports:
-					-containerPort: 80
+					- containerPort: 80
 				env:
-					-name: TEST_USER
+					- name: TEST_USER
 				valueFrom:
 					secretKeyRef:
 						name: mysecret
@@ -5578,6 +5602,12 @@ configMap 功能在 v1.2 版本中引入
 许多应用程序会从配置文件、命令行参数、环境变量中读取配置信息，configMap API 提供了向容器中注入配置信息的机制
 
 configMap 可以被用来保存单个属性，也可以用来保存整个配置文件或者 JSON 二进制大对象
+
+
+
+**注意**：
+
+- configMap 是命名空间级别资源，不可跨命名空间共享
 
 
 
@@ -7906,7 +7936,7 @@ spec:
 
 # 部署常用软件
 
-## 1、MySQL
+## 1、搭建 MySQL
 
 **环境准备**：
 
@@ -8104,19 +8134,118 @@ kubectl delete service svc-mysql -n dev
 
 
 
-## 2、搭建日志监控平台
+## 2、搭建日志监控报警平台
 
-选用 Elasticsearch 作为存储端，Logging Operator 搭建剩余部分
+### 1、安装 Helm
 
-
-
-
-
-
+~~~bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+~~~
 
 
 
+### 1、安装 elastic-operator
 
+使用 elastic-operator 搭建 Elasticsearch、Kibana 集群
+
+安装自定义资源
+
+~~~bash
+kubectl create -f https://download.elastic.co/downloads/eck/2.6.1/crds.yaml
+~~~
+
+安装 ECK Operator
+
+~~~bash
+kubectl apply -f https://download.elastic.co/downloads/eck/2.6.1/operator.yaml
+~~~
+
+查看 Operator 日志
+
+~~~~bash
+kubectl -n elastic-system logs -f statefulset.apps/elastic-operator
+~~~~
+
+
+
+**注意**：
+
+- 以上自定义资源默认安装在 **elastic-system** 命名空间 
+
+
+
+最后使用配置文件夹下的 <a href="./配置文件/eck-all-in-one.yml">eck-all-in-one.yml</a> 配置即可
+
+
+
+### 2、安装 logging-operator
+
+使用 logging-operator 搭建 Fluentbit、Fluentd
+
+将 logging-opreator 仓库添加到 Helm repo，并更新仓库
+
+~~~bash
+helm repo add kube-logging https://kube-logging.github.io/helm-charts
+helm repo update
+~~~
+
+安装 logging-operator
+
+~~~bash
+helm upgrade --install --wait --create-namespace --namespace logging logging-operator kube-logging/logging-operator
+~~~
+
+使用配置文件夹下的  <a href="./配置文件/logging-all-in-one.yml">logging-all-in-one.yml</a> 配置 Fluentbit、Fluentd 等日志采集参数
+
+获取默认密码，登录 Kibana
+
+~~~bash
+PASSWORD=$(kubectl get secret quickstart-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
+~~~
+
+
+
+### 3、安装 kube-prometheus-stack
+
+使用 kube-prometheus-stack 搭建 Prometheus、Grafana、kube-state-metrics
+
+将 prometheus-community 仓库添加到 Helm repo，并更新仓库
+
+~~~bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+~~~
+
+获取 values 文件，进行自定义配置
+
+~~~bash
+helm show values prometheus-community/kube-prometheus-stack > config.yml
+~~~
+
+安装 kube-prometheus-stack 资源
+
+~~~bash
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --create-namespace --namespace prometheus \
+  -f config.values
+~~~
+
+使用 Dasboard 修改 Grafana、Prometheus 对应的 Service type 为 Nodeport，提供对外访问能力
+
+修改 Secreat 下的 alertmanager-kube-prometheus-stack-alertmanager 的 alertmanager.yaml 属性来修改 altermanager 的配置
+
+~~~yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: alertmanager-kube-prometheus-stack-alertmanager
+  namespace: prometheus
+data:
+  alertmanager.yaml: {BASE64CODE}
+  template_1.tmpl: {BASE64_TEMPLATE_1}
+  template_2.tmpl: {BASE64_TEMPLATE_2}
+type: Opaque
+~~~
 
 
 

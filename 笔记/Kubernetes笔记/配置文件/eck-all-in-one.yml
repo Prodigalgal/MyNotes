@@ -30,4 +30,31 @@ spec:
   http:
     service:
       spec:
+        ports:
+          - port: 9200
+            targetPort: 9200
+            nodePort: 31920
+            name: outer
+          - port: 9300
+            targetPort: 9300
+            nodePort: 31930
+            name: inner
+        type: NodePort
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: eckkb
+spec:
+  version: 8.6.2
+  count: 2
+  elasticsearchRef:
+    name: eckes
+  http:
+    service:
+      spec:
+        ports:
+          - port: 5601
+            targetPort: 5601
+            nodePort: 31561
         type: NodePort

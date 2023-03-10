@@ -1,0 +1,82 @@
+# 设置 Logging
+# 定义一个日志采集端(FleuntBit)和传输端(Fleuntd)服务的基础配置
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Logging
+metadata:
+  name: default-logging-simple
+  namespace: default
+spec:
+  controlNamespace: default
+  fluentd:
+    # 副本数，如果 fb 开启群在均衡，调整 fd 会导致 fb 滚动更新
+    scaling:
+      replicas: 3
+    # fluentd 受限于 ruby，以单进程方式处理日志流，提高 workers 数量可以提高 fd 并发
+    workers: 1
+    # 数据持久化配置，使用 pvct 自动创建，需要提前先创建出 nfs-provisioner
+    bufferStorageVolume:
+      pvc:
+        spec:
+          accessModes:
+            - ReadWriteMany
+          resources:
+            requests:
+              storage: 1Gi
+          storageClassName: nfs-storage
+          volumeMode: Filesystem
+  fluentbit:
+    # 缓冲区设置，直接采用 hostPath 做数据持久化
+    bufferStorage:
+      storage.backlog.mem_limit: 10M
+      storage.path: /var/log/fluentbit-buffer
+    bufferStorageVolume:
+      hostPath:
+        path: /var/log/fluentbit-buffer
+    inputTail:
+      Parser: cri
+      Docker_Mode: "false"
+    # 开启负载均衡
+    enableUpstream: true
+---
+# 设置 Flow
+# 定义一个 namespaces 级别的日志过滤、解析、路由等规则
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterFlow
+metadata:
+  name: es-flow
+  namespace: default
+spec:
+  match:
+    - select:
+        namespaces:
+          - logging
+          - kube-system
+          - default
+          - elastic-system
+  globalOutputRefs:
+    - es-output
+---
+# 设置 Output
+# 定义 namespace 级别的日志的输出、参数
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterOutput
+metadata:
+  name: es-output
+  namespace: default
+spec:
+  elasticsearch:
+    host: eckes-es-http.default.svc.cluster.local
+    port: 9200
+    scheme: https
+    ssl_verify: false
+    ssl_version: TLSv1_2
+    user: elastic
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: eckes-es-elastic-user
+          key: elastic
+    buffer:
+      timekey: 1m
+      timekey_wait: 30s
+      timekey_use_utc: true
