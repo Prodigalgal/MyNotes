@@ -992,6 +992,11 @@ mkdir /etc/containerd/
 containerd config default > /etc/containerd/config.toml
 ~~~
 
+~~~bash
+# 指定版本
+apt-get install -y kubelet=1.25.4-00 kubeadm=1.25.4-00 kubectl=1.25.4-00
+~~~
+
 
 
 #### 2、配置 CGroups
@@ -1059,7 +1064,7 @@ containerd config default > /etc/containerd/config.toml
 
 ~~~bash
 # init.default初始化文件
-kubeadm config print init-defaults >init.default.yaml
+kubeadm config print init-defaults > init.default.yaml
 
 # 国内需要修改 init.default.yaml 的镜像地址 registry.aliyuncs.com/google_containers
 # 国外默认
@@ -1516,12 +1521,6 @@ watch kubectl get pods -l app=nginx
 
 
 
-
-
-
-
-
-
 ### 6、停止
 
 ~~~bash
@@ -1539,7 +1538,6 @@ kubectl delete nodes nodename
 ~~~bash
 kubeadm reset -f
 systemctl stop kubelet
-systemctl stop docker
 rm -rf /var/lib/cni/
 rm -rf /var/lib/kubelet/*
 rm -rf /etc/cni/
@@ -1549,10 +1547,7 @@ ifconfig docker0 down
 ip link delete cni0
 ip link delete flannel.1
 systemctl start kubelet
-systemctl start docker
 ~~~
-
-
 
 
 
@@ -8171,41 +8166,23 @@ kubectl -n elastic-system logs -f statefulset.apps/elastic-operator
 **注意**：
 
 - 以上自定义资源默认安装在 **elastic-system** 命名空间 
+- 删除 CRD 将连带删除集群所有命名空间中的所有自定义资源，无论这些资源是由单个 Operator 还是多个 Operator 管理
 
 
 
-最后使用配置文件夹下的 <a href="./配置文件/eck-all-in-one.yml">eck-all-in-one.yml</a> 配置即可
+最后使用配置文件夹下的 <a href="./配置文件/eck-all-in-one.yml">eck-all-in-one.yml</a> 配置
 
-
-
-### 2、安装 logging-operator
-
-使用 logging-operator 搭建 Fluentbit、Fluentd
-
-将 logging-opreator 仓库添加到 Helm repo，并更新仓库
+获取 es 集群的默认密码
 
 ~~~bash
-helm repo add kube-logging https://kube-logging.github.io/helm-charts
-helm repo update
+PASSWORD=$(kubectl get secret eckes-es-elastic-user -o go-template='{{.data.elastic | base64decode}}' -n eck-stack)
 ~~~
 
-安装 logging-operator
-
-~~~bash
-helm upgrade --install --wait --create-namespace --namespace logging logging-operator kube-logging/logging-operator
-~~~
-
-使用配置文件夹下的  <a href="./配置文件/logging-all-in-one.yml">logging-all-in-one.yml</a> 配置 Fluentbit、Fluentd 等日志采集参数
-
-获取默认密码，登录 Kibana
-
-~~~bash
-PASSWORD=$(kubectl get secret quickstart-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
-~~~
+将 eckes-es-elastic-user 复制一份到下文的名称空间 logging-stack
 
 
 
-### 3、安装 kube-prometheus-stack
+### 2、安装 kube-prometheus-stack
 
 使用 kube-prometheus-stack 搭建 Prometheus、Grafana、kube-state-metrics
 
@@ -8216,7 +8193,7 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 ~~~
 
-获取 values 文件，进行自定义配置
+获取 values 文件，进行自定义配置，修改 Grafana、Prometheus、AlterManager 对应的 Service type 为 Nodeport，提供对外访问能力
 
 ~~~bash
 helm show values prometheus-community/kube-prometheus-stack > config.yml
@@ -8225,26 +8202,21 @@ helm show values prometheus-community/kube-prometheus-stack > config.yml
 安装 kube-prometheus-stack 资源
 
 ~~~bash
-helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-  --create-namespace --namespace prometheus \
-  -f config.values
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack --create-namespace --namespace prometheus -f config.yml --version 45.7.1
 ~~~
 
-使用 Dasboard 修改 Grafana、Prometheus 对应的 Service type 为 Nodeport，提供对外访问能力
+获取 Grafana 默认账号密码登录
 
-修改 Secreat 下的 alertmanager-kube-prometheus-stack-alertmanager 的 alertmanager.yaml 属性来修改 altermanager 的配置
+~~~bash
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{index .data "admin-password"}}' | base64 -d
 
-~~~yaml
-kind: Secret
-apiVersion: v1
-metadata:
-  name: alertmanager-kube-prometheus-stack-alertmanager
-  namespace: prometheus
-data:
-  alertmanager.yaml: {BASE64CODE}
-  template_1.tmpl: {BASE64_TEMPLATE_1}
-  template_2.tmpl: {BASE64_TEMPLATE_2}
-type: Opaque
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{index .data "admin-user"}}' | base64 -d
+~~~
+
+后续有修改 config.yml 文件需要更新
+
+~~~bash
+helm upgrade -n prometheus kube-prometheus-stack -f config.yml --version 45.7.1 prometheus-community/kube-prometheus-stack
 ~~~
 
 
