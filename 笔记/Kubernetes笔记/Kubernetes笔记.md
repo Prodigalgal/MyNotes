@@ -8191,7 +8191,7 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 ~~~
 
-获取 values 文件，进行自定义配置，修改 Grafana、Prometheus、AlterManager 对应的 Service type 为 Nodeport，提供对外访问能力，并修改副本数量，避免单机故障
+获取 values 文件导出为 <a href="./配置文件/kube-operator-stack-config.yml">kube-operator-stack-config.yml</a>，进行自定义配置，修改 Grafana、Prometheus、AlterManager 对应的 Service type 为 Nodeport，提供对外访问能力，并修改副本数量，避免单机故障
 
 ~~~bash
 helm show values prometheus-community/kube-prometheus-stack > kube-operator-stack-config.yml
@@ -8210,7 +8210,7 @@ kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{
 kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{index .data "admin-user"}}' | base64 -d
 ~~~
 
-后续有修改 config.yml 文件需要更新
+后续有修改 kube-operator-stack-config.yml 文件需要更新
 
 ~~~bash
 helm upgrade -n prometheus kube-prometheus-stack -f kube-operator-stack-config.yml --version 45.7.1 prometheus-community/kube-prometheus-stack

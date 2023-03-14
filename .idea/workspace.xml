@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="设计模式笔记补充">
+    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="修改日志监控告警平台部分疏漏">
+      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/笔记/Kubernetes笔记/Kubernetes笔记.md" beforeDir="false" afterPath="$PROJECT_DIR$/笔记/Kubernetes笔记/Kubernetes笔记.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -77,6 +79,7 @@
       <workItem from="1678112119154" duration="211000" />
       <workItem from="1678435466692" duration="35000" />
       <workItem from="1678676387562" duration="2000" />
+      <workItem from="1678787897546" duration="3000" />
     </task>
     <task id="LOCAL-00001" summary="设计模式笔记补充">
       <created>1678112192521</created>
@@ -113,7 +116,9 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="设计模式笔记补充" />
-    <option name="LAST_COMMIT_MESSAGE" value="设计模式笔记补充" />
+    <MESSAGE value="k8s日志监控告警平台搭建流程初步完成，更新多个部署配置yml文件" />
+    <MESSAGE value="修改日志监控告警平台部分疏漏" />
+    <option name="LAST_COMMIT_MESSAGE" value="修改日志监控告警平台部分疏漏" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
