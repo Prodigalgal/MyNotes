@@ -8139,7 +8139,7 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 
 
-### 1、安装 elastic-operator
+### 2、安装 elastic-operator
 
 使用 elastic-operator 搭建 Elasticsearch、Kibana 集群
 
@@ -8170,17 +8170,40 @@ kubectl -n elastic-system logs -f statefulset.apps/elastic-operator
 
 
 
-最后使用配置文件夹下的 <a href="./配置文件/eck-all-in-one.yml">eck-all-in-one.yml</a> 配置
+使用配置文件夹下的 <a href="./配置文件/eck-all-in-one.yml">eck-all-in-one.yml</a> 配置
 
-获取 es 集群的默认密码
+获取 ES 集群的默认密码
 
 ~~~bash
 PASSWORD=$(kubectl get secret eckes-es-elastic-user -o go-template='{{.data.elastic | base64decode}}' -n eck-stack)
 ~~~
 
+测试访问
+
+~~~bash
+root@m01:~# curl -u "elastic:$PASSWORD" -k "https://localhost:31920"
+{
+  "name" : "eckes-es-default-0",
+  "cluster_name" : "eckes",
+  "cluster_uuid" : "7VkE9YNuQje4A6MUiixKKQ",
+  "version" : {
+    "number" : "7.10.0",
+    "build_flavor" : "default",
+    "build_type" : "docker",
+    "build_hash" : "51e9d6f22758d0374a0f3f5c6e8f3a7997850f96",
+    "build_date" : "2020-11-09T21:30:33.964949Z",
+    "build_snapshot" : false,
+    "lucene_version" : "8.7.0",
+    "minimum_wire_compatibility_version" : "6.8.0",
+    "minimum_index_compatibility_version" : "6.0.0-beta1"
+  },
+  "tagline" : "You Know, for Search"
+}
+~~~
 
 
-### 2、安装 kube-prometheus-stack
+
+### 3、安装 kube-prometheus-stack
 
 使用 kube-prometheus-stack 搭建 Prometheus、Grafana、kube-state-metrics
 
