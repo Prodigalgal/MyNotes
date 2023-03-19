@@ -1434,6 +1434,28 @@ wget http://mirrors.aliyun.com/repo/Centos-8.repo
 
 
 
+## 2、Linux强制关机后进入救援模式
+
+强制关机后无法正常开机，显示
+
+~~~bash
+Entering emergency mode. Exit the shell to continue.
+~~~
+
+查看系统日志
+
+~~~bash
+journalctl
+~~~
+
+尝试解决日志中出现的问题，实在不行就强制清空所有日志，包含脏数据
+
+~~~bash
+xfs_repair -v -L /dev/dm-0
+~~~
+
+
+
 # 扩展
 
 ## 配置Root用户
