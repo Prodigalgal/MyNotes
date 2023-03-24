@@ -8548,7 +8548,85 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 
 
+#### 4、补充搭建
 
+先停止所有 eck stack，只用配置文件中的 http 版搭建
+
+修改容器日志打印方式，将其直接推送到 Rsyslog
+
+~~~go
+import (
+	"net"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+func main() {
+	// 连接到本地rsyslog服务器
+	conn, err := net.Dial("tcp", "192.168.100.139:514")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// 创建一个自定义的日志输出器
+	encoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	writer := zapcore.AddSync(conn)
+	core := zapcore.NewCore(encoder, writer, zap.DebugLevel)
+
+	// 创建一个Zap记录器
+    logger := zap.New(core)
+    
+    logger.Info("This is a Info message")
+}
+~~~
+
+修改 Rsyslog 配置，将采集到的日志转发到 LogStash 中
+
+~~~bash
+#### MODULES ####
+
+module(load="imuxsock" 	  # provides support for local system logging (e.g. via logger command)
+       SysSock.Use="off") # Turn off message reception via local log socket; 
+# 默认会采集 journal 的日志，注释掉
+module(load="imjournal" 	    # provides access to the systemd journal
+      StateFile="imjournal.state") # File to store the position in the journal
+# 采集内核日志
+#module(load="imklog") # reads kernel messages (the same are read from journald)
+# 用于确认日志是否存活
+module(load="immark") # provides --MARK-- message capability
+
+
+#module(load="imudp") # needs to be done just once
+#input(type="imudp" port="514")
+module(load="imtcp") # needs to be done just once
+input(type="imtcp" port="514")
+
+module(load="omfwd")
+#### GLOBAL DIRECTIVES ####
+
+# Where to place auxiliary files
+global(workDirectory="/var/lib/rsyslog")
+
+# Use default timestamp format
+# module(load="builtin:omfile" Template="RSYSLOG_TraditionalFileFormat")
+
+# Include all config files in /etc/rsyslog.d/
+include(file="/etc/rsyslog.d/*.conf" mode="optional")
+
+template(name="myTemplate" type="list" ) {
+    property(name="rawmsg")
+    constant(value="\n")
+}
+
+template(name="default-index" type="string" string="default-%$YEAR%.%$MONTH%.%$DAY%")
+
+# 下方修改为 Logstash IP/Port
+action(type="omfwd" target="192.168.100.139" port="31544" protocol="tcp" template="myTemplate")
+#### RULES ####
+*.*     /var/log/messages
+~~~
 
 
 
