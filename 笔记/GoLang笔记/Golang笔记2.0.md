@@ -37,8 +37,6 @@ go version
 
 
 
-
-
 # 2、Go 基础
 
 ## 1、简介
@@ -107,7 +105,7 @@ Go 有四种主要声明方式：
 
 
 
-### 2、内置类型与函数
+### 2、内置类型
 
 #### 1、值类型
 
@@ -135,9 +133,61 @@ chan    -- 管道
 
 
 
-#### 3、内置函数
+#### 3、自定义类型
 
-Go 语言拥有一些不需要进行导入操作就可以使用的内置函数，可以针对不同的类型进行操作，例如：len、cap 和 append，或必须用于系统级的操作，例如：panic，因此它们需要直接获得编译器的支持
+Go 语言中可以使用 **type** 关键字来定义自定义类型
+
+自定义类型是定义了一个全新的类型，可以基于内置的基本类型定义，也可以通过 struct 定义，例如：
+
+~~~go
+// 将 MyInt 定义为 int 类型
+// 通过 type 关键字的定义，MyInt 就是一种新的类型，它具有 int 的特性
+type MyInt int
+~~~
+
+
+
+#### 4、类型别名
+
+类型别名规定：TypeAlias 只是 Type 的别名，本质上 TypeAlias 与 Type 是同一个类型
+
+~~~go
+type TypeAlias = Type
+
+// 例子：
+type byte = uint8
+type rune = int32
+~~~
+
+自定义类型与类型别名的区别：
+
+~~~go
+// 类型定义
+type NewInt int
+
+// 类型别名
+type MyInt = int
+
+func main() {
+    var a NewInt
+    var b MyInt
+
+    fmt.Printf("type of a:%T\n", a) // type of a:main.NewInt
+    fmt.Printf("type of b:%T\n", b) // type of b:int
+}
+
+// MyInt 类型只会在代码中存在，编译完成时并不会有 MyInt 类型
+~~~
+
+
+
+
+
+### 3、内置函数
+
+#### 1、概述
+
+Go 语言拥有一些不需要进行导入操作就可以使用的内置函数，可以针对不同的类型进行操作，例如：len、cap、append，或必须用于系统级的操作，例如：panic，因此它们需要直接获得编译器的支持
 
 ```
 append          -- 用来追加元素到数组、slice中,返回修改后的数组、slice
@@ -157,21 +207,9 @@ print、println     -- 底层打印函数，在部署环境中建议使用 fmt �
 
 
 
-#### 4、内置接口error
+#### 2、init 函数
 
-```
-type error interface { // 只要实现了 Error() 函数，返回值为 String 的都实现了 err 接口
-	Error()    String
-}
-```
-
-
-
-### 3、Init 函数和 main 函数
-
-#### 1、init 函数
-
-go 语言中 init 函数用于包(package)的初始化，该函数是 go 语言的一个重要特性
+Go 语言中 init 函数用于包 package 的初始化，该函数是 Go 语言的一个重要特性
 
 有下面的特征：
 
@@ -180,19 +218,21 @@ go 语言中 init 函数用于包(package)的初始化，该函数是 go 语言�
 - 每个包可以拥有多个 init 函数
 - 包的每个源文件也可以拥有多个 init 函数
 
-- 同一个包中多个 init 函数的执行顺序 go 语言没有明确的定义(说明)
+- 同一个包中多个 init 函数的执行顺序没有明确的定义
 
 - 不同包的 init 函数按照包导入的依赖关系决定该初始化函数的执行顺序
 
 - init 函数不能被其他函数调用，而是在 main 函数执行之前，自动被调用
 
+- init 函数全局只会被调用一次，即使一个包被引入多次
 
 
-#### 2、main 函数
 
-Go语言程序的默认入口函数(主函数)：func main() 函数体用｛｝一对括号包裹
+#### 3、main 函数
 
-```
+Go 语言程序的默认入口函数(主函数)：func main() 函数体用｛｝一对括号包裹
+
+```go
 func main(){
 	// 函数体
 }
@@ -213,7 +253,17 @@ func main(){
 
 
 
-### 4、Go 命令
+### 4、内置接口
+
+```go
+type error interface { // 只要实现了 Error() 函数，返回值为 String 的都实现了 err 接口
+	Error()    String
+}
+```
+
+
+
+### 5、Go 命令
 
 go env 用于打印 Go 语言的环境信息
 
@@ -241,7 +291,7 @@ go tool pprof 命令来交互式的访问概要文件的内容
 
 
 
-### 5、下划线
+### 6、下划线
 
 “_”是特殊标识符，用来忽略结果
 
@@ -259,7 +309,7 @@ import _ "github.com/go-sql-driver/mysql"
 
 
 
-### 6、变量与常量
+### 7、变量与常量
 
 #### 1、变量
 
@@ -431,7 +481,7 @@ const (
 
 
 
-### 7、基本类型
+### 8、基本类型
 
 #### 1、介绍
 
@@ -685,7 +735,7 @@ func sqrtDemo() {
 
 
 
-### 8、数组
+### 9、数组
 
 #### 1、概述
 
@@ -812,7 +862,7 @@ func main() {
 
 
 
-### 9、切片
+### 10、切片
 
 #### 1、概述
 
@@ -858,6 +908,10 @@ var arr []int
 
 
 #### 2、初始化
+
+可以在声明时使用 **{}**、make 函数初始化、从其他切片截取
+
+- **{}**：不放元素，则切片为空切片
 
 ~~~go
 func main() {
@@ -1031,9 +1085,293 @@ func main() {
 
 
 
+### 11、指针
+
+#### 1、概述
+
+Go 语言中的指针不能进行偏移和运算，是安全指针
+
+3 个概念：指针地址、指针类型、指针取值
+
+Go 语言中的**函数直接传参都是值拷贝**，如果想要修改入参值，则需要传入一个指向该参数地址的指针变量
 
 
 
+#### 2、指针地址与类型
+
+每个变量在运行时都拥有一个地址，这个地址代表变量在内存中的位置
+
+Go 语言中使用 **&** 字符放在变量前面对变量进行取地址操作
+
+Go 语言中的值类型：int、float、bool、string、array、struct，都有对应的指针类型，如：\*int、\*int64、*string 等
+
+~~~go
+// v :代表被取地址的变量，类型为 T
+// ptr :用于接收地址的变量，ptr 的类型就为 *T，称做 T 的指针类型，*代表指针
+ptr := &v
+
+func main() {
+    a := 10
+    b := &a
+    fmt.Printf("a:%d ptr:%p\n", a, &a) // a:10 ptr:0xc00001a078
+    fmt.Printf("b:%p type:%T\n", b, b) // b:0xc00001a078 type:*int
+    fmt.Println(&b)                    // 0xc00000e018
+}
+~~~
+
+<img src="images/image-20230326222222176.png" alt="image-20230326222222176" style="zoom:67%;" />
+
+
+
+#### 3、指针取值
+
+在对普通变量使用 & 操作符取地址后会获得这个变量的指针
+
+然后可以对指针使用 * 操作，也就是指针取值
+
+~~~go
+func main() {
+    // 指针取值
+    a := 10
+    b := &a // 取变量 a 的地址，将指针保存到 b 中
+    fmt.Printf("type of b:%T\n", b)
+    c := *b // 指针取值（根据指针去内存取值）
+    fmt.Printf("type of c:%T\n", c)
+    fmt.Printf("value of c:%v\n", c)
+}
+
+type of b:*int
+type of c:int
+value of c:10
+~~~
+
+
+
+#### 4、空指针
+
+当一个指针被定义后没有分配到任何变量时，它的值为 nil
+
+~~~go
+func main() {
+    var p *string
+    fmt.Println(p)
+    fmt.Printf("p的值是%s/n", p)
+    if p != nil {
+        fmt.Println("非空")
+    } else {
+        fmt.Println("空值")
+    }
+}
+~~~
+
+
+
+#### 5、new、make
+
+##### 1、概述
+
+在 Go 语言中**引用类型**的变量，在使用的时候不仅要声明它，还要为它分配内存空间，否则值就没办法存储
+
+而对于值类型，使用时声明后不需要手动分配内存空间，是因为它们在声明的时候已经**默认分配**了内存空间
+
+
+
+##### 2、new
+
+new 函数不太常用，使用 new 函数得到的是一个类型的指针，并且该指针对应的值为该类型的零值
+
+new 是一个内置的函数，它的函数签名如下：
+
+~~~go
+func new(Type) *Type
+~~~
+
+- Type：表示类型，new 函数只接受一个参数，这个参数是一个类型
+- *Type：表示类型指针，new 函数返回一个指向该类型内存地址的指针
+
+~~~go
+func main() {
+    a := new(int)
+    b := new(bool)
+    fmt.Printf("%T\n", a) // *int
+    fmt.Printf("%T\n", b) // *bool
+    fmt.Println(*a)       // 0
+    fmt.Println(*b)       // false
+}
+~~~
+
+~~~go
+func main() {
+    var a *int	// 声明了一个指针变量 a 但是没有初始化
+    // 指针作为引用类型需要初始化后才会拥有内存空间，才可以赋值
+    a = new(int)	// 使用内置的 new 函数对指针 a 进行初始化
+    *a = 10
+    fmt.Println(*a)
+}
+~~~
+
+
+
+##### 3、make
+
+make 也用于内存分配，但是只用于 slice、map、chan 的创建，而且它返回的类型就是这三个类型**本身**，而不是指针，因为这三种类型是引用类型，所以没有必要返回指针
+
+make 函数的函数签名如下：
+
+~~~go
+func make(t Type, size ...IntegerType) Type
+~~~
+
+~~~go
+func main() {
+    var b map[string]int	// 声明一个 map 类型的 b 变量
+    // 使用 make 函数初始化
+    b = make(map[string]int, 10)
+    b["测试"] = 100
+    fmt.Println(b)
+}
+~~~
+
+
+
+### 12、Map
+
+#### 1、概述
+
+map 是一种无序的基于 key-value 数据结构，Go 语言中的 map 是引用类型，默认初始值为 nil，必须初始化才能使用
+
+~~~go
+// 定义如下
+// KeyType:表示键的类型
+// ValueType:表示键对应的值的类型
+map[KeyType]ValueType
+~~~
+
+
+
+#### 2、基本使用
+
+##### 1、创建
+
+map 创建有两种方式：
+
+- 使用 make() 函数来分配内存
+- 在声明的时候填充元素
+
+~~~go
+// cap 表示 map 的容量，非必须，但是应该预设，减少内存分配次数
+x := make(map[string]string, [cap])
+
+x := map[string]string{
+    "username": "pprof.cn",
+    "password": "123456",
+}
+~~~
+
+~~~go
+func main() {
+    scoreMap := make(map[string]int, 8)
+    scoreMap["张三"] = 90
+    scoreMap["小明"] = 100
+    fmt.Println(scoreMap)
+    fmt.Println(scoreMap["小明"])
+    fmt.Printf("type of a:%T\n", scoreMap)
+}
+
+map[小明:100 张三:90]
+100
+type of a:map[string]int
+~~~
+
+
+
+##### 2、判断键存否
+
+Go 语言中有个判断 map 中键是否存在的特殊写法，格式如下：
+
+~~~go
+value, ok := map[key]
+~~~
+
+如果 key 存在则 ok 为 true，value 为对应的值，key 不存在则 ok 为 false，value 为对应类型的零值
+
+
+
+##### 3、遍历
+
+使用 for range 遍历，遍历 map 时的元素顺序与添加键值对的顺序无关
+
+~~~go
+func main() {
+    scoreMap := make(map[string]int)
+    scoreMap["张三"] = 90
+    scoreMap["小明"] = 100
+    scoreMap["王五"] = 60
+    for k, v := range scoreMap {
+        fmt.Println(k, v)
+    }
+}
+~~~
+
+
+
+##### 4、删除键值对
+
+用内建函数 delete() 从 map 中删除一组键值对，delete() 函数的格式如下：
+
+~~~go
+// 参数一：map 源
+// 参数二：要删除的 key
+delete(map, key)
+~~~
+
+
+
+##### 5、组合类型
+
+~~~go
+func main() {
+    // 切片的类型为 map
+    var mapSlice = make([]map[string]string, 3)
+    // 对切片中的 map 元素进行初始化，才能赋值
+    mapSlice[0] = make(map[string]string, 10)
+    mapSlice[0]["name"] = "王五"
+    mapSlice[0]["password"] = "123456"
+}
+~~~
+
+~~~go
+func main() {
+    // 值为切片类型
+    var sliceMap = make(map[string][]string, 3)
+    key := "中国"
+    // 切片初始化
+    value = make([]string, 0, 2)
+    value = append(value, "北京", "上海")
+    sliceMap[key] = value
+}
+~~~
+
+
+
+### 13、结构体
+
+#### 1、概念
+
+Go 语言提供了一种自定义数据类型，可以封装多个基本数据类型，这种数据类型叫结构体，使用其可以自定义类型
+
+使用 type 和 struct 关键字来定义结构体，具体代码格式如下：
+
+~~~go
+type 类型名 struct {
+    字段名 字段类型
+    字段名 字段类型
+}
+~~~
+
+- 类型名：标识自定义结构体的名称，在同一个包内不能重复
+- 字段名：表示结构体字段名。结构体中的字段名必须唯一
+- 字段类型：表示结构体字段的具体类型
 
 
 
