@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="杂七杂八的笔记修改" />
+    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="Golang笔记添加结构体" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -72,6 +72,7 @@
       <workItem from="1679666722051" duration="71000" />
       <workItem from="1679814232015" duration="27000" />
       <workItem from="1679845779240" duration="45000" />
+      <workItem from="1679924791772" duration="58000" />
     </task>
     <task id="LOCAL-00001" summary="设计模式笔记补充">
       <created>1678112192521</created>
@@ -101,7 +102,14 @@
       <option name="project" value="LOCAL" />
       <updated>1679845808223</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Golang笔记添加结构体">
+      <created>1679924837082</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1679924837082</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -123,7 +131,8 @@
     <MESSAGE value="设计模式笔记补充" />
     <MESSAGE value="K8s笔记修改，删除行测笔记" />
     <MESSAGE value="杂七杂八的笔记修改" />
-    <option name="LAST_COMMIT_MESSAGE" value="杂七杂八的笔记修改" />
+    <MESSAGE value="Golang笔记添加结构体" />
+    <option name="LAST_COMMIT_MESSAGE" value="Golang笔记添加结构体" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
