@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AutoImportSettings">
-    <option name="autoReloadType" value="SELECTIVE" />
+    <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="Golang笔记添加结构体" />
+    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="Golang笔记添加结构体">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/笔记/Kubernetes笔记/Kubernetes笔记.md" beforeDir="false" afterPath="$PROJECT_DIR$/笔记/Kubernetes笔记/Kubernetes笔记.md" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -45,17 +48,24 @@
     &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;E:/Work/workspace/java/newbingAPI-master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/devproject/MyNotes&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="Push.Settings">
+    <force-push-targets>
+      <force-push-target remote-path="origin" branch="main" />
+    </force-push-targets>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="默认任务">
@@ -73,6 +83,10 @@
       <workItem from="1679814232015" duration="27000" />
       <workItem from="1679845779240" duration="45000" />
       <workItem from="1679924791772" duration="58000" />
+      <workItem from="1678435466692" duration="35000" />
+      <workItem from="1678676387562" duration="2000" />
+      <workItem from="1678787897546" duration="3000" />
+      <workItem from="1678787908023" duration="6000" />
     </task>
     <task id="LOCAL-00001" summary="设计模式笔记补充">
       <created>1678112192521</created>
@@ -120,7 +134,15 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ID_WIDTH">
+                <map>
+                  <entry key="Table.Default.Author.ColumnIdWidth" value="98" />
+                  <entry key="Table.Default.Date.ColumnIdWidth" value="107" />
+                  <entry key="Table.Space.CommitStatus.ColumnIdWidth" value="107" />
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -132,7 +154,9 @@
     <MESSAGE value="K8s笔记修改，删除行测笔记" />
     <MESSAGE value="杂七杂八的笔记修改" />
     <MESSAGE value="Golang笔记添加结构体" />
-    <option name="LAST_COMMIT_MESSAGE" value="Golang笔记添加结构体" />
+    <MESSAGE value="k8s日志监控告警平台搭建流程初步完成，更新多个部署配置yml文件" />
+    <MESSAGE value="修改日志监控告警平台部分疏漏" />
+    <option name="LAST_COMMIT_MESSAGE" value="修改日志监控告警平台部分疏漏" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>

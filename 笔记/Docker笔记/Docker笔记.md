@@ -1386,51 +1386,108 @@ tar -zxvf harbor-offline-installer-v2.5.5.tgz
 ~~~
 
 ~~~bash
-# 生成CA证书私钥
-openssl genrsa -out ca.key 4096
+# 各个主机添加 host 映射
+vim /etc/hosts
+192.168.100.142 fuckharbor.com
+systemctl restart NetworkManager
+~~~
 
-# 生成CA证书
+~~~bash
+# 生成自签名根证书的私钥
+openssl genrsa -out ca.key 4096
+# 使用私钥生成自签名根证书
 openssl req -x509 -new -nodes -sha512 -days 3650 \
- -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=192.168.100.142" \
+ -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=fuckharbor.com" \
  -key ca.key \
  -out ca.crt
+~~~
 
-mkdir -p /date/cert
-# 将服务器证书和密匙复制到Harbor主机上的证书文件夹中
-cp ca.crt /data/cert
-cp ca.key /data/cert
+~~~bash
+# 生成服务端私钥
+openssl genrsa -out fuckharbor.com.key 4096
 
-# 重启docker
+# 使用服务端私钥生成服务端证书
+openssl req -sha512 -new \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=fuckharbor.com" \
+    -key fuckharbor.com.key \
+    -out fuckharbor.com.csr
+
+# 生成 x509 v3 扩展文件
+cat > v3.ext <<-EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1=fuckharbor.com
+DNS.2=fuckharbor
+EOF
+
+# 使用根证书私钥对服务端证书签名
+openssl x509 -req -sha512 -days 3650 \
+    -extfile v3.ext \
+    -CA ca.crt -CAkey ca.key -CAcreateserial \
+    -in fuckharbor.com.csr \
+    -out fuckharbor.com.crt
+
+# 至此获取到 fuckharbor.com.crt 文件与 fuckharbor.com.key 文件
+~~~
+
+~~~bash
+# 向 Harbor、Docker、hosts 提供证书
+# 将 fuckharbor.com.crt 与 fuckharbor.com.key 移动到 harbor.yml SSL 部份所描述的 cert 证书位置
+# 分发 ca.key、fuckharbor.com.key 到各个节点的 /usr/local/share/ca-certificates/ 文件夹下
+
+# 向 Docker 提供文件
+openssl x509 -inform PEM -in fuckharbor.com.crt -out fuckharbor.com.cert
+# 将 ca.crt、fuckharbor.com.crt、fuckharbor.com.key 提供给 Docker 的 /etc/docker/certs.d/fuckharbor.com/
+~~~
+
+~~~bash
+# 各个节点执行命令更新证书
+update-ca-certificates
+systemctl daemon-reload && systemctl restart containerd.service
+
+# Docker 节点重启 Docker
 systemctl restart docker
 ~~~
 
 ~~~bash
-# 修改 yml 配置文件
-cp harbor.yml.tmpl harbor.yml
-vim harbor.yml
-
-# 主要修改访问端口,访问域名
-# 是否需要 Https，如果需要就修改证书路径
-# 修改登陆密码、仓库密码
-
-# 运行 harbor 目录下的 prepare 脚本启用 HTTPS 服务（可忽略）
+# 启动 Harbor
 ./prepare
-# 运行安装脚本
 ./install.sh
 
-# 开机自启
-vim /etc/rc.local
-/usr/local/lib/docker/cli-plugins/docker-compose -f /home/harbor/harbor/docker-compose.yml up -d
+# 登陆 Harbor 
+docker login fuckharbor.com
+# 填写 harbor.yml 设定的账号密码
+# 进入 harbor Web，管理仓库，添加一个测试仓库 test
+# 给一个镜像打上标签 fuckharbor.com/test/xxx:v1.0
+# 推送镜像
+docker push fuckharbor.com/test/xxx:v1.0
+~~~
+
+~~~bash
+# 制作 K8s 密钥，从 Harbor 拉取镜像时需要用到
+# 有两种方式：
+# 从 /.docker/config.json 获取凭证，base64 编码写入 Secret 文件中
+cat ~/.docker/config.json | base64
+
+kubectl create secret generic regcred \
+    --from-file=.dockerconfigjson=.docker/config.json \
+    --type=kubernetes.io/dockerconfigjson
+
+# 或者直接用命令行生成
+kubectl create secret docker-registry fuckharbor\
+  --docker-server=fuckharbor.com \
+  --docker-username=admin \
+  --docker-password=Harbor12345
 ~~~
 
 
 
 ## 10、安装GitLab
-
-~~~bash
-~~~
-
-
 
 ~~~bash
 docker run -itd \
