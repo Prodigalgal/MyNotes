@@ -2009,11 +2009,47 @@ label_3: for true {
 
 
 
-## func
+## 15、函数
 
-### 1、基本概念
+### 1、概述
 
-#### 1、函数格式
+Go 函数也是一种类型，一个函数可以赋值给变量
+
+Go 函数的特点：
+
+- 无需声明原型，不用像 C 一样先声明函数
+- 支持不定变参
+- 支持多返回值，返回值类型写在最后面
+- 支持命名返回参数
+- 支持返回任意数量的参数，有返回值的函数，必须有明确的终止语句，否则会引发编译错误
+- 支持匿名函数和闭包
+- 不支持嵌套(nested)，不能像 Python 一样在函数内部再定义一个函数，但可以使用匿名函数
+- 不支持重载(overload) 
+- 不支持默认参数(default parameter)、可选参数
+
+
+
+**注意**：
+
+- 遇到没有函数体的函数声明，表示该函数不是 Go 实现的，只是声明定义了函数标识符
+
+  - ~~~go
+    package math
+    
+    func Sin(x float64) float //implemented in assembly language
+    ~~~
+
+
+
+### 2、函数声明
+
+定义一个函数需要：函数名、参数列表、 返回值列表、函数体
+
+- 如果函数没有返回值，则返回列表可以省略
+
+- 相同类型的参数并列声明，除最后一个外，均可省略类型
+
+- 使用关键字 func 定义函数，左大括号依旧不能另起一行
 
 ~~~go
 func 函数名(参数列表) [返回值] {
@@ -2021,99 +2057,239 @@ func 函数名(参数列表) [返回值] {
 }
 ~~~
 
-
-
-#### 2、函数返回值
-
-函数返回值有三种情况：
-
-- 函数无返回
-
-  - ~~~go
-    func 函数名(参数列表) {
-        函数体
-    }
-    ~~~
-
-- 函数返回单个值
-
-  - ~~~go
-    func 函数名(参数列表) 返回值类型 {
-        函数体
-        return 返回值
-    }
-    ~~~
-
-- 函数返回多个值
-
-  - ~~~go
-    func 函数名(参数列表) (返回值1类型, 返回值2类型...) {
-        函数体
-        return 返回值1,返回值2
-    }
-    ~~~
-
-
-
-#### 3、不定参函数
-
-指参数数量不确定的函数
-
 ~~~go
-func 函数名(切片变量...数据类型) [返回值] {
-    函数体
+func test(x, y int, s string) (int, string) {
+    // 类型相同的相邻参数，参数类型可合并。 多返回值必须用括号
+    n := x + y          
+    return n, fmt.Sprintf(s, n)
 }
 ~~~
 
-参数传递时的**注意**事项：
+函数是第一类对象，可作为参数传递，可以将复杂的函数签名定义为函数类型，便于阅读
 
-- 调用不定参函数时，可以不传递参数给函数
+~~~go
+// 一般将函数类型作为参数
+func test(fn func() int) int {
+    return fn()
+}
+
+// 将函数签名定义为函数类型
+type FormatFunc func(s string, x, y int) string 
+
+func format(fn FormatFunc, s string, x, y int) string {
+    return fn(s, x, y)
+}
+
+func main() {
+    s1 := test(func() int { return 100 }) // 直接将匿名函数当参数
+
+    s2 := format(func(s string, x, y int) string {
+        return fmt.Sprintf(s, x, y)
+    }, "%d, %d", 10, 20)
+
+    println(s1, s2)
+}
+~~~
+
+
+
+### 3、函数参数
+
+#### 1、概述
+
+函数定义时有参数，该变量可称为函数的形参，形参就像定义在函数体内的局部变量，但当调用函数，传递过来的变量就是函数的实参，函数可以通过两种方式来传递参数：
+
+- 值传递：指在调用函数时将实际参数复制一份传递到函数中，这样在函数中如果对参数进行修改，将不会影响到实际参数
 
   - ~~~go
-    func myFunc(numbers...int) { }
-     
-    func main() {
-    	myFunc()
+    func swap(x, y int) int {
+    	// ...
     }
     ~~~
 
-- 不定参参数列表之前还可以有其他参数值
+- 引用传递：是指在调用函数时将实际参数的地址传递到函数中，那么在函数中对参数所进行的修改，将影响到实际参数
 
   - ~~~go
-    func myFunc(str string, numbers...int) { }
-     
-    func main() {
-    	myFunc("HelloWorld")
-    	myFunc("HelloWorld", 1)
-    	myFunc("HelloWorld", 1, 2)
+    func swap(x, y *int) {
+    	// ...
     }
     ~~~
 
-- 如果除了不定参参数列表还有其他参数，不定参参数列表必须放在最后，不能放在其他参数前面
+在默认情况下，Go 语言使用的是值传递，即在调用过程中不会影响到实际参数
+
+
+
+**注意**：
+
+- 无论是值传递，还是引用传递，传递给函数的都是变量的副本，只不过值传递是值的拷贝，引用传递是地址的拷贝，一般来说地址拷贝性能大于值拷贝，对象越大越是如此
+- map、slice、chan、指针、interface 默认引用传递
+
+
+
+#### 2、不定参数
+
+不定参数就是函数的参数不是固定的，但是后面的类型是固定的，也叫可变参数，Go 的可变参数本质上就是 slice
+
+- 可变参数有且只有一个
+- 可变参数必须写在所有参数后面
+- 可变参数前面需要使用 **...** 修饰
+- 函数体内使用可变参数和使用 slice 一样
+
+~~~go
+func myfunc(args ...int) {}   // 0个或多个参数
+
+func add(a int, args…int) int {}   // 1个或多个参数
+
+func add(a int, b int, args…int) int {}    // 2个或多个参数
+~~~
+
+可以将 slice 变量作为参数传入不定参数中，只不过需要在变量后面使用 **...** 修饰，进行展开
+
+~~~go
+func test(s string, n ...int) string {}
+
+res := test("sum: %d", slice...)    // slice...
+~~~
+
+
+
+**注意**：
+
+- 携带不定参数的函数在调用时不一定需要给不定参数赋值
 
   - ~~~go
-    func sumNumbers(str string, numbers...int) (string, int){ 
-    	total := 0
-    	for _,number := range numbers {
-    		total += number
-    	}
-    	return str, total
-    }
-     
-    func main() {
-    	fmt.Println(sumNumbers("sum", 1, 2, 3, 4))
-    }
+    func test(s string, n ...int) string {}
+    
+    res := test("sum: %d")    // slice...
     ~~~
 
 
+
+#### 3、任意参数
+
+用 interface{} 传递任意类型数据是 Go 语言的惯例用法，而且 interface{} 是类型安全的
+
+~~~go
+func myfunc(args ...interface{}) {}
+~~~
+
+
+
+### 4、返回值
+
+Go 的返回值可以被命名，并且可以像在函数体内声明的变量那样使用
+
+**_** 标识符，可以用来忽略函数的某个返回值
+
+Go 函数的返回值不能用容器对象接收多返回值。只能用多个变量，或使用 **_** 忽略
+
+没有参数的 return 语句会将当前返回值直接返回，如果有返回参数的话，这种用法叫做裸返回
+
+- ~~~go
+  func calc(a, b int) (sum int, avg int) {
+      sum = a + b
+      avg = (a + b) / 2
+      return
+  }
+  ~~~
+
+命名返回参数如果被同名局部变量遮蔽，需要显式返回
+
+- ~~~go
+  func add(x, y int) (z int) {
+      { // 不能在一个级别，否额引发 "z redeclared in this block" 错误
+          var z = x + y
+          // return   // Error: z is shadowed during return
+          return z // 必须显式返回
+      }
+  }
+  ~~~
+
+被命名的返回值可以被 defer 语句延迟调用
+
+- ~~~go
+  func add(x, y int) (z int) {
+      defer func() {
+          z += 100
+      }()
+  
+      z = x + y
+      return
+  }
+  
+  add(1, 1) // 102
+  ~~~
+
+
+
+### 5、匿名函数
+
+匿名函数是指不需要定义函数名的一种函数实现方式，由一个不带函数名的函数声明和函数体组成，1958 年 LISP 首先采用匿名函数
+
+在 Go 里面，函数可以像普通变量一样被传递或使用，Go 语言支持随时在代码里定义匿名函数
+
+~~~go
+getSqrt := func(a float64) float64 {
+    return math.Sqrt(a)
+}
+fmt.Println(getSqrt(4))
+
+// 定义后直接调用,并把返回值赋值给变量
+t := func(a3 string, a4 string) string {
+    return a3 + a4
+}("a3", "a4")
+~~~
+
+Go 匿名函数可赋值给变量、做为切片元素、做为结构字段、在 channel 里传输
+
+~~~go
+func main() {
+    // --- function variable ---
+    fn := func() { println("Hello, World!") }
+    fn()
+
+    // --- function collection ---
+    fns := [](func(x int) int){
+        func(x int) int { return x + 1 },
+        func(x int) int { return x + 2 },
+    }
+    println(fns[0](100))
+
+    // --- function as field ---
+    d := struct {
+        fn func() string
+    }{
+        fn: func() string { return "Hello, World!" },
+    }
+    println(d.fn())
+
+    // --- channel of function ---
+    fc := make(chan func() string, 2)
+    fc <- func() string { return "Hello, World!" }
+    println((<-fc)())
+}
+~~~
+
+
+
+### 6、闭包
+
+闭包是由函数及其相关引用环境组合而成的实体，闭包 = 函数 + 引用环境
+
+- 官方的解释是：闭包是一个拥有许多变量和绑定了这些变量的环境的表达式，因而这些变量也是该表达式的一部分
+- 维基百科：闭包是引用了自由变量的函数，这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外
+
+闭包会把函数和被访问的变量打包到一起，不再关心这个变量原来的作用域，闭包本身可以看作是独立对象
+
+闭包函数与普通函数的最大区别就是**参数不是值传递，而是引用传递**，所以闭包函数可以操作自己函数以外的变量
+
+闭包函数对外部变量进行了操作使其不能被回收，跨过了作用域的限制
+
+
+
+## func
 
 #### 4、函数闭包
-
-闭包是由函数和与其相关的引用环境组合而成的实体
-
-- 闭包会把函数和被访问的变量打包到一起，不再关心这个变量原来的作用域，闭包本身可以看作是独立对象
-- 闭包函数与普通函数的最大区别就是**参数不是值传递，而是引用传递**，所以闭包函数可以操作自己函数以外的变量
-- 闭包函数对外部变量进行了操作使其不能被回收，跨过了作用域的限制
 
 ~~~go
 func adder() func(int) int {
@@ -2152,8 +2328,6 @@ func main() {
 
 
 
-### 2、函数类别
-
 #### 1、具名函数
 
 指函数能够在返回前将值赋值给具名变量，并且在 return 后面可以省略返回值
@@ -2174,34 +2348,6 @@ func sayHi() (x, y string){
 
 func main() {
 	fmt.Println(sayHi())
-}
-~~~
-
-
-
-#### 2、匿名函数
-
-匿名函数就是没有名字的普通函数
-
-匿名函数的调用有两种：
-
-- 定义时赋值给变量，然后使用变量调用
-- 定义时直接调用
-
-~~~go
-func main() {
-    // 定义后赋值给变量
-    var nua = func(a int) int {
-        return a * a
-    }
-    println(nua())
-    
-    // 定义后直接调用,并把返回值赋值给变量
-    t := func(a3 string, a4 string) string {
-		return a3 + a4
-	}("a3", "a4")
-	
-	println(t)
 }
 ~~~
 
