@@ -2222,6 +2222,12 @@ Go 函数的返回值不能用容器对象接收多返回值。只能用多个�
 
 
 
+**扩展**：
+
+- 给返回值命名的函数，也叫具名函数
+
+
+
 ### 5、匿名函数
 
 匿名函数是指不需要定义函数名的一种函数实现方式，由一个不带函数名的函数声明和函数体组成，1958 年 LISP 首先采用匿名函数
@@ -2279,17 +2285,11 @@ func main() {
 - 官方的解释是：闭包是一个拥有许多变量和绑定了这些变量的环境的表达式，因而这些变量也是该表达式的一部分
 - 维基百科：闭包是引用了自由变量的函数，这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外
 
-闭包会把函数和被访问的变量打包到一起，不再关心这个变量原来的作用域，闭包本身可以看作是独立对象
+闭包会把函数和被访问的变量打包到一起，不需要再关注这个变量原来的作用域，闭包本身可以看作是独立对象
 
 闭包函数与普通函数的最大区别就是**参数不是值传递，而是引用传递**，所以闭包函数可以操作自己函数以外的变量
 
-闭包函数对外部变量进行了操作使其不能被回收，跨过了作用域的限制
-
-
-
-## func
-
-#### 4、函数闭包
+闭包函数引用了外部变量，使其不能被回收，跨过了作用域的限制
 
 ~~~go
 func adder() func(int) int {
@@ -2318,7 +2318,7 @@ func main() {
             println(i)
         }()
         
-        // 解决方法就是打破闭包
+        // 解决方法就是打破闭包，通过值传递打破
         go func(x int) {
             println(x) 
         }(i)
@@ -2328,44 +2328,28 @@ func main() {
 
 
 
-#### 1、具名函数
-
-指函数能够在返回前将值赋值给具名变量，并且在 return 后面可以省略返回值
-
-~~~go
-func 函数名(参数列表) (具名变量1 具名变量数据类型,具名变量2 具名变量数据类型...) {
-    函数体
-    return
-}
-~~~
-
-~~~go
-func sayHi() (x, y string){
-	x = "Hello"
-	y = "World"
-	return
-}
-
-func main() {
-	fmt.Println(sayHi())
-}
-~~~
-
-
-
-## defer
+## 16、defer 关键字
 
 ### 1、基本概念
 
-defer 语句会将其后面跟随的语句进行延迟处理
+关键字 defer 用于注册**延迟调用**，在 defer 关键字所属的函数即将返回时或退出时，被延迟处理的语句将按 defer **注册逆序**进行执行
 
-在 defer关键字所属的函数即将返回时或退出时，被延迟处理的语句将按 defer 注册的逆序进行执行
+- Go 中的 return 语句并不是原子性操作，一般是分为两步：defer 就执行在 1 之后，2 之前
+
+  1. 将返回值赋值给一个变量
+  2. 执行 RET 指令
+
+
+defer 语句中的变量，在 defer 声明时就决定了
+
+
 
 **注意**：
 
 - 通常用于释放资源
+- 哪怕函数或某个延迟调用发生错误，这些调用依旧会被执行
 
-简单的例子：
+
 
 ~~~go
 func main() {
@@ -2378,7 +2362,7 @@ func main() {
 	s++
 }
 
-2
+// 2
 ~~~
 
 ~~~go
@@ -2390,7 +2374,7 @@ func test()(x int)  {
 	 return x
 }
 
-11
+// 11
 ~~~
 
 ~~~go
@@ -2411,103 +2395,404 @@ func main() {
 	s++
 }
 
-2
-3
+// 2
+// 3
 ~~~
 
 ~~~go
-// 这里是具名函数，将返回值赋给一个变量，由于defer执行时间是在所属函数返回之前，那么x的值就会被其改变
-func testA(a int) (x int) {
-	fmt.Println("testA:", a)
+// 这里是具名函数，将返回值赋给一个变量，由于 defer 执行时间是在所属函数返回之前，那么 x 的值就会被其改变
+func test(y int) (x int) {
+    x := y
+	fmt.Println("test:", x)
 	defer func() {
 		x++
 	}()
-	return a
+	return
 }
 
 func main() {
-	a := testA(10)
+	a := test(10)
 	fmt.Println("main:", a)
 }
 
-testA: 10
-main: 11
+// testA: 10
+// main: 11
 ~~~
 
 
 
-### 2、执行时间
+### 2、延迟普通/匿名函数
 
-go 中的 return 语句并不是原子性操作，一般是分为两步:
+如果 defer 语句调用的是一个**普通函数**，需要注意该函数的某个参数是不是引用了另外一个函数
 
-1. 将返回值赋值给一个变量
-2. 执行RET指令
+- ~~~go
+  // 例如下面的例子，在 defer 注册的时候，会执行 testA 函数，但是 testB 函数的执行会延迟到 defer 所属函数退出或返回时
+  func testA() int {
+  	fmt.Println("A start")
+  	return 1
+  }
+  
+  func testB(a int) int {
+  	fmt.Println("B start")
+  	return a
+  }
+  
+  func main() {
+  	fmt.Println("main start")
+  	defer testB(testA())
+  	fmt.Println("main end")
+  }
+  
+  // main start
+  // A start 
+  // main end
+  // B start 
+  ~~~
 
-defer 就执行在1之后，2之前
+
+
+如果 defer 调用的是一个匿名函数，那么统统在 defer 所属函数即将退出时才执行
+
+- ~~~go
+  func testA() int {
+  	fmt.Println("A start")
+  	return 1
+  }
+  
+  func testB(a int) int {
+  	fmt.Println("B start")
+  	return a
+  }
+  
+  func main() {
+  	fmt.Println("main start")
+  	defer func() {
+  		fmt.Println("func start")
+  		testB(testA())
+  		fmt.Println("func end")
+  	}()
+  	fmt.Println("main end")
+  }
+  
+  // main start
+  // main end  
+  // func start
+  // A start   
+  // B start   
+  // func end 
+  ~~~
 
 
 
-### 3、具名/匿名函数区别
+### 3、使用陷阱
 
-- 如果 defer 语句调用的是一个**具名函数**，需要注意该具名函数的某个参数是不是引用了另外一个函数
+#### 1、延迟闭包
+
+如果 defer 后面跟的不是一个闭包，则最后执行的时候得到的并不是最新的值
 
 ~~~go
-// 例如下面的例子，在 defer 注册的时候，会执行testA函数，但是testB函数的执行会延迟到 defer 所属函数退出或返回时
+func foo(a, b int) (i int, err error) {
+    defer fmt.Printf("first defer err %v\n", err)
+    defer func(err error) { fmt.Printf("second defer err %v\n", err) }(err)
+    defer func() { fmt.Printf("third defer err %v\n", err) }()
+    if b == 0 {
+        err = errors.New("divided by zero!")
+        return
+    }
 
-func testA() int {
-	fmt.Println("A start")
-	return 1
-}
-
-func testB(a int) int {
-	fmt.Println("B start")
-	return a
+    i = a / b
+    return
 }
 
 func main() {
-	fmt.Println("main start")
-	defer testB(testA())
-	fmt.Println("main end")
+    foo(2, 0)
 }
 
-main start
-A start 
-main end
-B start 
+// third defer err divided by zero!
+// second defer err <nil>
+// first defer err <nil>
 ~~~
 
 
 
-- 如果 defer 调用的是一个匿名函数，那么统统在 defer 所属函数即将退出时才执行
+#### 2、延迟具名返回值
+
+在有具名返回值的函数中（这里具名返回值为 i），执行 return 2 的时候实际上已经将 i 的值重新赋值为 2，所以 defer 闭包的输出结果为 2 而不是 1
 
 ~~~go
-func testA() int {
-	fmt.Println("A start")
-	return 1
-}
-
-func testB(a int) int {
-	fmt.Println("B start")
-	return a
+func foo() (i int) {
+    i = 0
+    defer func() {
+        fmt.Println(i)
+    }()
+    return 2
 }
 
 func main() {
-	fmt.Println("main start")
-	defer func() {
-		fmt.Println("func start")
-		testB(testA())
-		fmt.Println("func end")
-	}()
-	fmt.Println("main end")
+    foo()
 }
 
-main start
-main end  
-func start
-A start   
-B start   
-func end 
+// 2
 ~~~
+
+
+
+#### 3、延迟 nil 函数
+
+run 函数的声明没有问题，直到 defer 调用时才报错
+
+~~~go
+func test() {
+    var run func() = nil
+    defer run()
+    fmt.Println("runs")
+}
+
+func main() {
+    defer func() {
+        if err := recover(); err != nil {
+            fmt.Println(err)
+        }
+    }()
+    test()
+}
+
+// runs
+// runtime error: invalid memory address or nil pointer dereference
+~~~
+
+
+
+#### 4、error 之前延迟
+
+Get 方法错误抛出异常，导致 res 为 nil，在异常检查之前 defer nil，导致错误
+
+~~~go
+func do() error {
+    res, err := http.Get("http://www.google.com")
+    defer res.Body.Close()
+    if err != nil {
+        return err
+    }
+    // ..code...
+    return nil
+}
+
+func main() {
+    do()
+}
+// panic: runtime error: invalid memory address or nil pointer dereference
+
+// 只需要检查 res 是否为空即可
+if res != nil {
+    defer res.Body.Close()
+}
+~~~
+
+
+
+#### 5、不检查错误
+
+调用函数时经常不检查错误，
+
+~~~go
+// 比如关闭打开的文件
+if f != nil {
+    defer f.Close()
+}
+
+// 改进版，通过具名返回值返回错误
+func do() (err error) {
+    f, err := os.Open("book.txt")
+    if err != nil {
+        return err
+    }
+
+    if f != nil {
+        defer func() {
+            if ferr := f.Close(); ferr != nil {
+                err = ferr
+            }
+        }()
+    }
+    // ..code...
+    return nil
+}
+~~~
+
+
+
+## 17、异常处理
+
+### 1、概述
+
+Go 没有结构化异常，使用 panic 抛出错误，recover 捕获错误
+
+异常的使用场景：Go 中可以用 panic 抛出一个异常，然后在 defer 中通过 recover 捕获这个异常进行处理
+
+由于 panic、recover 参数类型为 interface{}，因此可抛出任何类型对象
+
+
+
+### 2、panic
+
+panic 是 Go 的内置函数
+
+例如：函数 F 内调用了 panic 语句，会终止其后要执行的代码，在 panic 所在函数 F 内如果存在要执行的 defer 函数列表，按照 defer 的逆序执行，之后返回函数 F 的调用函数 G，在函数 G 中，调用函数 F 语句之后的代码不会执行，假如函数 G 中存在要执行的 defer 函数列表，按照 defer 的逆序执行，直到 goroutine 整个退出，并报告错误
+
+>导致关键流程出现不可修复性错误的使用 panic，其他使用 error
+
+
+
+### 3、recover
+
+recover 是 Go 的内置函数
+
+用来控制一个 goroutin e的 panicking 行为，捕获 panic，从而影响应用的行为
+
+ 一般的调用建议：
+
+-  在 defer 函数中，通过 recever 来终止一个 panic 的传递过程，从而恢复正常代码的执行
+- 可以获取通过 panic 传递的 error
+
+~~~go
+func main() {
+    test()
+}
+
+func test() {
+    defer func() {
+        if err := recover(); err != nil {
+            println(err.(string)) // 将 interface{} 转型为具体类型
+        }
+    }()
+
+    panic("panic error!")
+}
+
+// panic error!
+~~~
+
+
+
+**注意**：
+
+- 利用 recover 处理 panic 指令，defer 必须放在 panic 之前定义，另外 recover 只有在 defer 调用的函数中才有效，否则当 panic时，recover 无法捕获到 panic，无法防止 panic 扩散
+- recover 处理异常后，逻辑并不会恢复到 panic 的位置，函数会调到 defer 之后的位置
+- 延迟调用中引发的错误，可被后续延迟调用捕获，但仅最后一个错误可被捕获
+- recover 只有在延迟调用内直接调用才会终止错误，否则总是返回 nil，任何未捕获的错误都会沿调用堆栈向外传递
+
+
+
+~~~go
+func test() {
+    defer func() {
+        fmt.Println(recover())
+    }()
+
+    defer func() {
+        panic("defer panic")
+    }()
+
+    panic("test panic")
+}
+
+func main() {
+    test()
+}
+
+// defer panic
+~~~
+
+~~~go
+func test() {
+    defer func() {
+        fmt.Println(recover()) // 有效
+    }()
+    defer recover()              // 无效！
+    defer fmt.Println(recover()) // 无效！
+    defer func() {
+        func() {
+            println("defer inner")
+            recover() // 无效！
+        }()
+    }()
+
+    panic("test panic")
+}
+
+func main() {
+    test()
+}
+
+// defer inner
+// <nil>
+// test panic
+
+
+func except() {
+    fmt.Println(recover())
+}
+
+func test() {
+    defer except() // 有效
+    panic("test panic")
+}
+~~~
+
+
+
+### 4、保护代码片段
+
+这个例子中，虽然引发了一个错误，但是由于是在匿名函数内，且被 defer 的 recover 函数捕获，将 panic 消除，之后将 z 的值置为 0，让代码继续执行
+
+~~~go
+func test(x, y int) {
+    var z int
+
+    func() {
+        defer func() {
+            if recover() != nil {
+                z = 0
+            }
+        }()
+        panic("test panic")
+        z = x / y
+        return
+    }()
+
+    fmt.Printf("x / y = %d\n", z)
+}
+
+func main() {
+    test(2, 1)
+}
+~~~
+
+
+
+### 5、实现 try catch
+
+~~~go
+func Try(fun func(), handler func(interface{})) {
+    defer func() {
+        if err := recover(); err != nil {
+            handler(err)
+        }
+    }()
+    fun()
+}
+
+func main() {
+    Try(func() {
+        panic("test panic")
+    }, func(err interface{}) {
+        fmt.Println(err)
+    })
+}
+~~~
+
+
 
 
 
