@@ -3328,7 +3328,297 @@ type Mutex struct {
 
 
 
+# 3、Go 框架
 
+## 1、Iris
+
+### JSON Web Token
+
+#### 1、使用步骤
+
+1. 首先需要创建一个密匙，用于 JWT 签名加密
+
+   - ~~~go
+     var secret = "56A5A3GH5CBGJ6"
+     ~~~
+
+2. 接着需要创建两个组件 Signer（签名者）、Verifier（验证者）
+
+   1. 创建签名者
+
+      - ~~~go
+        
+        // 第一个参数表示加密方式
+        // 第二个参数表示密匙
+        // 第三个参数表示 token 有效时长
+        signer := jwt.NewSigner(jwt.HS256, []byte(secret), 15*time.Minute)
+        ~~~
+
+   2. 创建验证者
+
+      - ~~~go
+        // 第一个参数表示加密方式
+        // 第二个参数表示密匙
+        verifier := jwt.NewVerifier(jwt.HS256, []byte(secret))
+        // 同时还需要创建验证者中间件，提供给需要 token 才能访问的地址
+        verifyMiddleware := verifier.Verify(func() interface{} {
+            // 此处必须返回一个指针类型的有效载荷结构体
+            return new(UserClaims)
+        })
+        ~~~
+
+3. 创建一个结构体，用于表示自定义的有效载荷
+
+   - ~~~go
+     type UserClaims struct {
+         Username string `json:"username"`
+     }
+     ~~~
+
+4. 创建路由，申请 token
+
+   - ~~~go
+     app.Post("/signin", func(ctx iris.Context) {
+         // 创建自定义有效载荷
+         claims := UserClaims{
+             Username: "kataras",
+         }
+     	
+         // 进行签名签发 token
+         token, err := signer.Sign(claims)
+         if err != nil {
+             ctx.StopWithStatus(iris.StatusInternalServerError)
+             return
+         }
+     
+         // 返回 token
+         ctx.Write(token)
+     })
+     ~~~
+
+5. 给地址添加访问权限，有三种方式
+
+   - ~~~go
+     // 使用路由组中间件的方式
+     protected := app.Party("/protected")
+     protected.Use(verifyMiddleware)
+     ~~~
+
+   - ~~~go
+     // 直接使用
+     app.Get("/todos", verifyMiddleware, getTodos)
+     ~~~
+
+   - ~~~go
+     // 在处理函数最前面添加中间件使用
+     handler := func(ctx iris.Context) {
+         ok := ctx.Proceed(verifyMiddleware)
+         if !ok {
+             ctx.StopWithStatus(iris.StatusUnauthorized)
+             return
+         }
+     
+         claims := jwt.Get(ctx).(*UserClaims)
+     }
+     
+     app.Get("/protected", handler)
+     ~~~
+
+6. 获取请求中的有效载荷（未验证）
+
+   - ~~~go
+     // 需要在处理方法中
+     claims := jwt.Get(ctx).(*UserClaims)
+     ctx.WriteString(claims.Username)
+     ~~~
+
+7. 获取经过验证的 token
+
+   - ~~~go
+     verifiedToken := jwt.GetVerifiedToken(ctx)
+     // 请求中的原始 token 值
+     verifiedToken.Token
+     ~~~
+
+
+
+#### 2、令牌提取器
+
+修改 token 提取器，默认的提取器提取的位置是 URL Parameter 以及 request Header
+
+- ~~~go
+  ?token=$token
+  Authorization: Bearer $token
+  ~~~
+
+中间件提供 3 个令牌提取器
+
+- FromHeader：从标头中提取令牌（默认值）
+- FromQuery：从 URL 查询参数中提取令牌（默认值）
+- FromJSON：从请求有效负载（body）中提取令牌，键为 jsonKey，例如：FromJSON("access_token") 将从请求正文中检索令牌： {“access_token”： “$TOKEN”， ...}
+
+使用 NewVerifier 函数创建的验证者的 Extractors 字段默认为：[]TokenExtractor{FromHeader， FromQuery}，因此会尝试从 Authorization:Bearer ${Token} 标头读取令牌，如果未找到，则尝试通过 token URL 查询参数提取令牌
+
+但是可以通过自定切片，传入自定义的获取途径
+
+~~~go
+verifier.Extractors = append(verifier.Extractors, func(ctx iris.Context) string {
+    // 从自定义的 X-Token 获取，同时保留默认的获取途径
+    return ctx.GetHeader("X-Token")
+})
+
+// 只保留 FromHeader 途径
+verifier.Extractors = []jwt.TokenExtractor{jwt.FromHeader}
+~~~
+
+
+
+#### 3、有效载荷加密
+
+为了保护数据安全，可以对有效载荷进行加密，如果应用程序需要传输包含私人数据的令牌，则需要在 Sign 上加密数据并在 Verify 上解密，可以调用 Signer.WithEncryption 和 Verifier.WithDecryption 方法来应用任何类型的加密，中间件提供了一种最流行和常见的保护数据的方式：GCM 模式 + AES 密码
+
+~~~go
+// 第一个参数是 AES 密匙，可选 16 24 32 字节，即 AES-128、AES-192、AES-256
+signer.WithEncryption([]byte("itsa16bytesecret"), nil)
+verifier.WithDecryption([]byte("itsa16bytesecret"), nil)
+~~~
+
+
+
+#### 4、注销令牌
+
+当用户注销时，客户端应该将令牌从内存中删除，这将阻止客户端的令牌用于后续请求授权，但是如果令牌仍然在有效期内并且其他人可以获取到该令牌，则该令牌将会被继续使用，即使它理论上应该消失了，因此令牌服务器端主动失效对于这种情况很有用
+
+当服务器收到注销请求时，从请求中获取令牌并通过 Context.Logout 方法将其存储到 Blocklist 中，对于每个授权请求，Verifier.Verify 都会检查 Blocklist 以查看令牌是否已失效，为了保持搜索空间小，过期的令牌会自动从 Blocklist 中删除，Iris JWT 中间件有两个版本的 Blocklist：内存和 Redis
+
+~~~go
+// 使用 in-memory blocklist
+verifier.WithDefaultBlocklist()
+~~~
+
+~~~go
+// 使用 redis blocklist
+blocklist := redis.NewBlocklist()
+// 配置 redis 客户端或者集群
+blocklist.ClientOptions.Addr = "127.0.0.1:6379"
+blocklist.ClusterOptions.Addrs = []string{...}
+// 设置 JWT 前缀
+blocklist.Prefix = "myapp-"
+
+// 测试并连接，连接失败则会抛出异常
+err := blocklist.Connect()
+~~~
+
+~~~go
+// 最后注册进入即可
+verifier.Blocklist = blocklist
+~~~
+
+默认情况下，唯一标识符是通过 jti (Claims{ID}) 检索的，如果它为空，则原始令牌将用作映射键，要更改该行为，只需修改 blocklist.GetKey 字段
+
+
+
+#### 5、加密算法
+
+如果已经在使用 RSA 公钥和私钥，选择 RSA（RS256/RS384/RS512/PS256/PS384/PS512）（生成的令牌字符长度较大）
+
+如果需要公钥和私钥之间的分离，选择 ECDSA（ES256/ES384/ES512）或 EDDSA，ECDSA 和 EDDSA 产生的 Token 比 RSA 小
+
+如果需要性能和经过良好测试的算法，选择 HMAC（HS256 / HS384 / HS512），最常用的方法
+
+
+
+#### 6、刷新令牌
+
+访问令牌过期后，可以用刷新令牌获取一对新的访问令牌和刷新令牌
+
+~~~go
+const (
+	accessTokenMaxAge  = 10 * time.Minute
+	refreshTokenMaxAge = time.Hour
+)
+
+var (
+	privateKey, publicKey = jwt.MustLoadRSA("rsa_private_key.pem", "rsa_public_key.pem")
+
+	signer   = jwt.NewSigner(jwt.RS256, privateKey, accessTokenMaxAge)
+	verifier = jwt.NewVerifier(jwt.RS256, publicKey)
+)
+~~~
+
+~~~go
+app.Get("/refresh", refreshToken)
+
+func generateTokenPair(ctx iris.Context) {
+	// 模拟一名用户
+	userID := "53afcf05-38a3-43c3-82af-8bbbe0e4a149"
+
+	// 将用户信息映射到载荷中，用于刷新时验证
+	refreshClaims := jwt.Claims{Subject: userID}
+
+	accessClaims := UserClaims{
+		ID:       userID,
+		Username: "kataras",
+	}
+
+	// 生产一对令牌
+	// 第一个参数是访问令牌的有效载荷
+	// 第二个参数是刷新令牌的有效载荷
+	// 第三个参数是刷新令牌的有效时长
+	tokenPair, err := signer.NewTokenPair(accessClaims, refreshClaims, refreshTokenMaxAge)
+	if err != nil {
+		ctx.Application().Logger().Errorf("token pair: %v", err)
+		ctx.StopWithStatus(iris.StatusInternalServerError)
+		return
+	}
+
+	// 返回令牌对
+	// The tokenPair looks like: {"access_token": $token, "refresh_token": $token}
+	ctx.JSON(tokenPair)
+}
+
+// 刷新令牌有多种方法，具体取决于应用程序的要求
+// 在此示例中，将仅接受与验证刷新令牌，并重新生成一个全新的配对
+// 另一种方法是接受访问和刷新令牌的令牌对，同时验证并刷新，使用 Leeway 时间验证访问并检查其是否即将过期，然后生成单个访问令牌
+func refreshToken(ctx iris.Context) {
+	// 需要确保此刷新令牌是该用户的配对
+	// 可以移除 ExpectSubject 然后自行验证
+    // 模拟用户
+	currentUserID := "53afcf05-38a3-43c3-82af-8bbbe0e4a149"
+
+	// 获取刷新令牌
+	refreshToken := []byte(ctx.URLParam("refresh_token"))
+	if len(refreshToken) == 0 {
+		// 可以读取整个 body 通过 ctx.GetBody/ReadBody
+		var tokenPair jwt.TokenPair
+		if err := ctx.ReadJSON(&tokenPair); err != nil {
+			ctx.StopWithError(iris.StatusBadRequest, err)
+			return
+		}
+		refreshToken = tokenPair.RefreshToken
+	}
+
+	// 验证刷新令牌，其中的 currentUserID 需要配对上
+	_, err := verifier.VerifyToken(refreshToken, jwt.Expected{Subject: currentUserID})
+	if err != nil {
+		ctx.Application().Logger().Errorf("verify refresh token: %v", err)
+		ctx.StatusCode(iris.StatusUnauthorized)
+		return
+	}
+
+	/* 在 VerifyToken 之后可以进行自定义验证
+	currentUserID := "53afcf05-38a3-43c3-82af-8bbbe0e4a149"
+	userID := verifiedToken.StandardClaims.Subject
+	if userID != currentUserID {
+		ctx.StopWithStatus(iris.StatusUnauthorized)
+		return
+	}
+	*/
+
+	// 没问题的话重新生成令牌对，也可以只生成访问令牌
+	generateTokenPair(ctx)
+}
+~~~
 
 
 
