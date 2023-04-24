@@ -702,3 +702,42 @@ gitlab-ctl start
 - “origin” 是当你运行 git clone 时默认的远程仓库名字。 如果你运行 git clone -o booyah，那么你默认的远程仓库别名为 booyah
 
 - 只有当你有所克隆服务器的写入权限，并且之前没有人推送过时，这条命令才能生效。 当你和其他人在同一时间克隆，他们先推送到上游然后，你再推送到上游，你的推送就会毫无疑问地被拒绝。 你必须先将他们的工作拉取下来并将其合并进你的工作后才能推送
+
+
+
+# 问题
+
+## 1、本地仓库推送到远程新仓库被拒绝
+
+错误提示
+
+~~~bash
+hint: Updates were rejected because a pushed branch tip is behind its remote
+hint: counterpart. Check out this branch and integrate the remote changes
+!	refs/heads/master:refs/heads/main	[rejected] (non-fast-forward)
+hint: (e.g. 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+~~~
+
+首先需要先拉取一次远程仓库
+
+~~~bash
+git pull <reomte> <branch> --allow-unrelated-histories
+~~~
+
+之后就一切照旧
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

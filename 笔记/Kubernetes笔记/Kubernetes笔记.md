@@ -9434,6 +9434,19 @@ FATA[0000] validate service connection: CRI v1 runtime API is not implemented fo
 
 
 
+## 14、K8s 内 Nginx 解析 Service 域名失败
+
+proxy_pass 填写的地址为其他 service 的地址，例如：http://svc-pf.default:8023;
+
+显示 upstream 错误等，需要使用 resolver 配置解析
+
+~~~bash
+location / {
+                resolver 10.1.0.10 valid=1s;
+                proxy_pass http://svc-pf.default:8023;
+            }
+~~~
+
 
 
 
