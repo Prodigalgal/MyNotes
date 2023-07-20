@@ -1283,6 +1283,16 @@ type of a:map[string]int
 
 
 
+**注意**：
+
+- ~~~go
+  var attrs map[string]string
+  ~~~
+
+  - 只声明了 map，虽然使用 print 输出的结果和空 map 一样是 map[]，但是未初始化的 map 不能赋值，实际上是个 nil
+
+
+
 #### 2、判断键存否
 
 Go 语言中有个判断 map 中键是否存在的特殊写法，格式如下：
@@ -3597,6 +3607,9 @@ func refreshToken(ctx iris.Context) {
 		}
 		refreshToken = tokenPair.RefreshToken
 	}
+    
+    // 去除字符串的双引号，避免 base64 编码错误
+    refreshToken = bytes.ReplaceAll(refreshToken, []byte("\""), []byte(""))
 
 	// 验证刷新令牌，其中的 currentUserID 需要配对上
 	_, err := verifier.VerifyToken(refreshToken, jwt.Expected{Subject: currentUserID})
@@ -3619,6 +3632,18 @@ func refreshToken(ctx iris.Context) {
 	generateTokenPair(ctx)
 }
 ~~~
+
+
+
+### 会话保持
+
+~~~go
+
+~~~
+
+
+
+
 
 
 
@@ -3739,16 +3764,6 @@ sliceHeader.Data = uintptr(ptr)
 **注意**：
 
 - 和数组不同的是，切片的长度可以在运行时修改
-
-
-
-
-
-
-
-
-
-
 
 
 

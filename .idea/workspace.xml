@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AutoImportSettings">
-    <option name="autoReloadType" value="SELECTIVE" />
+    <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="设计模式笔记补充">
+    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="Golang笔记补充">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,6 +38,7 @@
   </component>
   <component name="ProjectId" id="2Mamw0sjiPhwCmqE2NdNe0FIsVi" />
   <component name="ProjectLevelVcsManager">
+    <OptionsSetting value="false" id="Update" />
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="ProjectViewState">
@@ -50,9 +51,13 @@
     &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;E:/Work/workspace/java/newbingAPI-master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Administrator&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -80,10 +85,7 @@
       <workItem from="1679845779240" duration="45000" />
       <workItem from="1679924791772" duration="58000" />
       <workItem from="1680103830753" duration="627000" />
-      <workItem from="1680179425497" duration="214000" />
-      <workItem from="1681220138570" duration="38000" />
-      <workItem from="1681396393686" duration="677000" />
-      <workItem from="1683963986916" duration="10000" />
+      <workItem from="1681895259527" duration="2000" />
     </task>
     <task id="LOCAL-00001" summary="设计模式笔记补充">
       <created>1678112192521</created>
@@ -127,21 +129,7 @@
       <option name="project" value="LOCAL" />
       <updated>1680104514874</updated>
     </task>
-    <task id="LOCAL-00007" summary="Golang笔记补充">
-      <created>1680179566973</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1680179566973</updated>
-    </task>
-    <task id="LOCAL-00008" summary="设计模式笔记补充">
-      <created>1681397063983</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1681397063983</updated>
-    </task>
-    <option name="localTasksCounter" value="9" />
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -152,7 +140,15 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ID_WIDTH">
+                <map>
+                  <entry key="Table.Default.Author.ColumnIdWidth" value="98" />
+                  <entry key="Table.Default.Date.ColumnIdWidth" value="107" />
+                  <entry key="Table.Space.CommitStatus.ColumnIdWidth" value="107" />
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -160,12 +156,14 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="设计模式笔记补充" />
     <MESSAGE value="K8s笔记修改，删除行测笔记" />
     <MESSAGE value="杂七杂八的笔记修改" />
     <MESSAGE value="Golang笔记添加结构体" />
+    <MESSAGE value="k8s日志监控告警平台搭建流程初步完成，更新多个部署配置yml文件" />
+    <MESSAGE value="修改日志监控告警平台部分疏漏" />
     <MESSAGE value="Golang笔记补充" />
-    <MESSAGE value="设计模式笔记补充" />
-    <option name="LAST_COMMIT_MESSAGE" value="设计模式笔记补充" />
+    <option name="LAST_COMMIT_MESSAGE" value="Golang笔记补充" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
