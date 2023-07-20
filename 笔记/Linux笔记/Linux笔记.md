@@ -19,9 +19,9 @@ Linux 文件系统是采用层级式的树状目录结构，在此结构中的�
 | /dev       | 类似 Windos 的设备管理系统，把所有硬件以文件存储             |
 | /media     | Linux 自动识别到的光驱、DVD等设备会自动挂载到这个目录下      |
 | /mnt       | 让用户可以临时挂载其他的文件系统，访问该目录即可查看挂载内容 |
-| /opt       | 给主机额外安装软件的目录，例如Oracle即可安装于此             |
+| /opt       | 给主机额外安装软件的目录，例如：Oracle 即可安装于此          |
 | /usr/local | 另一个给主机额外安装软件的目录，一般用于从源码开始编译安装   |
-| /var       | 经常被修改的文件存放于此，例如日志文件                       |
+| /var       | 经常被修改的文件存放于此，例如：日志文件                     |
 | /selinux   | Linux 的安全子系统，可以限制只能访问特定文件                 |
 
 
@@ -169,10 +169,30 @@ Linux 的用户需要至少要属于一个组
 
 0-9 位说明：
 
-- 第 0 位确定文件类型（【目录，d】、【文件，- 】、【链接，l】、【c】、【b】） 
+- 第 0 位确定文件类型（【目录，d】、【文件，- 】、【链接，l】、【字符设备文件，c】、【块设备文件，b】、【命令管道，p】，【socket文件，s】） 
 - 第 1-3 位确定所有者（该文件的所有者）拥有该文件的权限 ---User 
 - 第 4-6 位确定所属组（同用户组的）拥有该文件的权限 ---Group
 - 第 7-9 位确定其他用户拥有该文件的权限 ---Other
+
+数字 1 表示：
+
+- 当前指向该文件的硬链接只有一个
+
+后面两个 root 表示：
+
+- 属主：拥有该文件或目录的用户帐号
+
+- 属组：拥有该文件或目录的组帐号
+
+数字 1213 表示：
+
+- 文件占用的空间，用字节数表示
+
+Feb 2 09:39 表示：
+
+- ​	最近访问或修改时间
+
+
 
 **注意**：
 
@@ -217,6 +237,11 @@ Linux 的用户需要至少要属于一个组
 - 系统工作：有些重要的工作必须周而复始地执行，如病毒扫描等
 - 个别用户工作：个别用户可能希望执行某些程序，比如对 MySQL 数据库的备份
 
+在 /etc 目录下有一个 **crontab** 文件，这里存放有系统运行的一些调度程序
+
+每个用户可以建立自己的 crontab 调度，这些文件在 **/var/spool/cron** 目录下
+
+默认情况下，crontab 中执行的日志写在 /var/log 下，如：/var/log/cron /var/log/cron.1 /var/log/cron.2
 
 
 ### 2、语法
@@ -337,7 +362,7 @@ Linux 采用了一种叫载入的处理方法，整个文件系统中包含了�
 
 ### 2、服务管理
 
-服务Service本质就是进程，但是运行在后台的，通常都会监听某个端口，等待其它程序的请求，比如MySQL、sshd、防火墙等，又称为守护进程
+Windows 当中的服务（Service） 本质就是进程，但是运行在后台的，通常都会监听某个端口，等待其它程序的请求，比如：MySQL、sshd、防火墙等，在 Linux 当中又称为守护进程（Daemon）
 
 
 
@@ -747,6 +772,88 @@ getSum 1 2
 
 - 调用函数时可以向其传递参数，在函数体内部，通过 $n 的形式来获取参数的值，例如，$1表示第一个参数，$2表示第二个参数
 - $10 不能获取第十个参数，获取第十个参数需要${10}，当n>=10时，需要使用${n}来获取参数
+
+
+
+## 11、系统启动顺序
+
+### 1、概述
+
+Linux 系统的启动过程，其过程可以分为 5 个阶段：
+
+- 内核引导
+- 运行 init
+- 系统初始化
+- 建立终端
+- 用户登录系统
+
+
+
+### 2、内核引导
+
+计算机通电后，首先进行 BIOS 开机自检，按照 BIOS 中设置的启动设备（通常是硬盘）来启动
+
+之后操作系统接管硬件以后，首先读入 /boot 目录下的内核文件
+
+
+
+
+
+### 3、运行 init
+
+init 进程是系统所有进程的起点，没有这个进程，系统中任何进程都不会启动
+
+init 程序启动是需要先读取配置文件
+
+
+
+init 类型在不同版本的 Linux 不同
+
+- SysV：CentOS 5，配置文件：/etc/inittab
+- Upstart：CentOS 6，配置文件：/etc/inittab、/etc/init/*.conf
+- Systemd：CentOS 7，配置文件：/usr/lib/systemd/system、/etc/systemd/system
+
+
+
+### 4、系统初始化
+
+在 init 的配置文件中有这么一行：**si::sysinit:/etc/rc.d/rc.sysinit**，其调用执行 /etc/rc.d/rc.sysinit
+
+rc.sysinit 是一个 bash 脚本，是每一个运行级别都要首先运行的重要脚本，主要完成的工作有：激活交换分区，检查磁盘，加载硬件模块以及其它一些需要优先执行任务
+
+~~~bash
+# 这一行表示以 5 为参数运行 /etc/rc.d/rc
+l5:5:wait:/etc/rc.d/rc 5
+~~~
+
+**/etc/rc.d/rc** 是一个 Shell 脚本，它接受 5 作为参数，去执行 /etc/rc.d/rc5.d/ 目录下的所有的 rc 启动脚本
+
+**/etc/rc.d/rc5.d/** 目录中的这些启动脚本实际上都是一些连接文件，而不是真正的 rc 启动脚本，真正的 rc 启动脚本实际上都是放在 **/etc/rc.d/init.d/** 目录下，这些 rc 启动脚本有着类似的用法，它们一般能接受 start、stop、restart、status 等参数
+
+/etc/rc.d/rc5.d/ 中的 rc 启动脚本通常是 K 或 S 开头的连接文件，对于以 S 开头的启动脚本，将以 start 参数来运行，如果发现存在相应的脚本也存在 K 开头的连接，而且已经处于运行态了（以 /var/lock/subsys/ 下的文件作为标志），则将首先以 stop 为参数停止这些已经启动了的守护进程，然后再重新运行，这样做是为了保证是当 init 改变运行级别时，所有相关的守护进程都将重启
+
+用户可以通过 chkconfig 或 setup 中的 "System Services" 来自行设定，哪些运行级别运行哪些服务
+
+
+
+### 5、建立终端
+
+rc 执行完毕后，返回 init，这时基本系统环境已经设置好了，各种守护进程也已经启动
+
+init 接下来会打开 6 个终端，以便用户登录系统，在 inittab 中的以下 6 行就是定义了 6 个终端：
+
+~~~bash
+1:2345:respawn:/sbin/mingetty tty1
+2:2345:respawn:/sbin/mingetty tty2
+3:2345:respawn:/sbin/mingetty tty3
+4:2345:respawn:/sbin/mingetty tty4
+5:2345:respawn:/sbin/mingetty tty5
+6:2345:respawn:/sbin/mingetty tty6
+~~~
+
+从上面可以看出在 2、3、4、5 的运行级别中都将以 respawn 方式运行 mingetty 程序，mingetty 程序能打开终端、设置模式
+
+同时其会显示一个文本登录界面，这个界面就是经常看到的登录界面，在这个登录界面中会提示用户输入用户名，而用户输入的用户将作为参数传给 login 程序来验证用户的身份
 
 
 
@@ -1372,9 +1479,49 @@ top [选项]
 
 netstat [选项]（功能描述：查看系统网络情况）
 
--an 按一定顺序排列输出 
+- -a 显示所有连接
+- -p 显示哪个进程在调用
 
--p 显示哪个进程在调用
+- -t (tcp) 仅显示tcp相关选项
+- -u (udp)仅显示udp相关选项
+- -n 拒绝显示别名，能显示数字的全部转化为数字
+- -l 仅列出在Listen(监听)的服务状态
+- -p 显示建立相关链接的程序名
+
+
+
+### 3、lsof 命令
+
+lsof（list open files）是一个列出当前系统打开文件的工具
+
+~~~bash
+lsof -i:8080			查看 8080 端口占用
+lsof abc.txt			显示开启文件 abc.txt 的进程
+lsof -c abc				显示 abc 进程现在打开的文件
+lsof -c -p 1234			列出进程号为 1234 的进程所打开的文件
+lsof -g gid				显示归属 gid 的进程情况
+lsof +d /usr/local/		显示目录下被进程开启的文件
+lsof +D /usr/local/		同上，但是会搜索目录下的目录，时间较长
+lsof -d 4				显示使用 fd 为 4 的进程
+lsof -i -U				显示所有打开的端口和 UNIX domain 文件
+~~~
+
+~~~bash
+COMMAND PID    USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+java    882 tomcat8   52u  IPv6  15954      0t0  TCP *:http-alt (LISTEN)
+~~~
+
+- COMMAND：进程名称
+- PID：进程标识符
+- USER：进程所有者
+- FD：文件描述符，应用程序通过该文件描述符识别该文件
+- TYPE：文件类型
+- DEVICE：指定磁盘的名称
+- SIZE：文件的大小
+- NODE：索引节点（文件在磁盘上的标识）
+- NAME：打开文件的确切名称
+
+
 
 
 
@@ -1534,6 +1681,8 @@ java -version
 
 ## 配置MySQL
 
+**CentOS 版本**
+
 下载源
 
 ```shell
@@ -1631,6 +1780,60 @@ grant all privileges on *.* to 'root'@'%' with grant option;
 添加自启
 
 systemctl enable mysqld
+
+
+
+**Ubuntu 版本**
+
+切换到 root 用户后
+
+~~~bash
+apt-get install mysql-server 
+~~~
+
+查看 mysql 状态
+
+~~~mysql
+systemctl status mysql
+~~~
+
+修改 root 密码
+
+~~~bash
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'your_password';
+~~~
+
+查看用户验证的方法
+
+~~~bash
+SELECT user,authentication_string,plugin,host FROM mysql.user;
+~~~
+
+在未执行任何配置的情况下在 Ubuntu 上全新安装 MySQL 后，访问服务器的用户将使用身份验证套接字 (**auth_socket**) 插件进行身份验证，该插件会阻碍服务器使用密码对用户进行身份验证
+
+容易引发安全问题，且使用户无法使用外部程序（如 phpMyAdmin）访问数据库
+
+需要将身份验证方法从 auth_socket 更改为使用 mysql_native_password
+
+```bash
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'your_password';
+```
+
+刷新
+
+~~~bash
+FLUSH PRIVILEGES;
+~~~
+
+允许远程访问
+
+~~~bash
+# 切换数据库
+use mysql
+# 修改连接权限
+grant all privileges on *.* to 'root'@'%';
+# 刷新即可
+~~~
 
 
 

@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="Golang笔记补充">
+    <list default="true" id="a7f6199c-9ba3-4c4e-919e-b2be09dd6cfb" name="变更" comment="设计模式笔记补充">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/笔记/Java笔记/Java笔记.md" beforeDir="false" afterPath="$PROJECT_DIR$/笔记/Java笔记/Java笔记.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,6 +82,8 @@
       <workItem from="1680103830753" duration="627000" />
       <workItem from="1680179425497" duration="214000" />
       <workItem from="1681220138570" duration="38000" />
+      <workItem from="1681396393686" duration="677000" />
+      <workItem from="1683963986916" duration="10000" />
     </task>
     <task id="LOCAL-00001" summary="设计模式笔记补充">
       <created>1678112192521</created>
@@ -133,7 +134,14 @@
       <option name="project" value="LOCAL" />
       <updated>1680179566973</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="设计模式笔记补充">
+      <created>1681397063983</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1681397063983</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -152,12 +160,12 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="设计模式笔记补充" />
     <MESSAGE value="K8s笔记修改，删除行测笔记" />
     <MESSAGE value="杂七杂八的笔记修改" />
     <MESSAGE value="Golang笔记添加结构体" />
     <MESSAGE value="Golang笔记补充" />
-    <option name="LAST_COMMIT_MESSAGE" value="Golang笔记补充" />
+    <MESSAGE value="设计模式笔记补充" />
+    <option name="LAST_COMMIT_MESSAGE" value="设计模式笔记补充" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
