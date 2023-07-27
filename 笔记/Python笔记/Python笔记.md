@@ -4929,6 +4929,19 @@ data[(data[列名1].str.contains("列值1|列值2",na=False)) & (data[列名2].s
 
 
 
+##### 6、loc()
+
+loc 函数也可以用来筛选数值
+
+~~~python
+data1.loc[(条件1) & (条件2), 列名]
+data1.loc[(data1['设备'] == '2G') & (data1['故障原因/区县'] == r['阻断原因']), r['区县']]
+~~~
+
+
+
+
+
 ## 2、matplotlib
 
 ### 1、清空绘图
