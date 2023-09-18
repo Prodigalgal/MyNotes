@@ -1093,13 +1093,13 @@ public void contextLoads() {
     map.put("msg","这是第一个消息");
     map.put("data", Arrays.asList("helloworld",123,true));
     // 对象被默认序列化以后发送出去
-    rabbitTemplate.convertAndSend("exchange.direct","atguigu.news",new Book("西游记","吴承恩"));
+    rabbitTemplate.convertAndSend("exchange.direct","xxxx.news",new Book("西游记","吴承恩"));
 }
 
 // 接受数据
 @Test
 public void receive(){
-    Object o = rabbitTemplate.receiveAndConvert("atguigu.news");
+    Object o = rabbitTemplate.receiveAndConvert("xxxx.news");
     System.out.println(o.getClass());
     System.out.println(o);
 }
@@ -1263,7 +1263,7 @@ public void contextLoads() {
     article.setContent("Hello World");
 
     //构建一个索引功能                放入实体          选择索引库       选择类型      构建
-    Index index = new Index.Builder(article).index("atguigu").type("news").build();
+    Index index = new Index.Builder(article).index("xxxx").type("news").build();
 
     try {
         //执行
@@ -1288,7 +1288,7 @@ public void search(){
 
     //更多操作：https://github.com/searchbox-io/Jest/tree/master/jest
     //构建搜索功能                      选择查询表达式      选择索引库         选择类型      构建
-    Search search = new Search.Builder(json).addIndex("atguigu").addType("news").build();
+    Search search = new Search.Builder(json).addIndex("xxxx").addType("news").build();
 
     //执行
     try {
@@ -1708,7 +1708,7 @@ Dubbo是Alibaba开源的分布式服务框架，它最大的特点是按照分�
 么是提供方提供服务，要么是消费方消费服务，所以基于这一点可以抽象
 出服务提供方（Provider）和服务消费方（Consumer）两个角色。
 
-![image-20210905091857464](H:\#2 学习\笔记\Java笔记\Spring笔记\Spring-Boot笔记\images\SpringBoot高级.assets\image-20210905091857464.png)
+![image-20210905091857464](images\SpringBoot高级.assets\image-20210905091857464.png)
 
 ### 3、整合ZooKeeper和Dubbo
 
@@ -1743,7 +1743,7 @@ dubbo.registry.address=zookeeper://xxx.xxx.xxx.xxx:2181
 dubbo.application.name=provider-ticket
 dubbo.registry.address=zookeeper://xxx.xxx.xxx.xxx:2181
 #选择需要注册服务的包
-dubbo.scan.base-packages=com.atguigu.ticket.service
+dubbo.scan.base-packages=ticket.service
 ```
 
 ​	4、发布服务

@@ -2691,7 +2691,7 @@ JUC 就是 java.util.concurrent 工具包的简称
 
 ### 1.2、线程状态
 
-线程状态枚举类**Thread.State**
+线程有六种状态，可以通过查看线程状态枚举类 **Thread.State** 得到
 
 ~~~java
 public enum State {
@@ -2718,7 +2718,7 @@ TERMINATED;(终止)
 - sleep 是 Thread 的静态方法
 - wait 是 Object 的方法，任何对象实例都能调用
 - sleep 不会释放锁，它也不需要占用锁
-- wait 会释放锁，但调用它的前提是当前线程占有锁(即代码要在 synchronized 中)
+- wait 会释放锁，但调用它的前提是当前线程占有锁（即代码要在 synchronized 中）
 - 它们都可以被 interrupted 方法中断
 
 

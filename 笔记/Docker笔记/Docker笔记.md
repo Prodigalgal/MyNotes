@@ -47,7 +47,7 @@ Docker 利用容器（Container）独立运行的一个或一组应用，应用�
 
 仓库分为公开仓库（Public）和私有仓库（Private）两种形式，最大的公开仓库是 Docker Hub(https://hub.docker.com/)
 
-<img src="images/image-20220126165406986.png" alt="image-20220126165406986" style="zoom:80%;" /> 
+<img src="images/image-20220126165406986.png" alt="image-20220126165406986" style="zoom:80%;" />
 
 # Docker架构
 

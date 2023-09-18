@@ -195,7 +195,7 @@ Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点�
 - **kube-proxy**：
   - 网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
   - 其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
-  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
+  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables 代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
 - **容器运行时**：
   - 负责运行容器
   - Kubernetes 支持多种容器引擎：
@@ -6292,7 +6292,7 @@ Kubernetes 使用一个后台控制器检查该全局分配表中的 IP 地址�
 
 ### 2、Service 的 IP 地址
 
-Pod 的 IP 地址路由到一个确定的目标，然而 Service 的 IP 地址则不同，通常背后并不对应一个唯一的目标
+Pod 的 IP 地址可以路由到一个确定的 Pod 目标，然而 Service 的 IP 地址则不同，通常背后并不对应一个唯一的目标对象
 
 kube-proxy 使用 iptables（Linux 中的报文处理逻辑）来定义虚拟 IP 地址，当客户端连接到该虚拟 IP 地址时，它们的网络请求将自动发送到一个合适的 Endpoint
 
@@ -6328,7 +6328,9 @@ Kubernetes 支持三种 proxy mode（代理模式），版本兼容性如下：
 4. 任何发送到该随机端口的请求将被 kube-proxy 以代理的形式转发到该 Service 的后端 Pod 上
    - kube-proxy 从 Endpoint 信息中获得可用 Pod
 
-5. kube-proxy 在决定将请求转发到后端哪一个 Pod 时，默认使用 round-robin（轮询）算法，并会考虑到 Service 中的 SessionAffinity 的设定
+5. kub
+
+6. rvice 中的 SessionAffinity 的设定
 
 <img src="images/image-20230219155351485.png" alt="image-20230219155351485" style="zoom:67%;" />
 
