@@ -1,51 +1,51 @@
-# SpringCloud简介
+# SpringCloud 简介
 
-## 概述
+## 1、概述
 
-SpringCloud分布式微服务架构下的一站式解决方案，是各个微服务架构落地技术的集合体，俗称微服务全家桶
-
-
-
-## SpringCloud和SpringBoot
-
-<u>SpringBoot</u>专注于快速方便的**开发单个个体微服务**。
-
-<u>SpringCloud</u>是**关注全局**的微服务协调整理治理框架，它将SpringBoot开发的一个个单体微服务整合并管理起来，为各个微服务之间提供，配置管理、服务发现、断路器、路由、微代理、事件总线、全局锁、决策竞选、分布式会话等等集成服务
-
-SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离不开SpringBoot，属于依赖的关系
-
-**总结**：SpringBoot专注于快速、方便的开发单个微服务个体，SpringCloud关注全局的服务治理框架
+SpringCloud 分布式微服务架构下的一站式解决方案，是各个微服务架构落地技术的集合体，俗称微服务全家桶
 
 
 
-## SpringCloud和Dubbo
+## 2、SpringCloud 和 SpringBoot
+
+<u>SpringBoot</u> 专注于快速方便的**开发单个个体微服务**
+
+<u>SpringCloud</u> 是**关注全局**的微服务协调整理治理框架，它将 SpringBoot 开发的一个个单体微服务整合并管理起来，为各个微服务之间提供，配置管理、服务发现、断路器、路由、微代理、事件总线、全局锁、决策竞选、分布式会话等等集成服务
+
+SpringBoot 可以离开 SpringCloud 独立使用开发项目，但是 SpringCloud 离不开 SpringBoot，属于依赖的关系
+
+**总结**：SpringBoot 专注于快速、方便的开发单个微服务个体，SpringCloud 关注全局的服务治理框架
+
+
+
+## 3、SpringCloud 和 Dubbo
 
 <img src="images/image-20211126172640711.png" alt="image-20211126172640711" style="zoom: 50%;" />
 
 **最大区别**：
 
-- SpringCloud抛弃了Dubbo的**RPC通信**，采用的是**基于HTTP的REST方式**
-- 严格来说，这两种方式各有优劣，虽然从一定程度上来说，REST方式牺牲了服务调用的性能，但避免了原生RPC带来的问题
-- REST相比RPC更为灵活，服务提供方和调用方的依赖只依靠一纸契约，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显得更加合适
+- SpringCloud 抛弃了 Dubbo 的 **RPC 通信**，采用的是**基于 HTTP 的 REST 方式**
+- 严格来说，这两种方式各有优劣，虽然从一定程度上来说，REST 方式牺牲了服务调用的性能，但避免了原生 RPC 带来的问题
+- REST 相比 RPC 更为灵活，服务提供方和调用方的依赖只依靠一纸契约，不存在代码级别的强依赖，这在强调快速演化的微服务环境下，显得更加合适
 
 
 
-# Rest微服务构建
+# Rest 微服务构建
 
-## 构建MicroServiceCloud步骤
+## 1、构建 MicroServiceCloud 步骤
 
-### 整体父工程Project
+### 1、整体父工程 Project
 
-新建父工程microservicecloud，切记是Packageing是pom模式。
+新建父工程 microservicecloud，切记是 Packageing 是 pom 模式
 
-主要是定义POM文件，将后续各个子模块公用的jar包等统一提出来，类似一个抽象父类。
+主要是定义 POM 文件，将后续各个子模块公用的 jar 包等统一提出来，类似一个抽象父类。
 
 ```xml
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
  
-  <groupId>com.atguigu.springcloud</groupId>
+  <groupId>com.xxx.springcloud</groupId>
   <artifactId>microservicecloud</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -112,9 +112,9 @@ SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离
 </project>
 ```
 
-### 公共子模块API-Module
+### 2、公共子模块API-Module
 
-新建microservicecloud-api
+新建 microservicecloud-api
 
 ```xml
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -122,7 +122,7 @@ SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离
   <modelVersion>4.0.0</modelVersion>
  
   <parent><!-- 子类里面显示声明才能有明确的继承表现，无意外就是父类的默认版本否则自己定义 -->
-   <groupId>com.atguigu.springcloud</groupId>
+   <groupId>com.xxx.springcloud</groupId>
    <artifactId>microservicecloud</artifactId>
    <version>0.0.1-SNAPSHOT</version>
   </parent>
@@ -138,13 +138,17 @@ SpringBoot可以离开SpringCloud独立使用开发项目，但是SpringCloud离
 </project>
 ```
 
-mvn clean install后给其它模块引用，达到通用目的。也即需要用到部门实体的话，不用每个工程都定义一份，直接引用本模块即可。
+mvn clean install 后给其它模块引用，达到通用目的
 
-### 部门微服务提供者Module
+也即需要用到部门实体的话，不用每个工程都定义一份，直接引用本模块即可
+
+
+
+### 3、部门微服务提供者 Module
 
 microservicecloud-provider-dept-8001 
 
-新建microservicecloud-provider-dept-8001
+新建 microservicecloud-provider-dept-8001
 
 ```xml
  <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -152,7 +156,7 @@ microservicecloud-provider-dept-8001
   <modelVersion>4.0.0</modelVersion>
  
   <parent>
-   <groupId>com.atguigu.springcloud</groupId>
+   <groupId>com.xxx.springcloud</groupId>
    <artifactId>microservicecloud</artifactId>
    <version>0.0.1-SNAPSHOT</version>
   </parent>
@@ -161,7 +165,7 @@ microservicecloud-provider-dept-8001
  
   <dependencies>
    <dependency><!-- 引入自己定义的api通用包，可以使用Dept部门Entity -->
-     <groupId>com.atguigu.springcloud</groupId>
+     <groupId>com.xxx.springcloud</groupId>
      <artifactId>microservicecloud-api</artifactId>
      <version>${project.version}</version>
    </dependency>
@@ -218,7 +222,7 @@ server:
   
 mybatis:
   config-location: classpath:mybatis/mybatis.cfg.xml        # mybatis配置文件所在路径
-  type-aliases-package: com.atguigu.springcloud.entities    # 所有Entity别名类所在包
+  type-aliases-package: com.xxx.springcloud.entities    # 所有Entity别名类所在包
   mapper-locations:
   - classpath:mybatis/mapper/**/*.xml                       # mapper映射文件
     
@@ -239,7 +243,7 @@ spring:
  
 ```
 
-工程src/main/resources目录下新建mybatis文件夹后新建mybatis.cfg.xml文件
+工程 src/main/resources 目录下新建 mybatis 文件夹后新建 mybatis.cfg.xml 文件
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -257,16 +261,16 @@ spring:
 
 ```
 
-创建数据库，创建DAO层
+创建数据库，创建 DAO 层
 
-工程src/main/resources/mybatis目录下新建mapper文件夹后再建DeptMapper.xml
+工程 src/main/resources/mybatis 目录下新建 mapper 文件夹后再建 DeptMapper.xml
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
  
-<mapper namespace="com.atguigu.springcloud.dao.DeptDao">
+<mapper namespace="com.xxx.springcloud.dao.DeptDao">
  
   <select id="findById" resultType="Dept" parameterType="Long">
    select deptno,dname,db_source from dept where deptno=#{deptno}; 
@@ -281,17 +285,19 @@ spring:
 </mapper>
 ```
 
-创建Service层，再创建ServiceImpl
+创建 Service 层，再创建 ServiceImpl
 
-按照REST风格创建Controller层
+按照 REST 风格创建 Controller 层
 
 ![image-20211126173818195](images/image-20211126173818195.png)
 
-### 部门微服务消费者Module
+
+
+### 4、部门微服务消费者 Module
 
 microservicecloud-consumer-dept-80
 
-新建microservicecloud-consumer-dept-80
+新建 microservicecloud-consumer-dept-80
 
 ```xml
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -299,7 +305,7 @@ microservicecloud-consumer-dept-80
   <modelVersion>4.0.0</modelVersion>
  
   <parent>
-   <groupId>com.atguigu.springcloud</groupId>
+   <groupId>com.xxx.springcloud</groupId>
    <artifactId>microservicecloud</artifactId>
    <version>0.0.1-SNAPSHOT</version>
   </parent>
@@ -309,7 +315,7 @@ microservicecloud-consumer-dept-80
  
   <dependencies>
    <dependency><!-- 自己定义的api -->
-     <groupId>com.atguigu.springcloud</groupId>
+     <groupId>com.xxx.springcloud</groupId>
      <artifactId>microservicecloud-api</artifactId>
      <version>${project.version}</version>
    </dependency> 
@@ -335,10 +341,10 @@ server:
   port: 80
 ```
 
-com.atguigu.springcloud.cfgbeans包下ConfigBean的编写，注入RestTemplate类
+com.xxx.springcloud.cfgbeans包下 ConfigBean 的编写，注入 RestTemplate 类
 
 ```java
-package com.atguigu.springcloud.cfgbeans;
+package com.xxx.springcloud.cfgbeans;
  
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -353,10 +359,10 @@ public class ConfigBean{
 }
 ```
 
-com.atguigu.springcloud.controller包下新建DeptController_Consumer部门微服务消费者REST
+com.xxx.springcloud.controller 包下新建 DeptController_Consumer 部门微服务消费者 REST
 
 ```java
-package com.atguigu.springcloud.controller;
+package com.xxx.springcloud.controller;
  
 import java.util.List;
  
@@ -366,7 +372,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
  
-import com.atguigu.springcloud.entities.Dept;
+import com.xxx.springcloud.entities.Dept;
  
 @RestController
 public class DeptController_Consumer{
@@ -397,6 +403,8 @@ public class DeptController_Consumer{
 }
 ```
 
+
+
 # 组件替换
 
 <img src="images/image-20220115231140387.png" alt="image-20220115231140387" style="zoom:67%;" />
@@ -407,11 +415,11 @@ public class DeptController_Consumer{
 
 # 扩展
 
-## RestTemplate
+## 1、RestTemplate
 
-RestTemplate提供了多种**便捷访问远程Http服务**的方法， 是一种简单便捷的访问restful服务模板类，是Spring提供的用于访问Rest服务的客户端模板工具集
+RestTemplate 提供了多种**便捷访问远程 Http 服务**的方法， 是一种简单便捷的访问 restful 服务模板类，是 Spring 提供的用于访问 Rest 服务的客户端模板工具集
 
-使用restTemplate访问restful接口非常的简单
+使用 restTemplate 访问 restful 接口非常的简单
 
-(url, requestMap, ResponseBean.class)这三个参数分别代表 REST请求地址、请求参数、HTTP响应转换被转换成的对象类型
+（url, requestMap, ResponseBean）这三个参数分别代表 REST 请求地址、请求参数、HTTP 响应转换被转换成的对象类型
 

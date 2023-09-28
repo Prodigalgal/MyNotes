@@ -1,45 +1,49 @@
-# Config简介
+# Config 简介
 
-出现的问题：微服务意味着要将单体应用中的业务拆分成一个个子服务，每个服务的粒度相对较小，因此系统中会出现大量的服务。由于每个服务都需要必要的配置信息才能运行，所以一套集中式的、动态的配置管理设施是必不可少的。
+出现的问题：微服务意味着要将单体应用中的业务拆分成一个个子服务，每个服务的粒度相对较小，因此系统中会出现大量的服务，由于每个服务都需要必要的配置信息才能运行，所以一套集中式的、动态的配置管理设施是必不可少的
 
-解决办法：SpringCloud提供了**ConfigServer**来解决这个问题，我们每一个微服务自己带着一个application.yml，上百个配置文件的管理......
+解决办法：SpringCloud 提供了 **ConfigServer** 来解决这个问题，每一个微服务自带着一个 application.yml，上百个配置文件的管理
 
-![image-20220118100227795](images/image-20220118100227795.png) 
+<img src="images/image-20220118100227795.png" alt="image-20220118100227795" style="zoom:80%;" />
 
-SpringCloud Config为微服务架构中的微服务提供**集中化的外部配置支持**，配置服务器为各个不同微服务应用的所有环境提供了**一个中心化的外部配置**。
+SpringCloud Config 为微服务架构中的微服务提供**集中化的外部配置支持**，配置服务器为各个不同微服务应用的所有环境提供了**一个中心化的外部配置**
 
-SpringCloud Config分为**服务端**和**客户端**两部分：
+SpringCloud Config 分为**服务端**和**客户端**两部分：
 
-- 服务端也称为分布式配置中心，它是一个独立的微服务应用，用来连接配置服务器并为客户端提供获取配置信息，加密/解密信息等访问接口
-- 客户端则是通过指定的配置中心来管理应用资源，以及与业务相关的配置内容，并在启动的时候从配置中心获取和加载配置信息配置服务器默认采用git来存储配置信息，这样就有助于对环境配置进行版本管理，并且可以通过git客户端工具来方便的管理和访问配置内容。
+- 服务端：分布式配置中心，一个独立的微服务应用，用来连接配置服务器并为客户端提供获取配置信息，加密/解密信息等访问接口
+- 客户端：通过指定的配置中心来管理应用资源，以及与业务相关的配置内容，并在启动的时候从配置中心获取和加载配置信息配置服务器默认采用 git 来存储配置信息，这样就有助于对环境配置进行版本管理，并且可以通过 git 客户端工具来方便的管理和访问配置内容
 
 总体作用：
 
 - 集中管理配置文件
-- 不同环境不同配置，动态化的配置更新，分环境部署比如dev/test/prod/beta/release。
-- 运行期间动态调整配置，不再需要在每个服务部署的机器上编写配置文件，服务会向配置中心统一拉取配置自己的信息。
-- 当配置发生变动时，服务不需要重启即可感知到配置的变化并应用新的配置。
-- 将配置信息以REST接口的形式暴露，post、curl访问刷新均可......
+- 不同环境不同配置，动态化的配置更新，分环境部署比如 dev/test/prod/beta/release
+- 运行期间动态调整配置，不再需要在每个服务部署的机器上编写配置文件，服务会向配置中心统一拉取配置自己的信息
+- 当配置发生变动时，服务不需要重启即可感知到配置的变化并应用新的配置
+- 将配置信息以 REST 接口的形式暴露，post、curl 访问刷新均可
+
+
 
 # 服务端配置与测试
 
-## 1、新建Git仓库并克隆
+## 1、新建 Git 仓库并克隆
 
-用自己的账号在GitHub上新建一个名为xxx-config的新Repository。
+用自己的账号在 GitHub 上新建一个名为 xxx-config 的新 Repository
 
-获取到Git的地址 git@github.com:xxx/xxx-configxxxx.git。
+获取到 Git 的地址 git@github.com:xxx/xxx-configxxxx.git
 
 克隆到本地磁盘上
 
 ![image-20220118152016806](images/image-20220118152016806.png) 
 
-不同的后缀表示多个环境的配置文件，保存格式必须为UTF-8
+不同的后缀表示多个环境的配置文件，保存格式必须为 UTF-8
 
-## 2、新建Cloud的配置中心模块
 
-Cloud的配置中心模块cloudConfig Center
 
-### 1、引入POM
+## 2、新建 Cloud 的配置中心模块
+
+Cloud 的配置中心模块 cloudConfig Center
+
+### 1、引入 POM
 
 ```xml
  
@@ -94,7 +98,9 @@ Cloud的配置中心模块cloudConfig Center
 </project>
 ```
 
-### 2、修改YML
+
+
+### 2、修改 YML
 
 ```yml
 server:
@@ -102,24 +108,26 @@ server:
 
 spring:
   application:
-    name:  cloud-config-center #注册进Eureka服务器的微服务名
+    name:  cloud-config-center # 注册进 Eureka 服务器的微服务名
   cloud:
     config:
       server:
         git:
-          uri: git@github.com:zzyybs/springcloud-config.git #GitHub上面的git仓库名字
-        ####搜索目录
+          uri: git@github.com:zzyybs/springcloud-config.git # GitHub 上面的 git 仓库名字
+        #### 搜索目录
           search-paths:
             - springcloud-config
-      ####读取分支
+      #### 读取分支
       label: master
 
-#服务注册到eureka地址
+# 服务注册到 eureka 地址
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:7001/eureka
 ```
+
+
 
 ### 3、添加新注解
 
@@ -135,19 +143,25 @@ public class ConfigCenterMain3344{
 }
 ```
 
-## 3、修改hosts文件
 
-windows下修改hosts文件，增加映射。
+
+## 3、修改 hosts 文件
+
+windows 下修改 hosts 文件，增加映射
 
 127.0.0.1  config-3344.com
 
+
+
 ## 4、测试
 
-测试通过Config微服务是否可以从GitHub上获取配置内容。
+测试通过 Config 微服务是否可以从 GitHub 上获取配置内容
 
-启动微服务3344
+启动微服务 3344
 
 http://config-3344.com:3344/master/config-dev.yml
+
+
 
 # 客户端配置与测试
 
@@ -155,7 +169,9 @@ http://config-3344.com:3344/master/config-dev.yml
 
 新建cloud-config-client-3355
 
-## 2、引入POM
+
+
+## 2、引入 POM
 
 ```xml
  
@@ -212,7 +228,9 @@ http://config-3344.com:3344/master/config-dev.yml
  
 ```
 
-## 3、配置Bootstarp.yml
+
+
+## 3、配置 Bootstarp.yml
 
 ```yml
 server:
@@ -222,15 +240,15 @@ spring:
   application:
     name: config-client
   cloud:
-    #Config客户端配置
+    #Config 客户端配置
     config:
-      label: master #分支名称
-      name: config #配置文件名称
-      profile: dev #读取后缀名称   
-#上述3个综合：master分支上config-dev.yml的配置文件被读取http://config-3344.com:3344/master/config-dev.yml
-      uri: http://localhost:3344 #配置中心地址
+      label: master # 分支名称
+      name: config # 配置文件名称
+      profile: dev # 读取后缀名称   
+# 上述 3 个综合：master 分支上 config-dev.yml 的配置文件被读取 http://config-3344.com:3344/master/config-dev.yml
+      uri: http://localhost:3344 # 配置中心地址
 
-#服务注册到eureka地址
+# 服务注册到 eureka 地址
 eureka:
   client:
     service-url:
@@ -239,7 +257,9 @@ eureka:
 
 ![image-20220118153238522](images/image-20220118153238522.png) 
 
-修改config-dev.yml配置并提交到GitHub中，比如加个变量age或者版本号version
+修改 config-dev.yml 配置并提交到 GitHub 中，比如加个变量 age 或者版本号 version
+
+
 
 ## 4、业务类
 
@@ -256,25 +276,33 @@ public class ConfigClientController{
 }
 ```
 
-## 测试
 
-启动Config配置中心3344微服务并自测
+
+## 5、测试
+
+启动 Config 配置中心 3344 微服务并自测
 
 http://config-3344.com:3344/master/config-prod.yml
 
-启动3355作为Client准备访问
+启动 3355 作为 Client 准备访问
 
 http://localhost:3355/configInfo
 
-## 问题
 
-修改GitHub上的配置文件内容做调整，刷新3344，ConfigServer配置中心立刻响应，刷新3355，ConfigClient客户端没有任何响应。
+
+## 6、问题
+
+修改 GitHub 上的配置文件内容做调整，刷新 3344，ConfigServer 配置中心立刻响应
+
+刷新 3355，ConfigClient 客户端没有任何响应
+
+
 
 # 客户端动态刷新
 
 ## 1、修改客户端模块
 
-### 1、引入POM
+### 1、引入 POM
 
 ```xml
  <dependency>
@@ -283,7 +311,9 @@ http://localhost:3355/configInfo
 </dependency>
 ```
 
-### 2、修改YML
+
+
+### 2、修改 YML
 
 暴露端口
 
@@ -295,14 +325,14 @@ spring:
   application:
     name: config-client
   cloud:
-    #Config客户端配置
+    # Config 客户端配置
     config:
-      label: master #分支名称
-      name: config #配置文件名称
-      profile: dev #读取后缀名称   上述3个综合：master分支上config-dev.yml的配置文件被读取
-      uri: http://localhost:3344 #配置中心地址
+      label: master # 分支名称
+      name: config # 配置文件名称
+      profile: dev # 读取后缀名称   上述 3 个综合：master 分支上 config-dev.yml 的配置文件被读取
+      uri: http://localhost:3344 # 配置中心地址
 
-#服务注册到eureka地址
+# 服务注册到 eureka 地址
 eureka:
   client:
     service-url:
@@ -315,9 +345,11 @@ management:
         include: "*"
 ```
 
+
+
 ### 3、客户端添加新注解
 
-在控制嘞上添加@RefreshScope
+在控制嘞上添加 @RefreshScope
 
 ```java
 @RestController
@@ -333,6 +365,8 @@ public class ConfigClientController{
 }
 ```
 
+
+
 ### 4、客户端发送刷新请求
 
 curl -X POST "http://localhost:3355/actuator/refresh"
@@ -341,17 +375,21 @@ curl -X POST "http://localhost:3355/actuator/refresh"
 
 # 扩展
 
-## BootStrap.yml
+## 1、BootStrap.yml
 
-applicaiton.yml是用户级的资源配置项
+applicaiton.yml 是用户级的资源配置项
 
-bootstrap.yml是系统级的，优先级更加高
+bootstrap.yml 是系统级的，优先级更加高
 
-Spring Cloud会创建一个“Bootstrap Context”，作为Spring应用的`Application Context`的父上下文。初始化的时候，`Bootstrap Context`负责从外部源加载配置属性并解析配置。这两个上下文共享一个从外部获取的`Environment`。
+Spring Cloud 会创建一个“Bootstrap Context”，作为 Spring 应用的`Application Context`的父上下文
 
-`Bootstrap`属性有高优先级，默认情况下，它们不会被本地配置覆盖。 `Bootstrap context`和`Application Context`有着不同的约定，所以新增了一个`bootstrap.yml`文件，保证`Bootstrap Context`和`Application Context`配置的分离。
+初始化的时候，`Bootstrap Context`负责从外部源加载配置属性并解析配置，这两个上下文共享一个从外部获取的`Environment`
 
-## 读取规则
+`Bootstrap`属性有高优先级，默认情况下，它们不会被本地配置覆盖， `Bootstrap context`和`Application Context`有着不同的约定，所以新增了一个`bootstrap.yml`文件，保证`Bootstrap Context`和`Application Context`配置的分离
+
+
+
+## 2、读取规则
 
 ![image-20220118152517834](images/image-20220118152517834.png)
 

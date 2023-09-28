@@ -1,45 +1,48 @@
-# Zuul简介
+# 1、Zuul 简介
 
-Zuul是一种提供动态路由、监视、弹性、安全性等功能的边缘服务。
+Zuul 是一种提供动态路由、监视、弹性、安全性等功能的边缘服务
 
-Zuul是Netflix出品的一个基于JVM路由和服务端的负载均衡器。
+Zuul 是 Netflix 出品的一个基于 JVM 路由和服务端的负载均衡器
 
-# Zuul作用
 
-Zuul包含了对请求的**路由**和**过滤**两个最主要的功能：
 
-- 路由功能负责将外部请求转发到具体的微服务实例上，是实现外部访问统一入口的基础。
+# 2、Zuul 作用
 
-- 过滤器功能则负责对请求的处理过程进行干预，是实现请求校验、服务聚合等功能的基础。
+Zuul 和 Eureka 进行整合，将 Zuul 自身注册为 Eureka 服务治理下的应用，同时从 Eureka 中获得其他微服务的消息，也即以后的访问微服务都是通过 Zuul 跳转后获得
 
-Zuul和Eureka进行整合，将Zuul自身注册为Eureka服务治理下的应用，同时从Eureka中获得其他微服务的消息，也即以后的访问微服务都是通过Zuul跳转后获得。
+Zuul 包含了对请求的**路由**和**过滤**两个最主要的功能：
 
-    注意：Zuul服务最终还是会注册进Eureka
+- 路由：负责将外部请求转发到具体的微服务实例上，是实现外部访问统一入口的基础
 
-提供 = 代理 + 路由 + 过滤 + 负载均衡 + 灰度发布。
+- 过滤：负责对请求的处理过程进行干预，是实现请求校验、服务聚合等功能的基础
 
-负载均衡：网关为入口，由网关与微服务进行交互，所以网关必须要实现负载均衡的功能。网关会获取微服务注册中心里面的服务连接地址，再配合一些算法选择其中一个服务地址，进行处理业务。这个属于客户端侧的负载均衡，由调用方去实现负载均衡逻辑。
+- 网关：代理 + 路由 + 过滤 + 负载均衡 + 灰度发布
 
-![image-20220116110912896](images/image-20220116110912896.png) 
+- LB：网关为入口，由网关与微服务进行交互，所以网关必须要实现负载均衡的功能，网关会获取微服务注册中心里面的服务连接地址，再配合一些算法选择其中一个服务地址，进行处理业务，这个属于客户端侧的负载均衡，由调用方去实现负载均衡逻辑
 
-# 路由基本配置
+![image-20220116110912896](images/image-20220116110912896.png)
 
-## 构建步骤
 
- 新建Module模块microservicecloud-zuul-gateway-9527
 
-### 1、引入POM
+# 3、路由基本配置
 
- POM文件，引入zuul路由网关依赖
+## 1、构建步骤
+
+ 新建 Module 模块 microservicecloud-zuul-gateway-9527
+
+
+
+### 1、引入 POM
+
+ POM 文件，引入 zuul 路由网关依赖
 
 ```xml
- 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
  
   <parent>
-   <groupId>com.atguigu.springcloud</groupId>
+   <groupId>com.xxx.springcloud</groupId>
    <artifactId>microservicecloud</artifactId>
    <version>0.0.1-SNAPSHOT</version>
   </parent>
@@ -47,7 +50,7 @@ Zuul和Eureka进行整合，将Zuul自身注册为Eureka服务治理下的应用
   <artifactId>microservicecloud-zuul-gateway-9527</artifactId>
  
   <dependencies>
-   <!-- zuul路由网关 -->
+   <!-- zuul 路由网关 -->
       旧版
    <dependency>
      <groupId>org.springframework.cloud</groupId>
@@ -62,12 +65,12 @@ Zuul和Eureka进行整合，将Zuul自身注册为Eureka服务治理下的应用
      <groupId>org.springframework.cloud</groupId>
      <artifactId>spring-cloud-starter-eureka</artifactId>
    </dependency>
-   <!-- actuator监控 -->
+   <!-- actuator 监控 -->
    <dependency>
      <groupId>org.springframework.boot</groupId>
      <artifactId>spring-boot-starter-actuator</artifactId>
    </dependency>
-   <!--  hystrix容错-->
+   <!--  hystrix 容错-->
    <dependency>
      <groupId>org.springframework.cloud</groupId>
      <artifactId>spring-cloud-starter-hystrix</artifactId>
@@ -78,7 +81,7 @@ Zuul和Eureka进行整合，将Zuul自身注册为Eureka服务治理下的应用
    </dependency>
    <!-- 日常标配 -->
    <dependency>
-     <groupId>com.atguigu.springcloud</groupId>
+     <groupId>com.xxx.springcloud</groupId>
      <artifactId>microservicecloud-api</artifactId>
      <version>${project.version}</version>
    </dependency>
@@ -108,9 +111,11 @@ Zuul和Eureka进行整合，将Zuul自身注册为Eureka服务治理下的应用
 </project>
 ```
 
+
+
 ### 2、修改YML
 
-yml文件
+yml 文件
 
 ```yml
 server: 
@@ -130,27 +135,31 @@ eureka:
  
  
 info:
-  app.name: atguigu-microcloud
-  company.name: www.atguigu.com
+  app.name: xxx-microcloud
+  company.name: www.xxx.com
   build.artifactId: $project.artifactId$
   build.version: $project.version$
 ```
 
-### 3、修改Hosts文件
 
-hosts修改		127.0.0.1  myzuul.com
+
+### 3、修改 Hosts 文件
+
+hosts 修改	127.0.0.1	myzuul.com
+
+
 
 ### 4、添加新注解
 
-主启动类添加**注解@EnableZuulProxy** 
+主启动类添加**注解 @EnableZuulProxy** 
 
 ```java
-package com.atguigu.springcloud;
+package com.xxx.springcloud;
  
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.netflix.zuul.EnableZuulProxy;
- 
+
 @SpringBootApplication
 @EnableZuulProxy
 public class Zuul_9527_StartSpringCloudApp {
@@ -162,45 +171,43 @@ public class Zuul_9527_StartSpringCloudApp {
 
 
 
-## 测试
+## 2、测试
 
-三个eureka集群
+三个 Eureka 集群
 
-一个服务提供类microservicecloud-provider-dept-8001
+一个服务提供类 microservicecloud-provider-dept-8001 http://localhost:8001/dept/get/2
 
-一个路由
+zuul 映射配置 + 注册中心注册后对外暴露的服务名称 + rest 调用地址 http://myzuul.com:9527/microservicecloud-dept/dept/get/2
 
-http://localhost:8001/dept/get/2
 
-zuul映射配置+注册中心注册后对外暴露的服务名称+rest调用地址
 
-http://myzuul.com:9527/microservicecloud-dept/dept/get/2
+## 3、路由访问映射规则
 
-## 路由访问映射规则
+修改工程 microservicecloud-zuul-gateway-9527
 
-修改工程microservicecloud-zuul-gateway-9527
 
-### 代理名称
 
-修改yml文件，但是旧路径和新路径都可以访问
+### 1、代理名称
+
+修改 yml 文件，但是旧路径和新路径都可以访问
 
 ```yml
 zuul: 
   routes: 
- 	# 注册进eureka服务器的地址
+ 	# 注册进 eureka 服务器的地址
     mydept.serviceId: microservicecloud-dept
      # 浏览器地址栏输入的路径
     mydept.path: /mydept/**
-    
-修改前，访问路径
-http://myzuul.com:9527/microservicecloud-dept/dept/get/2
-修改后，访问路径
-http://myzuul.com:9527/mydept/dept/get/1
 ```
 
-### 禁止原服务名访问
+修改前，访问路径 http://myzuul.com:9527/microservicecloud-dept/dept/get/2
+修改后，访问路径 http://myzuul.com:9527/mydept/dept/get/1
 
-再次修改yml文件，使得旧路径无法访问，单个具体可以具体写明，多个可以用"*"替代
+
+
+### 2、禁止原服务名访问
+
+再次修改 yml 文件，使得旧路径无法访问，单个具体可以具体写明，多个可以用 **\*** 替代
 
 ```yml
 zuul: 
@@ -210,20 +217,22 @@ zuul:
     mydept.path: /mydept/**
 ```
 
-### 设置公共前缀
+
+
+### 3、设置公共前缀
 
 设置统一公共前缀
 
 ```yml
  zuul: 
-  prefix: /atguigu
+  prefix: /xxx
   ignored-services: "*" # 忽略所有服务名称
   routes: 
     mydept.serviceId: microservicecloud-dept
     mydept.path: /mydept/**
 ```
 
-最后成果http://myzuul.com:9527/mircoservice/mydept/dept/get/1
+最后成果 http://myzuul.com:9527/mircoservice/mydept/dept/get/1
 
 ```yml
 server: 
@@ -249,29 +258,32 @@ eureka:
     prefer-ip-address: true 
  
 info:
-  app.name: atguigu-microcloud
-  company.name: www.atguigu.com
+  app.name: xxx-microcloud
+  company.name: www.xxx.com
   build.artifactId: $project.artifactId$
   build.version: $project.version$
 ```
 
-**注意**：
+解释：http://myzuul.com:9527/mircoservice/mydept/haha/dept/get/1
 
-http://myzuul.com:9527/mircoservice/mydept/haha/dept/get/1
+- http://myzuul.com:9527 根据路由设置，后面紧跟前缀
 
-/myzuul.com:9527 根据路由设置，后面紧跟前缀
+- /mircoservice 根据路由设置的**前缀**
 
-/mircoservice 根据路由设置
+- /mydept 根据路由设置的**服务路径**
 
-/mydept 根据路由设置
+- /haha 根据特定服务的 context 设置
+- /dept/get/1 特定服务具体路径
 
-/haha 根据特定服务的context设置，如果有的话，没有直接的话调用/dept/get/1
 
-# 路由转发与负载均衡
 
-## 1、新建服务提供者模块cloud-provider-sms8008模块
+# 4、路由转发与负载均衡
 
-### 1、引入POM
+新建服务提供者模块 cloud-provider-sms8008 模块
+
+
+
+## 1、引入 POM
 
 ```xml
  
@@ -281,7 +293,7 @@ http://myzuul.com:9527/mircoservice/mydept/haha/dept/get/1
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>mscloud</artifactId>
-        <groupId>com.atguigu.springcloud</groupId>
+        <groupId>com.xxx.springcloud</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -324,28 +336,32 @@ http://myzuul.com:9527/mircoservice/mydept/haha/dept/get/1
 </project>
 ```
 
-### 2、修改YML
+
+
+## 2、修改 YML
 
 ```yml
  server:
   port: 8008
 
-###服务名称(服务注册到eureka名称)
+### 服务名称(服务注册到 eureka 名称)
 spring:
     application:
         name: cloud-provider-sms
 
 eureka:
-  client: #服务提供者provider注册进eureka服务列表内
+  client: # 服务提供者 provider 注册进 eureka 服务列表内
     service-url:
       register-with-eureka: true
       fetch-registry: true
       defaultZone: http://eureka7001.com:7001/eureka,http://eureka7002.com:7002/eureka,http://eureka7003.com:7003/eureka
-      #defaultZone: http://127.0.0.1:7001/eureka,http://127.0.0.1:7002/eureka
-      #defaultZone: http://eureka7001.com:7001/eureka   # eureka集群加@老本版
+      # defaultZone: http://127.0.0.1:7001/eureka,http://127.0.0.1:7002/eureka
+      # defaultZone: http://eureka7001.com:7001/eureka   # eureka 集群加 @ 老本版
 ```
 
-### 3、业务类
+
+
+## 3、业务类
 
 ```java
 @RestController
@@ -360,7 +376,9 @@ public class SMSController{
 }
 ```
 
-### 4、主启动
+
+
+## 4、主启动
 
 ```java
 @SpringBootApplication
@@ -373,9 +391,9 @@ public class MainAppSMS8008{
 
 ```
 
-## 2、修改网关模块
 
-### 1、修改YML
+
+## 5、修改网关模块
 
 ```yml
  
@@ -396,7 +414,7 @@ eureka:
     prefer-ip-address: true
 
 zuul:
-  #ignored-services: cloud-provider-payment
+  # ignored-services: cloud-provider-payment
   routes: # 路由映射配置
     mypayment.serviceId: cloud-provider-payment
     mypayment.path: /weixin/**
@@ -404,63 +422,75 @@ zuul:
     mysms.path: /mysms/**
 ```
 
-由于Zuul自动集成了Ribbon和Hystrix，所以Zuul天生就有负载均衡和服务容错能力。
+由于 Zuul 自动集成了 Ribbon 和 Hystrix，所以 Zuul 天生就有负载均衡和服务容错能力
 
-## 测试
+
+
+## 6、测试
 
 负载均衡
 
-微信服务找8001/8002
+微信服务找 8001/8002 http://myzuul.com:9527/weixin/paymentInfo
 
-http://myzuul.com:9527/weixin/paymentInfo
+路由转发 http://myzuul.com:9527/mysms/sms
 
-路由转发
+短信服务找 8008
 
-http://myzuul.com:9527/mysms/sms
 
-短信服务找8008
 
-# 过滤器
+# 5、过滤器
 
-## 简介
+## 1、简介
 
-过滤功能负责对请求过程进行额外的处理，是请求校验过滤及服务聚合的基础。
+过滤功能负责对请求过程进行额外的处理，是请求校验过滤及服务聚合的基础
 
-过滤器开关在YML配置
+过滤器开关在 YML 配置
 
-## 过滤器生命周期
+
+
+## 2、过滤器生命周期
 
 ![image-20220116113938446](images/image-20220116113938446.png) 
 
-## ZuulFilter
 
-### 过滤类型
 
-pre：在请求被路由到目标服务前执行，比如权限校验、打印日志等功能；
+## 3、ZuulFilter
+
+### 1、过滤类型
+
+pre：在请求被路由到目标服务前执行，比如权限校验、打印日志等功能
 
 routing：在请求被路由到目标服务时执行
 
-post：在请求被路由到目标服务后执行，比如给目标服务的响应添加头信息，收集统计数据等功能；
+post：在请求被路由到目标服务后执行，比如给目标服务的响应添加头信息，收集统计数据等功能
 
-error：请求在其他阶段发生错误时执行。
+error：请求在其他阶段发生错误时执行
 
-### 过滤顺序
+
+
+### 2、过滤顺序
 
 数字小的先执行
 
-### 过滤是否开启
 
-shouldFilter方法为true
 
-### 执行逻辑
+### 3、过滤是否开启
+
+shouldFilter 方法为 true
+
+
+
+### 4、 执行逻辑
 
 自己的业务逻辑
 
-## 例子
 
-前置过滤器，用于在请求路由到目标服务前打印请求日志。
 
-业务代码，继承ZuulFilter
+## 4、例子
+
+前置过滤器，用于在请求路由到目标服务前打印请求日志
+
+业务代码，继承 ZuulFilter
 
 ```java
 @Component
@@ -504,11 +534,13 @@ zuul:
       disable: true
 ```
 
-测试 http://myzuul.com:9527/atguigu/mysms/sms 在调用8008之前会打印日志
+测试 http://myzuul.com:9527/xxx/mysms/sms 在调用 8008 之前会打印日志
 
-# 查看路由信息
 
-引入POM
+
+# 6、查看路由信息
+
+引入 POM
 
 ```xml
 <dependency>
@@ -517,7 +549,9 @@ zuul:
 </dependency>
 ```
 
-修改YML
+
+
+修改 YML
 
 ```yml
 # 开启查看路由的端点
@@ -530,28 +564,38 @@ management:
 
 访问 http://localhost:9527/actuator/routes
 
+
+
 # 扩展
 
-## API网关
+## API 网关
 
-API网关为微服务架构中的服务提供了统一的访问入口，客户端通过API网关访问相关服务。
+API 网关为微服务架构中的服务提供了统一的访问入口，客户端通过 API 网关访问相关服务
 
-API网关的定义类似于设计模式中的门面模式，它相当于整个微服务架构中的门面，所有客户端的访问都通过它来进行路由及过滤。
+API 网关的定义类似于设计模式中的门面模式，它相当于整个微服务架构中的门面，所有客户端的访问都通过它来进行路由及过滤
 
-它实现了请求路由、负载均衡、校验过滤、服务容错、服务聚合等功能。
+它实现了请求路由、负载均衡、校验过滤、服务容错、服务聚合等功能
 
-## Zuul1.x模型
 
-Springcloud中所集成的Zuul版本，采用的是Tomcat容器，使用的是传统的Servlet IO处理模型。
 
-根据Servlet的生命周期，servlet由servlet container进行生命周期管理。container启动时构造servlet对象并调用servlet init()进行初始化，container运行时接受请求，并为每个请求分配一个线程（一般从线程池中获取空闲线程）然后调用service()。container关闭时调用servlet destory()销毁servlet。
+## Zuul1.x 模型
+
+Spring Cloud 中所集成的 Zuul 版本，采用的是 Tomcat 容器，使用的是传统的 Servlet IO 处理模型
+
+根据 Servlet 的生命周期，Servlet 由 Servlet Container 进行生命周期管理
+
+Container 启动时构造 Servlet 对象并调用 servlet init() 进行初始化
+
+Container 运行时接受请求，并为每个请求分配一个线程（一般从线程池中获取空闲线程）然后调用 service()
+
+Container 关闭时调用 servlet destory() 销毁 Servlet
 
 ![image-20220116150031036](images/image-20220116150031036.png) 
 
 上述模式的缺点：
-servlet是一个简单的网络IO模型，当请求进入servlet container时，servlet container就会为其绑定一个线程，在并发不高的场景下这种模型是适用的。但是一旦高并发(比如抽风用jemeter压)，线程数量就会上涨，而线程资源代价是昂贵的（线文切换，内存消耗大）严重影响请求的处理时间。在一些简单业务场景下，不希望为每个request分配一个线程，只需要1个或几个线程就能应对极大并发的请求，这种业务场景下servlet模型没有优势
 
-所以Zuul 1.X是基于servlet之上的一个阻塞式处理模型，即spring实现了处理所有request请求有一个servlet（DispatcherServlet）并由该servlet阻塞式处理处理。所以Springcloud Zuul无法摆脱servlet模型的弊端。
+- Servlet 是一个简单的网络 IO 模型，当请求进入 Servlet Container 时，Servlet Container 就会为其绑定一个线程，在并发不高的场景下这种模型是适用的，一旦并发提高，线程数量就会上涨，而线程资源代价是昂贵的（线程切换、内存消耗大），严重影响请求的处理时间
+- 在一些简单业务场景下，不希望为每个 request 分配一个线程，只需要 1 个或几个线程就能应对极大并发的请求，这种业务场景下Servlet 模型没有优势，而 Zuul 1.X 是基于 Servlet 之上的一个**阻塞式**处理模型
 
 
 

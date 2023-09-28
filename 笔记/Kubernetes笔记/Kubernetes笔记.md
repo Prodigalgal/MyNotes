@@ -57,61 +57,72 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 
 #### 1、概述
 
-集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller MangerServer 所组成，拥有 Master 组件
+集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（ETCD 数据库）和 Controller Manger Server 所组成
+
+Master 节点是集群的控制平台（control plane）：负责集群中的全局决策（例如：调度），探测并响应集群事件（例如：当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+
+Master 节点组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
 
 
 
 #### 2、组件
 
-- 是集群的控制平台（control plane）：负责集群中的全局决策（例如，调度），探测并响应集群事件（例如，当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+##### 1、kube-apiserver
 
-- Master 组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
+提供 Kubernetes API，Kubernetes 控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
+
+kubectl / kubernetes dashboard 等 Kubernetes 管理工具就是通过 kubernetes API 实现对 Kubernetes 集群的管理
 
 
 
+##### 2、etcd
 
-**Master 组件包含**：
+支持一致性和高可用的名值对存储组件，Kubernetes 集群的所有配置信息都存储在 etcd 中
 
-- **kube-apiserver**：
-  - 提供 Kubernetes API，Kubernetes控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
-  - kubectl / kubernetes dashboard 等 Kubernetes 管理工具就是通过 kubernetes API 实现对 Kubernetes 集群的管理
-- **etcd**：
 
-  - 支持一致性和高可用的名值对存储组件，Kubernetes集群的所有配置信息都存储在 etcd 中
-- **kube-scheduler**：
 
-  - 监控所有新创建尚未分配到节点上的 Pod，并且自动选择为 Pod 选择一个合适的节点去运行
-  - 影响调度的因素有：
-    - 单个或多个 Pod 的资源需求
-    - 硬件、软件、策略的限制
-    - 亲和与反亲和（affinity and anti-affinity）的约定
-    - 数据本地化要求
-    - 工作负载间的相互作用
-- **kube-controller-manager**：
+##### 3、kube-scheduler
 
-  - 运行了所有的控制器，逻辑上来说，每一个控制器是一个独立的进程，但是这些控制器都被合并运行在一个进程里
-  - 包含的控制器有：
-    - 节点控制器： 负责监听节点停机的事件并作出对应响应（下文 Node 篇有简要介绍）
-    - 副本控制器： 负责为集群中每一个 副本控制器对象（Replication Controller Object）维护期望的 Pod 副本数
-    - 端点（Endpoints）控制器：负责为端点对象（Endpoints Object，连接 Service 和 Pod）赋值
-    - Service Account & Token控制器： 负责为新的名称空间创建 default Service Account 以及 API Access Token
-- **cloud-controller-manager**：
+监控所有新创建尚未分配到节点上的 Pod，并且自动选择为 Pod 选择一个合适的节点去运行
 
-  - 运行了与具体云基础设施供应商互动的控制器，这是 Kubernetes 1.6 版本中引入的特性
+影响调度的因素有：
+- 单个或多个 Pod 的资源需求
+- 硬件、软件、策略的限制
+- 亲和与反亲和（affinity and anti-affinity）的约定
+- 数据本地化要求
+- 工作负载间的相互作用
 
-  - 只运行特定于云基础设施供应商的控制器，使得云供应商的代码和 Kubernetes 的代码可以各自独立的演化，在此之前的版本中，Kubernetes 的核心代码是依赖于云供应商的代码的，在后续的版本中，特定于云供应商的代码将由云供应商自行维护，并在运行 Kubernetes 时链接到 cloud-controller-manager
 
-  - 包含的云供应商相关的依赖：
 
-    - 节点控制器：当某一个节点停止响应时，调用云供应商的接口，以检查该节点的虚拟机是否已经被云供应商删除
-      - 私有化部署 Kubernetes 时，由于不知道运行节点的系统是否被删除，所以在移除系统后，要自行通过 kubectl delete node 将节点对象从 Kubernetes 中删除
+##### 4、kube-controller-manager
 
-    - 路由控制器：在云供应商的基础设施中设定网络路由
-      - 私有化部署 Kubernetes 时，需要自行规划 Kubernetes 的拓扑结构，并做好路由配置
-    - 服务（Service）控制器：创建、更新、删除云供应商提供的负载均衡器
-      - 私有化部署 Kubernetes 时，不支持 LoadBalancer 类型的 Service，如需要此特性，需要创建 NodePort 类型的 Service，并自行配置负载均衡器
-    - 数据卷（Volume）控制器：创建、绑定、挂载数据卷，并协调云供应商编排数据卷
-      - 私有化部署 Kubernetes 时，需要自行创建和管理存储资源，并通过 Kubernetes 的存储类、存储卷、数据卷等关联
+运行了所有的控制器，逻辑上来说，每一个控制器是一个独立的进程，但是这些控制器都被合并运行在一个进程里
+
+包含的控制器有：
+- 节点控制器： 负责监听节点停机的事件并作出对应响应（下文 Node 篇有简要介绍）
+- 副本控制器： 负责为集群中每一个 副本控制器对象（Replication Controller Object）维护期望的 Pod 副本数
+- 端点（Endpoints）控制器：负责为端点对象（Endpoints Object，连接 Service 和 Pod）赋值
+- Service Account & Token控制器： 负责为新的名称空间创建 default Service Account 以及 API Access Token
+
+
+
+##### 5、cloud-controller-manager
+
+运行了与具体云基础设施供应商互动的控制器，这是 Kubernetes 1.6 版本中引入的特性
+
+只运行特定于云基础设施供应商的控制器，使得云供应商的代码和 Kubernetes 的代码可以各自独立的演化，在此之前的版本中，Kubernetes 的核心代码是依赖于云供应商的代码的，在后续的版本中，特定于云供应商的代码将由云供应商自行维护，并在运行 Kubernetes 时链接到 cloud-controller-manager
+
+包含的云供应商相关的依赖：
+
+- 节点控制器：当某一个节点停止响应时，调用云供应商的接口，以检查该节点的虚拟机是否已经被云供应商删除
+  - 私有化部署 Kubernetes 时，由于不知道运行节点的系统是否被删除，所以在移除系统后，要自行通过 kubectl delete node 将节点对象从 Kubernetes 中删除
+
+- 路由控制器：在云供应商的基础设施中设定网络路由
+  - 私有化部署 Kubernetes 时，需要自行规划 Kubernetes 的拓扑结构，并做好路由配置
+- 服务（Service）控制器：创建、更新、删除云供应商提供的负载均衡器
+  - 私有化部署 Kubernetes 时，不支持 LoadBalancer 类型的 Service，如需要此特性，需要创建 NodePort 类型的 Service，并自行配置负载均衡器
+- 数据卷（Volume）控制器：创建、绑定、挂载数据卷，并协调云供应商编排数据卷
+  - 私有化部署 Kubernetes 时，需要自行创建和管理存储资源，并通过 Kubernetes 的存储类、存储卷、数据卷等关联
 
 
 
@@ -120,6 +131,8 @@ Kubernetes  提供了应用部署、规划、更新、维护的一种机制
 #### 1、概述
 
 **Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 Node 组件例如：kubelet、kube proxy 和 ContainerRuntime
+
+Node 节点组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
 
 每个 Node 都有自身的状态，Node 状态包含如下信息：（这些信息由节点上的 kubelet 收集）
 
@@ -186,24 +199,38 @@ kubectl describe node <node-name>
 
 #### 2、组件
 
-Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
+##### 1、kubelet
 
-- **kubelet**：
-  - 运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态
-  - 其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态
-  - 注意：Kubelet 不管理不是通过 Kubernetes 创建的容器
-- **kube-proxy**：
-  - 网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
-  - 其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
-  - 如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables 代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
-- **容器运行时**：
-  - 负责运行容器
-  - Kubernetes 支持多种容器引擎：
-    - Docker
-    - containerd
-    - cri-o
-    - rktlet
-    - 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
+运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态
+
+其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态
+
+**注意**：
+
+- Kubelet 不管理不是通过 Kubernetes 创建的容器
+
+
+
+##### 2、kube-proxy
+
+网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
+
+其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
+
+如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables 代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
+
+
+
+##### 3、容器运行时
+
+负责运行容器
+
+Kubernetes 支持多种容器引擎：
+- Docker
+- containerd
+- cri-o
+- rktlet
+- 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
 
 
 
@@ -211,7 +238,7 @@ Node 组件运行在每一个节点上（包括 Master 节点和 Worker 节点�
 
 与 Pod 和 Service 不一样，节点并不是由 Kubernetes 创建的，节点由云供应商（例如：Google Compute Engine、阿里云等）创建，或者节点已经存在于本地物理机/虚拟机的资源池
 
-Kubernetes 中创建节点时，仅仅是创建了一个描述该节点的 API 对象，节点 API 对象创建成功后，Kubernetes将检查该节点是否有效
+Kubernetes 中创建节点时，仅仅是创建了一个描述该节点的 API 对象，节点 API 对象创建成功后，Kubernetes 将检查该节点是否有效
 
 假设创建如下节点信息：
 
@@ -291,7 +318,7 @@ kubelet自行时，将使用如下选项：
 
 如果管理员想要手动创建节点 API 对象，可以将 kubelet 的启动参数 --register-node 设置为 false
 
-管理员可以修改节点API对象（不管是否设置了 --register-node 参数）
+管理员可以修改节点 API 对象（不管是否设置了 --register-node 参数）
 
 可以修改的内容有：
 
@@ -337,7 +364,7 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 由于其提供集群级别的功能特性，addons 使用到的 Kubernetes 资源都放置在 kube-system 名称空间下
 
-下面描述了一些经常用到的 addons，参考 [Addons](https://kubernetes.io/docs/concepts/cluster-administration/addons/)查看更多列表
+下面描述了一些经常用到的 addons，参考 [Addons](https://kubernetes.io/docs/concepts/cluster-administration/addons/) 查看更多列表
 
 - **DNS**：
 
@@ -363,11 +390,9 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 
 
-
-
 ### 4、集群通信
 
-**Node To Master**：
+##### 1、Node To Master
 
 所有从集群访问 Master 节点的通信，都是通过 APIServer （没有任何其他 Master 组件发布远程调用接口）
 
@@ -383,7 +408,7 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 
 
-**Master To Node**：
+##### 2、Master To Node
 
 从 Master（APIServer）到 Node 存在着两条主要的通信路径：
 
@@ -392,7 +417,7 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 
 
-**apiserver to kubelet**：
+##### 3、apiserver to kubelet
 
 apiserver 在如下情况下访问 kubelet：
 
