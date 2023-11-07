@@ -205,9 +205,11 @@ public void show(String face) {
 
 
 
-## I/O 模式
+## I/O 流
 
-### 1、I/O 概述
+### 1、I/O 模式
+
+#### 1、I/O 概述
 
 IO 的操作方式通常分为几种：同步阻塞 BIO、同步非阻塞 NIO、异步非阻塞 AIO
 
@@ -226,7 +228,7 @@ AIO 也就是 NIO 2，在 JDK7 中引入了 NIO 的改进版 NIO 2，它是异�
 
 
 
-### 2、BIO 概述
+#### 2、BIO 概述
 
 阻塞 IO（BIO）是最传统的一种 IO 模型，即在读写数据过程中会发生阻塞现象，直至数据能够读取或者写入
 
@@ -238,7 +240,7 @@ AIO 也就是 NIO 2，在 JDK7 中引入了 NIO 的改进版 NIO 2，它是异�
 
 
 
-### 3、NIO 概述
+#### 3、NIO 概述
 
 NIO 采用非阻塞模式，基于 Reactor 模式的工作方式，IO 调用不会被阻塞，实现过程是：先对每个客户端注册事件，然后有一个线程专门去轮询每个客户端是否有事件发生，当有事件发生时，便顺序处理每个事件，当所有事件处理完之后，便再转去继续轮询
 
@@ -257,7 +259,7 @@ NIO 由以下几个核心部分组成：
 
 
 
-### 4、AIO 概述
+#### 4、AIO 概述
 
 AIO 也就是 NIO 2，在 Java 7 中引入了 NIO 的改进版 NIO 2，它是异步非阻塞 的 IO 模型
 
@@ -267,11 +269,19 @@ Java 的 AIO API 其实是 Proactor 模式的应用，和 Reactor 模式类似�
 
 
 
-### 5、NIO 三大组件
+### 2、BIO
 
-#### 1、Channel
 
-##### 1、概述
+
+
+
+### 3、NIO
+
+#### 1、NIO 三大组件
+
+##### 1、Channel
+
+###### 1、概述
 
 Channel 可以翻译成通道，和 IO 中的 Stream 流是差不多一个等级的，只不过 Stream 是单向的：InputStream、OutputStream 而 Channel 是双向的，既可以用来读操作，又可以用来写操作，可以异步的读写操作
 
@@ -287,7 +297,7 @@ SocketChannel 就是 NIO 对于非阻塞 Socket 操作的支持的组件，其�
 
 
 
-##### 2、FileChannel
+###### 2、FileChannel
 
 在使用 FileChannel 之前，必须先打开它，但是，无法直接打开一个 FileChannel，需要通过使用一个 InputStream、OutputStream 或 RandomAccessFile 来获取一个 FileChannel 实例
 
@@ -408,7 +418,7 @@ public class ScatterGatherDemo {
 
 
 
-##### 3、ServerSocketChannel
+###### 3、ServerSocketChannel
 
 ServerSocketChannel 是一个基于通道的 socket 监听器，同 java.net.ServerSocket 执行相同的任务，不过增加了通道语义，因此能够在非阻塞模式下运行
 
@@ -450,7 +460,7 @@ public class SocketChannelAccept {
 
 
 
-##### 4、SocketChannel
+###### 4、SocketChannel
 
 Java NIO 中的 SocketChannel 是一个连接到 TCP 网络套接字的通道
 
@@ -509,7 +519,7 @@ socketChannel.getOption(StandardSocketOptions.SO_RCVBUF);
 
 
 
-##### 5、DatagramChannel
+###### 5、DatagramChannel
 
 DatagramChannel 模拟包导向的无连接协议（如 UDP/IP）
 
@@ -575,9 +585,9 @@ public class UDPClient {
 
 
 
-#### 2、Buffer
+##### 2、Buffer
 
-##### 1、概述
+###### 1、概述
 
 Java NIO 中的 Buffer 用于和 NIO 通道进行交互，数据从通道读取到缓冲区，从缓冲区写入到通道
 
@@ -613,7 +623,7 @@ aFile.close();
 
 
 
-##### 2、三个属性
+###### 2、三个属性
 
 要了解 Buffer 的工作原理，需要熟悉它的三个属性：
 
@@ -646,7 +656,7 @@ capacity 的含义总是一样的，无论 Buffer 处在什么模式
 
 
 
-##### 3、操作以及常用方法
+###### 3、操作以及常用方法
 
 **分配**：
 
@@ -854,9 +864,9 @@ capacity 的含义总是一样的，无论 Buffer 处在什么模式
 
 
 
-#### 3、Selector
+##### 3、Selector
 
-##### 1、概述
+###### 1、概述
 
 Selector 运行单线程处理多个 Channel，如果应用打开了多个通道，但每个连接的流量都很低，使用 Selector 就非常快速
 
@@ -872,7 +882,7 @@ SelectableChannel 类提供了实现通道的可选择性所需要的公共方�
 
 
 
-##### 2、注册
+###### 2、注册
 
 使用 Channel.register（Selector sel，int ops）方法，将一个通道注册到一个选择器
 
@@ -898,7 +908,7 @@ SelectableChannel 类提供了实现通道的可选择性所需要的公共方�
 
 
 
-##### 3、选择键
+###### 3、选择键
 
 Channel 注册到后，并且一旦通道处于某种就绪的状态，可以被选择器查询到，这个过程使用选择器 Selector 的 select() 方法完成
 
@@ -924,7 +934,7 @@ Selector 可以不断的查询 Channel 中发生的某个操作的就绪状态�
 
 
 
-##### 4、使用以及常用方法
+###### 4、使用以及常用方法
 
 一般的使用流程
 
@@ -1010,7 +1020,7 @@ while(keyIterator.hasNext()) {
 
 
 
-##### 5、示例
+###### 5、示例
 
 ~~~java
 public void ServerDemo() {
@@ -1092,9 +1102,9 @@ public void ClientDemo() {
 
 
 
-### 6、NIO 其余组件
+#### 2、NIO 其余组件
 
-#### 1、Pipe
+##### 1、Pipe
 
 Java NIO 管道是 2 个线程之间的单向数据连接
 
@@ -1128,9 +1138,9 @@ int bytesRead = sourceChannel.read(buf);
 
 
 
-#### 2、FileLock
+##### 2、FileLock
 
-##### 1、概述
+###### 1、概述
 
 文件锁在 OS 中很常见，如果多个程序同时访问、修改同一个文件，很容易因为文件数据不同步而出现问题，给文件加一个锁，同一时间，只能有一个程序修改此文件，或者程序都只能读此文件，这就解决了同步问题
 
@@ -1142,7 +1152,7 @@ int bytesRead = sourceChannel.read(buf);
 
 
 
-##### 2、分类
+###### 2、分类
 
 排它锁：
 
@@ -1154,7 +1164,7 @@ int bytesRead = sourceChannel.read(buf);
 
 
 
-##### 3、使用以及常用方法
+###### 3、使用以及常用方法
 
 一般使用方式：
 
@@ -1201,147 +1211,289 @@ boolean isValid();
 
 
 
-#### 3、Path
+##### 3、File
 
-Java Path 接口是 Java NIO 的一部分，Java Path 接口是在 Java7 中添加到 Java NIO 的，Path 接口位于 java.nio.file 包中，所以 Path 接口的完全限定名称为 java.nio.file.Path
+File 类：文件和文件目录路径的抽象表示形式，与平台无关
 
-Java Path 实例表示文件系统中的路径，一个路径可以指向一个文件或一个目录，路径可以是绝对路径，也可以是相对路径
+File 能**新建**、**删除**、**重命名**文件和目录，但 File 不能访问文件内容本身，如果需要访问文件内容本身，则需要使用输入/输出流
 
-- 绝对路径：包含从文件系统的根目录到它指向的文件或目录的完整路径
-- 相对路径：包含相对于其他路径的文件或目录的路径
+File 对象可以作为参数传递给**流**构造器
 
-java.nio.file.Path 接口类似于 java.io.File 类，通常可以使用 Path 接口来替换 File 类的使用
-
-
+常用构造器：
 
 ~~~java
-// 使用 Paths 类中的静态方法 Paths.get() 来创建路径实例
-// Paths.get()方法是 Path 实例的工厂方法
-public static void main(String[] args) {
-    // 使用绝对路径创建
-    Path path = Paths.get("d:\\xxx\\001.txt");
-    
-	// 使用相对路径创建
-    Path file = Paths.get("d:\\xxx", "001.txt");
-    
-    // 路径标准化
-    // Path 接口的 normalize()方法可以使路径标准化
-   	// 标准化意味着它将移除所有在路径字符串的中间的.和..代码，并解析路径字符串所引用的路径
-    String originalPath = "d:\\xxx\\projects\\..\\01-project";
-    Path path1 = Paths.get(originalPath);
-	System.out.println("path1 = " + path1);
-	Path path2 = path1.normalize();
-	System.out.println("path2 = " + path2);
-}
+public File(String pathname)
+public File(String parent,String child)
+public File(File parent,String child)
+~~~
+
+File 类中常用方法：
+
+~~~java
+public String getAbsolutePath() // 获取绝对路径 
+public String getPath() // 获取路径
+public String getName() // 获取名称 
+public String getParent() // 获取上层文件目录路径。若无，返回 null 
+public long length() // 获取文件长度（即：字节数）。不能获取目录的长度。
+public long lastModified() // 获取最后一次的修改时间，毫秒值 
+public String[] list() // 获取指定目录下的所有文件或者文件目录的名称数组 
+public File[] listFiles() // 获取指定目录下的所有文件或者文件目录的 File 数组
+public boolean renameTo(File dest) // 把文件重命名为指定的文件路径
+public boolean isDirectory() // 判断是否是文件目录 
+public boolean isFile() // 判断是否是文件 
+public boolean exists() // 判断是否存在 
+public boolean canRead() // 判断是否可读 
+public boolean canWrite() // 判断是否可写 
+public boolean isHidden() // 判断是否隐藏
+public boolean createNewFile()// 创建文件。若文件存在，则不创建，返回false
+public boolean mkdir() // 创建文件目录。如果此文件目录存在，就不创建了。 如果此文件目录的上层目录不存在，也不创建
+public boolean mkdirs() // 创建文件目录。如果上层文件目录不存在，一并创建
+public boolean delete() // 删除文件或者文件夹
 ~~~
 
 
 
-#### 4、Files
+**注意**：
 
-Java NIO Files 类 (java.nio.file.Files) 提供了几种操作文件系统中的文件的方法
+- 如果创建文件或者文件目录没有写盘符路径，那么默认在项目路径下
+- Java 中的删除不走回收站，要删除一个文件目录，请注意该文件目录内不能包含文件或者文件目录
 
-java.nio.file.Files 类与 java.nio.file.Path 实例经常一起使用
 
-**创建新目录**：
+
+##### 4、Files
+
+###### 1、概述
+
+Files 类提供了一组用于操作文件和目录的静态方法，主要目的是为了简化文件和目录的操作，同时提供了更好的错误处理机制，经常与 Path 类组合使用
+
+
+
+###### 2、常用方法
 
 ~~~java
-
-// Files.createDirectory(); 用于根据 Path 实例创建一个新目录
-Path path = Paths.get("d:\\aaa");
-try {
-    // 如果创建目录成功，将返回一个 Path 实例，该实例指向新创建的路径
-    Path newDir = Files.createDirectory(path);
-} catch(FileAlreadyExistsException e){
-    // 目录已经存在
-    e.printStackTrace();
-} catch (IOException e) {
-    // 其他发生的异常，例如：父目录不存在
-    e.printStackTrace();
-}
+Files.createDirectory(path); // 创建以 path 为路径的目录， 如果目录已经存在会抛出异常，创建目录是原子性的
+Files.createFile(pat); // 创建以 path 为路径的文件, 文件可以与目录路径及同名 
+boolean exist = Files.exists(Paths.get(path)); // 判断文件是否存在
+boolean notExist = Files.notExists(Paths.get(path)); // 判断文件是否存在
+Files.delete(Paths.get(path)); // 删除文件或者空文件夹，如果文件夹不为空的情况下会报错
+Files.deleteIfExists(Paths.get(path)); // 删除文件或者空文件夹，如果文件夹不为空的情况下会报错
+Files.createTempFile(dir, prefix, suffix); // 在给定位置或者系统指定位置，创建临时文件/目录
+byte[] bytes = Files.readAllBytes(path); // 按二进制读取所有文件内容， 文件路径Path -> 二进制数组byte[]
+List<String> lines = Files.readAllLines(path); // 按行读取文件所有内容
+Files.write(path, content.getBytes(charset));  // 写一个字符串到文件
+Files.write(path, content.getBytes(charset),StandardOpenOption.APPEND); // 追加字符串到文件
+Files.write(path, lines); // 写一行的集合到文件
+InputStream in = Files.newInputStream(path); // 获取输入流，用于大文件读写
+OutputStream out = Files.newOutputStream(); // 获取输出流，用于大文件读写
+Reader reader = Files.newBufferedReader(path, charset); // 获取读入器，用于大文件读写
+Writer writer = Writer.newBufferedWriter(path, charset); // 获取写入器，用于大文件读写
+Files.copy(fromPath, toPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES); // fromPath 和 toPath 都是 Path 对象, 如果目标路径已存在文件, 复制失败，选项 REPLACE_EXISTING 表示想覆盖原有目标路径, COPY_ATTRIBUTES表示复制所有文件属性
+Files.copy(inputStream, toPath); // 从输入流复制到目标路径
+Files.copy(fromPath, outputStream); // 从源路径复制到输出流
+Files.move(fromPath, toPath, StandardCopyOption.ATOMIC_MOVE); // ATOMIC_MOVE 表示该操作是原子性的(要么成功移动到目标路径, 要么失败文件还在原来的位置) move 操作无法从输入流到目标路径, 或者从源路径到输出流
+boolean exists(path) // 文件存在
+boolean isHidden(path) // 文件隐藏
+boolean isReadable(path) // 文件可读
+boolean isWritable(path) // 文件可写
+boolean isExecutable(path) // 可执行
+boolean isRegularFile(path) // 是普通文件，等价于!isSymbolicLink() && !isDirectory() && !isOther()
+boolean isDirectory(path) // 是目录
+boolean isSymbolicLink(path) // 是符号链接
+long fileSize = Files.size(path); // 获取文件字节数
+BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class); // 获取基本文件属性集
+PosixiFileAttributes posixAttributes = Files.readAttributes(path, PosixiFileAttributes.class); // 如果文件系统兼容 POSIX, 才能获取到 PosixiFileAttributes 实例
 ~~~
 
-**文件复制**：
 
-- Files.copy()方法的第三个参数，如果目标文件已经存在，这个参数指示 copy() 方法覆盖现有的文件
+
+**注意**：
+
+- 处理大文件和二进制文件，需要用到输入流/输出流，或者使用读入器/写入器
+
+
+
+###### 3、遍历目录
 
 ~~~java
-Path sourcePath = Paths.get("d:\\xxx\\01.txt");
-Path destinationPath = Paths.get("d:\\xxx\\02.txt");
-try {
-    Files.copy(sourcePath, destinationPath);
-} catch(FileAlreadyExistsException e) {
-    // 文件已经存在
-} catch (IOException e) {
-    // 其他发生的异常
-    e.printStackTrace();
+// 遍历目录，不过 list 函数不会进入子目录，walk 函数会进入子目录
+try(Stream<Path> entries = Files.list(dirPath)) { // 读取目录涉及需要关闭系统资源, 不进入子目录
+      entries.forEach(System.out::println); // 打印每个 entries 项, 也就是打印每个 path
 }
-Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-~~~
 
-**文件移动**：
-
-- Files.move() 的第三个参数，指示 Files.move() 方法来覆盖目标路径上的任何现有文件
-- 不仅可以移动还可以重名
-
-~~~java
-Path sourcePath = Paths.get("d:\\xxx\\01.txt");
-Path destinationPath = Paths.get("d:\\xxx\\001.txt");
-try {
-    Files.move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-} catch (IOException e) {
-    // 移动文件失败
-    e.printStackTrace();
+try(Stream<Path> entries = Files.walk(dirPath)) { // 会进入子目录
+      entries.forEach(System.out.println);
 }
-~~~
 
-**文件删除**：
-
-~~~java
-Path path = Paths.get("d:\\xxx\\001.txt");
-try {
-    Files.delete(path);
-} catch (IOException e) {
-    // 删除文件失败
-    e.printStackTrace();
-}
-~~~
-
-**文件遍历**：
-
-- Files.walkFileTree() 方法包含递归遍历目录树功能
-- Path 实例指向要遍历的目录，FileVisitor 在遍历期间被调用
-  - FileVisitor 是一个接口，必须自己实现 FileVisitor 接口，并将实现的实例传递给 walkFileTree() 方法，在目录遍历过程中，FileVisitor 实现的每个方法都将被调用，如果不需要实现所有这些方法，那么可以扩展 SimpleFileVisitor 类，它包含 FileVisitor 接口中所有方法的默认实现
-  - FileVisitor 接口的方法中，每个都返回一个 FileVisitResult 枚举实例，FileVisitResult 枚举包含以下四个选项
-    - CONTINUE：继续
-    - TERMINATE：终止
-    - SKIP_SIBLING：跳过同级
-    - SKIP_SUBTREE：跳过子级
-
-~~~java
-Path rootPath = Paths.get("d:\\aaaa");
-String fileToFind = File.separator + "01.txt";
-try {
-    Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-            String fileString = file.toAbsolutePath().toString();
-            // System.out.println("pathString = " + fileString);
-            if(fileString.endsWith(fileToFind)) {
-                System.out.println("file found at path: " + file.toAbsolutePath());
-                return FileVisitResult.TERMINATE;
+// 遍历目录并删除
+try(Stream<Path> entries = Files.walk(source)) {
+      entries.forEach( p -> {
+            try{ 
+                Path q = target.resolve(source.relative(p)); 
+                // 取得 p 相对于 source 的相对路径后, 再拼接到 target 路径下
+                // 即将每个文件相对路径都由 source 转移到 target 下
+                  if(!Files.exists(q)) {
+                        if(Files.isDirectory(q)) Files.createDirectory(q); 
+                      	// 如果是目录, 在 target 路径下, 根据相对路径创建对应目录
+                        else Files.copy(p, q);  // 如果是文件, 从 source 路径复制到 target 下
+                  }
+            } catch(IOException e) {
+                  e.printStackTrace();
             }
-            return FileVisitResult.CONTINUE;
-        }
-    });
-} catch (IOException e) {
-    e.printStackTrace();
+      });
 }
+
+// 使用 File.newDirectoryStream 对象，产生一个 DirectoryStream，对遍历过程可以进行更细粒度控制
+// DirectoryStream 不是 Stream，而是专门用于目录遍历的接口
+// 它是 Iterable 的子接口，可以用 Iterable 的迭代和增强 forEach 方法
+// 还可以搭配 glob 模式来过滤文件
+try(DirectoryStream<Path> entries = Files.newDirectoryStream(dir, "*.java")){
+      for (Path entry: entries) {
+            Process entry
+      }
+}
+~~~
+
+如果想要访问某个目录下所有子孙，可以使用 walkFileTree()，传入一个 Path 对象和一个 FileVisitor 对象
+
+~~~java
+// walkFileTree 得到的通知：
+FileVisitResult visitFile()  // 遇到文件或目录时
+FileVisitResult preVisitDirectory() // 一个目录被处理前
+FileVisitResult postVisitDirectory() // 一个目录被处理后
+FileVisitResult visitFileFailed() // 试图访问文件失败, 或目录发生错误时
+
+// 收到通知后, 可以设置指定的操作
+FileVisitResult.CONTINURE // 继续访问下一个文件
+FileVisitResult.SKIP_SUBTREE // 继续访问, 但不再访问这个目录下任何文件
+FileVisitResult.SKIP_SIBLINGS // 继续访问, 但不再访问这个文件的兄弟文件(同一个目录下的文件)
+FileVisitResult.TERMINATE // 终止访问
+~~~
+
+便捷类 SimpleFileVisitor + Files.walkFileTree() 可以实现对目录的细粒度访问，并在在收到相关通知时，有机会进行相应处理
+
+默认 SimpleFileVisitor 类实现 FileVisitor 接口，除 visitFileFailed() 外（抛出异常并终止访问），其余方法都是直接继续访问，而不做任何处理
+
+~~~java
+Files.walkFileTree(Paths.get("F:\\test"), new SimpleFileVisitor<Path>() {
+    @Override
+    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+        System.out.println(dir);
+        return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        System.out.println("postVisitDirectory " + dir);
+        return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+        return FileVisitResult.SKIP_SUBTREE;
+    }
+});
+
+
+Files.walkFileTree(Paths.get("F:\\test"), new SimpleFileVisitor<Path>() {
+    @Override
+    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+        System.out.println(dir);
+
+        // 删除 dir 路径下所有文件(不包含子目录)
+        Files.list(dir).forEach(p->{
+            try {
+                if (!Files.isDirectory(p))
+                    Files.delete(p);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        return FileVisitResult.CONTINUE;
+    }
+
+    // 删除目录
+    @Override
+    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        System.out.println("postVisitDirectory " + dir);
+        if (null != exc) throw exc;
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+    }
+} );
 ~~~
 
 
 
-#### 5、AsynchronousFileChannel
+**注意**：
+
+- preVisitDirectory() 和 postVisitDirectory() 通常需要重写，否则访问时遇到不允许打开的目录或者不允许访问的文件立即失败进而直接跳转到 visitFileFailed()
+
+
+
+**glob模式**：
+
+| 模式  | 描述                                                    | 示例                                                    |
+| ----- | ------------------------------------------------------- | ------------------------------------------------------- |
+| *     | 匹配路径组成部分中0个或多个字符串                       | *.java 匹配当前目录中的所有java文件                     |
+| **    | 匹配跨目录边界的0个或多个字符串                         | **.java 匹配在所有子目录中的java文件                    |
+| ?     | 匹配一个字符                                            | ????.java 匹配所有4个字符的java文件（不含扩展名）       |
+| [...] | 匹配一个字符集合, 可以使用连线字符[0-9]和取反字符[!0-9] | Test[0-9A-F].java 匹配Testx.java, 其中x是一个十六进制数 |
+|       | 匹配由逗号隔开的多个可选项之一                          | *.{java,class} 匹配所有的java文件和类class文件          |
+| \     | 转义任意模式中的字符以及\字符                           | *\** 匹配所有文件名中包含*的文件                        |
+
+
+
+##### 5、Path/Paths
+
+Java 中的 Path 和 Paths 类都是用于处理文件路径的
+
+- Path 是一个接口，主要用于在文件系统中定位文件，通常表示系统相关的文件路径
+- Paths 是一个工具类，提供了一些静态方法，用于根据字符串格式的路径或者 URI 返回 Path 的实例
+
+Path 实例可以通过以下方式获取：
+
+- 通过指定路径字符串，使用静态方法 Paths.get() 获取，该方法接收一系列 String 或者 URI 作为参数，返回一个 Path 对象，路径可可以是相对的，也可以是绝对的，传入的字符串可以是一个序列也可以是单个
+
+  - ~~~java
+    URI uri = new URI("file:///C:/Users/test.txt"); 
+    Path path = Paths.get(uri);
+    
+    Path path = Paths.get("C:\\Users\\test.txt");
+    
+    Path absolute = Paths.get("C:\\Users", "test.txt");  
+    Path relative = Paths.get("config", "properties", "user.properties");
+    ~~~
+
+- 通过已有的 Path 对象 + 字符串组合，使用实例方法.resolve() 或 .resolveSibling() 获取
+
+  - ~~~java
+    Path basePath = Paths.get("rss"); 
+    Path resolvePath = basePath.resolve("resolvePath");
+    ~~~
+
+Path 类接口主要方法：
+
+~~~java
+getFileName() // 返回此路径表示的文件或目录名称
+getParent() // 返回此路径的父路径
+getRoot() // 返回此路径的根
+resolve(String other) // 将给定字符串解析为此路径的子路径
+normalize() // 规范化此路径
+toAbsolutePath() // 返回此路径的绝对形式
+relativize(Path other) // 返回此路径与给定路径之间相对关系
+~~~
+
+
+
+**注意**：
+
+- 路径所指的不必是一个存在的文件，仅仅只是一个抽象序列，只有当要创建文件的时候，才会调用方法根据路径创建文件
+
+
+
+##### 6、AsynchronousFileChannel
 
 在 Java 7 中，Java NIO 中添加了 AsynchronousFileChannel，用于异步地将数据写入文件
 
@@ -1477,6 +1629,12 @@ fileChannel.write(buffer, position, buffer,
                       }
                   });
 ~~~
+
+
+
+
+
+
 
 
 

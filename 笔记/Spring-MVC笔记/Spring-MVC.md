@@ -1810,6 +1810,8 @@ ClassPathResource classPathResource = new ClassPathResource("static/resource.pro
 @Autowired
 ResourceLoader resourceLoader;
 Resource resource = resourceLoader.getResource("classpath:resource.properties");
+// 获取 static 路径
+resourceLoader.getResource("classpath:static/").getFile().getAbsolutePath();
 ~~~
 
 - 或者通过Request获取文件的真实路径
