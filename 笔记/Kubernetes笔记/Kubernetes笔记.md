@@ -897,7 +897,7 @@ spec:
 - 桥接的 IPv4 流量传递到 iptables，因为 Kubernetes 的网络模型需要
 
   - ~~~bash
-    cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+    cat <<EOF | tee /etc/modules-load.d/k8s.conf
     overlay
     br_netfilter
     EOF
@@ -905,7 +905,7 @@ spec:
     modprobe overlay
     modprobe br_netfilter
     
-    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    cat <<EOF | tee /etc/sysctl.d/k8s.conf
     net.bridge.bridge-nf-call-iptables  = 1
     net.bridge.bridge-nf-call-ip6tables = 1
     net.ipv4.ip_forward                 = 1
@@ -938,6 +938,7 @@ spec:
   swapoff -a 
   
   # 永久
+  # 或者直接手动 vim 进入注释掉 swap 相关的行
   sed -ri 's/.*swap.*/#&/' /etc/fstab
   
   # 检查 swap 状态
@@ -1004,23 +1005,36 @@ spec:
 
 ### 1、基准配置
 
-#### 1、安装套件
+#### 1、环境准备
 
 访问 [Index of /yum/repos// (google.com)](https://packages.cloud.google.com/yum/repos/) 发现，Kubernetes 只适配到 el7，但是 el8 也可以使用，如果后续适配了可能需要修改
 
 配置完包管理器的 repo，K8s 三件套可以一次安装了
 
-以下为基于 Red Hat 发行的系统
+RHEL 系：
 
 ~~~bash
 # 环境准备
 yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++ tc
 ~~~
 
+Deb 系：
+
 ~~~bash
-# RHEL系
+# 环境准备
+apt-get install -y apt-transport-https ca-certificates curl gpg
+~~~
+
+
+
+#### 2、设置组件仓库
+
+RHEL 系：
+
+~~~bash
+# 1.29 之前
 # k8s 国外直接使用 google 配置仓库文件，省事
-cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
@@ -1045,28 +1059,31 @@ yum config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/
 
 # 安装四件套
 yum install -y kubectl kubelet kubeadm containerd kubernetes-cni
-
-# Ubuntu系
-curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable"
-curl https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | apt-key add - 
-cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
-deb https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main
-EOF
-
-apt-get update
-apt-get install -y kubelet kubeadm kubectl containerd kubernetes-cni
-systemctl start kubelet && systemctl enable kubelet 
-
-# 安装完 containerd 先启动一次生成配置文件
-# 如果没有，则手动生成
-mkdir /etc/containerd/
-containerd config default > /etc/containerd/config.toml
 ~~~
 
+Deb 系：
+
 ~~~bash
-# 指定版本
-apt-get install -y kubelet=1.25.4-00 kubeadm=1.25.4-00 kubectl=1.25.4-00
+# 仓库准备，根据版本不同自定义
+# 如果 `/etc/apt/keyrings` 目录不存在，则应在 curl 命令之前创建它
+# sudo mkdir -p -m 755 /etc/apt/keyrings
+# 添加仓库密匙
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+
+apt-get update
+apt-get install -y kubelet kubeadm kubectl
+apt-mark hold kubelet kubeadm kubectl
+
+# 阿里云 1.29 后
+apt-get update && apt-get install -y apt-transport-https
+curl -fsSL https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/ /" |
+    tee /etc/apt/sources.list.d/kubernetes.list
+    
+apt-get update
+apt-get install -y kubelet kubeadm kubectl containerd kubernetes-cni
 ~~~
 
 
@@ -1077,6 +1094,10 @@ apt-get install -y kubelet=1.25.4-00 kubeadm=1.25.4-00 kubectl=1.25.4-00
 
 - ~~~bash
   # 修改
+  # 安装完 containerd 先启动一次生成配置文件
+  # 如果没有，则手动生成
+  mkdir /etc/containerd/
+  containerd config default > /etc/containerd/config.toml
   vim /etc/containerd/config.toml
   
   # 粘贴
@@ -1088,12 +1109,6 @@ apt-get install -y kubelet=1.25.4-00 kubeadm=1.25.4-00 kubectl=1.25.4-00
   systemctl daemon-reload
   systemctl restart containerd
   systemctl status containerd
-  
-  # 国内 Aliyun 镜像下载的 sandbox_image 的 tag 与 原版有出入，需要在配置中新增对应 sanbox_image tag
-  # 查看镜像 crictl image list
-  # 修改完同样需要重启
-  [plugins."io.containerd.grpc.v1.cri"]
-    sandbox_image = "xxxxx"
   ~~~
 
 配置 Kubelet：
@@ -1139,8 +1154,8 @@ apt-get install -y kubelet=1.25.4-00 kubeadm=1.25.4-00 kubectl=1.25.4-00
 kubeadm config print init-defaults > init.default.yaml
 
 # 添加 networking.podSubnet: 10.244.0.0/16 // flannel
-# 添加 controlPlaneEndpoint: MasterIP:6443
 # 添加 localAPIEndpoint.advertiseAddress: MasterIP
+# 修改 nodeRegistration.name: MasterHostName
 
 # 国内需要修改 init.default.yaml 的镜像地址 registry.aliyuncs.com/google_containers
 # 国外默认
@@ -1151,16 +1166,11 @@ kubeadm config images pull --config=init.default.yaml
 kubeadm config images pull --image-repository=registry.aliyuncs.com/google_containers
 ~~~
 
-~~~bash
-# 国内 Aliyun 下载的 sandbox_image 为 3.9
-# 在修改 containerd 的 sandbox_image 失效的情况下，直接修改 tag 即可
-# 具体修改为多少的 tag，可查看任意容器日志得到
-ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k8s.io/pause:3.6
-~~~
-
 
 
 #### 4、配置 CNI
+
+flannel 使用：
 
 ~~~bash
 mkdir -p /etc/cni/net.d
@@ -1174,7 +1184,7 @@ cat >/etc/cni/net.d/10-mynet.conf <<-EOF
     "ipMasq": true,
     "ipam": {
         "type": "host-local",
-        "subnet": "10.244.0.0/16", // 使用 flannel
+        "subnet": "10.244.0.0/16",
         "routes": [
             {"dst": "0.0.0.0/0"}
         ]
@@ -1187,6 +1197,41 @@ cat >/etc/cni/net.d/99-loopback.conf <<-EOF
     "type": "loopback"
 }
 EOF
+~~~
+
+
+
+#### 5、设置镜像仓库
+
+如果无法拉去镜像或初始化失败，建议修改镜像源（国内）
+
+修改镜像源：
+
+~~~bash
+# 修改 init.default.yaml 文件
+imageRepository: registry.aliyuncs.com/google_containers
+# 修改 containerd 的 config.toml
+[plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+ [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+  endpoint = ["registry.aliyuncs.com/google_containers"]
+~~~
+
+~~~bash
+# 国内 Aliyun 镜像下载的 sandbox_image 的 tag 与 原版有出入，需要在配置中修改对应 sanbox_image tag
+# 查看镜像 crictl image list
+# 修改完同样需要重启
+[plugins]
+ [plugins."io.containerd.gc.v1.scheduler"]
+  [plugins."io.containerd.grpc.v1.cri"]
+   sandbox_image = "registry.aliyuncs.com/google_containers/pause:3.9"
+~~~
+
+~~~bash
+# 对于已经下载好的，可以修改镜像名字
+# 国内 Aliyun 下载的 sandbox_image 为 3.9
+# 在修改 containerd 的 sandbox_image 失效的情况下，直接修改 tag 即可
+# 具体修改为多少的 tag，可查看任意容器日志得到
+ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k8s.io/pause:3.6
 ~~~
 
 
@@ -1681,6 +1726,20 @@ ip link delete cni0
 ip link delete flannel.1
 systemctl start kubelet
 ~~~
+
+
+
+### 7、安装 Helm
+
+~~~bash
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
+apt-get update
+apt-get install helm -y
+~~~
+
+
 
 
 
@@ -3289,7 +3348,7 @@ RS 可以轻易的 scale up 或者 scale down，只需要修改 .spec.replicas �
 
 RS 控制器将确保与其标签选择器 .spec.selector 匹配的 Pod 数量与 replicas 指定的数量相等
 
-可以使用 Horizontal Pod Autoscalers(HPA) 对 RS 执行自动的水平伸缩，或者使用命令 kubectl autoscale rs frontend --max=10
+可以使用 Horizontal Pod Autoscalers（HPA）对 RS 执行自动的水平伸缩，或者使用命令 kubectl autoscale rs frontend --max=10
 
 ~~~bash
 apiVersion: autoscaling/v1
@@ -3349,10 +3408,10 @@ spec:
 
 ~~~~bash
 # 部署 Deploy
-kubectl apply -f xxx.yaml
+kubectl apply -f xxx.yaml --record
 ~~~~
 
-可以为该命令增加 --record 选项，此举 kubectl 会将刚运行的命令写入 Deployment 的 annotation 的 kubernetes.io/change-cause，以便后续维护查看
+使用 --record 会让 kubectl 将刚运行的命令写入 Deployment 的 annotation 的 kubernetes.io/change-cause，以便后 rollout
 
 ~~~bash
 # 查看 Deployment 的发布状态（rollout status）
@@ -3369,8 +3428,9 @@ kubectl get pods --show-labels
 
 **注意**：
 
-- 控制器之间的 .spec.**selector** 和 .template.metadata.**labels**，尽量确保不同，否则可能发生冲突，并产生不可预见的行为
+- Deployment 之间的 .spec.**selector** 和 .template.metadata.**labels**，尽量确保不同，否则可能发生冲突，并产生不可预见的行为，同时如果指定 .spec.selector，则必须和 .template.metadata.labels 匹配，如果不指定 .spec.selector，则默认等同于 .template.metadata.labels
 - pod-template-hash 标签是 Deployment 创建 RS 时添加到 RS 上的，RS 将此标签添加到 Pod 上，这个标签用于区分 Deployment 中哪个 RS 创建了哪些 Pod，切勿修改
+- 如果
 
 
 
@@ -3411,7 +3471,9 @@ Deployment 的更新是通过创建一个新的 RS 并同时将旧的 RS 的副�
 
 #### 3、回滚
 
-默认情况下，kubernetes 将保存 Deployment 的所有更新（rollout）历史，可以设定 revision history limit 来确定保存的历史版本数量
+默认 kubernetes 将保存 Deployment 的所有更新（rollout）历史，Deployment 的 revision history 存储在它控制的 ReplicaSets 中
+
+可以设定 revision history limit 来确定保存的历史版本数量
 
 当且仅当 Deployment 的 .spec.**template** 字段被修改时（例如：修改了容器的镜像），Kubernetes 将为其创建一个 Deployment revision，Deployment 的其他更新（例如：修改 .spec.replicas 字段）将不会创建新的 Deployment reviesion
 
@@ -3468,7 +3530,7 @@ kubectl autoscale deployment.v1.apps/name --min=10 --max=15 --cpu-percent=80
 - 如果还有剩余的新 Pod 数未分配，直接追加到副本数最多的 RS
 - 副本数为 0 的 ReplicaSet，scale up 之后，副本数仍然为 0
 
-例子：假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，在杀死两个旧 Pod 之后，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment Controller 需要决定如何分配新增的 5 个 Pod 副本，根据按比例伸缩原则，其中 3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
+例子：假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，在杀死两个旧 Pod 之后，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment 需要决定如何分配新增的 5 个 Pod 副本，根据按比例伸缩原则，其中 3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
 
 
 
@@ -3512,7 +3574,7 @@ Deployment 的生命周期中，将会进入不同的状态，这些状态可能
 
 - **progressing**
 - **complete**
-- **fail to progress**
+- **fail**
 
 
 
@@ -3534,14 +3596,16 @@ Deployment 的生命周期中，将会进入不同的状态，这些状态可能
 如果 Deployment 符合以下条件，Kubernetes 将其状态标记为 complete：
 
 - 该 Deployment 中的所有 Pod 副本都已经被更新到指定的最新版本
-- 该 Deployment 中的所有 Pod 副本都处于 可用（available） 状态
+- 该 Deployment 中的所有 Pod 副本都处于可用（available） 状态
 - 该 Deployment 中没有旧的 ReplicaSet 正在运行
 
+可以用 kubectl rollout status 命令查看 Deployment 是否完成，如果 rollout 成功完成，kubectl rollout status 将返回一个 0 值的 Exit Code
 
 
-#### 4、fail to progress
 
-Deployment 在更新最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail to progress
+#### 4、fail
+
+Deployment 在更新最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail
 
 如下原因都可能导致此现象发生：
 
@@ -3552,21 +3616,19 @@ Deployment 在更新最新的 ReplicaSet 时，可能卡住而不能达到 compl
 - 资源限制
 - 应用程序的配置错误导致启动失败
 
-
-
-指定 Deployment spec 中的 .**progressDeadlineSeconds** 字段，Deployment Controller 将在等待指定的时长后，将 Deployment 的标记为 fail to progress，然后更新 Deployment 的 Condition，添加如下 DeploymentCondition：
+指定 Deployment .spec.**progressDeadlineSeconds** 字段，Deployment 将在等待指定的时长后，将 Deployment 的标记为 fail，然后更新 Deployment 的 Condition，添加如下 Condition：
 
 - Type=Progressing
 - Status=False
 - Reason=ProgressDeadlineExceeded
 
-Type=Available 及 Status=True 代表 Deployment 具备最小可用的 Pod 数，Minimum availability 由 Deployment 中的 strategy 参数决定
+>其他一些状态原因：
+>
+>Type=Available 及 Status=True 代表部署了具备最小可用数的 Pod，Minimum availability 由 Deployment 中的 strategy 参数决定
+>
+>Type=Progressing 及 Status=True 代表要么处于滚动更新的过程中，要么已经成功完成更新并且 Pod 数达到了最小可用的数量
 
-Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的过程中，要么已经成功完成更新并且 Pod 数达到了最小可用的数量
-
-
-
-可以针对 fail to progress 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
+可以针对 fail 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
 
 - scale up / scale down
 - 回滚到前一个版本
@@ -3576,19 +3638,16 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 
 **注意**：
 
-- Kubernetes 不会对被卡住的 Deployment 做任何操作
+- Kubernetes 除了报告状态外，不会对被卡住的 Deployment 做任何操作，部分协调器可以对此作出反应，例如回滚
+- 暂停 Deployment 不会出发 progressDeadlineSeconds
 
 
 
 ### 4、清理策略
 
-通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个旧的 ReplicaSet
+通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个 revison，超出该数字的将被在后台进行垃圾回收
 
-超出该数字的将被在后台进行垃圾回收
-
-该字段的默认值是 10
-
-如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
+该字段的默认值是 10，如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
 
 
 
@@ -3596,14 +3655,24 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 
 通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
 
-当指定为 **rollingUpdate** 时，可以设定更新行为的规约：
+**rollingUpdate**：当指定为 rollingUpdate 时，可以设定更新行为的规约：
 
-- strategy.rollingUpdate.**maxSurge**：最大新 Pod 数量
-  - 可以是整数或者百分比，默认为 25%
-  - 例如：设置为 30%，则滚动更新期间，可以直接先添加原本 30% 的新 Pod 数量，当旧 Pod 被杀死，可以继续扩容
-- strategy.rollingUpdate.**maxUnavailable**：最大不可用 Pod 数量
-  - 可以是整数或者百分比，默认为 25%
+- strategy.rollingUpdate.**maxSurge**：最大超过期望数的新 Pod 数
+  - 可以是整数或者百分比，默认为 25%，通过百分比计算的绝对值向上取整
+  - 例如：设置为 30%，则滚动更新期间，可以先直接添加原本 30% 的新 Pod 数量，当旧 Pod 被杀死，可以继续扩容
+- strategy.rollingUpdate.**maxUnavailable**：最大不可用 Pod 数
+  - 可以是整数或者百分比，默认为 25%，通过计算百分比的绝对值向下取整
   - 例如：设置为 30%，则滚动更新期间，可以直接先缩容到原本的 70%，当新 Pod 就绪，可以继续缩容
+
+**Recreate**：
+
+- 创建出新的 Pod 之前会先杀掉所有已存在的 Pod
+
+
+
+**注意**：
+
+- maxSurge 与 maxUnavailable 不能同时为 0，其中一个为 0 时，另一个为默认值为 1
 
 
 
@@ -3621,6 +3690,16 @@ Type=Progressing 及 Status=True 代表 Deployment 要么处于滚动更新的�
 - Istio 灰度发布
 - 业务代码编码实现
 - Spring Cloud 灰度发布
+
+
+
+### 7、其他配置
+
+.spec.**minReadySeconds**：可选项，用来说明 Pod 认为是可用状态的最小秒数，默认是 0 即 Pod 在 ready 后就会被认为是可用状态
+
+.spec.rollbackTo.**revision**：可选项，用来指定回退到的 revision，默认是 0，意味着回退到上一个 revision
+
+
 
 
 
@@ -3867,17 +3946,15 @@ spec:
 
 ### 1、概述
 
-DaemonSet 控制器确保所有（或一部分）的节点都运行了一个指定的 Pod 副本
+DaemonSet 确保所有（或一部分）的 Node 都运行了一个指定的 Pod 副本
 
-每当向集群中添加一个节点时，指定的 Pod 副本也将添加到该节点上，当节点从集群中移除时，Pod 也就被垃圾回收了，删除一个 DaemonSet 可以清理所有由其创建的 Pod
-
-通常情况下，一个 DaemonSet 将覆盖所有的节点
+每当集群中添加一个 Node 时，指定的 Pod 副本也将添加到该节点上，当节点从集群中移除时，Pod 也就被垃圾回收了，删除一个 DaemonSet 可以清理所有由其创建的 Pod 副本
 
 典型使用场景有：
 
 - 在每个节点上运行集群的存储守护进程，例如：glusterd、ceph
 - 在每个节点上运行日志收集守护进程，例如：fluentd、logstash
-- 在每个节点上运行监控守护进程，例如：Prometheus Node Exporter、Sysdig Agent、collectd、Dynatrace OneAgent、APPDynamics Agent、Datadog agent、New Relic agent、Ganglia gmond、Instana Agent等
+- 在每个节点上运行监控守护进程，例如：Prometheus Node Exporter、Sysdig Agent、collectd、Dynatrace OneAgent、APPDynamics Agent、Datadog agent、New Relic agent、Ganglia gmond、Instana Agent 等
 - 会为某一类守护进程设置多个 DaemonSets，每一个 DaemonSet 针对不同类硬件类型设定不同的内存、CPU 请求
 
 
@@ -3945,8 +4022,8 @@ DaemonSet 需要如下字段：
   - restartPolicy 字段必须为 Always，或者不填（默认值为 Always）
   - selector 是必填字段，且指定该字段时，必须与 template.metata.labels 字段匹配，不匹配的情况下创建 DaemonSet 将失败
     - DaemonSet 创建以后，selector 字段就不可再修改，如果修改，可能导致不可预见的结果
-  - 指定 nodeSelector ，DaemonSet Controller 将只在指定的节点上创建 Pod
-  - 指定 .spec.template.spec.affinity，DaemonSet Controller 将只在与 node affinity 匹配的节点上创建 Pod
+  - 指定 nodeSelector ，DaemonSet 将只在指定的节点上创建 Pod
+  - 指定 .spec.template.spec.affinity，DaemonSet 将只在与 node affinity 匹配的节点上创建 Pod
 - **template**
   - 定义了 Pod 的模板，与定义 Pod 的 yaml 格式完全相同
   - 除了内嵌在 DaemonSet 中以外，没有 kind、apiversion 字段以外
@@ -3956,26 +4033,52 @@ DaemonSet 需要如下字段：
 
 **注意**：
 
-- 任何情况下，不能以任何方式创建符合 DaemonSet 的 .spec.selector 选择器的 Pod，否则 DaemonSet Controller 会接管这些 Pod，并导致不可预期的行为出现
+- 任何情况下，不能以任何方式创建符合 DaemonSet 的 .spec.selector 选择器的 Pod，否则 DaemonSet 会接管这些 Pod，并导致不可预期的行为出现
 
 
 
 #### 2、更新
 
-**更新信息**：
+在改变节点的标签时：
+- 如果该节点匹配了 DaemonSet 的 .spec.template.spec.nodeSelector，DaemonSet 将会在该节点上创建一个 Pod
+- 如果该节点不匹配原来匹配 DaemonSet 的 .spec.template.spec.nodeSelector，则 DaemonSet 将会删除该节点上对应的 Pod
 
-- 在改变节点的标签时：
-  - 如果该节点匹配了 DaemonSet 的 .spec.template.spec.nodeSelector，DaemonSet 将会在该节点上创建一个 Pod
-  - 如果该节点不匹配原来匹配 DaemonSet 的 .spec.template.spec.nodeSelector，则 DaemonSet 将会删除该节点上对应的 Pod
-- 可以修改 DaemonSet 的 Pod 的部分字段，但是 DaemonSet Controller 在创建新的 Pod 时，仍然会使用原有的 Template
-- 可以删除 DaemonSet，如果在 kubectl 命令中指定 --cascade=false 选项，DaemonSet 容器组将不会被删除
-  - 如果立马再创建一个新的 DaemonSet，与之前删除的 DaemonSet 有相同的 .spec.selector，新建 DaemonSet 将直接把这些未删除的 Pod 纳入管理，DaemonSet 根据其 updateStrategy 决定是否更新这些 Pod
+可以手动修改 DaemonSet 创建的 Pod 的部分字段，但是当 DaemonSet 在创建新的 Pod 时，仍然会使用原有的 Template
 
+删除 DaemonSet，如果在 kubectl 命令中指定 --cascade=false 选项，DaemonSet 容器组将不会被删除，如果立马再创建一个新的 DaemonSet，与之前删除的 DaemonSet 有相同的 .spec.selector，新建 DaemonSet 将直接把这些未删除的 Pod 纳入管理，DaemonSet 根据其 updateStrategy 决定是否更新这些 Pod
 
 
-**滚动更新**：
 
-- https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/
+#### 3、滚动更新
+
+通过 .spec.updateStrategy.type 设置更新策略，目前支持两种策略
+
+- OnDelete：默认策略，更新模板后，只有手动删除了旧的 Pod 后才会创建新的 Pod
+
+- RollingUpdate：更新 DaemonSet 模版后，自动删除旧的 Pod 并创建新的 Pod
+
+在使用 RollingUpdate 策略时，还可以设置
+
+- .spec.updateStrategy.rollingUpdate.maxUnavailable，默认 1
+- .spec.minReadySeconds，默认 0
+
+
+
+#### 4、回滚
+
+~~~bash
+# 查询历史版本
+kubectl rollout history daemonset <daemonset-name>
+
+# 查询某个历史版本的详细信息
+kubectl rollout history daemonset <daemonset-name> --revision=1
+
+# 回滚
+kubectl rollout undo daemonset <daemonset-name> --to-revision=<revision>
+
+# 查询回滚状态
+kubectl rollout status ds/<daemonset-name>
+~~~
 
 
 
@@ -4006,8 +4109,6 @@ nodeAffinity:
         values:
         - target-host-name
 ~~~
-
-
 
 在调度 DaemonSet 的 Pod 时，污点和容忍（taints and tolerations）会被考量到，同时以下容忍（toleration）将被自动添加到 DaemonSet 的 Pod 中：
 
@@ -4060,7 +4161,7 @@ nodeAffinity:
 
 
 
-**静态 Pod**：
+**Static Pod**：
 
 可以在 Kubelet 监听的目录下创建一个 Pod 的 yaml 文件，这种形式的 Pod 叫做 静态 Pod（static pod）
 
@@ -4097,8 +4198,6 @@ Kubernetes中的 Job 对象将创建一个或多个 Pod，并确保指定数量�
 
 例子：创建一个 Job 对象用来确保一个 Pod 的成功执行并结束，在第一个 Pod 执行失败或者被删除（例如：节点硬件故障或机器重启），该 Job 对象将创建一个新的 Pod 以重新执行
 
-
-
 ~~~yaml
 apiVersion: batch/v1
 kind: Job
@@ -4120,8 +4219,6 @@ spec:
 kubectl apply -f job.yaml
 ~~~
 
-
-
 Job 对象的 YAML 文件中，都需要包括如下三个字段：
 
 - .**apiVersion**
@@ -4137,27 +4234,43 @@ Job 对象的 YAML 文件中，都需要包括如下三个字段：
 
 
 
+### 2、类型
+
+**Non-parallel Jobs**：非并行
+
+- 通常，只启动一个 Pod，除非该 Pod 执行失败
+- Pod 执行成功并结束以后，Job 也立刻进入完成 completed 状态
+
+**Parallel Jobs with a fixed completion count**：固定次数结束
+
+- .spec.completions 为一个非零正整数
+- Job 将创建至少 .spec.**completions** 个 Pod，编号为 1 - .spec.**completions**
+- Job 记录了任务的整体执行情况，当 1 - .spec.completions 中每一个编号都有一个对应的 Pod 执行成功时，Job 进入完成状态
+
+**Parallel Jobs with a work queue**：带工作队列
+
+- 不指定 .spec.completions，使用 .spec.**parallelism**
+- Pod 之间必须相互之间自行协调并发，或者使用一个外部服务决定每个 Pod 各自执行哪些任务
+  - 例如：某个 Pod 可能从工作队列（work queue）中取出最多 N 个条目的批次数据
+- 每个 Pod 都可以独立判断其他同僚（peers）是否完成，并确定整个 Job 是否完成
+- 当  Job 中任何一个 Pod 成功结束，将不再为其创建新的 Pod
+- 当所有的 Pod 都结束了，且至少有一个 Pod 执行成功，则 Job 判定为成功结束
+- 一旦任何一个 Pod 执行成功并退出，Job 中的任何其他 Pod 都应停止工作和输出信息，并开始终止该 Pod 的进程
 
 
-### 2、Parallel Jobs
 
-有三种主要的任务类型适合使用 Job 运行：
+**Controlling Parallelism**：控制并行
 
-- **Non-parallel Jobs**：
-  - 通常，只启动一个 Pod，除非该 Pod 执行失败
-  - Pod 执行成功并结束以后，Job 也立刻进入完成 completed 状态
-- **Parallel Jobs with a fixed completion count**：
-  - .spec.completions 为一个非零正整数
-  - Job 将创建至少 .spec.**completions** 个 Pod，编号为 1 - .spec.**completions**
-  - Job 记录了任务的整体执行情况，当 1 - .spec.completions 中每一个编号都有一个对应的 Pod 执行成功时，Job 进入完成状态
-- **Parallel Jobs with a work queue**：
-  - 不指定 .spec.completions，使用 .spec.**parallelism**
-  - Pod 之间必须相互之间自行协调并发，或者使用一个外部服务决定每个 Pod 各自执行哪些任务
-    - 例如：某个 Pod 可能从工作队列（work queue）中取出最多 N 个条目的批次数据
-  - 每个 Pod 都可以独立判断其他同僚（peers）是否完成，并确定整个 Job 是否完成
-  - 当  Job 中任何一个 Pod 成功结束，将不再为其创建新的 Pod
-  - 当所有的 Pod 都结束了，且至少有一个 Pod 执行成功后才结束，则 Job 判定为成功结束
-  - 一旦任何一个 Pod 执行成功并退出，Job 中的任何其他 Pod 都应停止工作和输出信息，并开始终止该 Pod 的进程
+并发数 .spec.parallelism 可以被设置为 0 或者任何正整数，如果不设置则默认为1，如果设置为 0，则 Job 被暂停，直到该数字被调整为一个正整数
+
+实际的并发数（同一时刻正在运行的 Pod 数量）可能比设定的并发数 .spec.parallelism 要大一些或小一些，不一定严格相等，主要的原因有：
+
+- 对于 fixed completion count Job，实际并发运行的 Pod 数量不会超过剩余未完成的数量，如果 .spec.parallelism 比这个数字更大，将被忽略
+- 对于 work queue Job，任何一个 Pod 成功执行后，将不再创建新的 Pod ，剩余的 Pod 将继续执行完成
+- Job 可能没有足够的时间处理并发控制
+- Job 创建 Pod 失败（例如：ResourceQuota 不够用，没有足够的权限等）
+- 同一个 Job 中，在已创建的 Pod 出现大量失败的情况下，Job 可能限制 Pod 的创建
+- 当 Pod 被优雅地关闭时（gracefully shut down），需要等候一段时间才能结束
 
 
 
@@ -4166,27 +4279,6 @@ Job 对象的 YAML 文件中，都需要包括如下三个字段：
 - 对于 non-parallel Job，.spec.completions 和 .spec.parallelism 可以不填写，默认值都为 1
 - 对于 fixed completion count Job，需要设置 .spec.completions 的期望个数，同时不设置 .spec.parallelism 字段（默认值为 1）
 - 对于 work queue Job，不能设置 .spec.completions 字段，且必须设置 .spec.parallelism 为 0 或任何正整数
-
-
-
-**Controlling Parallelism**：
-
-并发数 .spec.parallelism 可以被设置为 0 或者任何正整数，如果不设置则默认为1，如果设置为 0，则 Job 被暂停，直到该数字被调整为一个正整数
-
-实际的并发数（同一时刻正在运行的 Pod 数量）可能比设定的并发数 .spec.parallelism 要大一些或小一些，不一定严格相等，主要的原因有：
-
-- 对于 fixed completion count Job，实际并发运行的 Pod 数量不会超过剩余未完成的数量。如果 .spec.parallelism 比这个数字更大，将被忽略
-- 对于 work queue Job，任何一个 Pod 成功执行后，将不再创建新的 Pod （剩余的 Pod 将继续执行）
-- Job 控制器、可能没有足够的时间处理并发控制
-- Job 控制器创建 Pod 失败（例如：ResourceQuota 不够用，没有足够的权限等）
-- 同一个 Job 中，在已创建的 Pod 出现大量失败的情况下，Job 控制器可能限制 Pod 的创建
-- 当 Pod 被优雅地关闭时（gracefully shut down），需要等候一段时间才能结束
-
-
-
-
-
-
 
 
 
@@ -4324,14 +4416,9 @@ spec:
 Kubernetes Job 对象可以用来支持 Pod 的并发执行，但是：
 
 - Job 对象并非设计为支持需要紧密相互通信的 Pod 的并发执行，例如：科学计算
-- Job 对象支持并发处理一系列相互独立但是又相互关联的工作任务，例如：
-  - 发送邮件
-  - 渲染页面
-  - 转码文件
-  - 扫描 NoSQL 数据库中的主键
-  - 其他
+- Job 对象支持并发处理相互独立且相互关联的任务，例如：发送邮件、渲染页面、转码文件、扫描 NoSQL 数据库中的主键
 
-在一个复杂的系统中，可能存在多种类型的工作任务，目前只讨论批处理任务，对于批处理任务的并行计算，存在着几种模式，它们各自有自己的优缺点：
+对于批处理任务的并行计算，存在着几种模式，它们各自有自己的优缺点：
 
 - 每个工作任务一个 Job 对象 VS 一个 Job 对象负责所有的工作任务
   - 当工作任务特别多时，第二种选择更合适一些
@@ -4358,7 +4445,7 @@ Kubernetes Job 对象可以用来支持 Pod 的并发执行，但是：
 - 相同的执行命令
 - 相同的容器镜像
 - 相同的数据卷
-- 相同的环境变量（例如：不同时间点创建的Pod，Service的环境变量可能会不同）
+- 相同的环境变量（例如：不同时间点创建的 Pod，Service的环境变量可能会不同）
 
 Job 的不同模式从本质上讲，就是如何为一组工作任务分配 Pod，下表总结了不同的模式下 .spec.parallelism 和 .spec.completions 字段的设置（表中 W 代表工作任务的数量）
 
@@ -4484,8 +4571,6 @@ CronJob 按照预定的时间计划（schedule）创建 Job
 
 CronJob 只负责按照时间计划的规定创建 Job 对象，由 Job 来负责管理具体 Pod 的创建和执行
 
-
-
 与其他所有 Kubernetes 对象一样，CronJob 对象需要：
 
 - **apiVersion**
@@ -4524,9 +4609,9 @@ CronJob 只负责按照时间计划的规定创建 Job 对象，由 Job 来负�
   - .spec.concurrencyPolicy 是选填字段
 
     - 指定了如何控制该 CronJob 创建的 Job 的并发性，可选的值有：
-      - Allow： 默认值，允许并发运行 Job
-      - Forbid： 不允许并发运行 Job，如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将跳过新的执行时间点，保留仍在运行的 Job，且不会在此刻创建新的 Job
-      - Replace： 如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将创建一个新的 Job 以替代正在执行的 Job
+      - Allow：默认值，允许并发运行 Job
+      - Forbid：不允许并发运行 Job，如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将跳过新的执行时间点，保留仍在运行的 Job，且不会在此刻创建新的 Job
+      - Replace：如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将创建一个新的 Job 以替代正在执行的 Job
 
   - .spec.suspend 是选填字段
 
@@ -4539,6 +4624,28 @@ CronJob 只负责按照时间计划的规定创建 Job 对象，由 Job 来负�
       - .spec.successfulJobsHistoryLimit 的默认值为 3
       - .spec.failedJobsHistoryLimit 的默认值为 1
     - 如果将其设置为 0，则 CronJob 不会保留已经结束的 Job 的记录
+
+~~~yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+~~~
 
 
 
@@ -4836,11 +4943,15 @@ kubelet 会持续删除镜像，直到磁盘用量到达 LowThresholdPercent 值
 
 Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象与控制器
 
-通过追踪分析 RC 控制的所有目标 Pod 的负载变化情况，来确定是否需要针对性地调整目标 Pod 的副本数，这是 HPA 的实现原理
+通过追踪分析被控制器（Deploy、RC、RS）控制的所有目标 Pod 的负载变化情况，来确定是否需要针对性地调整目标 Pod 的副本数，这是 HPA 的实现原理
 
-- 水平扩缩意味着对增加的负载响应部署更多的 Pod，垂直扩缩意味着将更多资源（例如：内存或 CPU）分配给已经为工作负载运行的 Pod
+- 水平扩缩：对增加的负载响应部署更多的 Pod
+- 垂直扩缩：将更多资源（例如：内存或 CPU）分配给已经为工作负载运行的 Pod
 
-Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式，手动模式通过 kubectl scale 命令对一个 Deployment/RC 进行 Pod 副本数量的设置，自动模式则需要用户根据某个性能指标或者自定义业务指标，来指定 Pod 副本数量的范围，系统将自动在这个范围内根据性能指标的变化进行调整
+Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式：
+
+- 手动模式：通过 kubectl scale 命令对一个 Deployment/RC/RS 进行 Pod 副本数量的设置
+- 自动模式：需要用户根据某个性能指标或者自定义业务指标，来指定 Pod 副本数量的范围，系统将自动在这个范围内根据性能指标的变化进行调整
 
 
 
@@ -4850,22 +4961,110 @@ Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式，手动�
 
 
 
+<img src="images/1702262877383.png" alt="1702262877383" style="zoom:50%;" />
+
+
+
 ### 2、原理
 
-Kubernetes 将水平 Pod 自动扩缩实现为一个间歇运行的控制回路（它不是一个连续的过程）
+Kubernetes 提供了一种标准 metrics 接口，HPA Controller 可以通过该接口查询到每个被 HPA 关联的对象的资源指标，标准的 metrics 接口有了，还需要实现 metrics server 以此提供数据，由于所有组件都是通过 API Server 通信的，所以 metrics server 也被聚合到 API Server 上，这样 HPA Controller 的查询请求会通过 API Server 自动转发到 metrics server 上
 
-间隔由 kube-controller-manager 的 --horizontal-pod-autoscaler-sync-period 参数设置（默认间隔为 15 秒）
+Kubernetes 将水平 Pod 自动扩缩实现为一个间歇运行的控制回路（它不是一个连续的过程），间隔由 kube-controller-manager 的 --horizontal-pod-autoscaler-sync-period 参数设置（默认间隔为 15 秒），在这个时间段内，Controller Manager 会根据每个 HPA 定义的 metrics 指标查询资源利用率，Controller Manager 找到由 scaleTargetRef 定义的目标资源，然后根据目标资源的 .spec.selector 标签选择 Pod，并从资源指标 API（针对每个 Pod 的资源指标）或自定义指标 API （适用于所有其他指标）获取指标
 
-在每个时间段内，控制器管理器会根据每个 HPA 定义的指标查询资源利用率，控制器管理器找到由 scaleTargetRef 定义的目标资源，然后根据目标资源的 .spec.selector 标签选择 Pod，并从资源指标 API（针对每个 Pod 的资源指标）或自定义指标获取指标 API（适用于所有其他指标）
+一般来说会根据预先设定的指标从以下三个 Aggregated APIs 中获取：
 
-对于按 Pod 统计的资源指标（如：CPU），控制器从资源指标 API 中获取每一个 HPA 指定的 Pod 的度量值，如果设置了目标使用率，控制器计算每个 Pod 中容器资源使用率，如果设置了 target 值，将直接使用原始数据（不计算百分比），然后控制器根据平均的资源使用率或原始值计算出扩缩的比例，进而计算出目标副本数，需要注意的是如果 Pod 某些容器不支持资源采集，那么控制器将不会使用该 Pod 的资源使用率，下面的算法细节章节将会介绍详细的算法
+- metrics.k8s.io：由 Kubernetes 自带的 metrics server 来提供，主要是 cpu，memory 使用率指标
+- custom.metrics.k8s.io：提供自定义指标数据，一般跟 Kubernetes 集群有关，比如跟特定的 Pod 相关
+- external.metrics.k8s.io：同样提供自定义指标数据，但一般跟 Kubernetes 集群无关
 
-- 如果 Pod 使用自定义指示，控制器机制与资源指标类似，区别在于自定义指标只使用原始值，而不是使用率
+对于按 Pod 统计的资源指标（如：CPU），Controller Manager 从资源指标 API 中获取每一个 HPA 指定的 Pod 的度量值，度量值的单位有平均值（AverageValue）、平均使用率（Utilization）、裸值（Value），如果设置了目标使用率，Controller Manager 计算每个 Pod 中容器资源使用率，如果设置了裸值，将直接使用原始数据（不计算百分比），然后 Controller Manager 根据平均的资源使用情况计算出扩缩的比例，进而计算出目标副本数
+
+- 如果 Pod 使用自定义指标，控制器机制与资源指标类似，区别在于自定义指标只使用原始值，而不是使用率
 - 如果 Pod 使用对象指标和外部指标（每个指标描述一个对象信息），这个指标将直接根据目标设定值相比较，并生成一个上面提到的扩缩比例，在 autoscaling/v2 版本 API 中，这个指标也可以根据 Pod 数量平分后再计算
+
+一个 HPA 支持多个指标的监控，HPA 会循环获取所有的指标，并计算期望的 Pod 数量，并从期望结果中获得最大的 Pod 数量作为最终的伸缩的 Pod 数量
+
 
 <img src="./images/image-20230224170946385.png" alt="image-20230224170946385" style="zoom:67%;" />
 
+目前支持三种 metrics 类型
 
+- 预定义 metrics（比如 Pod 的 CPU）以利用率的方式计算
+- 自定义的 Pod metrics，以原始值（raw value）的方式计算
+- 自定义的 object metrics
+
+目前支持两种 metrics 查询方式
+
+- Heapster
+- 自定义的 REST API
+
+
+
+**注意**：
+
+- 如果算法计算出来的伸缩系数有小数点，统一进一
+- 伸缩系数如果未达到某个容忍值，HPA 认为变化太小，会忽略这次变化，容忍值默认为 0.1
+- 如果 Pod 内某些容器不支持资源采集，那么 HPA Controller 将不会使用该 Pod 的资源使用率
+- 如果出现获取不到指标的情况，扩容时算最小值，缩容时算最大值
+- 如果需要计算平均值，出现 Pod 没准备好的情况，平均数的分母不计入该 Pod
+- 在 Kubernetes 内多个 HPA 对象彼此不可知，多个 HPA 监同个资源对象，会使资源对象无意义的伸缩，建议一个 HPA 监控一个资源对象
+
+
+
+### 3、自定义 metrics
+
+Controller Manager 开启 --horizontal-pod-autoscaler-use-rest-clients
+
+Controller Manager 配置的 --master 或者 --kubeconfig
+
+在 API Server Aggregator 中注册自定义的 metrics API
+
+~~~yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: php-apache
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1beta1
+    kind: Deployment
+    name: php-apache
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 50
+  - type: Pods
+    pods:
+      metricName: packets-per-second
+      targetAverageValue: 1k
+  - type: Object
+    object:
+      metricName: requests-per-second
+      target:
+        apiVersion: extensions/v1beta1
+        kind: Ingress
+        name: main-route
+      targetValue: 10k
+status:
+  observedGeneration: 1
+  lastScaleTime: <some-time>
+  currentReplicas: 1
+  desiredReplicas: 1
+  currentMetrics:
+  - type: Resource
+    resource:
+      name: cpu
+      currentAverageUtilization: 0
+      currentAverageValue: 0
+~~~
+
+
+
+### 示例
 
 **手动扩容和缩容**：
 
@@ -4877,52 +5076,25 @@ kubectl scale deployment frontend --replicas 1
 
 **自动扩容和缩容**：
 
-HPA 控制器基本 Master 的 kube-controller-manager 服务启动参数 --horizontal-podautoscaler-sync-period 定义的时长（默认值为 30s），周期性地监测 Pod 的 CPU 使用率， 并在满足条件时对 RC 或 Deployment 中的 Pod 副本数量进行调整，以符合用户定义的平均 Pod CPU 使用率
-
 ~~~yaml
-apiVersion: extensions/v1beta1 
-kind: Deployment
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
 metadata:
-	name: nginx-deployment 
+  name: php-apache
 spec:
-	replicas: 1 
-template:
-	metadata: 
-		name: nginx 
-		labels:
-			app: nginx 
-	spec:
-		containers:
-			- name: nginx 
-			image: nginx
-		resources:
-			requests:
-				cpu: 50m 
-		ports:
-			- containerPort: 80
--------------------------------
-apiVersion: v1 
-kind: Service 
-metadata:
-	name: nginx-svc 
-spec:
-	ports:
-		- port: 80 
-	selector:
-		app: nginx
------------------------------------
-apiVersion: autoscaling/v1 
-kind: HorizontalPodAutoscaler 
-metadata:
-	name: nginx-hpa 
-spec:
-	scaleTargetRef:
-		apiVersion: app/v1beta1 
-		kind: Deployment
-		name: nginx-deployment 
-		minReplicas: 1
-		maxReplicas: 10
-		targetCPUUtilizationPercentage: 50
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: php-apache
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
 ~~~
 
 
@@ -5302,15 +5474,15 @@ PV 和 PVC 之间的相互作用遵循以下生命周期：
 
 - **Provisioning** ——-> **Binding** ——–> **Using** ——> **Releasing** ——> **Recycling** 
 
-  - Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
+  1. Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
 
     - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
 
     - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
-  - Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态
-  - Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
-  - Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
-  - Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
+  2. Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态
+  3. Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
+  4. Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
+  5. Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
     - 保留策略：允许人工处理保留的数据
     - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持
       - 仅 NFS 和 HostPath 支持回收（Recycle）
@@ -5923,27 +6095,31 @@ spec:
 
 
 
-# 12、Kubernetes configMap
+# 12、Kubernetes ConfigMap
 
 ## 1、基本概念
 
-configMap 功能在 v1.2 版本中引入
+ConfigMap 功能在 v1.2 版本中引入
 
-许多应用程序会从配置文件、命令行参数、环境变量中读取配置信息，configMap API 提供了向容器中注入配置信息的机制
+许多应用程序会从配置文件、命令行参数、环境变量中读取配置信息，ConfigMap API 提供了向容器中注入配置信息的机制，实现配置与镜像的分离，避免修改配置而重新构建镜像
 
-configMap 可以被用来保存单个属性，也可以用来保存整个配置文件或者 JSON 二进制大对象
+ConfigMap 可以被用来保存单个属性，也可以用来保存整个配置文件或者 JSON 二进制大对象
 
 
 
 **注意**：
 
-- configMap 是命名空间级别资源，不可跨命名空间共享
+- ConfigMap 是命名空间级别资源，不可跨命名空间共享
 
 
 
 ## 2、创建方式
 
 ### 1、使用目录创建
+
+**--from-file**：指定目录，目录下的所有文件都会被读取，然后在 ConfigMap 里面创建多个键值对
+
+- 键就是文件名，值就是该文件的内容
 
 ~~~bash
 ls docs/user-guide/configmap/kubectl/
@@ -5968,11 +6144,13 @@ cat docs/user-guide/configmap/kubectl/ui.properties
 kubectl create configmap game-config --from-file=docs/user-guide/configmap/kubectl
 ~~~
 
---from-file 指定目录，目录下的所有文件都会被读取，然后在 configMap 里面创建一个键值对，键的名字就是文件名，值就是文件的内容
-
 
 
 ### 2、使用文件创建
+
+只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap，其内的键值对与从目录读取效果一样
+
+--from-file 这个参数可以使用多次，使用多次与从目录读取效果一样
 
 ~~~bash
 kubectl create configmap game-config-2 --from-file=docs/user- guide/configmap/kubectl/game.properties
@@ -5984,13 +6162,11 @@ kubectl create configmap game-config-2 \
 kubectl get configmaps game-config-2 -o yaml
 ~~~
 
-只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap，其内的键值对与上文效果一样
-
---from-file 这个参数可以使用多次，使用两次与上文效果一样
-
 
 
 ### 3、使用字面量创建
+
+ **--from-literal**：使用字面量创建，传递配置信息，该参数可以使用多次，每个参数都会变成一个键值对
 
 ~~~bash
 kubectl create configmap special-config \
@@ -6000,72 +6176,92 @@ kubectl create configmap special-config \
 kubectl get configmaps special-config -o yaml
 ~~~
 
-使用字面量创建，利用 -from-literal 参数传递配置信息，该参数可以使用多次
 
 
-
-## 3、使用
-
-### 1、替换环境变量
+### 4、使用 yaml 文件创建
 
 ~~~yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-	name: special-config
-	namespace: default
-	data:
-		special.how: very
-		special.type: charm
+  name: special-config
+  namespace: default
+data:
+  special.how: very
+  special.type: charm
+~~~
+
+~~~~bash
+kubectl create  -f  config.yaml
+~~~~
+
+
+
+## 3、使用
+
+**注意**：
+
+- ConfigMap 必须在 Pod 引用它之前创建
+- 使用 envFrom 时，将会自动忽略无效的键
+- Pod 只能使用同一个命名空间内的 ConfigMap
+
+~~~yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: special-config
+  namespace: default
+data:
+  special.how: very
+  special.type: charm
 
 apiVersion: v1
-	kind: ConfigMap
-	metadata:
-		name: env-config
-		namespace: default
-		data:
-			log_level: INFO
+kind: ConfigMap
+metadata:
+  name: env-config
+  namespace: default
+data:
+  log_level: INFO
+~~~
 
+
+
+### 1、替换环境变量
+
+~~~yaml
 apiVersion: v1
-	kind: Pod
-	metadata:
-		name: dapi-test-pod
-	spec:
-		containers:
-			- name: test-container
-			image: hub.xxx.com/library/myapp:v1
-			command: [ "/bin/sh", "-c", "env"]
-		env:
-			- name: SPECIAL_LEVEL_KEY
-			valueFrom:
-				configMapKeyRef:
-                	name: special-config
-					key: special.how
-			- name: SPECIAL_TYPE_KEY
-			valueFrom:
-				configMapKeyRef:
-					name: special-config
-					key: special.type
-			envFrom:
-				- configMapRef:
-				name: env-config
-restartPolicy: Never
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh", "-c", "env"]
+      env:
+        - name: SPECIAL_LEVEL_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.how
+        - name: SPECIAL_TYPE_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.type
+      envFrom:
+        - configMapRef:
+            name: env-config
+  restartPolicy: Never
 ~~~
 
 
 
 ### 2、设置命令行参数
 
+将 ConfigMap 用作命令行参数时，需要先把 ConfigMap 的数据保存在环境变量中，然后通过 $(VAR_NAME) 的方式引用环境变量
+
 ~~~yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-	name: special-config
-	namespace: default
-data:
-    special.how: very
-    special.type: charm
-    
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6091,50 +6287,146 @@ restartPolicy: Never
 
 
 
-### 3、在数据卷中使用
+### 3、作为文件或目录挂载
+
+将创建的 ConfigMap 直接挂载至 Pod 的 /etc/config 目录下，每个 key-value 键值对都会生成一个文件，key 为文件名，value 为内容
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vol-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh", "-c", "cat /etc/config/special.how"]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+  restartPolicy: Never
+~~~
+
+在 volumeMounts.mountPath 指定了绝对路径后，可以在 volumes.path 指定相对路径与文件名，如果存在同名文件，直接覆盖
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh","-c","cat /etc/config/keys/special.level"]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+        items:
+        - key: special.how # 除了这个 key 外，其他不挂载
+          path: keys/special.level # 挂载在 /etc/config 目录下的 /keys/special.level
+  restartPolicy: Never
+~~~
+
+ConfigMap 支持同一个目录下挂载多个 key 和多个目录
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh","-c","sleep 36000"]
+      volumeMounts: # 俩个挂载点
+      - name: config-volume
+        mountPath: /etc/config
+      - name: config-volume2
+        mountPath: /etc/config2
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+        items:
+        - key: special.how
+          path: keys/special.level # path 最后一级是文件名
+        - key: special.type
+          path: keys/special.type
+    - name: config-volume2
+      configMap:
+        name: special-config
+        items:
+        - key: special.how
+          path: keys/special.level
+  restartPolicy: Never
+~~~
+
+
+
+### 4、不覆盖文件挂载
+
+在ConfigMap 或 Secret 中使用 subPath，如果不指定 subPath，则会把 volumeMounts.mountPath 对应目录下的文件都清掉，只存放ConfigMap 或 Secret 定义的文件，如果不对原来的文件夹下的文件造成覆盖，只是将 Configmap 中的每个 kv，按照文件的方式挂载到目录下，需要使用 subpath 参数
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: nginx
+      command: ["/bin/sh","-c","sleep 36000"]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/nginx/special.how
+        subPath: special.how # 将 key 作为文件名
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+        items:
+        - key: special.how
+          path: special.how
+  restartPolicy: Never
+~~~
+
+
+
+## 4、不可变
+
+给不需要经常修改的 ConfigMap 和 Secret 设置 immutable: true 就可以避免错误配置快速传播与 watch 压力加大
 
 ~~~yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-	name: special-config
-	namespace: default
+  ...
 data:
-    special.how: very
-    special.type: charm
-    
-apiVersion: v1
-kind: Pod
-metadata:
-	name: dapi-test-pod
-spec:
-	containers:
-		- name: test-container
-		image: hub.xxx.com/library/myapp:v1
-		command: ['bin/sh', '-c', 'cat /etc/config/special.how']
-		volumeMounts:
-			- name: config-volume
-			mountPath: /etc/config
-		volumes:
-			- name: config-volume
-			configMap:
-				name: special-config
-				# 来自 ConfigMap 的一组键，将被创建为文件
-              items:
-              - key: "game.properties"
-                path: "game.properties"
+  ...
+immutable: true
 ~~~
 
 
 
-## 4、热更新
+## 5、热更新
 
 ~~~bash
 # 使用自带的默认编辑器直接修改即可
 kubectl edit configmap log-config
 ~~~
 
-更新 configMap 目前并不会触发相关 Pod 的滚动更新，可以通过修改 pod annotations 的方式触发滚动更新，例如：给 spec.template.metadata.annotations 中添加 version/config 触发滚动更新
+更新 ConfigMap 目前并不会触发相关 Pod 的滚动更新，可以通过修改 pod annotations 的方式触发滚动更新，例如：给 spec.template.metadata.annotations 中添加 version/config 触发滚动更新
 
 
 
@@ -6192,9 +6484,9 @@ spec:
 | spec.ports[]                         | List   | Service 服务需要暴露的端口                                   |
 | spec.ports[].name                    | String | 端口名称                                                     |
 | spec.ports[].protocol                | String | 端口协议，支持 TCP UDP，默认 TCP                             |
-| spec.ports[].port                    | int    | 服务监听的端口号                                             |
-| spec.ports[].targetPort              | int    | 需要转发到 Pod 的端口号                                      |
-| spec.ports[].nodePort                | int    | 当 type 为 nodePort 时，指定映射到主机的端口号               |
+| spec.ports[].port                    | int    | 自身监听的端口号                                             |
+| spec.ports[].targetPort              | int    | 被选取的 Pod 的端口号，一般是需要将流量转发过去的端口        |
+| spec.ports[].nodePort                | int    | 当 type 为 nodePort 时，指定映射到主机的端口号，将服务端口号映射到主机上 |
 | status                               | Object | 当 type 为 loadBalancer 时，设置外部负载均衡器 IP 地址       |
 | status.loadBalancer                  | Object | 外部负载均衡器                                               |
 | status.loadBalancer.ingress          | Object | 外部负载均衡器                                               |
@@ -7100,7 +7392,7 @@ Pod 定义中的 spec.dnsConfig 和 spec.dnsPolicy=None 的兼容性如下：
      kubectl get secrets
      ~~~
 
-5. 修改 nginx 部署，使用 Secrets 中的 https 证书，修改 Service，使其暴露 80 端口和 443端口
+5. 修改 nginx 部署，使用 Secrets 中的 https 证书，修改 Service，使其暴露 80 端口和 443 端口
 
    - ~~~yaml
      apiVersion: v1
@@ -8477,6 +8769,383 @@ kube-scheduler 还支持使用 --policy-config-file 指定一个调度策略文�
 
 
 # 17、Kubernetes 资源限制
+
+
+
+# 18、Kubernetes Ingress
+
+## 1、概述
+
+对访问集群的外部流量进行控制的资源对象，流量路由由 Ingress 规则控制，典型流量是 HTTP/HTTPS
+
+<img src="images/image-20240126101800641.png" alt="image-20240126101800641" style="zoom:50%;" />
+
+通过配置，Ingress 可为 Service 提供外部可访问 URL、流量负载均衡、 终止 SSL/TLS，基于名称的虚拟托管等能力
+
+Ingress Controller 负责完成 Ingress 的工作，通常会使用某个负载均衡器， 也可以配置边缘路由器或其他前端来帮助处理流量
+
+Ingress 都需要配置 rules，目前 Kubernetes 仅支持 HTTP 规则
+
+
+
+## 2、转发规则
+
+**host**：可选，未指定 host，则该规则基于所指定 IP 地址来匹配所有入站 HTTP 流量，如果提供了 host（例如 foo.bar.com）则 rules 适用于所指定的主机
+
+**paths**：每个 path 都有一个由 service.name 和 service.port.name 或 service.port.number 确定的后端，主机和路径都必须与入站请求的内容相匹配，负载均衡器才会将流量引导到所引用的 Service
+
+**backend**：Service 文档中所述的 Service 和端口名称的组合， 或者是通过 CRD 方式来实现的自定义资源后端，对于发往 Ingress 的 HTTP 和 HTTPS 请求，如果与规则中的主机和路径匹配， 则会被发送到所列出的后端
+
+**defaultBackend**：为无法与规则中任何路径匹配的请求提供服务
+
+**pathType**：每个路径都需要有对应的路径类型，未明确设置的路径无法通过合法性检查，当前支持的路径类型有三种
+
+- ImplementationSpecific：对于这种路径类型，匹配方法取决于 IngressClass，具体实现可以将其作为单独的 pathType 处理或者与 Prefix 或 Exact 类型相同的处理
+- Exact：精确匹配 URL 路径，且区分大小写
+- Prefix：基于以 / 分隔的 URL 路径前缀匹配，匹配区分大小写，并且对路径中各个元素逐个执行匹配操作，路径元素指的是由 / 分隔符分隔的路径中的标签列表，如果每个 p 都是请求路径 p 的元素前缀，则请求与路径 p 匹配
+
+| 类型   | 路径                            | 请求路径        | 匹配与否                 |
+| ------ | ------------------------------- | --------------- | ------------------------ |
+| Prefix | `/`                             | （所有路径）    | 是                       |
+| Exact  | `/foo`                          | `/foo`          | 是                       |
+| Exact  | `/foo`                          | `/bar`          | 否                       |
+| Exact  | `/foo`                          | `/foo/`         | 否                       |
+| Exact  | `/foo/`                         | `/foo`          | 否                       |
+| Prefix | `/foo`                          | `/foo`, `/foo/` | 是                       |
+| Prefix | `/foo/`                         | `/foo`, `/foo/` | 是                       |
+| Prefix | `/aaa/bb`                       | `/aaa/bbb`      | 否                       |
+| Prefix | `/aaa/bbb`                      | `/aaa/bbb`      | 是                       |
+| Prefix | `/aaa/bbb/`                     | `/aaa/bbb`      | 是，忽略尾部斜线         |
+| Prefix | `/aaa/bbb`                      | `/aaa/bbb/`     | 是，匹配尾部斜线         |
+| Prefix | `/aaa/bbb`                      | `/aaa/bbb/ccc`  | 是，匹配子路径           |
+| Prefix | `/aaa/bbb`                      | `/aaa/bbbxyz`   | 否，字符串前缀不匹配     |
+| Prefix | `/`, `/aaa`                     | `/aaa/ccc`      | 是，匹配 `/aaa` 前缀     |
+| Prefix | `/`, `/aaa`, `/aaa/bbb`         | `/aaa/bbb`      | 是，匹配 `/aaa/bbb` 前缀 |
+| Prefix | `/`, `/aaa`, `/aaa/bbb`         | `/ccc`          | 是，匹配 `/` 前缀        |
+| Prefix | `/aaa`                          | `/ccc`          | 否，使用默认后端         |
+| 混合   | `/foo` (Prefix), `/foo` (Exact) | `/foo`          | 是，优选 Exact 类型      |
+
+**多重匹配**：在某些情况下，Ingress 中会有多条路径与同一个请求匹配，这时匹配路径最长者优先，如果仍然有两条同等的匹配路径，则精确路径类型优先于前缀路径类型
+
+**主机匹配**：主机名可以是精确匹配或者使用通配符来匹配，精确匹配要求 HTTP host 头部字段与 host 字段值完全匹配，通配符匹配则要求 HTTP host 头部字段与通配符规则中的后缀部分相同
+
+| 主机        | host 头部         | 匹配与否？                          |
+| ----------- | ----------------- | ----------------------------------- |
+| `*.foo.com` | `bar.foo.com`     | 基于相同的后缀匹配                  |
+| `*.foo.com` | `baz.bar.foo.com` | 不匹配，通配符仅覆盖了一个 DNS 标签 |
+| `*.foo.com` | `foo.com`         | 不匹配，通配符仅覆盖了一个 DNS 标签 |
+
+
+
+## 3、使用
+
+**前提准备**：需要先部署一个 Ingress Controller，例如 Nginx Ingress Controller
+
+~~~bash
+# 可以把 Ingress Controller 里的 LoadBalancer 改成 NodePort
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+~~~
+
+
+
+### 1、单服务
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  annotations:
+  	#  Ingress 经常使用注解（Annotations）来配置一些选项，具体需要看使用了那种 Ingress Controller
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx # Ingress Class 的名字，用于给 Ingress 预设 annotations
+  # 请求 /index 时转发到 nginx-service 服务的 80 端口
+  rules:
+  - host: foo.bar.com
+  	http:
+      paths:
+      - path: /index
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service # 需要转发到的后端 Service
+            port:
+              number: 80 # 对应后端 Service 的端口
+~~~
+
+
+
+### 2、多服务
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: foo.bar.com
+  	http:
+      paths:
+      - path: /a
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service-a
+            port:
+              number: 80
+      - path: /b
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service-b
+            port:
+              number: 81
+~~~
+
+
+
+### 3、虚拟主机
+
+设置多个 host，将多个域名流量转发到同一个集群的不同 Service 中
+
+没有定义 path 的后端服务称为默认后端服务，可以用来方便的处理 404 页面
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: foo.bar.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: s1
+            port: 
+              number: 80
+  - host: bar.foo.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: s2
+            port: 
+              number: 80
+  - http: # 不匹配以上两个虚拟主机的情况下，路由到该服务
+      paths:
+      - backend:
+          service:
+            name: s3
+            port: 
+              number: 80
+~~~
+
+
+
+### 4、TLS
+
+通过设定包含 TLS 私钥和证书的 Secret 来保护 Ingress，TLS Secret 的数据中必须包含键名为 tls.crt 的证书和键名为 tls.key 的私钥，同时确保所创建的 TLS Secret 创建自包含 https.foo.com 的公共名称 （Common Name，CN）的证书，这里的公共名称也被称为全限定域名（Fully Qualified Domain Name，FQDN）
+
+Ingress 资源只支持一个 TLS 端口 443，并假定 TLS 连接终止于 Ingress 节点 （与 Service 及其 Pod 间的流量都以明文传输）
+
+如果 Ingress 中的 TLS 配置部分指定了不同主机，那么它们将通过 SNI TLS 扩展指定的主机名（如果 Ingress 控制器支持 SNI）在同一端口上进行复用
+
+~~~yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-tls
+  namespace: default
+data:
+  tls.crt: base64 编码的证书
+  tls.key: base64 编码的私钥
+type: kubernetes.io/tls
+~~~
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tls-example-ingress
+spec:
+  tls: # 指定 tls
+  - hosts: # 指定域名
+      - https.foo.com
+    secretName: secret-tls
+  rules:
+  - host: https.foo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: service1
+            port:
+              number: 80
+~~~
+
+
+
+**注意**：
+
+- 不能针对默认规则使用 TLS，因为这样做需要为所有可能的子域名签发证书，因此建议 .spec.tls.hosts 的取值需要与 .spec.rules.host 完全匹配
+
+
+
+## 4、Ingress Controller
+
+Ingress Controller 以 Daemon Pod 方式运行部署，其会保持 watch Apiserver 的 /ingress 接口以更新 Ingress 资源
+
+
+
+## 5、IngressClass
+
+### 1、概述
+
+Ingress Controller 有不同的实现，通常也有不同的配置，每个 Ingress 应当引用一个 IngressClass
+
+IngressClass 资源包含额外的配置，其中包括应当实现该类的控制器名称
+
+IngressClass 的 .spec.parameters 字段可用于引用其他资源以提供与该 IngressClass 相关的配置，parameter 具体类型取决于 .spec.controller 字段中指定的 Ingress Controller
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"networking.k8s.io/v1","kind":"IngressClass","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"controller","app.kubernetes.io/instance":"ingress-nginx","app.kubernetes.io/name":"ingress-nginx","app.kubernetes.io/part-of":"ingress-nginx","app.kubernetes.io/version":"1.8.2"},"name":"nginx"},"spec":{"controller":"k8s.io/ingress-nginx"}}
+  creationTimestamp: "2024-01-26T02:32:28Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.8.2
+  name: nginx
+  resourceVersion: "12063675"
+  uid: f2f7ffc3-1f36-49da-9d46-5d17e1a78b76
+spec:
+  controller: k8s.io/ingress-nginx
+  parameters:
+    apiGroup: k8s.example.com
+    kind: IngressParameters
+    name: external-lb
+~~~
+
+
+
+### 2、作用域
+
+#### 1、集群作用域
+
+如果未设置 .spec.parameters.scope 字段，或是将 .spec.parameters.scope 字段设为了 Cluster， 那么该 IngressClass 所引用的即是一个集群作用域的资源
+
+参数 kind、apiGroup、name 一起指向一个集群作用域的 API 类型，也可能是一个定制资源 Custom Resource
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: external-lb-1
+spec:
+  controller: example.com/ingress-controller
+  parameters:
+    # 此 IngressClass 的配置定义在一个名为 “external-config-1” 的
+    # ClusterIngressParameter（API 组为 k8s.example.net）资源中
+    # 这项定义告诉 Kubernetes 去寻找一个集群作用域的参数资源
+    scope: Cluster
+    apiGroup: k8s.example.net
+    kind: ClusterIngressParameter
+    name: external-config-1
+~~~
+
+
+
+#### 2、命名空间作用域
+
+如果设置 .spec.parameters.scope 为 Namespace，那么该 IngressClass 将会引用一个名字空间作用域的资源，此时 .spec.parameters.namespace 必须和被引用的资源所处名称空间相同
+
+参数 kind、apiGroup、name 一起指向一个命名空间作用域的 API 类型资源 （例如：ConfigMap）
+
+命名空间作用域可以帮助集群管理者对工作负载所需的配置数据（比如：负载均衡设置、 API 网关定义）的控制权力委派出去，如果直接使用集群作用域的参数，那么将面临以下情况：
+
+- 每次应用一项新的配置变更时，集群管理团队需要批准其他团队所作的修改
+- 集群管理团队必须定义具体的准入控制规则，比如：RBAC，以使得开发团队可以修改集群作用域的配置参数资源
+
+IngressClass API 本身是集群作用域的
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: external-lb-2
+spec:
+  controller: example.com/ingress-controller
+  parameters:
+    # 此 IngressClass 的配置定义在一个名为 “external-config” 的
+    # IngressParameter（API 组为 k8s.example.com）资源中，
+    # 该资源位于 “external-configuration” 名字空间中。
+    scope: Namespace
+    apiGroup: k8s.example.com
+    kind: IngressParameter
+    namespace: external-configuration
+    name: external-config
+~~~
+
+
+
+### 3、默认类
+
+可以将一个特定的 IngressClass 标记为集群默认 Ingress 类
+
+将 IngressClass 的 ingressclass.kubernetes.io/is-default-class 注解设置为 true 将使未指定 ingressClassName 字段的 Ingress 被赋予默认 IngressClass
+
+
+
+**注意**：
+
+- 集群中最好只能有一个默认 IngressClass，否则集群会停止创建未指定 IngressClass 的 Ingress
+
+
+
+~~~yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+  name: nginx-example
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: k8s.io/ingress-nginx
+~~~
+
+
+
+
+
+
+
+# 19、Kubernetes Gateway
+
+
+
+
+
+
 
 
 
@@ -9873,6 +10542,8 @@ API 对象状态不能依赖于网络连接状态
 
 ## 10、etcd
 
+### 1、概述
+
 etcd 是 CoreOS 基于 Raft 开发的分布式 key-value 存储，可用于服务发现、共享配置以及一致性保障（如：数据库选主、分布式锁等）
 
 **主要功能**：
@@ -9882,16 +10553,14 @@ etcd 是 CoreOS 基于 Raft 开发的分布式 key-value 存储，可用于服�
 - key 的过期及续约机制，用于监控和服务发现
 - 原子 CAS 和 CAD，用于分布式锁和 leader 选举
 
-**选举方法**：
+
+
+### 2、选举方法
 
 1. 初始启动时，节点处于 follower 状态并被设定一个 election timeout，如果在这一时间周期内没有收到来自 leader 的 heartbeat，节点将发起选举：将自己切换为 candidate 之后，向集群中其它 follower 节点发送请求，询问其是否选举自己成为 leader
 2. 当收到来自集群中过半数节点的接受投票后，节点即成为 leader，开始接收保存 client 的数据并向其它的 follower 节点同步日志，如果没有达成一致，则 candidate 随机选择一个等待间隔（150ms ~ 300ms）再次发起投票，得到集群中半数以上 follower 接受的 candidate 将成为 leader
 3. leader 节点依靠定时向 follower 发送 heartbeat 来保持其地位
 4. 任何时候如果其它 follower 在 election timeout 期间都没有收到来自 leader 的 heartbeat，同样会将自己的状态切换为 candidate 并发起选举，每成功选举一次，新 leader 的任期（Term）都会比之前 leader 的任期大 1
-
-**日志复制**：
-
-- 当前 Leader 收到客户端的日志（事务请求）后先把该日志追加到本地的 Log 中，然后通过 heartbeat 把该 Entry 同步给其他 Follower，Follower 接收到日志后记录日志然后向 Leader 发送 ACK，当 Leader 收到大多数（n/2+1）Follower 的 ACK 信息后将该日志设置为已提交，并追加到本地磁盘中，通知客户端并在下个 heartbeat 中，Leader 将通知所有的 Follower 将该日志存储在自己的本地磁盘中
 
 **安全性**：
 
@@ -9901,22 +10570,30 @@ etcd 是 CoreOS 基于 Raft 开发的分布式 key-value 存储，可用于服�
 
   - Leader 完整性（Leader Completeness）：指 Leader 日志的完整性，当 Log 在任期 Term1 被 Commit 后，那么以后任期 Term2、Term3… 等的 Leader 必须包含该 Log，Raft 在选举阶段就使用 Term 的判断用于保证完整性：当请求投票的该 Candidate 的 Term 较大或 Term 相同 Index 更大则投票，否则拒绝该请求
 
-**失效处理**
+**失效处理**：
 
 - Leader 失效：其他没有收到 heartbeat 的节点会发起新的选举，而当 Leader 恢复后由于步进数小会自动成为 follower（日志也会被新 leader 的日志覆盖）
 - follower 节点不可用：follower 节点不可用的情况相对容易解决，因为集群中的日志内容始终是从 leader 节点同步的，只要这一节点再次加入集群时重新从 leader 节点处复制日志即可
 - 多个 candidate：冲突后 candidate 将随机选择一个等待间隔（150ms ~ 300ms）再次发起投票，得到集群中半数以上 follower 接受的 candidate 将成为 leader
 
-**wal 日志**：
 
-- wal 日志是二进制的，解析出来后是以上数据结构 LogEntry
 
-  - 第一个字段 type，只有两种，一种是 0 表示 Normal，1 表示 ConfChange（ConfChange 表示 etcd 本身的配置变更同步，比如有新的节点加入等）
-  - 第二个字段是 term，每个 term 代表一个主节点的任期，每次主节点变更 term 就会变化
-  - 第三个字段是 index，这个序号是严格有序递增的，代表变更序号
-  - 第四个字段是二进制的 data，将 raft request 对象的 pb 结构整个保存下，etcd 源码下有个 tools/etcd-dump-logs，可以将 wal 日志 dump 成文本查看，可以协助分析 raft 协议
+### 3、日志复制
 
-  raft 协议本身不关心应用数据，也就是 data 中的部分，一致性都通过同步 wal 日志来实现，每个节点将从主节点收到的 data apply 到本地的存储，raft 只关心日志的同步状态，如果本地存储实现的有 bug，比如没有正确的将 data apply 到本地，也可能会导致数据不一致
+当前 Leader 收到客户端的日志（事务请求）后先把该日志追加到本地的 Log 中，然后通过 heartbeat 把该 Entry 同步给其他 Follower，Follower 接收到日志后记录日志然后向 Leader 发送 ACK，当 Leader 收到大多数（n/2+1）Follower 的 ACK 信息后将该日志设置为已提交，并追加到本地磁盘中，通知客户端并在下个 heartbeat 中，Leader 将通知所有的 Follower 将该日志存储在自己的本地磁盘中
+
+
+
+### 4、wal 日志
+
+wal 日志是二进制的，解析出来后是以上数据结构 LogEntry
+
+- 第一个字段 type，只有两种，一种是 0 表示 Normal，1 表示 ConfChange（ConfChange 表示 etcd 本身的配置变更同步，比如有新的节点加入等）
+- 第二个字段是 term，每个 term 代表一个主节点的任期，每次主节点变更 term 就会变化
+- 第三个字段是 index，这个序号是严格有序递增的，代表变更序号
+- 第四个字段是二进制的 data，将 raft request 对象的 pb 结构整个保存下，etcd 源码下有个 tools/etcd-dump-logs，可以将 wal 日志 dump 成文本查看，可以协助分析 raft 协议
+
+raft 协议本身不关心应用数据，也就是 data 中的部分，一致性都通过同步 wal 日志来实现，每个节点将从主节点收到的 data apply 到本地的存储，raft 只关心日志的同步状态，如果本地存储实现的有 bug，比如没有正确的将 data apply 到本地，也可能会导致数据不一致
 
 
 
@@ -10448,6 +11125,20 @@ Hello plugins!
 
 
 
+## 15、切换国内镜像源
+
+国内镜像源：registry.aliyuncs.com/google_containers
+
+~~~toml
+[plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+	[plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"] # docker.io 为需要修改的镜像地址
+  		endpoint = ["https://xxxx.com"] # 通过 endpoint 修改镜像地址
+~~~
+
+
+
+
+
 # 问题
 
 ## 1、安装三件套报错 Nux.Ro RPMs 无法连接到
@@ -10695,4 +11386,53 @@ yum reinstall -y kubernetes-cni
 ~~~
 
 
+
+## 17、mountPath、subPath、key、path 的关系和作用
+
+key (pod.spec.volums[0].configMap.items[0].key)：用于指定 ConfigMap 中的哪些条目可用于挂载
+
+path (pod.spec.volums[0].configMap.items[0].path)：用于将 key 重命名
+
+subPath (pod.spec.containers[0].volumeMounts.subPath)：决定容器中有无挂载（按名字从 key，有 path 时以 path 为主）
+
+- 筛选范围优先级：pod.spec.volums[0].configMap.items[0].path > pod.spec.volums[0].configMap.items[0].key > configMap.key
+- subPath 匹配范围内是否有对应的名称
+
+mountPath (pod.spec.containers[0].volumeMounts.mountPath)：决定容器中挂载结果的文件名
+
+- 没有 subPath 项时，此项仅指定路径
+- 有 subPath 时且 subPath 筛选结果为 true 时，此项指定路径和文件名，此时文件名可随意指定
+- 有 subPath 但 subPath 筛选结果为 false 时，此项指定路径，创建为一个文件夹
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    purpose: test-configmap-volume
+  name: testvolume
+spec:
+  containers:
+    - name: test-configmap-volume
+      image: tomcat:8
+      imagePullPolicy: IfNotPresent
+      #command: [ "/bin/sh", "-c", "echo $(MY_CACHE_HOST)" ]
+      volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config/app.properties 
+          # 此处配合 suPath 使用时，app.properties 为文件名
+          # 即 pod 容器中只生成了 /etc/config 目录，目录之下为文件，只有一个名为 app.properties 的文件
+          # subPath 筛选只挂载 app.properties 文件
+          subPath: app.properties
+  volumes:
+    - name: config-volume
+      configMap:
+         name: test-cfg
+         items:
+           - key: cache_host
+             path: path/to/special-key-cache
+           - key: app.properties
+             path: app.properties
+# 此容器只挂载了 app.properties，并且 /etc/config 目录下只有 app.properties 文件
+~~~
 
