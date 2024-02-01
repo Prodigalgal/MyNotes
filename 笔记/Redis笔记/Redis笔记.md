@@ -1728,7 +1728,7 @@ slaveof <ip\> <port\>
 
 ### 3.2、构建流程
 
-在主机宕机够，手动使用命令 slaveof no one  将从机变为主机
+在主机宕机后，手动使用命令 slaveof no one  将从机变为主机
 
 
 
@@ -1754,7 +1754,7 @@ slaveof <ip\> <port\>
 sentinel monitor xxxxx 主机IP 主机Port 1
 ```
 
-其中xxxxx为监控对象起的服务器名称， 1 为至少有多少个哨兵同意迁移的数量
+其中 xxxxx 为监控对象起的服务器名称， 1 为至少有多少个哨兵同意迁移的数量
 
 
 
@@ -1766,11 +1766,11 @@ sentinel monitor xxxxx 主机IP 主机Port 1
 redis-sentinel /xxxxx/sentinel.conf 
 ```
 
-如果找不到redis-sentinel，进入redis-cli的文件夹下寻找，或者建立软连接
+如果找不到 redis-sentinel，进入 redis-cli 的文件夹下寻找，或者建立软连接
 
 
 
-#### 测试
+#### 4.2.4、测试
 
 当主机挂掉，从机根据优先级别 slave-priority 选举，产生新的主机，并且原主机重启后会变为从机
 
@@ -1780,21 +1780,21 @@ redis-sentinel /xxxxx/sentinel.conf
 
 ![image-20220303171819563](images/image-20220303171819563.png)
 
-优先级在redis.conf中默认：slave-priority 100，值越小优先级越高
+优先级：在 redis.conf 中默认：slave-priority 100，值越小优先级越高
 
-偏移量是指获得原主机数据最全的
+偏移量：是指获得原主机数据最全的
 
-每个redis实例启动后都会随机生成一个40位的runid
-
-
-
-## 5、复制延时
-
-由于所有的写操作都是先在Master上操作，然后同步更新到Slave上，所以从Master同步到Slave机器有一定的延迟，当系统很繁忙的时候，延迟问题会更加严重，Slave机器数量的增加也会使这个问题更加严重
+runid：每个 redis 实例启动后都会随机生成一个 40 位的 runid
 
 
 
-## 6、Java实现
+**注意**：
+
+- 复制延时：由于所有的写操作都是先在 Master 上操作，然后同步更新到 Slave 上，所以从 Master 同步到 Slave 机器有一定的延迟，当系统很繁忙的时候，延迟问题会更加严重，Slave 机器数量的增加也会使这个问题更加严重
+
+
+
+### 4.4、Java实现
 
 ```java
 private static JedisSentinelPool jedisSentinelPool=null;
@@ -2348,11 +2348,11 @@ redis 2.6版本以后，通过lua脚本解决**争抢问题**，实际上是**re
 
 ## 1、主从复制原理
 
-1. Slave启动成功连接到Master后会发送一个**sync**命令
-2. Master接到命令启动后台的**存盘**进程，同时收集所有接收到的用于修改数据集命令， 在后台进程执行完毕之后，Master将传送整个数据文件到Slave，以完成一次完全同步
-   - 全量复制：Slave服务在接收到数据库文件数据后，将其存盘并加载到内存中
-   - 增量复制：Master继续将新的所有收集到的修改命令依次传给slave，完成同步
-3. 但是只要是重新连接master，一次完全同步（全量复制）将被自动执行
+1. Slave 启动成功连接到 Master 后会发送一个 **sync** 命令
+2. Master 接到命令启动后台的**存盘**进程，同时收集所有接收到的用于修改数据集命令， 在后台进程执行完毕之后，Master 将传送整个数据文件到 Slave，以完成一次完全同步
+   - 全量复制：Slave 服务在接收到数据库文件数据后，将其存盘并加载到内存中
+   - 增量复制：Master 继续将新的所有收集到的修改命令依次传给 Slave，完成同步
+3. 但是只要是重新连接 Master，一次完全同步（全量复制）将被自动执行
 
 ![image-20220303170710029](images/image-20220303170710029.png)
 
@@ -2468,13 +2468,7 @@ slave1、slave2是从头开始复制还是从切入点开始复制？比如从k4
 
 slave连接主机后会发送一个sync命令，将复制主机的rdb文件进行全量复制，即使k4点进来，之前的k1点等也能复制
 
-之后使用增量复制同步数据，如果宕机再次声明主机后，会先全量复制
-
-
-
-## 2、从机是否可以写？set可否？ 
-
-从机只能读
+之后使用增量复制同步数据，如果宕机后再次声明主机，会先全量复制
 
 
 

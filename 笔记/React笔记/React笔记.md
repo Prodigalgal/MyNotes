@@ -688,18 +688,15 @@ function Panel({
 useReducer 钩子接受 2 个参数：
 
 1. 第一个参数：**reducer** 函数
-   - 该函数有两个参数
-     1. 第一个是当前 **state**
-     2. 第二个是处理 **action**
-   - 然后返回新的 state
+   - 两个参数：
+     1. 第一个是当前状态 **state**
+     2. 第二个是目标行为 **action**
+   - 返回值：根据目标行为返回新状态 state
 2. 第二个参数：**初始的 state**
-
-返回如下内容：
-
-1. 一个有状态的值
-2. 一个 **dispatch** 函数（用来派发用户操作给 reducer）
-   - dispatch 函数的参数就是 reducer 函数的 action 以及旧的 state
-
+3. 返回值：
+   1. 一个初始化的状态
+   2. 一个 **dispatch** 函数（用来派发 action 给 reducer 函数）
+      - 参数：reducer 的 action
 
 
 ~~~react
@@ -716,7 +713,7 @@ const initialTasks = [
 ];
 
 export default function TaskApp() {
-  const [tasks, dispatch] = useReducer(tasksReducer, initialTasks);
+  const [nowTasks, dispatch] = useReducer(tasksReducer, initialTasks);
 
   function handleAddTask(text) {
     dispatch({
@@ -785,8 +782,6 @@ export default function tasksReducer(tasks, action) {
   }
 }
 ~~~
-
-
 
 
 
@@ -1970,11 +1965,11 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 
 
-## 2、三个核心
+## 2、核心对象
 
 ### 1、action
 
-动作的对象，包含2个属性：
+目标动作对象，包含2个属性：
 
 - **type**：标识属性，值为字符串，唯一，必要属性
 - **data**：数据属性，值类型任意，可选属性
@@ -1985,9 +1980,22 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 ### 2、reducer
 
-用于初始化状态、加工状态的函数，其返回的就是 state
+用于初始化状态、加工状态的函数，其返回的就是新 state
 
 加工时，根据旧 state 和 action， 产生新 state 的纯函数
+
+~~~js
+// 手动合并 Reducer
+function rootReducer(state = {}, action) {
+  return {
+    users: usersReducer(state.users, action),
+    posts: postsReducer(state.posts, action),
+    comments: commentsReducer(state.comments, action),
+  };
+}
+
+// 自动合并使用 combineReducers 或者 configureStore
+~~~
 
 
 
@@ -1995,66 +2003,420 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 将 state、action、reducer 联系在一起的对象
 
-如何得到此对象?
-
 ~~~react
 import {createStore} from 'redux'
 import reducer from './reducers'
 
 const store = createStore(reducer)
-~~~
 
-**使用**：
+const store = configureStore({
+  reducer: {users: usersReducer},
+});
 
-1. getState()：得到state
-2. dispatch(action)：分发action，触发 reducer 调用，产生新 state
-3. subscribe(listener)：注册监听，当产生了新 state 时，自动调用
-
-
-
-## 3、核心 API
-
-### 1、createstore
-
-**作用**：创建包含指定 reducer 的 store 对象
-
-
-
-### 2、store对象
-
-**作用**：redux 库最核心的管理对象，它内部维护着 state、reducer
-
-**核心方法**:
-
-1. getState()
-2. dispatch(action)
-3. subscribe(listener)
-
-具体编码:
-
-~~~react
 store.getState()
 store.dispatch({type:'INCREMENT', number})
 store.subscribe(render)
 ~~~
 
+**使用**：
+
+1. getState()：得到 state
+2. dispatch(action)：分发 action，触发 reducer 调用，产生新 state
+3. subscribe(listener)：注册监听，当产生了新 state 时，自动调用
 
 
-### 3、applyMiddleware
+
+## 3、API
+
+### 1、createStore
+
+**作用**：创建包含指定 reducer 的 store 对象
+
+~~~js
+// 使用 createStore 创建
+export default createStore(someReducer)
+// 如果要创建多个包含 reducer 的 sotre 对象则需要使用 combineReducers
+// 或者将 reducer 手动合并
+function rootReducer(state = {}, action) {
+  return {
+    users: usersReducer(state.users, action),
+    posts: postsReducer(state.posts, action),
+    comments: commentsReducer(state.comments, action),
+  };
+}
+~~~
+
+
+
+### 2、applyMiddleware
 
 **作用**：应用上基于 redux 的中间件(插件库)
 
 
 
-### 4、combineReducers
+### 3、Provider
 
-**作用**：合并多个 reducer 函数
+让所有子组件都可以得到 state 数据
+
+~~~react
+ReactDOM.render(
+	<Provider store={store}>
+		<App/>
+	</Provider>,
+	document.getElementById('root')
+)
+~~~
+
+
+
+### 4、mapStateToprops
+
+将 state 对象转换为 UI 组件的 props，返回一个对象
+
+~~~react
+function mapStateToProps(state) {
+    return {
+        count: state.count,
+        selectNumber: state.selectNumber
+    }
+}
+~~~
+
+
+
+### 5、mapDispatchToProps
+
+将分发 action 的函数转换为 UI 组件的 props，也是返回一个对象
+
+用于将手动的 store.dispatch 改为了自动 dispatch
+
+~~~react
+function mapDispatchToProps(dispatch) {
+    return {
+        // 还需要写 dispatch
+        increment: (number) => dispatch(createIncrementAction(number)),
+        decrement: (number) => dispatch(createDecrementAction(number)),
+        incrementAsync: (number, time) => dispatch(createIncrementAsyncAction(number, time)),
+    }
+}
+~~~
+
+
+
+### 6、connect
+
+#### 1、概述
+
+用于包装 UI 组件生成容器组件，传入 mapStateToProps 与 mapDispatchToProps
+
+~~~react
+export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
+~~~
+
+~~~js
+// 可以在 connect()() 中直接编写两个 map 进行简写
+export default connect(
+    state => ({
+		count:state.he,
+		renshu:state.rens.length
+	}),
+    {	// 事件处理函数 ：Action 函数
+        increment: incrementAction,
+        decrement: decrementAction,
+        incrementAsync: incrementAsyncAction
+    }
+)(Count)
+
+// 甚至可以简写成，KV 同名
+export default connect(
+    state => ({
+		count:state.he,
+		renshu:state.rens.length
+	}),
+    {	// 事件处理函数 ：Action 函数
+        incrementAction,
+        decrementAction,
+        incrementAsyncAction
+    }
+)(Count)
+
+
+// 实际上 connect 是先接收两个 map 返回一个新函数
+const connectToStore = connect(mapStateToProps, mapDispatchToProps)
+// 然后给新函数传入 UI 组件后返回包装好的容器组件
+const ConnectedComponent = connectToStore(Component)
+~~~
+
+
+
+#### 2、用法
+
+|                 | 不订阅 Store                                 | 订阅 Store                                              |
+| --------------- | -------------------------------------------- | ------------------------------------------------------- |
+| 不注入 Dispatch | connect()(Component)                         | connect(mapStateToProps)(Component)                     |
+| 注入 Dispatch   | connect(null, mapDispatchToProps)(Component) | connect(mapStateToProps, mapDispatchToProps)(Component) |
+
+不订阅 Store，不注入 Dispatch：当 Store 变化时不重新渲染，可接收可用于手动调度操作的接收 props.dispatch
+
+订阅 Store，不注入 Dispatch：当 Store 变化时重新渲染，可接收可用于手动调度操作的接收 props.dispatch
+
+不订阅 Store，注入 Dispatch：当 Store 变化时不重新渲染，可调用自动调度动作 mapDispatchToProps
+
+订阅 Store，注入 Dispatch：当 Store 变化时重新渲染，可调用自动调度动作 mapDispatchToProps
+
+
+
+### 7、combineReducers
+
+**作用**：将所有 reducer 手动合并改为自动，否则 createStore 只会为单个 reducer 提供服务
+
+~~~js
+export default combineReducers({
+	count,
+	persons
+})
+~~~
+
+
+
+## 4、新 API
+
+### 1、createSlice
+
+**作用**：负责生成 action 类型字符串、action creator 函数和 action 对象
+
+~~~js
+import { createSlice } from "@reduxjs/toolkit";
+
+export const counterSlice = createSlice({
+  name: "counter", // 为这个 slice 定义一个名称
+  initialState: {
+    value: 0,
+  },
+  // name 选项用作每个 action type 的第一部分，每个 reducer 函数名用作第二部分
+  // 因此 counter  + increment reducer 函数生成了一个 action 类型 {type: "counter/increment"}
+  reducers: { // 编写一个包含 reducer 函数的对象，它会自动生成相应的 action 代码
+    increment: (state) => {
+      state.value += 1;
+    },
+    decrement: (state) => {
+      state.value -= 1;
+    },
+    incrementByAmount: (state, action) => {
+      state.value += action.payload;
+    },
+  },
+  extraReducers: (builder) => {
+        builder
+            .addCase(asyncChangeUserNameAction.pending, (state, action) => {
+                console.log('pending')
+            })
+            .addCase(asyncChangeUserNameAction.fulfilled, (state, action) => {
+                console.log('fulfilled')
+                state.name = action.payload
+            })
+            .addCase(asyncChangeUserNameAction.rejected, (state, action) => {
+                console.log('rejected')
+            })
+    }
+});
+
+export const { increment, decrement, incrementByAmount } = counterSlice.actions;
+
+export default counterSlice.reducer;
+~~~
+
+使用 createSlice 会自动创建模板，并且可以手动调用
+
+~~~js
+const newState = counterSlice.reducer(
+  { value: 10 },
+  counterSlice.actions.increment()
+);
+console.log(newState);
+// {value: 11}
+~~~
+
+
+
+### 2、configureStore
+
+**作用**：创建包含指定 reducer 的 store 对象
+
+configureStore 是 Redux Toolkits 函数，自动集成一些 Redux 的中间件，如 thunk 和 logger 等
+
+对于合并多个 Reducer 可以直接使用普通对象包裹，也可以手动合并，也可以使用 combineReducers
+
+~~~react
+export default configureStore({
+  reducer: {
+    users: usersReducer,
+    posts: postsReducer,
+    comments: commentsReducer,
+  },
+});
+// users 等即为 store 里 key 的名称
+~~~
+
+
+
+### 3、useSelector
+
+**作用**：useSelector 可以让组件从 Redux 的 store 状态树中提取它需要的任何数据
+
+因为 UI 组件中不建议直接使用 store，所以需要 useSelector 来替代
+
+~~~js
+const count = useSelector((state) => state.counter.value)
+~~~
+
+
+
+### 4、useDispatch
+
+**作用**：从 Redux store 中提供了实际的 dispatch 方法
+
+~~~js
+const dispatch = useDispatch();
+~~~
+
+
+
+### 5、createAsyncThunk
+
+**作用**：来生成异步 action，一般需要和 extraReducers 配合使用，因为其实在外部生成的无法再 slice 内部使用
+
+createAsyncThunk 将自动生成三个 action creator / type，一个在调用时自动 dispatch 的 thunk 函数
+
+~~~js
+// action creator/type：
+asyncChangeUserNameAction.pending：userInfo/asyncChangeUserName/pending
+asyncChangeUserNameAction.fulfilled：userInfo/asyncChangeUserName/fulfilled
+asyncChangeUserNameAction.rejected：userInfo/asyncChangeUserName/rejected
+~~~
+
+~~~js
+// 模拟异步请求
+const simulateApiRequest = (value, delay) => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(value)
+        }, delay)
+    })
+}
+
+// 创建异步 thunk action
+// 参数一字符串，用作生成的 action types 的前缀
+// 参数二 payload creator 回调函数，应该返回一个 Promise，通常使用 async/await 语法编写
+const asyncChangeUserNameAction = createAsyncThunk('asyncChangeUserName', async (value) => {
+    const response = await simulateApiRequest(value, 1000)
+    return response
+})
+
+const userInfoSlice = ReduxToolkit.createSlice({
+    name: 'userInfo',
+    initialState: { name: '张三', age: 18 },
+    reducers: {
+        changeUserNameAction(state, action) {
+            state.name = action.payload
+        },
+        changeUserAgeAction(state, action) {
+            state.age = action.payload
+        },
+        changeUserAgeAddTwo: {
+            reducer(state, action) {
+                state.age = action.payload
+            },
+            prepare(payload) {
+                payload = payload + 2
+                return { payload }
+            }
+        }
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(asyncChangeUserNameAction.pending, (state, action) => {
+                console.log('pending')
+            })
+            .addCase(asyncChangeUserNameAction.fulfilled, (state, action) => {
+                console.log('fulfilled')
+                state.name = action.payload
+            })
+            .addCase(asyncChangeUserNameAction.rejected, (state, action) => {
+                console.log('rejected')
+            })
+    }
+})
+
+dispatch(asyncChangeUserNameAction(whg))
+~~~
+
+
 
 
 
 ## 4、例子
 
-### 1、完整版
+### 1、基础版
+
+#### 1、动作常量
+
+~~~js
+/* 
+	该模块是用于定义action对象中type类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
+*/
+export const INCREMENT = 'increment'
+export const DECREMENT = 'decrement'
+export const SELECTNUMBER = 'selectnumber'
+~~~
+
+
+
+#### 2、动作对象
+
+~~~js
+/* 
+	该文件专门为 Count 组件生成 action 对象
+*/
+import {INCREMENT, DECREMENT, SELECTNUMBER} from './constant'
+
+export const createIncrementAction = data => ({type:INCREMENT,data})
+export const createDecrementAction = data => ({type:DECREMENT,data})
+export const createSelectNumberAction = data => ({type:SELECTNUMBER,data})
+~~~
+
+
+
+#### 3、动作消费
+
+~~~js
+/* 
+	1.该文件是用于创建一个为 Count 组件服务的 reducer，reducer 的本质就是一个函数
+	2.reducer 函数会接到两个参数，分别为：之前的状态(preState)，动作对象(action)
+*/
+import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
+// 初始化状态
+const initState = {count: 0, selectNumber: 1}
+export default function countReducer(preState = initState, action) {
+    // 从 action 对象中获取：type、data
+    const {type, data} = action
+    // 根据 type 决定如何加工数据
+    switch (type) {
+        case INCREMENT:
+            return Object.assign({}, preState, {count: preState.count + data})
+        case DECREMENT:
+            return  Object.assign({}, preState, {count: preState.count - data})
+        case SELECTNUMBER:
+            return Object.assign({}, preState, {selectNumber: data})
+        default:
+            return preState
+    }
+}
+~~~
+
+
+
+#### 4、编写组件
 
 **步骤**：
 
@@ -2065,7 +2427,7 @@ store.subscribe(render)
 ~~~react
 /*
     组件类
- */
+*/
 import React from 'react'
 // 引入store，用于获取redux中保存状态
 import store from '../../redux/store'
@@ -2120,50 +2482,9 @@ export default function Count() {
 }
 ~~~
 
-```react
-/* 
-	该模块是用于定义action对象中type类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
-*/
-export const INCREMENT = 'increment'
-export const DECREMENT = 'decrement'
-export const SELECTNUMBER = 'selectnumber'
-```
 
-~~~react
-/* 
-	该文件专门为Count组件生成action对象
-*/
-import {INCREMENT, DECREMENT, SELECTNUMBER} from './constant'
 
-export const createIncrementAction = data => ({type:INCREMENT,data})
-export const createDecrementAction = data => ({type:DECREMENT,data})
-export const createSelectNumberAction = data => ({type:SELECTNUMBER,data})
-~~~
-
-~~~react
-/* 
-	1.该文件是用于创建一个为 Count 组件服务的 reducer，reducer 的本质就是一个函数
-	2.reducer 函数会接到两个参数，分别为：之前的状态(preState)，动作对象(action)
-*/
-import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
-// 初始化状态
-const initState = {count: 0, selectNumber: 1}
-export default function countReducer(preState = initState, action) {
-    // 从 action 对象中获取：type、data
-    const {type, data} = action
-    // 根据 type 决定如何加工数据
-    switch (type) {
-        case INCREMENT:
-            return Object.assign({}, preState, {count: preState.count + data})
-        case DECREMENT:
-            return  Object.assign({}, preState, {count: preState.count - data})
-        case SELECTNUMBER:
-            return Object.assign({}, preState, {selectNumber: data})
-        default:
-            return preState
-    }
-}
-~~~
+#### 4、整合
 
 ~~~react
 /* 
@@ -2209,17 +2530,30 @@ store.subscribe(() => {
 // 新添加一个异步 action
 // 异步 action 中一般都会调用同步 action
 // 异步 action 不是必须要用的
-export const createIncrementAsyncAction = (data,time) => {
-	return (dispatch)=>{
-		setTimeout(()=>{
-            // 调用同步 Action
-			dispatch(createIncrementAction(data))
-		},time)
+const createIncrementAsyncAction = (data,time) => {
+	return (dispatch) => {
+        // ...
+		// 调用同步 Action
+        dispatch(createIncrementAction(data))
+        // ...
 	}
 }
+
+
+const logAndAdd = (amount) => {
+  return (dispatch, getState) => {
+    // ...
+    const stateBefore = getState();
+    dispatch(incrementByAmount(amount));
+    // ...
+  };
+};
+
+store.dispatch(logAndAdd(5));
+store.dispatch(exampleThunkFunction(1, 1));
 ~~~
 
-需要添加一个异步中间件，否则报错
+需要添加一个异步中间件，否则报错，如果使用 configureStore 默认添加
 
 ~~~react
 import {createStore, applyMiddleware} from 'redux'
@@ -2229,126 +2563,17 @@ export default createStore(countReducer, applyMiddleware(thunk))
 
 
 
-## 5、React-redux
+**注意**：
 
-### 1、概述
-
-所有的 UI 组件都应该被一个容器组件包裹，他们是父子关系
-
-容器组件是真正和 redux 打交道的，里面可以随意的使用 redux 的 api
-
-UI 组件中不能使用任何 redux 的 api
-
-容器组件会传给 UI 组件：
-
-- redux中所保存的状态
-- 用于操作状态的方法
-
-备注：容器给 UI 传递状态、操作状态的方法，均通过 props 传递
-
-![react-redux模型图](images/react-redux模型图.png)
+- 由于 Reducer 中不允许使用任何类型的异步逻辑，所以需要先编写异步逻辑后调用 dispatch
 
 
 
-### 2、核心 API
+### 3、UI 容器分离版
 
-#### 1、Provider
-
-让所有子组件都可以得到 state 数据
+#### 1、UI 组件
 
 ~~~react
-ReactDOM.render(
-	<Provider store={store}>
-		<App/>
-	</Provider>,
-	document.getElementById('root')
-)
-~~~
-
-
-
-#### 2、connect
-
-用于包装 UI 组件生成容器组件
-
-~~~react
-export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
-~~~
-
-
-
-#### 3、mapStateToprops
-
-将外部的数据（即 state 对象）转换为 UI 组件的 props，返回一个对象
-
-~~~react
-function mapStateToProps(state) {
-    return {
-        count: state.count,
-        selectNumber: state.selectNumber
-    }
-}
-~~~
-
-
-
-#### 4、mapDispatchToProps
-
-将分发 action 的函数转换为 UI 组件的 props，也是返回一个对象
-
-~~~react
-function mapDispatchToProps(dispatch) {
-    return {
-        // 还需要写 dispatch
-        increment: (number) => dispatch(createIncrementAction(number)),
-        decrement: (number) => dispatch(createDecrementAction(number)),
-        incrementAsync: (number, time) => dispatch(createIncrementAsyncAction(number, time)),
-    }
-}
-~~~
-
-~~~react
-// 如果在 connect()() 中直接编写两个 map 的话，可以进行简写
-export default connect(
-    // {...}
-    ,
-    {	// 事件处理函数 ：Action 函数
-        increment: incrementAction,
-        decrement: decrementAction,
-        incrementAsync: incrementAsyncAction
-    }
-)(Count)
-
-// 甚至可以简写成，KV 同名
-export default connect(
-    // {...}
-    ,
-    {	// 事件处理函数 ：Action 函数
-        incrementAction,
-        decrementAction,
-        incrementAsyncAction
-    }
-)(Count)
-
-// 个人认为这样的简写容易混肴，不明确
-~~~
-
-
-
-#### 5、combineReducers
-
-将所有 reducer 合并，否则 createStore 只会为单个 reducer 提供服务
-
-
-
-### 3、例子
-
-#### 1、基础版
-
-~~~react
-/*
-	UI 组件类
-*/
 import React from 'react'
 
 export default function Count(props) {
@@ -2400,13 +2625,14 @@ export default function Count(props) {
 }
 ~~~
 
+
+
+#### 2、容器组件
+
 ~~~react
-/*
-	UI 容器类
-*/
-//引入 Count 的 UI 组件
+// 引入 Count 的 UI 组件
 import CountUI from '../../components/Count'
-//引入 action
+// 引入 action
 import {
     createDecrementAction,
     createIncrementAction,
@@ -2415,6 +2641,7 @@ import {
 } from '../../redux/count_action'
 // 引入 connect 用于连接 UI 组件与 redux
 import {connect} from 'react-redux'
+
 /* 
 	1.mapStateToProps 函数返回的是一个对象；
 	2.返回的对象中的 key 就作为传递给 UI 组件 props 的 key,value 就作为传递给 UI 组件 props 的 value
@@ -2426,6 +2653,7 @@ function mapStateToProps(state) {
         number: state.number
     }
 }
+
 /* 
 	1.mapDispatchToProps 函数返回的是一个对象；
 	2.返回的对象中的 key 就作为传递给 UI 组件 props 的 key,value 就作为传递给 UI 组件 props 的 value
@@ -2439,13 +2667,20 @@ function mapDispatchToProps(dispatch) {
         selectNumber: (number) => dispatch(createSelectNumber(number))
     }
 }
+
+
+
 // 使用 connect()() 创建并暴露一个 Count 的容器组件
 export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
 ~~~
 
+
+
+#### 3、动作创建
+
 ~~~react
 /* 
-	该模块是用于定义 action 对象中 type 类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
+	该模块是用于定义 type 类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
 */
 export const INCREMENT = 'increment'
 export const DECREMENT = 'decrement'
@@ -2454,7 +2689,7 @@ export const SELECTNUMBER = 'selectNumber'
 
 ~~~react
 /* 
-	该文件专门为Count组件生成action对象
+	该文件专门为 Count 组件生成 action 对象
 */
 import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
 
@@ -2471,6 +2706,10 @@ export const createIncrementAsyncAction = (data, time) => {
 }
 export const createSelectNumber = data => ({type: SELECTNUMBER, data})
 ~~~
+
+
+
+#### 4、消费动作
 
 ~~~react
 import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
@@ -2493,6 +2732,10 @@ export default function countReducer(preState = initState, action) {
     }
 }
 ~~~
+
+
+
+#### 5、整合
 
 ~~~react
 import {createStore,applyMiddleware} from 'redux'
@@ -2530,6 +2773,584 @@ ReactDOM.render(
 	document.getElementById('root')
 )
 ~~~
+
+
+
+### 4、新版 API
+
+对于新版 API 来说就是将原本手动创建的模板，改为了自动创建
+
+~~~js
+import { configureStore } from '@reduxjs/toolkit'
+import counterReducer from '../features/counter/counterSlice'
+
+// 之前使用 creatStore
+export default configureStore({
+    reducer: {
+        counter: counterReducer,
+    },
+})
+~~~
+
+~~~js
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { decrement, increment } from './counterSlice'
+
+export function Counter() {
+    const count = useSelector((state) => state.counter.value)
+    const dispatch = useDispatch()
+
+    return (
+        <div>
+            <div>
+                <button
+                    aria-label="Increment value"
+                    onClick={() => dispatch(increment())}
+                >
+                    Increment
+                </button>
+                <span>{count}</span>
+                <button
+                    aria-label="Decrement value"
+                    onClick={() => dispatch(decrement())}
+                >
+                    Decrement
+                </button>
+            </div>
+        </div>
+    )
+}
+~~~
+
+~~~js
+import { createSlice } from '@reduxjs/toolkit'
+
+export const counterSlice = createSlice({
+    name: 'counter',
+    initialState: {
+        value: 0
+    },
+    reducers: {
+        increment: state => {
+            state.value += 1
+        },
+        decrement: state => {
+            state.value -= 1
+        },
+        incrementByAmount: (state, action) => {
+            state.value += action.payload
+        }
+    }
+})
+
+// 每个 case reducer 函数会生成对应的 Action creators
+export const { 
+    increment,
+    decrement,
+    incrementByAmount 
+} = counterSlice.actions
+
+export default counterSlice.reducer
+~~~
+
+
+
+
+
+
+
+## 5、React-redux
+
+所有的 UI 组件都应该被一个 Container 组件包裹，他们是父子关系，容器组件用来将 UI 和 action 等整合在一起
+
+容器组件是真正和 redux 打交道的，里面可以随意的使用 redux 的 api，UI 组件中不能使用任何 redux 的 api
+
+容器组件会传给 UI 组件：redux 中所保存的状态、用于操作状态的方法，通过 props 传递
+
+![react-redux模型图](images/react-redux模型图.png)
+
+
+
+
+
+
+
+# 10、Router
+
+## 1、概述
+
+React Router 以三个不同的包发布到 npm 上，它们分别为：
+
+1. react-router：路由的核心库，提供了很多的：组件、钩子
+2. react-router-dom：包含 react-router 所有内容，并添加一些专门用于 DOM 的组件，例如：\<BrowserRouter> 等 
+3. react-router-native：包括 react-router 所有内容，并添加一些专门用于 ReactNative 的 API 例如：\<NativeRouter> 等
+
+React Router 中有三种类型的组件： router components、route matching components、navigation components
+
+
+
+## 2、组件
+
+### 1、\<BrowserRouter>
+
+用于包裹整个应用
+
+```jsx
+import React from "react";
+import ReactDOM from "react-dom";
+import { BrowserRouter } from "react-router-dom";
+
+ReactDOM.render(
+  <BrowserRouter>
+    {/* 整体结构（通常为 App 组件） */}
+     <App></App>
+  </BrowserRouter>,root
+);
+```
+
+
+
+### 2、\<HashRouter>
+
+作用与 \<BrowserRouter> 一样，但 \<HashRouter> 修改的是地址栏的 hash 值
+
+6.x版本中 \<HashRouter>、\<BrowserRouter> 的用法与 5.x 相同
+
+
+
+### 3、\<Routes/>
+
+v6 版本中移出了先前的 \<Switch>，引入了新的 \<Routes>
+
+\<Routes> 和 \<Route> 要配合使用，且必须要用 \<Routes> 包裹 \<Route>
+
+当 URL 发生变化时，\<Routes> 都会查看其所有子 \<Route> 元素以找到最佳匹配并呈现组件 
+
+~~~jsx
+<Routes>
+	<Route>
+    </Route>
+</Routes>
+~~~
+
+
+
+### 4、\<Route/>
+
+\<Route> 相当于一个 if 语句，如果其路径与当前 URL 匹配，则呈现其对应的组件
+
+\<Route caseSensitive> 属性用于指定：匹配时是否区分大小写（默认为 false）
+
+\<Route> 也可以嵌套使用，且可配合 useRoutes() 配置 路由表，但需要通过 \<Outlet> 组件来渲染其子路由
+
+~~~jsx
+<Routes>
+    /* path 属性用于定义路径，element 属性用于定义当前路径所对应的组件 */
+    <Route path="/login" element={<Login/>}></Route>
+
+		/* 用于定义嵌套路由，home 是一级路由，对应的路径 /home */
+    <Route path="home" element={<Home/>}>
+       /* test1 和 test2 是二级路由,对应的路径是 /home/test1 或 /home/test2 */
+      <Route path="test1" element={<Test/>}></Route>
+      <Route path="test2" element={<Test2/>}></Route>
+		</Route>
+	
+		/* Route 也可以不写 element 属性, 以用于嵌套路由，所对应的路径是 /users/xxx */
+    <Route path="users">
+       <Route path="xxx" element={<Demo/>} />
+    </Route>
+</Routes>
+~~~
+
+
+
+### 4、\<Link>
+
+\<Link> 使用 to 参数来描述需要定位的页面
+
+- **to** 参数：既可是字符串，也可以是 location 对象（包含 pathname、search、hash、state 属性），如果其值为字符串，将会被转换为location 对象
+
+- **replace** 参数：为 true 时，点击链接后新地址记录将覆盖历史地址记录栈中的首个，为 false 时，直接在历史地址记录栈中添加，默认为 false
+
+```jsx
+import { Link } from "react-router-dom";
+
+function Test() {
+return (
+    <div>
+        // to 为 string
+        <Link to="/about">关于</Link>
+
+        // to 为 obj
+        <Link to={{
+            pathname: '/courses',
+            search: '?sort=name',
+            hash: '#the-hash',
+            state: { fromDashboard: true }
+         }}/>
+
+        // replace 
+        <Link to="/courses" replace />
+    </div>
+    );
+}
+```
+
+~~~jsx
+location = {
+  pathname, // 当前路径，即 Link 中的 to 属性
+  search, // search
+  hash, // hash
+  state, // state 对象
+  action, // location 类型，在点击 Link 时为 PUSH，浏览器前进后退时为 POP，调用 replaceState 方法时为 REPLACE
+  key, // 用于操作 sessionStorage 存取 state 对象
+};
+~~~
+
+Link 最终会渲染为标签 \<a>，它的属性会被组合在一起并渲染为 href 属性，但是在内部是使用脚本拦截了浏览器的默认行为，然后调用 history.pushState 方法，此 history 指的是通过 history 包里面的 create*History 方法创建的对象，而不是指 window.history 的原生对象，history 包中底层的 pushState 方法支持传入两个参数 state 和 path，该方法再将这两个参数传输到 createLocation 方法中，系统将 location 对象作为参数传入到 TransitionTo 方法中，然后调用 window.location.hash 或者window.history.pushState() 修改应用的 URL，这取决于创建 history 对象的方式，同时会触发 history.listen 中注册的事件监听器
+
+
+
+### 5、\<NavLink>
+
+根据路径跳转，与 \<Link> 组件类似，但可实现导航的高亮效果
+
+NavLink 默认类名是 active，下面是指定自定义的 class
+
+```jsx
+// 自定义样式
+<NavLink
+    to="login"
+    className={({ isActive }) => {
+        console.log('home', isActive)
+        return isActive ? 'base one' : 'base'
+    }}
+>login</NavLink>
+
+/*
+	默认情况下，当 Home 的子组件匹配成功，Home 的导航也会高亮，
+	当 NavLink 上添加了 end 属性后，若 Home 的子组件匹配成功，则 Home 的导航没有高亮效果
+*/
+<NavLink to="home" end >home</NavLink>
+```
+
+
+
+### 6、\<Navigate>
+
+只要 \<Navigate> 组件被渲染，就会修改路径，切换视图
+
+replace 属性同 Link
+
+```jsx
+import React,{useState} from 'react'
+import {Navigate} from 'react-router-dom'
+
+export default function Home() {
+	const [sum, setSum] = useState(1)
+	return (
+		<div>
+			<h3>我是 Home 的内容</h3>
+			{/* 根据 sum 的值决定是否切换视图 */}
+			{sum === 1 ? <h4>sum 的值为{sum}</h4> : <Navigate to="/about" replace={true}/>}
+			<button onClick={()=>setSum(2)}>点我将 sum 变为 2</button>
+		</div>
+	)
+}
+```
+
+
+
+### 7、\<Outlet>
+
+当 \<Route> 产生嵌套时，渲染其对应的后续子路由，用于给子路由占位
+
+```jsx
+// 根据路由表生成对应的路由规则
+const element = useRoutes([
+  {
+    path:'/about',
+    element:<About/>
+  },
+  {
+    path:'/home',
+    element:<Home/>,
+    children:[
+      {
+        path:'news',
+        element:<News/>
+      },
+      {
+        path:'message',
+        element:<Message/>,
+      }
+    ]
+  }
+])
+
+// Home.js
+import React from 'react'
+import {NavLink,Outlet} from 'react-router-dom'
+
+export default function Home() {
+	return (
+		<div>
+			<h2>Home 组件内容</h2>
+			<div>
+				<ul className="nav nav-tabs">
+					<li>
+						<NavLink className="list-group-item" to="news">News</NavLink>
+					</li>
+					<li>
+						<NavLink className="list-group-item" to="message">Message</NavLink>
+					</li>
+				</ul>
+				{/* 指定路由组件呈现的位置 */}
+				<Outlet />
+			</div>
+		</div>
+	)
+}
+```
+
+
+
+## 3、Hooks
+
+### 1、useRoutes()
+
+根据路由表，动态创建 \<Routes> 和 \<Route>
+
+```jsx
+// 路由表配置：src/routes/index.js
+import About from '../pages/About'
+import Home from '../pages/Home'
+import {Navigate} from 'react-router-dom'
+
+export default [
+	{
+		path:'/about',
+		element:<About/>
+	},
+	{
+		path:'/home',
+		element:<Home/>
+	},
+	{
+		path:'/',
+		element:<Navigate to="/about"/>
+	}
+]
+
+// App.jsx
+import React from 'react'
+import {NavLink,useRoutes} from 'react-router-dom'
+import routes from './routes'
+
+export default function App() {
+	// 根据路由表生成对应的路由规则
+	const element = useRoutes(routes)
+	return (
+		<div>
+		  ......
+          {/* 注册路由 */}
+          {element}
+		  ......
+		</div>
+	)
+}
+
+```
+
+
+
+### 2、useNavigate()
+
+返回一个函数用来实现编程式导航
+
+```jsx
+import React from 'react'
+import {useNavigate} from 'react-router-dom'
+
+export default function Demo() {
+  const navigate = useNavigate()
+  
+  const handle = () => {
+    // 第一种使用方式：指定具体的路径
+    navigate('/login', {
+      replace: false,
+      state: {a:1, b:2}
+    }) 
+    // 第二种使用方式：传入数值进行前进或后退，类似于 5.x 中的 history.go() 方法
+    navigate(-1)
+  }
+  
+  return (
+    <div>
+      <button onClick={handle}>按钮</button>
+    </div>
+  )
+}
+```
+
+
+
+### 3、useParams()
+
+返回当前匹配路由的 params 参数，类似于 5.x 中的 match.params
+
+```jsx
+import React from 'react';
+import { Routes, Route, useParams } from 'react-router-dom';
+import User from './pages/User.jsx'
+
+function ProfilePage() {
+  // 获取 URL 中携带过来的 params 参数
+  let { id } = useParams();
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="users/:id" element={<User />}/>
+    </Routes>
+  );
+}
+```
+
+
+
+### 4、useSearchParams()
+
+用于读取和修改当前位置的 URL 中的查询字符串
+
+返回一个包含两个值的数组，内容分别为：当前的 seaech 参数、更新 search 的函数
+
+```jsx
+import React from 'react'
+import {useSearchParams} from 'react-router-dom'
+
+export default function Detail() {
+	const [search, setSearch] = useSearchParams()
+	const id = search.get('id')
+	const title = search.get('title')
+	const content = search.get('content')
+	return (
+		<ul>
+			<li>
+				<button onClick={()=>setSearch('id=008&title=哈哈&content=嘻嘻')}>点我更新一下收到的search参数</button>
+			</li>
+			<li>消息编号：{id}</li>
+			<li>消息标题：{title}</li>
+			<li>消息内容：{content}</li>
+		</ul>
+	)
+}
+
+```
+
+
+
+### 5、useLocation()
+
+获取当前 location 信息，对标 5.x 中的路由组件的 location 属性
+
+```jsx
+import React from 'react'
+import {useLocation} from 'react-router-dom'
+
+export default function Detail() {
+	const x = useLocation()
+	console.log('@',x)
+  // x就是location对象: 
+	/*
+		{
+      hash: "",
+      key: "ah9nv6sz",
+      pathname: "/login",
+      search: "?name=zs&age=18",
+      state: {a: 1, b: 2}
+    }
+	*/
+	return (
+		<ul>
+			<li>消息编号：{id}</li>
+			<li>消息标题：{title}</li>
+			<li>消息内容：{content}</li>
+		</ul>
+	)
+}
+```
+
+
+
+### 6、useMatch()
+
+返回当前匹配信息，对标 5.x 中的路由组件的 match 属性
+
+```jsx
+<Route path="/login/:page/:pageSize" element={<Login />}/>
+<NavLink to="/login/1/10">登录</NavLink>
+
+export default function Login() {
+  const match = useMatch('/login/:x/:y')
+  console.log(match) //输出match对象
+  //match对象内容如下：
+  /*
+  	{
+      params: {x: '1', y: '10'}
+      pathname: "/Login/1/10"  
+      pathnameBase: "/Login/1/10"
+      pattern: {
+      	path: '/login/:x/:y', 
+      	caseSensitive: false, 
+      	end: false
+      }
+    }
+  */
+  return (
+  	<div>
+      <h1>Login</h1>
+    </div>
+  )
+}
+```
+
+
+
+### 7、useInRouterContext()
+
+如果组件在 \<Router> 的上下文中呈现，则 useInRouterContext 钩子返回 true，否则返回 false
+
+
+
+### 8、useNavigationType()
+
+返回当前的导航类型（用户是如何来到当前页面的）
+
+返回值：POP、PUSH、REPLACE
+
+POP 是指在浏览器中直接打开了这个路由组件（刷新页面）
+
+
+
+### 9、useOutlet()
+
+用来呈现当前组件中渲染的嵌套路由
+
+```jsx
+const result = useOutlet()
+console.log(result)
+// 如果嵌套路由没有挂载,则result为null
+// 如果嵌套路由已经挂载,则展示嵌套的路由对象
+```
+
+
+
+### 10、useResolvedPath()
+
+给定一个 URL 值，解析其中的：path、search、hash 值
 
 
 
@@ -2890,7 +3711,7 @@ export default function Page() {
 
 ### 2、加上 Reducer
 
-如果单独使用 Reducer，有时候事件处理函数会集中在最顶层，在大规模的组件应用中，通过 props 依次传递 state 和 dispatch 非常麻烦，因此可以使用 Context 保存 state 和 dispatch，在将所有的逻辑抽离到单独的逻辑组件中，使得代码更加清晰
+如果单独使用 Reducer，有时候事件处理函数会集中在最顶层，在大规模的组件应用中，通过 props 依次传递 state 和 dispatch 非常麻烦，因此可以**使用 Context 保存 state 和 dispatch**，在将所有的逻辑抽离到单独的逻辑组件中，使得代码更加清晰
 
 ~~~react
 import { createContext, useContext, useReducer } from 'react';
@@ -3090,10 +3911,6 @@ function Task({ task }) {
 
 
 
-
-
-
-
 ## 4、高阶函数
 
 **高阶函数**：如果一个函数符合下面 2 个规范中的任何一个，那该函数就是高阶函数
@@ -3102,11 +3919,7 @@ function Task({ task }) {
 - 若 A 函数，调用后的返回值依然是一个函数，那么 A 就可以称之为高阶函数
 - 常见的高阶函数有：Promise、setTimeout、arr.map() 等等
 
-
-
 **函数柯里化**：通过函数调用继续返回函数的方式，实现多次接收参数最后统一处理的函数编码形式
-
-
 
 ~~~react
 // 函数柯里化

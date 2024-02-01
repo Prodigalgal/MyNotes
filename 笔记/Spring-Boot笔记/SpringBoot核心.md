@@ -1156,7 +1156,7 @@ public class MyMvcConfig extends WebMvcConfigurerAdapter {
 // 继承WebMvcConfigurerAdapter的类中重载addViewControllers，编写无逻辑页面跳转。
 ```
 
-**注意**：在5.0之后**WebMvcConfigurer**接口具有默认实现，所以直接实现接口接口也可以，不需要WebMvcConfigurerAdapter
+**注意**：在5.0之后**WebMvcConfigurer**接口具有默认实现，所以直接实现接口接口也可以，WebMvcConfigurerAdapter 将被移除
 
 **原理**：
 
@@ -1617,12 +1617,6 @@ Conditional operators:条件运算（三元运算符）
 Special tokens:
     No-Operation: _ 
 ```
-
-
-
-
-
-
 
 ```html
 <div th:if="${xxx == null}">
