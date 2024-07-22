@@ -754,7 +754,7 @@ from m import test2 as new_test2
 
 普通的模块就是一个 .py 文件，而包是一个**文件夹**
 
-包中必须要一个一个 **\__init__.py** 这个文件，这个文件中**可以**包含有包中的主要内容
+包中必须要一个 **\__init__.py** 这个文件，这个文件中**可以**包含有包中的主要内容
 
 ~~~python
 from hello import a, b
@@ -771,7 +771,56 @@ print(b.d)
 
 
 
-#### 2、标准库
+#### 2、\_\_init\_\_ 文件
+
+##### 1、标识包
+
+\__init__.py 文件最初的目的是标识目录为 Python 包，这使得目录可以被 Python 的导入机制识别为一个包，并允许从这个目录中导入模块或子包
+
+~~~python
+# 目录结构
+my_project/
+    __init__.py
+    module_a.py
+    subpackage/
+        __init__.py
+        module_b.py
+~~~
+
+~~~python
+import my_project.module_a
+import my_project.subpackage.module_b
+~~~
+
+
+
+##### 2、初始化
+
+当包第一次被导入时，\__init__.py 中的代码会被执行，这使得可以在包被导入时执行初始化代码，如设置全局变量、初始化日志配置、导入包中的其他模块等
+
+
+
+##### 3、简化包结构
+
+可以在 \__init__.py 中定义包的公共接口，使得用户可以通过包直接访问子模块或函数，简化导入路径
+
+~~~python
+# my_package/__init__.py
+# 从子模块中导入函数
+from .module1 import function1
+from .module2 import function2
+~~~
+
+~~~python
+# 用户直接从包中导入函数
+from my_package import function1, function2
+~~~
+
+
+
+
+
+#### 3、标准库
 
 为了实现开箱即用的思想，Python 提供了一个模块的标准库，在这个标准库中，有很多很强大的模块可以直接使用，并且标准库会随Python 的安装一同安装
 
@@ -1681,7 +1730,7 @@ fn3(b=1,d=2,c=3,e=10,f=20)
 
 #### 5、参数解包
 
-传递实参时，也可以在序列类型的参数前添加星号，这样会自动将序列中的元素依次作为参数传递
+传递实参时，可以在序列类型的参数前添加星号，这样会自动将序列中的元素依次作为参数传递
 
 这里要求序列中元素的个数必须和形参的个数的一致
 
@@ -1743,6 +1792,21 @@ r()
 def fn2() :
     return
 ~~~
+
+
+
+#### 2、类型提示
+
+在函数后面使用箭头符号指定返回的类型
+
+~~~python
+def add(a:int, b:int) -> int:
+    return a+b
+~~~
+
+
+
+
 
 
 
@@ -1974,6 +2038,19 @@ l.sort(key=int)
 这个函数和 sort() 的用法基本一致，但是 sorted() 可以对任意的序列进行排序
 
 并且使用 sorted() 排序不会影响原来的对象，而是返回一个新对象
+
+
+
+### 7、类型标注
+
+声明函数参数的类型，在参数名称的后面加个 **:** 号，带上类型名称
+
+声明函数的返回值类型，在函数声明结束之前，也就是 **:** 号之前加入一个 **->**，带上类型名称
+
+~~~python
+def add(a:int, b:int) -> int:
+    return a+b
+~~~
 
 
 
@@ -2408,7 +2485,301 @@ os.rename('bb.txt','xxx/bb.txt')
 
 
 
-## 8、PyMySQL
+## 8、日志
+
+### 1、概述
+
+Logging 主要由以下四个组件构成：
+
+- Logger：提供应用程序使用的接口
+- Handler：控制 Log 信息的输出方式
+- Filter：细粒度的 Log 信息过滤
+- Formatter：格式化 Log 信息
+
+一个 Logger 可以设置多个 Handler，一个 Handler 可以设置一个 Formatter 和多个 Filter
+
+
+
+**注意**：
+
+- basicConfig() 方法是一个一次性的方法，只能用来做简单的配置，多次的调用 basicConfig() 是无效的
+
+
+
+### 2、日志级别
+
+| 日志等级 | 使用范围                                               |
+| -------- | ------------------------------------------------------ |
+| FATAL    | 致命错误                                               |
+| CRITICAL | 特别糟糕的事情，如内存耗尽、磁盘空间为空               |
+| ERROR    | 发生错误时，如 IO 操作失败或者连接问题                 |
+| WARNING  | 发生很重要的事件，但是并不是错误时，如用户登录密码错误 |
+| INFO     | 处理请求或者状态变化等日常事务                         |
+| DEBUG    | 调试过程中使用 DEBUG 等级，如算法中每个循环的中间状态  |
+
+
+
+### 3、组件
+
+#### 1、Logger
+
+##### 1、获取
+
+使用 getLogger() 获取 Logger 实例，参数 name 是生成的 Logger 的名称，如果不传或者传入一个空值的话，Logger 的名称默认为 root，
+
+~~~python
+logger = logging.getLogger(name=None)
+~~~
+
+最佳实践是生成一个模块级别的 Logger 对象
+
+~~~python
+logger = logging.getLogger(__name__)
+~~~
+
+
+
+**注意**：
+
+- 在同一个 Python 解释器的进程中，使用相同的 Logger 名称通过 getLogger() 方法创建，将会指向同一个Logger 对象
+
+
+
+##### 2、层级
+
+Logger 对象有层级结构，Logger 名称是一个以 **.** 分割的层级结构，每个 **.** 后面的 Logger 都是前面 Logger的子辈
+
+子 Logger 在完成对日志消息的处理后，默认会将 log 日志消息传递给它们的父辈 Logger 的 Handler
+
+因此可以通过设置一个通用的顶级 Logger，再通过自定义子级 Logger 来详细定义
+
+
+
+##### 3、主要方法
+
+setLevel()：设置 Logger 将会处理的日志消息的最低级别
+
+addHandler()、removeHandler()：为 Logger 对象添加、移除一个 Handler 对象
+
+addFilter()、removeFilter()：为 Logger 对象添加、移除一个 Filter 对象
+
+debug()、info()、warning()、error()、critical()：输出一条与方法名对应等级的日志
+
+log()：传入一个明确的日志 Level 参数来输出一条日志
+
+
+
+#### 2、Handler
+
+##### 1、主要方法
+
+setLevel()：处理日志消息的最低级别
+
+setFormatter()：设置一个格式器对象
+
+addFilter()、removeFilter()：添加、删除一个过滤器对象
+
+
+
+##### 2、Handler 类别
+
+| Handler                                   | 描述                                                         |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| logging.StreamHandler                     | 将日志消息发送到输出到 Stream，如 std.out, std.err 或任何 file-like 对象 |
+| logging.FileHandler                       | 将日志消息发送到磁盘文件，默认情况下文件大小会无限增长       |
+| logging.handlers.RotatingFileHandler      | 将日志消息发送到磁盘文件，并支持日志文件按大小切割           |
+| logging.hanlders.TimedRotatingFileHandler | 将日志消息发送到磁盘文件，并支持日志文件按时间切割           |
+| logging.handlers.HTTPHandler              | 将日志消息以 GET 或 POST 的方式发送给一个 HTTP 服务器        |
+| logging.handlers.SMTPHandler              | 将日志消息发送给一个指定的 email 地址                        |
+| logging.NullHandler                       | 该 Handler 实例会忽略 error messages，通常被想使用logging 的 library 开发者使用来避免 'No handlers could be found for logger XXX' 信息的出现 |
+
+
+
+#### 3、Filter
+
+##### 1、过滤
+
+Filter 是一个过滤器基类，它可以通过 name 参数，控制日志过滤
+
+Filter 只允许 name 所指 Logger 及其子背通过，例如 name = A.B，则允许 A.B.C、A.B.C.D 等通过，但是 A.BB 不允许通过
+
+```python
+class logging.Filter(name='')
+```
+
+
+
+**注意**：
+
+- 如果 name 的值为空字符串，则允许所有的日志事件通过
+
+
+
+#### 4、Formatter
+
+##### 1、格式化
+
+```python
+logging.Formatter.__init__(fmt=None, datefmt=None, style='%')
+```
+
+**fmt**：这个参数主要用于格式化 log 信息整体的输出
+
+| 字段/属性名称   | 使用格式            |                             描述                             |
+| :-------------- | :------------------ | :----------------------------------------------------------: |
+| asctime         | %(asctime)s         |       日志事件发生的时间，如：2003-07-08 16:49:45,896        |
+| created         | %(created)f         | 日志事件发生的时间戳，就是当时调用 time.time() 函数返回的值  |
+| relativeCreated | %(relativeCreated)d |  日志事件发生的时间相对于 logging 模块加载时间的相对毫秒数   |
+| msecs           | %(msecs)d           |                  日志事件发生事件的毫秒部分                  |
+| levelname       | %(levelname)s       | 该日志记录的文字形式的日志级别（'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'） |
+| levelno         | %(levelno)s         |     该日志记录的数字形式的日志级别（10, 20, 30, 40, 50）     |
+| name            | %(name)s            | 所使用的日志器名称，默认是'root'，因为默认使用的是 rootLogger |
+| message         | %(message)s         |       日志记录的文本内容，通过 `msg % args`计算得到的        |
+| pathname        | %(pathname)s        |              调用日志记录函数的源码文件的全路径              |
+| filename        | %(filename)s        |             pathname 的文件名部分，包含文件后缀              |
+| module          | %(module)s          |               filename 的名称部分，不包含后缀                |
+| lineno          | %(lineno)d          |              调用日志记录函数的源代码所在的行号              |
+| funcName        | %(funcName)s        |                   调用日志记录函数的函数名                   |
+| process         | %(process)d         |                            进程ID                            |
+| processName     | %(processName)s     |                   进程名称，Python 3.1新增                   |
+| thread          | %(thread)d          |                            线程ID                            |
+| threadName      | %(thread)s          |                           线程名称                           |
+
+**datefmt**：如果在 dmt 中指定了 asctime，那么这个参数可以用来格式化 asctime 的输出，使用方式与time.strftime() 相同
+
+**style**：Python 3.2 新增的参数，可取值为 '%', '{'和 '$'，如果不指定该参数则默认使用'%'
+
+
+
+### 4、使用字典配置
+
+```python
+logging.config.dictConfig(config)
+```
+
+字典中可包含的 key 如以下所示：
+
+- **version** ：必选项，其值是一个整数值，表示配置格式的版本，当前唯一可用的值是1
+- **disable_existing_loggers**：可选项，默认值为 True，该选项用于指定是否禁用已存在的日志器 loggers，如果 incremental 的值为 True 则该选项将会被忽略
+- **incremental**：可选项，默认值为 False，该选项意义在于如果这里定义的对象已经存在，那么此处定义的这些对象的是否应用到已存在的对象上，值为 False 表示，已存在的对象将会被重新定义
+- **root**：可选项，这是 root logger 的配置信息，其值也是一个字典对象，除非在定义其它 logger 时明确指定propagate 值为 no，否则 root logger 定义的 handlers 都会被作用到其它 logger 上
+- **loggers**：可选项，其值是一个字典对象，该字典对象每个元素的 key 为要定义的日志器名称，value 为日志器的配置信息组成的字典，其中包含的选项有：
+  - **level** (optional). logger的level
+  - **propagate** (optional). 是否传播给父记录器
+  - **filters** (optional). 包含的filters列表
+  - **handlers** (optional). 包含的handlers列表
+- **handlers**：可选项，其值是一个字典对象，该字典对象每个元素的 key 为要定义的处理器名称，value 为处理器的配置信息组成的字典，包含的选项有：
+  - **class** (mandatory) - handler的类型
+  - **level** (optional) - handler的level
+  - **formatter** (optional) - handler使用的formatter
+  - **filters** (optional) - 包含的filters列表
+- **formatters**：可选项，其值是一个字典对象，该字典对象每个元素的 key 为要定义的格式器名称，value 为格式器的配置信息组成的 dict，如 format 和 datefmt
+- **fittlers**：可选项，其值是一个字典对象，该字典对象每个元素的 key 为要定义的过滤器名称，value 为过滤器的配置信息组成的 dict，如 name
+
+
+
+~~~python
+import logging
+import logging.config
+import os
+
+path = os.path.abspath(__file__)
+BASE_DIR = os.path.dirname(os.path.dirname(path))
+
+debug_flag = True
+
+# 给过滤器使用的判断
+class RequireDebugTrue(logging.Filter):
+    # 实现 filter 方法
+    def filter(self, record):
+        return debug_flag
+
+logging_config = {
+    # 必选项，其值是一个整数值，表示配置格式的版本，当前唯一可用的值就是1
+    'version': 1,
+    # 是否禁用现有的记录器
+    'disable_existing_loggers': False,
+
+    # 过滤器
+    'filters': {
+        'require_debug_true': {
+            '()': RequireDebugTrue,   # 在开发环境，设置 DEBUG 为 True；在客户端，设置 DEBUG 为False，从而控制是否需要使用某些处理器
+        }
+    },
+
+    # 日志格式集合
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        },
+    },
+
+    # 处理器集合
+    'handlers': {
+        # 输出到控制台
+        'console': {
+            'level': 'DEBUG',  # 输出信息的最低级别
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',  # 使用 standard 格式
+            'filters': ['require_debug_true', ]
+        },
+        # 输出到文件
+        'log': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'simple',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),  # 输出位置
+            'maxBytes': 1024 * 1024 * 5,  # 文件大小 5M
+            'backupCount': 5,  # 保留五天
+            'encoding': 'utf8',  # 文件编码
+        },
+        
+         'file-debug': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'formatter': 'simple',
+            'filename': 'my.log',
+            'when': 'midnight',
+            'backupCount': 7,
+            'encoding': 'utf8',
+        },
+    },
+
+    # 日志管理器集合
+    'loggers':{
+        'root': {
+            'handlers': ['console','log'],
+            'level': 'DEBUG',
+            'propagate': True,  # 是否传递给父记录器
+        },
+        'simple': {
+            'handlers': ['console','log'],
+            'level': 'WARN',
+            'propagate': True,  # 是否传递给父记录器,
+        }
+    }
+}
+
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger('root')
+
+# 尝试写入不同消息级别的日志信息
+logger.debug("debug message")
+logger.info("info message")
+logger.warn("warn message")
+logger.error("error message")
+logger.critical("critical message")
+~~~
+
+
+
+
+
+
+
+## 其他
+
+### 1、PyMySQL
 
 ~~~python
 pip install pymysql
@@ -2419,7 +2790,7 @@ cursor.execute()
 
 
 
-## 9、Pycharm 连接 Docker
+### 2、Pycharm 连接 Docker
 
 通过一个 DockerFile 启动一个 Docker 容器。
 
@@ -2462,6 +2833,10 @@ CMD ["bash"]
 最后在添加一个远程映射等即可
 
 ![image-20220424230926938](images/image-20220424230926938.png)
+
+
+
+
 
 
 

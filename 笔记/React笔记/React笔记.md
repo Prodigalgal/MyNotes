@@ -1965,7 +1965,7 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 
 
-## 2、三个核心
+## 2、核心对象
 
 ### 1、action
 
@@ -1984,6 +1984,19 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 加工时，根据旧 state 和 action， 产生新 state 的纯函数
 
+~~~js
+// 手动合并 Reducer
+function rootReducer(state = {}, action) {
+  return {
+    users: usersReducer(state.users, action),
+    posts: postsReducer(state.posts, action),
+    comments: commentsReducer(state.comments, action),
+  };
+}
+
+// 自动合并使用 combineReducers 或者 configureStore
+~~~
+
 
 
 ### 3、store
@@ -1995,6 +2008,14 @@ import {createStore} from 'redux'
 import reducer from './reducers'
 
 const store = createStore(reducer)
+
+const store = configureStore({
+  reducer: {users: usersReducer},
+});
+
+store.getState()
+store.dispatch({type:'INCREMENT', number})
+store.subscribe(render)
 ~~~
 
 **使用**：
@@ -2005,49 +2026,397 @@ const store = createStore(reducer)
 
 
 
-## 3、核心 API
+## 3、API
 
-### 1、createstore
+### 1、createStore
 
 **作用**：创建包含指定 reducer 的 store 对象
 
-
-
-### 2、store对象
-
-**作用**：redux 库最核心的管理对象，它内部维护着 state、reducer
-
-**核心方法**:
-
-1. getState()
-2. dispatch(action)
-3. subscribe(listener)
-
-具体编码：
-
-~~~react
-store.getState()
-store.dispatch({type:'INCREMENT', number})
-store.subscribe(render)
+~~~js
+// 使用 createStore 创建
+export default createStore(someReducer)
+// 如果要创建多个包含 reducer 的 sotre 对象则需要使用 combineReducers
+// 或者将 reducer 手动合并
+function rootReducer(state = {}, action) {
+  return {
+    users: usersReducer(state.users, action),
+    posts: postsReducer(state.posts, action),
+    comments: commentsReducer(state.comments, action),
+  };
+}
 ~~~
 
 
 
-### 3、applyMiddleware
+### 2、applyMiddleware
 
 **作用**：应用上基于 redux 的中间件(插件库)
 
 
 
-### 4、combineReducers
+### 3、Provider
 
-**作用**：合并多个 reducer 函数
+让所有子组件都可以得到 state 数据
+
+~~~react
+ReactDOM.render(
+	<Provider store={store}>
+		<App/>
+	</Provider>,
+	document.getElementById('root')
+)
+~~~
+
+
+
+### 4、mapStateToprops
+
+将 state 对象转换为 UI 组件的 props，返回一个对象
+
+~~~react
+function mapStateToProps(state) {
+    return {
+        count: state.count,
+        selectNumber: state.selectNumber
+    }
+}
+~~~
+
+
+
+### 5、mapDispatchToProps
+
+将分发 action 的函数转换为 UI 组件的 props，也是返回一个对象
+
+用于将手动的 store.dispatch 改为了自动 dispatch
+
+~~~react
+function mapDispatchToProps(dispatch) {
+    return {
+        // 还需要写 dispatch
+        increment: (number) => dispatch(createIncrementAction(number)),
+        decrement: (number) => dispatch(createDecrementAction(number)),
+        incrementAsync: (number, time) => dispatch(createIncrementAsyncAction(number, time)),
+    }
+}
+~~~
+
+
+
+### 6、connect
+
+#### 1、概述
+
+用于包装 UI 组件生成容器组件，传入 mapStateToProps 与 mapDispatchToProps
+
+~~~react
+export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
+~~~
+
+~~~js
+// 可以在 connect()() 中直接编写两个 map 进行简写
+export default connect(
+    state => ({
+		count:state.he,
+		renshu:state.rens.length
+	}),
+    {	// 事件处理函数 ：Action 函数
+        increment: incrementAction,
+        decrement: decrementAction,
+        incrementAsync: incrementAsyncAction
+    }
+)(Count)
+
+// 甚至可以简写成，KV 同名
+export default connect(
+    state => ({
+		count:state.he,
+		renshu:state.rens.length
+	}),
+    {	// 事件处理函数 ：Action 函数
+        incrementAction,
+        decrementAction,
+        incrementAsyncAction
+    }
+)(Count)
+
+
+// 实际上 connect 是先接收两个 map 返回一个新函数
+const connectToStore = connect(mapStateToProps, mapDispatchToProps)
+// 然后给新函数传入 UI 组件后返回包装好的容器组件
+const ConnectedComponent = connectToStore(Component)
+~~~
+
+
+
+#### 2、用法
+
+|                 | 不订阅 Store                                 | 订阅 Store                                              |
+| --------------- | -------------------------------------------- | ------------------------------------------------------- |
+| 不注入 Dispatch | connect()(Component)                         | connect(mapStateToProps)(Component)                     |
+| 注入 Dispatch   | connect(null, mapDispatchToProps)(Component) | connect(mapStateToProps, mapDispatchToProps)(Component) |
+
+不订阅 Store，不注入 Dispatch：当 Store 变化时不重新渲染，可接收可用于手动调度操作的接收 props.dispatch
+
+订阅 Store，不注入 Dispatch：当 Store 变化时重新渲染，可接收可用于手动调度操作的接收 props.dispatch
+
+不订阅 Store，注入 Dispatch：当 Store 变化时不重新渲染，可调用自动调度动作 mapDispatchToProps
+
+订阅 Store，注入 Dispatch：当 Store 变化时重新渲染，可调用自动调度动作 mapDispatchToProps
+
+
+
+### 7、combineReducers
+
+**作用**：将所有 reducer 手动合并改为自动，否则 createStore 只会为单个 reducer 提供服务
+
+~~~js
+export default combineReducers({
+	count,
+	persons
+})
+~~~
+
+
+
+## 4、新 API
+
+### 1、createSlice
+
+**作用**：负责生成 action 类型字符串、action creator 函数和 action 对象
+
+~~~js
+import { createSlice } from "@reduxjs/toolkit";
+
+export const counterSlice = createSlice({
+  name: "counter", // 为这个 slice 定义一个名称
+  initialState: {
+    value: 0,
+  },
+  // name 选项用作每个 action type 的第一部分，每个 reducer 函数名用作第二部分
+  // 因此 counter  + increment reducer 函数生成了一个 action 类型 {type: "counter/increment"}
+  reducers: { // 编写一个包含 reducer 函数的对象，它会自动生成相应的 action 代码
+    increment: (state) => {
+      state.value += 1;
+    },
+    decrement: (state) => {
+      state.value -= 1;
+    },
+    incrementByAmount: (state, action) => {
+      state.value += action.payload;
+    },
+  },
+  extraReducers: (builder) => {
+        builder
+            .addCase(asyncChangeUserNameAction.pending, (state, action) => {
+                console.log('pending')
+            })
+            .addCase(asyncChangeUserNameAction.fulfilled, (state, action) => {
+                console.log('fulfilled')
+                state.name = action.payload
+            })
+            .addCase(asyncChangeUserNameAction.rejected, (state, action) => {
+                console.log('rejected')
+            })
+    }
+});
+
+export const { increment, decrement, incrementByAmount } = counterSlice.actions;
+
+export default counterSlice.reducer;
+~~~
+
+使用 createSlice 会自动创建模板，并且可以手动调用
+
+~~~js
+const newState = counterSlice.reducer(
+  { value: 10 },
+  counterSlice.actions.increment()
+);
+console.log(newState);
+// {value: 11}
+~~~
+
+
+
+### 2、configureStore
+
+**作用**：创建包含指定 reducer 的 store 对象
+
+configureStore 是 Redux Toolkits 函数，自动集成一些 Redux 的中间件，如 thunk 和 logger 等
+
+对于合并多个 Reducer 可以直接使用普通对象包裹，也可以手动合并，也可以使用 combineReducers
+
+~~~react
+export default configureStore({
+  reducer: {
+    users: usersReducer,
+    posts: postsReducer,
+    comments: commentsReducer,
+  },
+});
+// users 等即为 store 里 key 的名称
+~~~
+
+
+
+### 3、useSelector
+
+**作用**：useSelector 可以让组件从 Redux 的 store 状态树中提取它需要的任何数据
+
+因为 UI 组件中不建议直接使用 store，所以需要 useSelector 来替代
+
+~~~js
+const count = useSelector((state) => state.counter.value)
+~~~
+
+
+
+### 4、useDispatch
+
+**作用**：从 Redux store 中提供了实际的 dispatch 方法
+
+~~~js
+const dispatch = useDispatch();
+~~~
+
+
+
+### 5、createAsyncThunk
+
+**作用**：来生成异步 action，一般需要和 extraReducers 配合使用，因为其实在外部生成的无法再 slice 内部使用
+
+createAsyncThunk 将自动生成三个 action creator / type，一个在调用时自动 dispatch 的 thunk 函数
+
+~~~js
+// action creator/type：
+asyncChangeUserNameAction.pending：userInfo/asyncChangeUserName/pending
+asyncChangeUserNameAction.fulfilled：userInfo/asyncChangeUserName/fulfilled
+asyncChangeUserNameAction.rejected：userInfo/asyncChangeUserName/rejected
+~~~
+
+~~~js
+// 模拟异步请求
+const simulateApiRequest = (value, delay) => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(value)
+        }, delay)
+    })
+}
+
+// 创建异步 thunk action
+// 参数一字符串，用作生成的 action types 的前缀
+// 参数二 payload creator 回调函数，应该返回一个 Promise，通常使用 async/await 语法编写
+const asyncChangeUserNameAction = createAsyncThunk('asyncChangeUserName', async (value) => {
+    const response = await simulateApiRequest(value, 1000)
+    return response
+})
+
+const userInfoSlice = ReduxToolkit.createSlice({
+    name: 'userInfo',
+    initialState: { name: '张三', age: 18 },
+    reducers: {
+        changeUserNameAction(state, action) {
+            state.name = action.payload
+        },
+        changeUserAgeAction(state, action) {
+            state.age = action.payload
+        },
+        changeUserAgeAddTwo: {
+            reducer(state, action) {
+                state.age = action.payload
+            },
+            prepare(payload) {
+                payload = payload + 2
+                return { payload }
+            }
+        }
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(asyncChangeUserNameAction.pending, (state, action) => {
+                console.log('pending')
+            })
+            .addCase(asyncChangeUserNameAction.fulfilled, (state, action) => {
+                console.log('fulfilled')
+                state.name = action.payload
+            })
+            .addCase(asyncChangeUserNameAction.rejected, (state, action) => {
+                console.log('rejected')
+            })
+    }
+})
+
+dispatch(asyncChangeUserNameAction(whg))
+~~~
+
+
 
 
 
 ## 4、例子
 
-### 1、完整版
+### 1、基础版
+
+#### 1、动作常量
+
+~~~js
+/* 
+	该模块是用于定义action对象中type类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
+*/
+export const INCREMENT = 'increment'
+export const DECREMENT = 'decrement'
+export const SELECTNUMBER = 'selectnumber'
+~~~
+
+
+
+#### 2、动作对象
+
+~~~js
+/* 
+	该文件专门为 Count 组件生成 action 对象
+*/
+import {INCREMENT, DECREMENT, SELECTNUMBER} from './constant'
+
+export const createIncrementAction = data => ({type:INCREMENT,data})
+export const createDecrementAction = data => ({type:DECREMENT,data})
+export const createSelectNumberAction = data => ({type:SELECTNUMBER,data})
+~~~
+
+
+
+#### 3、动作消费
+
+~~~js
+/* 
+	1.该文件是用于创建一个为 Count 组件服务的 reducer，reducer 的本质就是一个函数
+	2.reducer 函数会接到两个参数，分别为：之前的状态(preState)，动作对象(action)
+*/
+import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
+// 初始化状态
+const initState = {count: 0, selectNumber: 1}
+export default function countReducer(preState = initState, action) {
+    // 从 action 对象中获取：type、data
+    const {type, data} = action
+    // 根据 type 决定如何加工数据
+    switch (type) {
+        case INCREMENT:
+            return Object.assign({}, preState, {count: preState.count + data})
+        case DECREMENT:
+            return  Object.assign({}, preState, {count: preState.count - data})
+        case SELECTNUMBER:
+            return Object.assign({}, preState, {selectNumber: data})
+        default:
+            return preState
+    }
+}
+~~~
+
+
+
+#### 4、编写组件
 
 **步骤**：
 
@@ -2058,7 +2427,7 @@ store.subscribe(render)
 ~~~react
 /*
     组件类
- */
+*/
 import React from 'react'
 // 引入store，用于获取redux中保存状态
 import store from '../../redux/store'
@@ -2113,50 +2482,9 @@ export default function Count() {
 }
 ~~~
 
-```react
-/* 
-	该模块是用于定义action对象中type类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
-*/
-export const INCREMENT = 'increment'
-export const DECREMENT = 'decrement'
-export const SELECTNUMBER = 'selectnumber'
-```
 
-~~~react
-/* 
-	该文件专门为Count组件生成action对象
-*/
-import {INCREMENT, DECREMENT, SELECTNUMBER} from './constant'
 
-export const createIncrementAction = data => ({type:INCREMENT,data})
-export const createDecrementAction = data => ({type:DECREMENT,data})
-export const createSelectNumberAction = data => ({type:SELECTNUMBER,data})
-~~~
-
-~~~react
-/* 
-	1.该文件是用于创建一个为 Count 组件服务的 reducer，reducer 的本质就是一个函数
-	2.reducer 函数会接到两个参数，分别为：之前的状态(preState)，动作对象(action)
-*/
-import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
-// 初始化状态
-const initState = {count: 0, selectNumber: 1}
-export default function countReducer(preState = initState, action) {
-    // 从 action 对象中获取：type、data
-    const {type, data} = action
-    // 根据 type 决定如何加工数据
-    switch (type) {
-        case INCREMENT:
-            return Object.assign({}, preState, {count: preState.count + data})
-        case DECREMENT:
-            return  Object.assign({}, preState, {count: preState.count - data})
-        case SELECTNUMBER:
-            return Object.assign({}, preState, {selectNumber: data})
-        default:
-            return preState
-    }
-}
-~~~
+#### 4、整合
 
 ~~~react
 /* 
@@ -2202,17 +2530,30 @@ store.subscribe(() => {
 // 新添加一个异步 action
 // 异步 action 中一般都会调用同步 action
 // 异步 action 不是必须要用的
-export const createIncrementAsyncAction = (data,time) => {
-	return (dispatch)=>{
-		setTimeout(()=>{
-            // 调用同步 Action
-			dispatch(createIncrementAction(data))
-		},time)
+const createIncrementAsyncAction = (data,time) => {
+	return (dispatch) => {
+        // ...
+		// 调用同步 Action
+        dispatch(createIncrementAction(data))
+        // ...
 	}
 }
+
+
+const logAndAdd = (amount) => {
+  return (dispatch, getState) => {
+    // ...
+    const stateBefore = getState();
+    dispatch(incrementByAmount(amount));
+    // ...
+  };
+};
+
+store.dispatch(logAndAdd(5));
+store.dispatch(exampleThunkFunction(1, 1));
 ~~~
 
-需要添加一个异步中间件，否则报错
+需要添加一个异步中间件，否则报错，如果使用 configureStore 默认添加
 
 ~~~react
 import {createStore, applyMiddleware} from 'redux'
@@ -2222,126 +2563,17 @@ export default createStore(countReducer, applyMiddleware(thunk))
 
 
 
-## 5、React-redux
+**注意**：
 
-### 1、概述
-
-所有的 UI 组件都应该被一个容器组件包裹，他们是父子关系
-
-容器组件是真正和 redux 打交道的，里面可以随意的使用 redux 的 api
-
-UI 组件中不能使用任何 redux 的 api
-
-容器组件会传给 UI 组件：
-
-- redux中所保存的状态
-- 用于操作状态的方法
-
-备注：容器给 UI 传递状态、操作状态的方法，均通过 props 传递
-
-![react-redux模型图](images/react-redux模型图.png)
+- 由于 Reducer 中不允许使用任何类型的异步逻辑，所以需要先编写异步逻辑后调用 dispatch
 
 
 
-### 2、核心 API
+### 3、UI 容器分离版
 
-#### 1、Provider
-
-让所有子组件都可以得到 state 数据
+#### 1、UI 组件
 
 ~~~react
-ReactDOM.render(
-	<Provider store={store}>
-		<App/>
-	</Provider>,
-	document.getElementById('root')
-)
-~~~
-
-
-
-#### 2、connect
-
-用于包装 UI 组件生成容器组件
-
-~~~react
-export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
-~~~
-
-
-
-#### 3、mapStateToprops
-
-将外部的数据（即 state 对象）转换为 UI 组件的 props，返回一个对象
-
-~~~react
-function mapStateToProps(state) {
-    return {
-        count: state.count,
-        selectNumber: state.selectNumber
-    }
-}
-~~~
-
-
-
-#### 4、mapDispatchToProps
-
-将分发 action 的函数转换为 UI 组件的 props，也是返回一个对象
-
-~~~react
-function mapDispatchToProps(dispatch) {
-    return {
-        // 还需要写 dispatch
-        increment: (number) => dispatch(createIncrementAction(number)),
-        decrement: (number) => dispatch(createDecrementAction(number)),
-        incrementAsync: (number, time) => dispatch(createIncrementAsyncAction(number, time)),
-    }
-}
-~~~
-
-~~~react
-// 如果在 connect()() 中直接编写两个 map 的话，可以进行简写
-export default connect(
-    // {...}
-    ,
-    {	// 事件处理函数 ：Action 函数
-        increment: incrementAction,
-        decrement: decrementAction,
-        incrementAsync: incrementAsyncAction
-    }
-)(Count)
-
-// 甚至可以简写成，KV 同名
-export default connect(
-    // {...}
-    ,
-    {	// 事件处理函数 ：Action 函数
-        incrementAction,
-        decrementAction,
-        incrementAsyncAction
-    }
-)(Count)
-
-// 个人认为这样的简写容易混肴，不明确
-~~~
-
-
-
-#### 5、combineReducers
-
-将所有 reducer 合并，否则 createStore 只会为单个 reducer 提供服务
-
-
-
-### 3、例子
-
-#### 1、基础版
-
-~~~react
-/*
-	UI 组件类
-*/
 import React from 'react'
 
 export default function Count(props) {
@@ -2393,13 +2625,14 @@ export default function Count(props) {
 }
 ~~~
 
+
+
+#### 2、容器组件
+
 ~~~react
-/*
-	UI 容器类
-*/
-//引入 Count 的 UI 组件
+// 引入 Count 的 UI 组件
 import CountUI from '../../components/Count'
-//引入 action
+// 引入 action
 import {
     createDecrementAction,
     createIncrementAction,
@@ -2408,6 +2641,7 @@ import {
 } from '../../redux/count_action'
 // 引入 connect 用于连接 UI 组件与 redux
 import {connect} from 'react-redux'
+
 /* 
 	1.mapStateToProps 函数返回的是一个对象；
 	2.返回的对象中的 key 就作为传递给 UI 组件 props 的 key,value 就作为传递给 UI 组件 props 的 value
@@ -2419,6 +2653,7 @@ function mapStateToProps(state) {
         number: state.number
     }
 }
+
 /* 
 	1.mapDispatchToProps 函数返回的是一个对象；
 	2.返回的对象中的 key 就作为传递给 UI 组件 props 的 key,value 就作为传递给 UI 组件 props 的 value
@@ -2432,13 +2667,20 @@ function mapDispatchToProps(dispatch) {
         selectNumber: (number) => dispatch(createSelectNumber(number))
     }
 }
+
+
+
 // 使用 connect()() 创建并暴露一个 Count 的容器组件
 export default connect(mapStateToProps, mapDispatchToProps)(CountUI)
 ~~~
 
+
+
+#### 3、动作创建
+
 ~~~react
 /* 
-	该模块是用于定义 action 对象中 type 类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
+	该模块是用于定义 type 类型的常量值，目的只有一个：便于管理的同时防止程序员单词写错
 */
 export const INCREMENT = 'increment'
 export const DECREMENT = 'decrement'
@@ -2447,7 +2689,7 @@ export const SELECTNUMBER = 'selectNumber'
 
 ~~~react
 /* 
-	该文件专门为Count组件生成action对象
+	该文件专门为 Count 组件生成 action 对象
 */
 import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
 
@@ -2464,6 +2706,10 @@ export const createIncrementAsyncAction = (data, time) => {
 }
 export const createSelectNumber = data => ({type: SELECTNUMBER, data})
 ~~~
+
+
+
+#### 4、消费动作
 
 ~~~react
 import {DECREMENT, INCREMENT, SELECTNUMBER} from './constant'
@@ -2486,6 +2732,10 @@ export default function countReducer(preState = initState, action) {
     }
 }
 ~~~
+
+
+
+#### 5、整合
 
 ~~~react
 import {createStore,applyMiddleware} from 'redux'
@@ -2523,6 +2773,106 @@ ReactDOM.render(
 	document.getElementById('root')
 )
 ~~~
+
+
+
+### 4、新版 API
+
+对于新版 API 来说就是将原本手动创建的模板，改为了自动创建
+
+~~~js
+import { configureStore } from '@reduxjs/toolkit'
+import counterReducer from '../features/counter/counterSlice'
+
+// 之前使用 creatStore
+export default configureStore({
+    reducer: {
+        counter: counterReducer,
+    },
+})
+~~~
+
+~~~js
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { decrement, increment } from './counterSlice'
+
+export function Counter() {
+    const count = useSelector((state) => state.counter.value)
+    const dispatch = useDispatch()
+
+    return (
+        <div>
+            <div>
+                <button
+                    aria-label="Increment value"
+                    onClick={() => dispatch(increment())}
+                >
+                    Increment
+                </button>
+                <span>{count}</span>
+                <button
+                    aria-label="Decrement value"
+                    onClick={() => dispatch(decrement())}
+                >
+                    Decrement
+                </button>
+            </div>
+        </div>
+    )
+}
+~~~
+
+~~~js
+import { createSlice } from '@reduxjs/toolkit'
+
+export const counterSlice = createSlice({
+    name: 'counter',
+    initialState: {
+        value: 0
+    },
+    reducers: {
+        increment: state => {
+            state.value += 1
+        },
+        decrement: state => {
+            state.value -= 1
+        },
+        incrementByAmount: (state, action) => {
+            state.value += action.payload
+        }
+    }
+})
+
+// 每个 case reducer 函数会生成对应的 Action creators
+export const { 
+    increment,
+    decrement,
+    incrementByAmount 
+} = counterSlice.actions
+
+export default counterSlice.reducer
+~~~
+
+
+
+
+
+
+
+## 5、React-redux
+
+所有的 UI 组件都应该被一个 Container 组件包裹，他们是父子关系，容器组件用来将 UI 和 action 等整合在一起
+
+容器组件是真正和 redux 打交道的，里面可以随意的使用 redux 的 api，UI 组件中不能使用任何 redux 的 api
+
+容器组件会传给 UI 组件：redux 中所保存的状态、用于操作状态的方法，通过 props 传递
+
+![react-redux模型图](images/react-redux模型图.png)
+
+
+
+
 
 
 
@@ -3361,7 +3711,7 @@ export default function Page() {
 
 ### 2、加上 Reducer
 
-如果单独使用 Reducer，有时候事件处理函数会集中在最顶层，在大规模的组件应用中，通过 props 依次传递 state 和 dispatch 非常麻烦，因此可以使用 Context 保存 state 和 dispatch，在将所有的逻辑抽离到单独的逻辑组件中，使得代码更加清晰
+如果单独使用 Reducer，有时候事件处理函数会集中在最顶层，在大规模的组件应用中，通过 props 依次传递 state 和 dispatch 非常麻烦，因此可以**使用 Context 保存 state 和 dispatch**，在将所有的逻辑抽离到单独的逻辑组件中，使得代码更加清晰
 
 ~~~react
 import { createContext, useContext, useReducer } from 'react';
@@ -3558,10 +3908,6 @@ function Task({ task }) {
   );
 }
 ~~~
-
-
-
-
 
 
 

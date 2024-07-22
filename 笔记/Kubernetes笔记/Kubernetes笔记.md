@@ -1425,7 +1425,7 @@ ifconfig xxx down
 
 ~~~bash
 # 下载 flannel 的 yaml 配置文件
-wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+wget https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 ~~~
 
 修改 net-conf.json 的 Network 为 Master 节点启动时的 --pod-network-cidr 参数值
@@ -5103,74 +5103,221 @@ spec:
 
 ## 1、基本概念
 
-Volume 是 Pod 中能够被多个容器访问的共享目录
+Kubernetes 的 Volume 定义在 Pod 上，Pod 中的多个容器通过 Volume 可以挂载具体的文件目录或共享目录
 
-Kubernetes 的 Volume 定义在 Pod 上， 它被一个 Pod 中的多个容器挂载到具体的文件目录下
+Volume 与 Pod 的生命周期相同， 但与容器的生命周期不相关，当容器终止或重启时，根据 Volume 的类型其中的数据不一定会丢失
 
-Volume 与 Pod 的生命周期相同， 但与容器的生命周期不相关，当容器终止或重启时，Volume 中的数据也不会丢失
-
-要使用 Volume，Pod 需要指定 Volume 的类型、内容（字段）、映射到容器的位置（字段）
-
-Kubernetes 支持多种类型的 Volume，包括：emptyDir、hostPath、gcePersistentDisk、awsElasticBlockStore、nfs、iscsi、flocker、glusterfs、rbd、cephfs、gitRepo、secret、persistentVolumeClaim、downwardAPI、azureFileVolume、azureDisk、 vsphereVolume、Quobyte、PortworxVolume、ScaleIO
+常用的 Volume 类型：emptyDir、hostPath、nfs、iscsi、rbd、cephfs、secret、PersistentVolumeClaim、downwardAPI、configMap
 
 
 
-## 2、emptyDir 
+**注意**：
 
-emptyDir 类型的 Volume 创建于 Pod 被调度到某个宿主机上的时候，而同一个 Pod 内的容器都能读写 emptyDir 中的同一个文件，一旦这个 Pod 离开了这个宿主机，emptyDir 中的数据就会被永久删除，所以目前 emptyDir 类型的 Volume 主要用作临时空间，比如：Web 服务器写日志或者 tmp 文件需要的临时目录
+- 卷不能挂载到其他卷之上（不过存在一种使用 subPath 的相关机制），也不能与其他卷有硬链接
+- Kubernetes 对 EmptyDir 卷或者 HostPath 卷可以消耗的空间没有限制，容器之间或 Pod 之间也没有隔离
+
+
+
+## 2、使用
+
+要使用 Volume，Pod 需要指定 Volume 的类型、内容（字段）、映射到容器的位置（字段），每个容器必须独立指定各个卷的挂载位置，通过 .spec.volumes 字段中设置为 Pod 提供的卷，并在 .spec.containers[*].volumeMounts 字段中声明卷在容器中的挂载位置
+
+**subPath**：volumeMounts.subPath 属性可用于指定所引用的卷内的子路径，而不是其根路径
+
+
+
+## 3、EmptyDir
+
+EmptyDir 卷创建于 Pod 被调度到某个 Node 上的时候，Pod 内的容器即使挂载 EmptyDir 卷路径不同，它们依然共享该卷，当 Pod 从 Node 上删除时，EmptyDir 卷中的数据就会被永久删除，所以目前 EmptyDir 卷主要用作临时空间
 
 ~~~yaml
-apiVersion: v1 
-kind: Pod 
+apiVersion: v1
+ kind: Pod
+ metadata:
+   name: pod-emptydir
+   namespace: default
+ spec:
+   containers:
+   - name: busybox-pod-01
+     image: busybox:v1
+     imagePullPolicy: IfNotPresent
+     volumeMounts:
+     - mountPath: /busybox-pod-01/cache # 容器内的挂载路径
+       name: cache-volume
+   - name: busybox-pod-02
+     image: busybox:1.24
+     imagePullPolicy: IfNotPresent
+     command: ["/bin/sh", "-c", "sleep 3600"]
+     volumeMounts:
+     - mountPath: /busybox-pod-02/cache # 容器内的挂载路径
+       name: cache-volume
+   volumes:
+   - name: cache-volume
+     emptyDir: {}
+# 此时在01容器内写入文件，可以在02容器内发现
+~~~
+
+emptyDir.medium 字段用来控制 emptyDir 卷的存储位置， 默认情况下，emptyDir 卷存储在该节点所使用的存储介质上，例如设置为 Memery，挂载 tmpfs
+
+
+
+**注意**：
+
+- 容器崩溃并不会导致 Pod 被从 Node 上移除，因此容器崩溃期间 emptyDir 卷中的数据是安全的
+- 当启用 SizeMemoryBackedVolumes 时，可以为基于内存的卷指定大小，如果未指定，卷的大小根据节点可分配内存进行调整
+
+
+
+## 4、HostPath
+
+HostPath 卷使得 Pod 能够访问被部署到的 Node 上的指定目录或文件，一旦这个 Pod 离开了这个 Node，HostPath 卷中的数据虽然不会被永久删除，但数据也不会随 Pod 迁移到其他 Node 上
+
+~~~yaml
+apiVersion: v1
+kind: Pod
 metadata:
-	name: test-pd 
+  name: test-pd
 spec:
-	containers:
-		- image: docker.io/nazarpc/webserver
-	name: test-container
-	volumeMounts:
-		- mountPath: /cache 
-		name: cache-volume
-	volumes:
-		- name: cache-volume 
-		emptyDir: {}
+  containers:
+  - image: registry.k8s.io/test-webserver
+    name: test-container
+    volumeMounts:
+    - mountPath: /test-pd
+      name: test-volume
+  volumes:
+  - name: test-volume
+    hostPath:
+      # 宿主机上目录位置
+      path: /data
+      # 此字段为可选
+      type: Directory
+~~~
+
+| 取值              | 行为                                                         |
+| :---------------- | :----------------------------------------------------------- |
+| 空                | 空字符串（默认）用于向后兼容，这意味着在安装 hostPath 卷之前不会执行任何检查 |
+| DirectoryOrCreate | 如果在给定路径上什么都不存在，那么将根据需要创建空目录，权限设置为 0755，具有与 kubelet 相同的组和属主信息 |
+| Directory         | 在给定路径上必须存在的目录                                   |
+| FileOrCreate      | 如果在给定路径上什么都不存在，那么将在那里根据需要创建空文件，权限设置为 0644，具有与 kubelet 相同的组和所有权，如果父目录不存在，则 Pod 启动失败，可以父目录使用 DirectoryOrCreate 保证创建 |
+| File              | 在给定路径上必须存在的文件                                   |
+| Socket            | 在给定路径上必须存在的 UNIX 套接字                           |
+| CharDevice        | 在给定路径上必须存在的字符设备                               |
+| BlockDevice       | 在给定路径上必须存在的块设备                                 |
+
+
+
+**注意**：
+
+- 当必须使用 HostPath 卷时，建议范围仅限于所需的文件或目录，并以只读方式挂载
+- 如果通过 AdmissionPolicy 限制 HostPath 对特定目录的访问，则必须要求 volumeMounts 使用 readOnly 挂载以使策略生效
+- HostPath 卷可能会暴露特权系统凭据，造成安全漏洞
+- 由于各个 Node 的文件系统结构不一定完全相同，所以相同 Pod 的 HostPath 卷可能会在不同的宿主机上表现出不同的行为
+
+
+
+## 5、ISCSI
+
+ISCSI 卷不像 EmptyDir 卷会在删除 Pod 的同时也会被删除，ISCSI 卷的内容在删除 Pod 时会被保留，卷只是被卸载
+
+ISCSI 卷可以同时被多个用户以只读方式挂载且能预先填充数据，并且这些数据可以在 Pod 之间共享
+
+
+
+
+
+**注意**：
+
+- 在使用 ISCSI 卷之前，必须先创建的 ISCSI 服务器，并在上面创建卷
+- ISCSI 卷不允许同时写入，只能有单个用户以读写模式挂载
+
+
+
+## 6、Local
+
+Local 卷所代表的是某个被挂载的本地存储设备，例如磁盘、分区或者目录，其和 HostPath 卷的区别在于，如果同一类 Pod 重复使用 HostPath 卷的数据，需要手动调度的特定的 Node
+
+Local 卷是静态创建的持久卷，不支持动态配置
+
+使用 Local 卷时，需要设置 PersistentVolume 对象的 nodeAffinity 字段，Kubernetes 调度器根据 nodeAffinity 来将使用 Local 卷的 Pod 调度到正确的节点
+
+~~~yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+~~~
+
+~~~yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: example-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /tmp/localdata # 需要在对应的 Node 创建目录
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - node1
+~~~
+
+~~~yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: example-local-claim
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage
+~~~
+
+~~~yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+spec:
+  containers:
+    - name: myfrontend
+      image: nginx:latest
+      volumeMounts:
+      - mountPath: /var/www/html
+        name: test-claim
+  volumes:
+    - name: test-claim
+      persistentVolumeClaim:
+        claimName: example-local-claim
 ~~~
 
 
 
-## 3、hostPath 
+**注意**：
 
-hostPath 属性的 Volume 使得对应的容器能够访问当前宿主机上的指定目录，例如：需要运行一个访问 Docker 系统目录的容器，那么就使用 /var/lib/docker 目录作为一个 hostDir 类型的 Volume，或者要在一个容器内部运行 CAdvisor，那么就使用 /dev/cgroups 目录作为一个 hostDir 类型的 Volume
-
-一旦这个 Pod 离开了这个宿主机，hostDir 中的数据虽然不会被永久删除，但数据也不会随 Pod 迁移到其他宿主机上，因此需要注意的是， 由于各个宿主机上的文件系统结构和内容并不一定完全相同，所以相同 Pod 的 hostDir 可能会在不同的宿主机上表现出不同的行为
-
-~~~yaml
-apiVersion: v1 
-kind: Pod 
-metadata:
-	name: test-pd 
-spec:
-	containers:
-		- image: docker.io/nazarpc/webserver 
-	name: test-container
-	# 指定在容器中挂接路径
-	volumeMounts:
-		- mountPath: /test-pd 
-		name: test-volume
-	# 指定所提供的存储卷
-	volumes:
-		- name: test-volume 
-		# 宿主机上的目录 
-		hostPath:
-			# directory location on host 
-			path: /data
-~~~
+- 建议创建一个 StorageClass 用于 Local 卷，并且 volumeBindingMode 设置为 WaitForFirstConsumer，使得 PVC 和 PV 需要的时候才绑定，延迟卷绑定可以让 Kubernetes 评估节点的其他约束，因为 PV 是和 Node 绑定的，如果 PVC 直接和 PV 绑定了， Pod 则会直接调度过去，如果有其他节点可选，资源选择策略就无用了
+- 如果不使用 local-volume-provisioner，需要手动清理和删除 Local 类型的持久卷
 
 
 
-## 3、nfs 
+## 7、NFS
 
-nfs 类型的 Volume 允许一块现有的网络硬盘在同一个 Pod 内的容器间共享
+NFS 卷允许一块现有的网络硬盘在同一个 Pod 内的容器间共享，效果和 ISCIS 类似
 
 需要先安装 nfs server
 
@@ -5199,74 +5346,504 @@ mount 192.168.100.130:/home/data /home/data
 ~~~
 
 ~~~yaml
-apiVersion: apps/v1  # for versions before 1.9.0 use apps/v1beta2 
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
-	name: redis 
+  name: test-pd
 spec:
-	selector: 
-		matchLabels:
-			app: redis 
-	revisionHistoryLimit: 2 
-template:
-	metadata:
-		labels:
-			app: redis 
-	spec:
-		containers:
-			# 应用的镜像
-			-image: redis 
-			name: redis
-			imagePullPolicy: IfNotPresent 
-		ports: # 应用的内部端口
-			- containerPort: 6379 
-			name: redis6379
-		env:
-			- name: ALLOW_EMPTY_PASSWORD
-			value: "yes"
-			- name: REDIS_PASSWORD
-			value: "redis"
-		# 持久化挂接位置，在 docker 中
-		volumeMounts:
-			- name: redis-persistent-storage
-			mountPath: /data
-		volumes:
-			# 宿主机上的目录
-			- name: redis-persistent-storage
-			nfs:
-				path: /k8s-nfs/redis/data
-				server: 192.168.126.112
+  containers:
+  - image: webserver
+    name: test
+    volumeMounts:
+    - mountPath: /nfs-data
+      name: test-volume
+  volumes:
+  - name: test-volume
+    nfs:
+      server: nfs-server-example.com
+      path: /nfs-volume
+      readOnly: true
 ~~~
 
 
 
-建议阅读完 PV\PVC 后再看第四五小节
+## 8、卷的传播
+
+挂载卷的传播能力允许将 Container 挂载的卷共享到同一 Pod 中的其他 Container，甚至共享到同一 Node 上的其他 Pod
+
+卷的挂载传播特性由 Container.volumeMounts 中的 mountPropagation 字段控制
+
+可选值如下：
+
+- **None**：此挂载卷将不会感知到主机后续在此卷或其任何子目录上执行的挂载变化，容器所创建的卷挂载在主机上是不可见的，这是默认模式
+- **HostToContainer**：挂载卷将会感知到主机后续针对此卷或其任何子目录的挂载操作，如果主机在此挂载卷中挂载任何内容，容器将能看到它被挂载在那里，同时配置了 Bidirectional 挂载传播选项的 Pod 如果在同一卷上挂载了内容，挂载传播设置为 HostToContainer 的容器都将能看变化
+- **Bidirectional**：这种挂载卷和 HostToContainer 挂载表现相同，容器创建的卷挂载将被传播回主机和使用同一卷的所有 Pod 的所有容器
+
+应用场景：日志收集
 
 
 
-## 4、Projected Volume
+**注意**：
+
+- Bidirectional 比较危险，可能破坏主机操作系统，因此它只被允许在特权容器中使用
+
+
+
+## 9、Persistent
 
 ### 1、概述
 
-一个 projected 卷可以将若干现有的卷源映射到同一个目录之上
+PersistentVolume 为用户和管理员提供了一个 API，用于抽象根据消费方式提供存储的详细信息，为此引入了两个新的 API 资源：PersistentVolume 和 PersistentVolumeClaim，集群管理员提供各种 PV，而 PVC 允许用户使用抽象的存储资源
 
-目前，以下类型的卷源可以被投射：
+- PersistentVolume（PV）：集群中由管理员预先制备或者动态制备的存储，是集群中的资源，就像节点是集群资源一样，PV 和其他卷类型一样，但其生命周期独立于使用 PV 的任何 Pod，此 API 对象捕获存储实现的详细信息，包括 NFS，iSCSI 或特定于云提供程序的存储系统
+- PersistentVolumeClaim（PVC）：表示用户进行存储的请求，它类似于 Pod，Pod 消耗节点资源，PVC 消耗 PV 资源，Pod 可以请求特定级别的资源（CPU 和内存），PVC 可以请求特定的大小和访问模式（一次读写、多次只读）
 
-- secret
-- downwardAPI
-- configMap
-- serviceAccountToken
 
-所有的卷源都要求处于 Pod 所在的同一个名字空间内
+
+**注意**：
+
+- PVC 和 PV 是一一对应的双向绑定关系，使用 ClaimRef 来记述
+
+
+
+### 2、生命周期
+
+#### 1、概述
+
+PV 是群集中的资源，PVC 是对这些资源的请求，并且充当对资源的检查
+
+PV 和 PVC 之间的相互作用遵循以下生命周期：
+
+- **Provisioning** ——-> **Binding** ——–> **Using** ——> **Releasing** ——> **Recycling** 
+
+  1. Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
+
+       - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
+
+       - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
+
+  2. Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态， 如果没有非常匹配的 PV，会向具备更大资源的 PV 匹配 
+
+  3. Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
+
+  4. Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
+
+  5. Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
+
+     - 保留策略：允许人工处理保留的数据，但需要删除对应的 PV 后再绑定
+     - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持，仅 NFS 和 HostPath 支持回收（Recycle），废弃
+
+     - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持，动态制备的 PV 会继承 StorageClass 的策略
+
+
+
+#### 2、PV 阶段状态
+
+**Available**：资源尚未被 PVC 使用 
+
+**Bound**：卷已经被绑定到 PVC 
+
+**Released**：PVC 被删除，卷处于释放状态，但未被集群回收
+
+**Failed**：卷自动回收失败
+
+PV 卷的 .status.lastPhaseTransitionTime 字段用于保存卷上次转换阶段的时间戳，对于新创建的卷，阶段被设置为 Pending，lastPhaseTransitionTime 被设置为当前时间
+
+
+
+### 4、制备 PV
+
+#### 1、概述
+
+PV 有两种制备方式：静态制备、动态制备
+
+**静态制备**：管理员手动创建若干 PV 卷，并且对集群用户可用，PV 卷对象存在于 Kubernetes API 中，可供用户使用
+
+**动态制备**：PVC 必须请求某个存储类， 同时集群管理员必须已经创建并配置了该类，这样动态制备 PV  卷的动作才会发生，如果 PVC 指定存储类为 ""，则相当于为自身禁止使用动态制备的 PV 卷
+
+
+
+#### 2、PV 属性
+
+每个 PV 对象都包含 spec 部分和 status 部分，PersistentVolume 对象的名称必须是合法的 DNS 子域名
+
+- **capacity**：卷容量，到 1.26.1 版本唯一可以限定的卷资源，未来可能支持 IOPS、吞吐量
+- **volumeModes**：卷模式，支持 FileSystem、Block，默认是 FS
+  - FileSystem：如果被 Pod 挂载到某个目录，如果卷的存储来自某块设备而该设备目前为空，Kuberneretes 会在第一次挂载卷之前在设备上创建文件系统
+  - Block：将卷作为原始块设备来交给 Pod 使用，此类卷上没有任何文件系统，此种模式可以加快 Pod 访问卷，因为 Pod 和卷之间不存在文件系统层，但是 Pod 中运行的实例必须知道如何处理原始块设备，向 Pod 中添加原始块设备时，要在容器内设置设备路径而不是挂载路径
+- **accessModes**：卷访问模式
+  - **ReadWriteOnce**：卷可以被一个节点以读写方式挂载，RWO 访问模式允许运行在同一节点上的多个 Pod 访问卷
+  - **ReadOnlyMany**：卷可以被多个节点以只读方式挂载
+  - **ReadWriteMany**：卷可以被多个节点以读写方式挂载
+  - **ReadWriteOncePod**：卷可以被单个 Pod 以读写方式挂载，如果想确保整个集群中只有一个 Pod 可以读取或写入该 PVC
+- **storageClassName**：通过该属性将 PV 设定为某个类，每个 PV 可以属于某个 StorageClass，可以不设置或设置为 “ “
+  - 特定类的 PV 卷只能绑定到请求该类的 PVC
+  - 未设置该属性的 PV 没有类设定，只能绑定到那些没有指定特定类的 PVC（设置为 “” 或者不设置，意味着不指定特定 SC）
+- **nodeAffinity**：节点亲和性，通过设置此属性，约束哪些节点可以访问此卷，使用此卷的 Pod 只会被调度到符合此卷节点亲和性规则的节点上
+
+
+
+#### 3、静态制备
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv0003
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: slow
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /tmp
+    server: 172.17.0.2
+~~~
+
+~~~bash
+# 创建
+kubectl apply -f pv-damo.yaml
+# 查询
+kubectl get pv
+~~~
+
+
+
+**注意**：
+
+- 使用 PV 通常需要一些辅助卷类型的程序，上述例子中使用的 NFS，因此需要在节点安装 NFS 来支持挂载
+
+
+
+#### 4、预留 PV
+
+用于将 PV 绑定到特定 PVC，通过在 PV 中指定 PVC 声明特定 PV 与 PVC 之间的绑定关系
+
+预留绑定不会考虑某些卷匹配条件是否满足，例如节点亲和性，但控制面仍然会检查存储类、 访问模式、存储尺寸
+
+将 PV 的 claimRef 字段设置为相关的 PVC 以确保其他 PVC 不会绑定到该 PV 卷
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: foo-pv
+spec:
+  storageClassName: "" # 此处须显式设置空字符串，否则会被设置为默认的 StorageClass
+  claimRef:
+    name: foo-pvc
+    namespace: foo
+```
+
+用途：
+
+- 使用 persistentVolumeReclaimPolicy 属性设置为 Retain 的 PV 卷
+- 复用现有的 PV 卷
+
+
+
+### 5、使用 PVC
+
+#### 1、PVC 属性
+
+每个 PVC 对象都有 .spec 和 .status 部分，分别对应规约和状态，PVC 对象的名称必须是合法的 DNS 子域名
+
+基本属性都和 PV 一致
+
+- **accessModes**：与需要申请的 PV 相同
+- **volumeMode**：与需要申请的 PV 相同
+- **resources**：与需要申请的 PV 相同
+- **matchLabels**：标签选择算符，进一步过滤卷集合
+- **matchExpressions**：与 matchLabels 作用相同，只不过支持数组与 In、NotIn、Exists、DoesNotExists
+- **storageClassName**：与需要申请的 PV 相同，如果设置为 ”“，则被视为申请设置 SC 为 "" 的 PV，如果没有设置，则需判断 DefaultStorageClass 准入控制器插件是否被启用
+  - 如果启用，管理员可以设置一个默认的 SC，所有未设置 SC 的 PVC 都只能绑定到隶属于默认 SC 的 PV，如果为设置默认 SC 则与准入控制器未启动相同处理方法
+  - 如果未启动，则不存在默认 SC，所有将 SC 设置为 “” 的 PVC 将绑定到将 SC 也设置为 “” 的 PV，如果稍后默认 SC 可用了，将会更新 PVC 到动态制备的 PV
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: slow
+  selector:
+    matchLabels:
+      release: "stable"
+    matchExpressions:
+      - {key: environment, operator: In, values: [dev]}
+```
+
+**matchLabels**、**matchExpressions**：设置标签选择算符来过滤卷集合，只有标签与选择算符相匹配的卷能够绑定，来自 matchLabels 和 matchExpressions 的所有需求都按逻辑与的方式组合在一起
+
+**storageClassName**：设置 StorageClass 的名称来请求特定的存储类，需要与 PV 卷的 SC 匹配才能绑定，如果不指定特定 SC，则只能匹配到不指定特定 SC 的 PV 卷
+
+- 如果开启了 DefaultStorageClass，未设置 SC 的 PVC/PV 均会被绑定到默认 SC，如果默认 SC 不止一个，则使用最新的默认 SC
+- 如果没开启默认 SC，则按照原规则
+- 标签选择与 SC 按照条件与组合
+
+
+
+**注意**：
+
+- 设置了非空 selector 的 PVC 无法让集群为其动态制备 PV 卷
+- 当默认 SC 可用时，没有指定 SC 的 PVC 会被赋予 SC，对于 SC 设置为 "" 的 PVC 则不会更新
+
+
+
+#### 2、使用 PVC
+
+~~~yaml
+# Pod 绑定 PVC
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-block-volume
+spec:
+  containers:
+    - name: fc-container
+      image: fedora:26
+      command: ["/bin/sh", "-c"]
+      args: [ "tail -f /dev/null" ]
+      volumeDevices: # 对于块模式的 PV 需要设置挂载路径
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: block-pvc
+~~~
+
+
+
+**注意**：
+
+- 截止到 1.26.1 版本，如果设置了 selector，PVC 将使用 SC 动态制备
+- 使用 Many 模式（ROX、RWX）来挂载申领的操作只能在同一名字空间内进行
+
+
+
+#### 3、扩充 PVC
+
+扩充以下类型的卷：CSI、RDB
+
+只有当 PVC 的 StorageClass 将 allowVolumeExpansion 设置为 true 时，才可以扩充该 PVC 申领
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: example-vol-default
+provisioner: vendor-name.example/magicstorage
+parameters:
+  resturl: "http://192.168.10.100:8080"
+  restuser: ""
+  secretNamespace: ""
+  secretName: ""
+allowVolumeExpansion: true
+```
+
+如果要为某 PVC 请求较大的存储卷，可以直接编辑 PVC 对象设置更大值，这一操作会触发为 PV 提供存储的卷扩充，Kubernetes 不会创建新的 PV 卷来满足此申领的请求，但现有的卷会被调整大小，并且只能在未绑定的 Pod 的 PVC 上扩充，扩充后需要绑定到 Pod 上才会生效
+
+直接编辑 PV 的大小可以阻止该卷自动调整大小，如果先修改 PV，然后又修改对应的 PVC，使该 PVC 的大小匹配 PV 的话，则不会发生存储大小的调整
+
+
+
+### 6、保护措施
+
+#### 1、对象保护
+
+用户删除被某 Pod 使用的 PVC，该 PVC 的移除会被推迟，直至不再被任何 Pod 使用，如果管理员删除已绑定 PVC 的 PV，该 PV 也不会被立即移除，PV 的移除也要推迟到该 PV 不再绑定 PVC，以此确保仍被使用的 PersistentVolumeClaim 及其所绑定的 PersistentVolume 在系统中不会被删除，保证数据安全
+
+当 PV/PVC 的状态为 Terminating 且其 Finalizers 列表中包含 kubernetes.io/pvc-protection 时，PVC 是处于被保护状态的
+
+
+
+#### 2、删除保护
+
+在 PV 上添加终结器（Finalizer）， 确保只有在删除对应的存储后才删除具有 Delete 回收策略的 PV
+
+新引入的 kubernetes.io/pv-controller 和 external-provisioner.volume.kubernetes.io/finalizer 终结器仅会被添加到动态制备的卷上
+
+
+
+#### 3、卷快照
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: restore-pvc
+spec:
+  storageClassName: csi-hostpath-sc
+  dataSource:
+    name: new-snapshot-test
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+
+
+#### 4、卷克隆
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloned-pvc
+spec:
+  storageClassName: my-csi-plugin
+  dataSource: # 仅允许本地对象，不允许跨命名空间
+    name: existing-src-pvc-name
+    kind: PersistentVolumeClaim
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+
+
+### 7、卷填充器
+
+#### 1、概述
+
+卷填充器是能创建非空卷的控制器， 其可以给 PVC 卷预先填充上数据，卷的内容通过一个自定义资源决定
+
+卷填充器利用了 PVC 规约字段 dataSourceRef，该字段可以包含对同一命名空间中任何对象的引用（不包含除 PVC 以外的核心资源）
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: example-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+  dataSourceRef: # 需要先加载 hello 实例的卷填充器并创建
+    apiGroup: hello.example.com
+    kind: Hello
+    name: example-hello
+  volumeMode: Filesystem
+~~~
+
+
+
+**注意**：
+
+- 需要启用 AnyVolumeDataSource 特性
+
+
+
+#### 2、跨命名空间
+
+当跨命名空间时，Kubernetes 使用引用之前会通过 ReferenceGrant 检查被引用命名空间是否接受
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-ns1-pvc
+  namespace: default
+spec:
+  from:
+  - group: ""
+    kind: PersistentVolumeClaim
+    namespace: ns1
+  to:
+  - group: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: new-snapshot-demo
+```
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: foo-pvc
+  namespace: ns1
+spec:
+  storageClassName: example
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  dataSourceRef:
+    apiGroup: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: new-snapshot-demo
+    namespace: default # 指定命名空间
+  volumeMode: Filesystem
+~~~
+
+
+
+**注意**：
+
+- 需要启用 CrossNamespaceVolumeDataSource 特性
+
+
+
+#### 3、数据源引用
+
+dataSourceRef 字段与 dataSource 字段几乎相同，如果一个字段被指定而另一个字段没被指定，API 服务器将给两个字段相同的值，若指定了 namespace，则 dataSource 和 dataSourceRef 不会被同步，其他区别：
+
+- dataSource 字段：会忽略无效的值（如同是空值），只允许 PVC 和卷快照，仅允许本地对象
+- dataSourceRef 字段：不会忽略值，并且若填入一个无效的值，会导致错误，可以包含不同类型的对象，允许任何名字空间中的对象
+
+无效值指的是 PVC 之外的核心对象（没有 apiGroup 的对象）
+
+
+
+
+
+
+
+## 10、Projected
+
+### 1、概述
+
+Projected 卷可以将若干现有的卷/数据源挂载到同一个目录上
+
+以下类型的卷源可以被投射：secret、downwardAPI、configMap、serviceAccountToken
+
+
+
+**注意**：
+
+- 所有的卷/数据源都要求处于 Pod 所在的同一个命名空间内
 
 
 
 ### 2、使用
 
-每个被投射的卷源都列举在 spec 的 sources 下面，参数几乎相同，只有两个例外：
+#### 1、基础使用
 
-- 对于 Secret，secretName 字段被改为 name 以便于 ConfigMap 的命名一致
-- defaultMode 只能在投射层级设置，不能在卷源层级设置，不过可以显式地为每个投射单独设置 mode 属性
+每个被映射的卷源都列举在 spec.sources 下面，参数几乎相同，只有两个例外：
+
+- 对于 Secret：secretName 字段被改为 name 以便于 ConfigMap 的命名一致
+- defaultMode 只能在挂载层级设置，不能在卷/数据源层级设置，不过可以显式地为每个挂载单独设置 mode 属性
 
 ~~~yaml
 apiVersion: v1
@@ -5306,6 +5883,35 @@ spec:
               resourceFieldRef:
                 containerName: container-test
                 resource: limits.cpu
+      - configMap:
+          name: myconfigmap
+          items:
+            - key: config
+              path: my-group/my-config
+~~~
+
+
+
+#### 2、serviceAccountToken
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sa-token-test
+spec:
+  containers:
+  - name: container-test
+    image: busybox:1.28
+    volumeMounts:
+    - name: token-vol
+      mountPath: "/service-account"
+      readOnly: true
+  serviceAccountName: default
+  volumes:
+  - name: token-vol
+    projected:
+      sources:
       # 将当前服务账号的令牌注入到 Pod 中特定路径下
       # 此 Pod 中的容器可以使用该令牌访问 Kubernetes API 服务器
       - serviceAccountToken:
@@ -5318,12 +5924,11 @@ spec:
           expirationSeconds: 3600
           # 给出与投射卷挂载点之间的相对路径
           path: token
-      - configMap:
-          name: myconfigmap
-          items:
-            - key: config
-              path: my-group/my-config
 ~~~
+
+
+
+
 
 
 
@@ -5334,7 +5939,11 @@ spec:
 
 
 
-## 5、Ephemeral Volume
+
+
+
+
+## 11、Ephemeral
 
 ### 1、概述
 
@@ -5343,11 +5952,7 @@ spec:
 - 缓存服务经常受限于内存大小，而且可以将不常用的数据转移到比内存慢的存储中，对总体性能的影响并不大
 - 有些应用程序需要以文件形式注入的只读数据，比如：配置数据或密钥
 
-临时卷就是为此类用例设计的，因为卷会遵从 Pod 的生命周期，与 Pod 一起创建和删除， 所以停止和重新启动 Pod 时，不会受持久卷在何处可用的限制
-
-临时卷在 Pod spec 中以内联方式定义，这简化了应用程序的部署和管理
-
-
+临时卷就是为此类用例设计的，因为卷会遵从 Pod 的生命周期，与 Pod 一起创建和删除， 所以停止和重新启动 Pod 时，不会受持久卷在何处可用的限制，临时卷在 Pod spec 中以内联方式定义，简化了应用程序的部署和管理
 
 Kubernetes 为了不同的用途，支持几种不同类型的临时卷：
 
@@ -5397,7 +6002,7 @@ spec:
         name: scratch-volume
       command: [ "sleep", "1000000" ]
   volumes:
-    - name: scratch-volume
+    - name: scratch-volume # pvc 名称 my-app-scratch-volume
       ephemeral:
         volumeClaimTemplate:
           metadata:
@@ -5413,264 +6018,55 @@ spec:
 
 
 
+**注意**：
+
+- 自动创建的 PVC 采取确定性的命名机制：名称是 Pod 名称和卷名称的组合，中间由连字符(-)连接，此规则可能产生冲突
+  - 名为 pod-a 的 Pod 挂载名为 scratch 的卷和名为 pod 的 Pod 挂载名为 a-scratch 的卷，这两者均会生成名为 pod-a-scratch 的 PVC
+  - 如果 PVC 是为 Pod 创建的，那么它只用于临时卷，此检测基于所有权关系，现有的 PVC 不会被覆盖或修改，但这并不能解决冲突，因为如果没有正确的 PVC，Pod 就无法启动
+
+
+
 ### 3、生命周期
 
-临时卷控制器在 Pod 所属的命名空间中创建一个实际的 PVC 对象，因此支持完整的 PVC Template 字段， 并确保删除 Pod 时，同步删除 PVC
+临时卷控制器在 Pod 所属的命名空间中创建一个实际的 PVC，卷绑定或制备的相应动作在 SC 使用即时绑定模式时立即执行， 或者当 Pod 被暂时性调度到某节点时执行 (WaitForFirstConsumer 卷绑定模式)
 
-如上一个例子的设置将触发卷的绑定或制备，相应动作或者在 StorageClass 使用即时绑定模式时立即执行， 或者当 Pod 被暂时性调度到某节点时执行 (WaitForFirstConsumer 卷绑定模式)
+临时卷控制器支持完整的 PVC Template 字段， 并确保删除 Pod 时，同步删除 PVC
 
-对于通用的临时卷，建议采用后者，这样调度器就可以自由地为 Pod 选择合适的节点，对于即时绑定，调度器则必须选出一个节点，使得在卷可用时，能立即访问该卷
+通用临时卷建议采用 WaitForFirstConsumer ，这样调度器就可以自由地为 Pod 选择合适的节点，对于即时绑定，调度器则必须选出一个节点，使得在卷可用时，能立即访问该卷
 
 就资源所有权而言，拥有通用临时存储的 Pod 是提供临时存储（ephemeral storage）的 PVC 的所有者， 当 Pod 被删除时，Kubernetes 垃圾收集器会删除 PVC，然后 PVC 通常会触发卷的删除，因为存储类的默认回收策略是删除卷，可以使用带有 retain 回收策略的 StorageClass 创建准临时（quasi-ephemeral）本地存储：该存储比 Pod 寿命长，在这种情况下，需要确保单独进行卷清理
 
 
 
-### 4、PVC 命名
+## 12、StorageClass
 
-自动创建的 PVC 采取确定性的命名机制：名称是 Pod 名称和卷名称的组合，中间由连字符(-)连接
+### 1、概述
 
-- 在上面的示例中，PVC 将命名为 my-app-scratch-volume
+Kubernetes 提供了一套可以自动创建 PV 的机制（Dynamic Provisioning），而机制的核心在于 StorageClass
 
-这种确定性的命名机制使得与 PVC 交互变得更容易，因为一旦知道 Pod 名称和卷名，就不必搜索它
+StorageClass 为管理员提供了描述存储类的方法，不同的类型可以映射到不同的服务质量等级或备份策略，或是由集群管理员制定的任意策略，Kubernetes 本身并不清楚各种类代表的什么，但是用户通过 SC 可以清楚的知道其对应的储存资源的具体特征，例如：不同的读写速度，并发性能
 
-这种命名机制也引入了潜在的冲突， 不同的 Pod 之间（名为 pod-a 的 Pod 挂载名为 scratch 的卷，和名为 pod 的 Pod 挂载名为 a-scratch 的卷，这两者均会生成名为 pod-a-scratch 的 PVC），或者在 Pod 和手工创建的 PVC 之间可能出现冲突
+当用户使用 PVC Template 向 K8s 提交 PVC 申请储存空间时，Kubernetes 会寻找一个对应的 StorageClass，并调用其中定义的存储制备器，创建所需的 PV，每个 StorageClass 都有一个存储制备器
 
-以下冲突会被检测到：
-
-- 如果 PVC 是为 Pod 创建的，那么它只用于临时卷，此检测基于所有权关系，现有的 PVC 不会被覆盖或修改，但这并不能解决冲突，因为如果没有正确的 PVC，Pod 就无法启动
-
-
-
-# 9、Kubernetes PVC\PV
-
-## 1、基本概念
-
-如何管理存储是管理计算的一个问题，而 PersistentVolume 子系统为用户和管理员提供了一个 API，用于抽象根据消费方式提供存储的详细信息
-
-为此引入了两个新的 API 资源：PersistentVolume 和 PersistentVolumeClaim
-
-- PersistentVolume（PV）：集群中由管理员配置的一段网络存储，是集群中的资源，就像节点是集群资源一样，PV 是容量插件，如 Volumes，但其生命周期独立于使用 PV 的任何单个 Pod，此 API 对象捕获存储实现的详细信息，包括 NFS，iSCSI 或特定于云提供程序的存储系统
-- PersistentVolumeClaim（PVC）：由用户进行存储的请求，它类似于 Pod，Pod 消耗节点资源，PVC 消耗 PV 资源，Pod 可以请求特定级别的资源（CPU 和内存），PVC 可以请求特定的大小和访问模式（一次读写、多次只读）
-
-虽然 PVC 允许用户使用抽象存储资源，但是 PV 对于不同的问题，用户通常需要具有不同属性（例如：性能）
-
-集群管理员需要提供各种 PV，而不仅仅是大小和访问模式，并且不会让用户了解这些卷的实现方式，对于这些需求，需要使用 StorageClass 资源，StorageClass 为管理员提供了一种描述提供的存储类的方法
-
-不同的类可能映射到服务质量级别，或备份策略，或者由群集管理员确定的任意策略，Kubernetes 本身对于什么类别代表是不言而喻的，这个概念有时在其他存储系统中称为配置文件
-
-
-
-**注意**：
-
-- PVC 和 PV 是一一对应的
-
-
-
-## 2、PV/PVC 生命周期
-
-PV 是群集中的资源，PVC 是对这些资源的请求，并且充当对资源的检查
-
-PV 和 PVC 之间的相互作用遵循以下生命周期：
-
-- **Provisioning** ——-> **Binding** ——–> **Using** ——> **Releasing** ——> **Recycling** 
-
-  1. Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
-
-    - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
-
-    - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
-  2. Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态
-  3. Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
-  4. Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
-  5. Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
-    - 保留策略：允许人工处理保留的数据
-    - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持
-      - 仅 NFS 和 HostPath 支持回收（Recycle）
-    - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持
-
- 
-
-## 3、PV
-
-### 1、类型
-
-~~~tex
-GCEPersistentDisk
-AWSElasticBlockStore
-AzureFile
-AzureDisk
-FC (Fibre Channel)
-Flexvolume
-Flocker
-NFS
-iSCSI
-RBD (Ceph Block Device)
-CephFS
-Cinder (OpenStack block storage)
-Glusterfs
-VsphereVolume
-Quobyte Volumes
-HostPath (Single node testing only – local storage is not supported in any
-way and WILL NOT WORK in a multi-node cluster)
-Portworx Volumes
-ScaleIO Volumes
-StorageOS
-~~~
-
-
-
-### 2、阶段状态
-
-**Available**：资源尚未被 PVC 使用 
-
-**Bound**：卷已经被绑定到 PVC 
-
-**Released**：PVC 被删除，卷处于释放状态，但未被集群回收
-
-**Failed**：卷自动回收失败
-
-
-
-### 3、使用
-
-每个 PV 对象都包含 spec 部分和 status 部分，PersistentVolume 对象的名称必须是合法的 DNS 子域名
-
-- **capacity**：卷容量，到 1.26.1 版本唯一可以限定的卷资源，未来可能支持 IOPS、吞吐量
-- **volumeModes**：卷模式，支持 FileSystem、Block，默认是 FS
-  - FileSystem：如果被 Pod 挂载到某个目录，如果卷的存储来自某块设备而该设备目前为空，Kuberneretes 会在第一次挂载卷之前在设备上创建文件系统
-  - Block：将卷作为原始块设备来交给 Pod 使用，此类卷上没有任何文件系统，此种模式可以加快 Pod 访问卷，因为 Pod 和卷之间不存在文件系统层，但是 Pod 中运行的实例必须知道如何处理原始块设备
-- **accessModes**：卷访问模式
-  - **ReadWriteOnce**：卷可以被一个节点以读写方式挂载，RWO 访问模式允许运行在同一节点上的多个 Pod 访问卷
-  - **ReadOnlyMany**：卷可以被多个节点以只读方式挂载
-  - **ReadWriteMany**：卷可以被多个节点以读写方式挂载
-  - **ReadWriteOncePod**：卷可以被单个 Pod 以读写方式挂载，如果想确保整个集群中只有一个 Pod 可以读取或写入该 PVC
-- **storageClassName**：每个 PV 可以属于某个 StorageClass，可以不设置或设置为““
-  - 通过该属性将 PV 设定为某个类
-  - 特定类的 PV 卷只能绑定到请求该类的 PVC
-  - 未设置该属性的 PV 没有类设定，只能绑定到那些没有指定特定类的 PVC
-- **nodeAffinity**：节点亲和性，通过设置此属性，约束哪些节点可以访问此卷，使用此卷的 Pod 只会被调度到符合此卷节点亲和性规则的节点上
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv0003
-spec:
-  capacity:
-    storage: 5Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Recycle
-  storageClassName: slow
-  mountOptions:
-    - hard
-    - nfsvers=4.1
-  nfs:
-    path: /tmp
-    server: 172.17.0.2
-~~~
-
-~~~bash
-# 创建
-kubectl apply -f pv-damo.yaml
-# 查询
-kubectl get pv
-~~~
-
-
-
-**注意**：
-
-- 使用 PV 通常需要一些辅助卷类型的程序，上述例子中使用的 NFS，因此需要在节点安装 NFS 来支持挂载
-
-
-
-## 4、PVC
-
-### 1、使用
-
-每个 PVC 对象都有 spec 和 status 部分，PVC 对象的名称必须是合法的 DNS 子域名
-
-- **accessModes**：与需要申请的 PV 相同
-- **volumeMode**：与需要申请的 PV 相同
-- **resources**：与需要申请的 PV 相同
-- **matchLabels**：标签选择算符，进一步过滤卷集合
-- **matchExpressions**：与 matchLabels 作用相同，只不过支持数组与 In、NotIn、Exists、DoesNotExists
-- **storageClassName**：与需要申请的 PV 相同，如果设置为”“，则被视为申请设置 SC 为""的 PV，如果没有设置，则需 判断 DefaultStorageClass 准入控制器插件是否被启用
-  - 如果启用，管理员可以设置一个默认的 SC，所有未设置 SC 的 PVC 都只能绑定到隶属于默认 SC 的 PV，如果为设置默认 SC 则与准入控制器未启动相同处理方法
-  - 如果未启动，则不存在默认 SC，所有将 SC 设置为 “” 的 PVC 将绑定到将 SC 也设置为 “” 的 PV，如果稍后默认 SC 可用了，将会更新 PVC 到动态制备的 PV
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: myclaim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 8Gi
-  storageClassName: slow
-  selector:
-    matchLabels:
-      release: "stable"
-    matchExpressions:
-      - {key: environment, operator: In, values: [dev]}
-~~~
-
-~~~bash
-# 创建
-kubectl apply -f vol-pvc-demo.yaml
-
-# 查询
-kubectl get pvc, pv
-~~~
-
-
-
-**注意**：
-
-- 截止到 1.26.1 版本，如果设置了 selector，PVC 将使用 SC 动态制备
-- 使用 Many 模式（ROX、RWX）来挂载申领的操作只能在同一名字空间内进行
-
-
-
-# 10、Kubernetes StorageClass
-
-## 1、概述
-
-Kubernetes 提供了一套可以自动创建 PV 的机制（Dynamic Provisioning），而这个机制的核心在于 StorageClass 这个 API 对象
-
-StorageClass 为管理员提供了描述存储类的方法，不同的类型可以映射到不同的服务质量等级或备份策略，或是由集群管理员制定的任意策略，Kubernetes 本身并不清楚各种类代表的什么，但是用户通过 SC 可以清楚的知道其对应的储存资源的具体特征
-
-- 例如：不同的读写速度，并发性能
-
-当用户使用 PVC Template 向 K8s 提交 PCV 申请储存空间时，K8s 会寻找一个对应的 StorageClass，并调用其中定义的存储制备器，创建所需的 PV
-
-- 每个 StorageClass 都有一个存储制备器
-
-StorageClass 与 PVC Template 分别解决了 PV 与 PVC 难以管理的问题，SC 可以动态制备 PV，PVCT 可以动态创建 PVC
+StorageClass 与 PVC Template 分别解决了 PV 与 PVC 难以管理的问题，SC 可以动态制备 PV，PVC Template 可以动态创建 PVC
 
 - 先创建 PV，在创建 PVC 并绑定，叫做静态供给
-- 使用 SC 自然就是动态供给
+- 使用 SC 就是动态供给
 
 <img src="./images/20201222102732501.png" alt="20201222102732501" style="zoom:70%;" />
 
 
 
-## 2、使用
+### 2、使用
 
-StorageClass 对象的命名很重要，用户使用这个命名来请求资源，当创建 StorageClass 对象时，管理员设置 StorageClass 对象的命名和其他参数，一旦创建了 SC 对象就不能再对其更新
+StorageClass 对象的 name 很重要，用户使用这个 name 来请求资源，当创建 StorageClass 对象时，管理员设置 StorageClass 对象的命名和其他参数，一旦创建了 SC 对象就不能再对其更新
 
-管理员可以为没有申请绑定到特定 StorageClass 的 PVC 指定一个默认的 StorageClass
+每个 StorageClass 都包含 provisioner、parameters、reclaimPolicy 字段， 这些字段在 StorageClass 动态制备 PV 时使用
 
-每个 StorageClass 都包含 provisioner、parameters 和 reclaimPolicy 字段， 这些字段在 StorageClass 动态制备 PV 时使用
+- **provisioner**：创建某种 PV 用到的存储件，即存储制备器
+- **reclaimPolicy**：回收策略，默认是 Delete
+  - Delete、Retain
 
-- **provisioner**：创建某种 PV 用到的存储插件，即存储制备器
-- **reclaimPolicy**：回收策略，可设置为 Delete、Retain，默认是 Delete
 - **allowVolumeExpansion**：设置为 true 则允许用户通过 PVC 扩容卷，但是不允许缩小卷
 - **mountOptions**：指定挂载的选项，需要卷插件支持，如果不支持则制备失败
   - 挂载选项在 SC 与 PV 上均不会验证，如果挂载无效，则 PV 挂载操作失败
@@ -5679,7 +6075,8 @@ StorageClass 对象的命名很重要，用户使用这个命名来请求资源�
   - WaitForFirstConsumer：延迟 PV 的绑定和制备，直到使用该 PVC 的 Pod 被创建，PV 会根据 Pod 的多方面调度约束来选择制备
 - **allowedTopologies**：允许限制拓扑域，将动态制备限制在特定的拓扑域
 
-其余参数：Storage Classes 还有一些参数描述了存储类的卷，但是具体由哪些，取决于制备器可以接受不同的参数
+- **parameters**：描述了存储类的卷，但是具体you哪些，取决于制备器可以接受不同的参数
+
 
 ~~~yaml
 apiVersion: storage.k8s.io/v1
@@ -5725,18 +6122,18 @@ parameters:
 
 **注意**：
 
-- 选择 WaitForFirstConsumer 模式，切勿在 Pod 中使用 nodeName 来指定节点亲和性，如果在这种情况下使用 nodeName，Pod 将会绕过调度程序，PVC 将停留在 Pending 状态
-  - 但是可以在 NodeSelector 中使用节点主机标签，kubernetes.io/hostname: w01
-- 将 StorageClass 对象的注解 storageclass.kubernetes.io/is-default-class 赋值为 true，可以将其设置为默认 SC
-  - 如果默认 SC 大于一个，则 DefaultStorageClass 准入控制插件将会静止所有 PVC 创建
+- 选择 WaitForFirstConsumer 模式，切勿在 Pod 中使用 nodeName 来指定节点亲和性，如果在这种情况下使用 nodeName，Pod 将会绕过调度程序，PVC 将停留在 Pending 状态，但是可以在 NodeSelector 中使用节点主机标签 kubernetes.io/hostname: w01
+- 将 StorageClass 对象的注解 storageclass.kubernetes.io/is-default-class 赋值为 true，可以将其设置为默认 SC，如果默认 SC 大于一个，则 DefaultStorageClass 准入控制插件将会停止所有 PVC 创建
 
 
 
-## 3、NFS 制备器
+### 3、Provisioner
+
+#### 1、NFS 制备器
 
 首先每台节点均安装 NFS
 
-### 1、创建 ServiceAccount
+##### 1、创建 ServiceAccount
 
 ~~~yaml
 # 唯一需要修改的地方只有namespace, 根据实际情况定义
@@ -5823,7 +6220,7 @@ roleRef:
 
 
 
-### 2、创建 SC
+##### 2、创建 SC
 
 ~~~yaml
 kind: StorageClass
@@ -5840,7 +6237,7 @@ reclaimPolicy: Delete
 
 
 
-### 3、创建 Provisioner
+##### 3、创建 Provisioner
 
 ~~~yaml
 kind: Deployment
@@ -5890,7 +6287,7 @@ spec:
 
 
 
-### 4、创建 Pod 验证
+##### 4、创建 Pod 验证
 
 ~~~yaml
 apiVersion: v1
@@ -5941,6 +6338,10 @@ spec:
         requests:
           storage: 10Mi
 ~~~
+
+
+
+## 13、卷属性类
 
 
 
@@ -6289,7 +6690,11 @@ restartPolicy: Never
 
 ### 3、作为文件或目录挂载
 
-将创建的 ConfigMap 直接挂载至 Pod 的 /etc/config 目录下，每个 key-value 键值对都会生成一个文件，key 为文件名，value 为内容
+**仅指定 mountPath**：
+
+将创建的 ConfigMap 直接挂载至 Pod 的 /etc/config 目录下，同时 /etc/config 目录下其他文件会被清空
+
+每个 key-value 键值对都会生成一个文件，key 为文件名，value 为内容
 
 ~~~yaml
 apiVersion: v1
@@ -6303,15 +6708,17 @@ spec:
       command: ["/bin/sh", "-c", "cat /etc/config/special.how"]
       volumeMounts:
       - name: config-volume
-        mountPath: /etc/config
+        mountPath: /etc/config # 在 /etc/config 目录下挂载文件
   volumes:
     - name: config-volume
       configMap:
-        name: special-config
+        name: special-config # configmap 的名字
   restartPolicy: Never
 ~~~
 
-在 volumeMounts.mountPath 指定了绝对路径后，可以在 volumes.path 指定相对路径与文件名，如果存在同名文件，直接覆盖
+**指定 path 和 mountPath**：
+
+在 volumeMounts.mountPath 指定了绝对路径后，可以在 volume.configMap.items.path 指定**相对路径**与**文件名**，其中 path 最后一级是文件名，如果只有一级则第一级为文件名，如果存在同名文件，直接覆盖
 
 ~~~yaml
 apiVersion: v1
@@ -6332,7 +6739,7 @@ spec:
         name: special-config
         items:
         - key: special.how # 除了这个 key 外，其他不挂载
-          path: keys/special.level # 挂载在 /etc/config 目录下的 /keys/special.level
+          path: keys/special.level # 挂载在 /etc/config 目录下的 /keys/special.level，special.level 作为文件名
   restartPolicy: Never
 ~~~
 
@@ -6375,7 +6782,15 @@ spec:
 
 ### 4、不覆盖文件挂载
 
-在ConfigMap 或 Secret 中使用 subPath，如果不指定 subPath，则会把 volumeMounts.mountPath 对应目录下的文件都清掉，只存放ConfigMap 或 Secret 定义的文件，如果不对原来的文件夹下的文件造成覆盖，只是将 Configmap 中的每个 kv，按照文件的方式挂载到目录下，需要使用 subpath 参数
+在ConfigMap 或 Secret 中使用 subPath，通过指定 subPath 不对原来的文件夹下的文件造成清空，只是将 Configmap 中的每个 kv，按照文件的方式挂载到目录下，subPath 会通过匹配 path、key 决定是否挂载
+
+匹配范围优先级：pod.spec.volums[0].configMap.items[0].path > pod.spec.volums[0].configMap.items[0].key > configMap.key
+
+**mountPath**：
+
+- 没有 subPath 项时，此项仅指定路径
+- 有 subPath，subPath 匹配结果为 true 时（挂载），此项指定路径和文件名，此时文件名可随意指定
+- 有 subPath，subPath 匹配结果为 false 时（不挂载），此项指定路径，创建为一个文件夹
 
 ~~~yaml
 apiVersion: v1
@@ -6389,8 +6804,8 @@ spec:
       command: ["/bin/sh","-c","sleep 36000"]
       volumeMounts:
       - name: config-volume
-        mountPath: /etc/nginx/special.how
-        subPath: special.how # 将 key 作为文件名
+        mountPath: /etc/nginx/special.how # 决定挂载的最终路径和文件名
+        subPath: special.how # 对 path、key 进行匹配
   volumes:
     - name: config-volume
       configMap:
@@ -6400,6 +6815,40 @@ spec:
           path: special.how
   restartPolicy: Never
 ~~~
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    purpose: test-configmap-volume
+  name: testvolume
+spec:
+  containers:
+    - name: test-configmap-volume
+      image: tomcat:8
+      imagePullPolicy: IfNotPresent
+      # command: [ "/bin/sh", "-c", "echo $(MY_CACHE_HOST)" ]
+      volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config/app.properties 
+          # 此处配合 suPath 使用时，app.properties 为文件名
+          # 即 pod 容器中只生成了 /etc/config 目录，目录之下为文件，只有一个名为 app.properties 的文件
+          # subPath 筛选只挂载 app.properties 文件
+          subPath: app.properties
+  volumes:
+    - name: config-volume
+      configMap:
+         name: test-cfg
+         items:
+           - key: cache_host
+             path: path/to/special-key-cache
+           - key: app.properties
+             path: app.properties
+# 此容器只挂载了 app.properties，并且 /etc/config 目录下只有 app.properties 文件
+~~~
+
+![image-20240304164610214](images/image-20240304164610214.png)
 
 
 
@@ -6427,6 +6876,62 @@ kubectl edit configmap log-config
 ~~~
 
 更新 ConfigMap 目前并不会触发相关 Pod 的滚动更新，可以通过修改 pod annotations 的方式触发滚动更新，例如：给 spec.template.metadata.annotations 中添加 version/config 触发滚动更新
+
+
+
+## 6、可选的
+
+可以在 Pod spc 中将对 ConfigMap 的引用标记为可选（optional），如果 ConfigMap 不存在或者键值不存在，那么数据是空的
+
+如果是挂载卷，此时 Kubernetes 将总是为卷创建挂载路径
+
+**注意**：
+
+- 如果挂载卷所引用的 ConfigMap 不存在，并且没有将应用标记为 optional 则 Pod 将无法启动
+- 如果环境变量中引用的 ConfigMap 不存在，Pod 会跳过无效键值，但在事件中会显示无效数据
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh", "-c", "env"]
+      env:
+        - name: SPECIAL_LEVEL_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: a-config
+              key: akey
+              optional: true # 将环境变量标记为可选
+  restartPolicy: Never
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: ["/bin/sh", "-c", "ls /etc/config"]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: no-config
+        optional: true # 将引用的 ConfigMap 的卷标记为可选
+  restartPolicy: Never
+~~~
+
+
 
 
 
@@ -8768,7 +9273,7 @@ kube-scheduler 还支持使用 --policy-config-file 指定一个调度策略文�
 
 
 
-# 17、Kubernetes 资源限制
+# 17、Kubernetes Limit
 
 
 
@@ -9140,6 +9645,40 @@ spec:
 
 
 # 19、Kubernetes Gateway
+
+
+
+# 20、Kubernetes Network Policy
+
+## 1、概述
+
+NetworkPolicy 是一种以应用为中心的结构，其通过设置网络策略限制 Pod 与各类网络实体通信
+
+NetworkPolicy 适用于一端或两端与 Pod 的连接，与其他连接无关
+
+Pod 与可以通信的实体是通过如下三个标识符的组合来辩识的：
+
+- 其他被允许的 Pod（例外：Pod 无法阻塞对自身的访问）
+- 被允许的 Namespace
+- IP 组块（例外：与 Pod 运行所在的节点的通信总是被允许的， 无论 Pod 或节点的 IP 地址）
+
+**前置条件**：网络插件需要支持网络策略
+
+
+
+## 2、Pod 隔离类型
+
+隔离并不表示绝对，而只是有限制，Pod 有两种隔离：出口隔离和入口隔离
+
+默认情况下，一个 Pod 的出口是非隔离的，即所有外向连接都是被允许的，如果有 NetworkPolicy 选择该 Pod 并且 policyTypes 中包含 Egress，则该 Pod 是出口隔离的，当一个 Pod 的出口被隔离时， 唯一允许的来自 Pod 的连接是适用于出口的 Pod 的某个 NetworkPolicy 的 egress 列表所允许的连接。 
+
+针对那些允许连接的应答流量也将被隐式允许，这些 egress 列表的效果是相加的
+
+默认情况下，一个 Pod 对入口是非隔离的，即所有入站连接都是被允许的。如果有任何的 NetworkPolicy 选择该 Pod 并在其 policyTypes 中包含 “Ingress”，则该 Pod 被隔离入口， 我们称这种策略适用于该 Pod 的入口。当一个 Pod 的入口被隔离时，唯一允许进入该 Pod 的连接是来自该 Pod 节点的连接和适用于入口的 Pod 的某个 NetworkPolicy 的 ingress 列表所允许的连接。针对那些允许连接的应答流量也将被隐式允许。这些 ingress 列表的效果是相加的。
+
+网络策略是相加的，所以不会产生冲突。如果策略适用于 Pod 某一特定方向的流量， Pod 在对应方向所允许的连接是适用的网络策略所允许的集合。 因此，评估的顺序不影响策略的结果。
+
+要允许从源 Pod 到目的 Pod 的某个连接，源 Pod 的出口策略和目的 Pod 的入口策略都需要允许此连接。 如果任何一方不允许此连接，则连接将会失败。
 
 
 
@@ -11137,6 +11676,29 @@ Hello plugins!
 
 
 
+## 16、卷传播原理
+
+Mount propagation 本质上是 mount namespace 的特性，mount namespace 通过隔离文件系统挂载点对隔离文件系统提供支持，它的标识位是 CLONE_NEWNS
+
+可以通过 /proc/[pid]/mounts 查看到所有挂载在当前 namespace 中的文件系统，还可以通过 /proc/[pid]/mountstats 看到 mount namespace 中文件设备的统计信息，包括挂载文件的名字、文件系统类型、挂载位置
+
+进程在创建 mount namespace 时，会把当前的文件结构复制给新的 namespace，新的 namespace 中的所有 mount 操作都只影响自身的文件系统，而对外界不会产生任何影响，例如父节点的 mount namespace 挂载了一张 CD-ROM，子节点 namespace 拷贝的目录结构就无法自动挂载上这张 CD-ROM，因为这种操作会影响到父节点的文件系统
+
+Mount propagation 定义了挂载对象（mount object）之间的关系，系统用这些关系决定任何挂载对象中的挂载事件如何传播到其他挂载对象，所谓传播事件，是指由一个挂载对象的状态变化导致的其它挂载对象的挂载与解除挂载动作的事件
+
+**挂载对象的关系**：
+
+- 共享关系（share relationship）：挂载对象中的挂载事件会互相传播
+- 从属关系（slave relationship）：主挂载对象中的挂载事件会单向传播到从挂载对象
+
+**挂载状态**：
+
+- 共享挂载（shared）
+- 从属挂载（slave）
+- 共享/从属挂载（shared and slave）
+- 私有挂载（private）
+- 不可绑定挂载（unbindable）
+
 
 
 # 问题
@@ -11383,56 +11945,5 @@ Events:
 
 ~~~bash
 yum reinstall -y kubernetes-cni
-~~~
-
-
-
-## 17、mountPath、subPath、key、path 的关系和作用
-
-key (pod.spec.volums[0].configMap.items[0].key)：用于指定 ConfigMap 中的哪些条目可用于挂载
-
-path (pod.spec.volums[0].configMap.items[0].path)：用于将 key 重命名
-
-subPath (pod.spec.containers[0].volumeMounts.subPath)：决定容器中有无挂载（按名字从 key，有 path 时以 path 为主）
-
-- 筛选范围优先级：pod.spec.volums[0].configMap.items[0].path > pod.spec.volums[0].configMap.items[0].key > configMap.key
-- subPath 匹配范围内是否有对应的名称
-
-mountPath (pod.spec.containers[0].volumeMounts.mountPath)：决定容器中挂载结果的文件名
-
-- 没有 subPath 项时，此项仅指定路径
-- 有 subPath 时且 subPath 筛选结果为 true 时，此项指定路径和文件名，此时文件名可随意指定
-- 有 subPath 但 subPath 筛选结果为 false 时，此项指定路径，创建为一个文件夹
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    purpose: test-configmap-volume
-  name: testvolume
-spec:
-  containers:
-    - name: test-configmap-volume
-      image: tomcat:8
-      imagePullPolicy: IfNotPresent
-      #command: [ "/bin/sh", "-c", "echo $(MY_CACHE_HOST)" ]
-      volumeMounts:
-        - name: config-volume
-          mountPath: /etc/config/app.properties 
-          # 此处配合 suPath 使用时，app.properties 为文件名
-          # 即 pod 容器中只生成了 /etc/config 目录，目录之下为文件，只有一个名为 app.properties 的文件
-          # subPath 筛选只挂载 app.properties 文件
-          subPath: app.properties
-  volumes:
-    - name: config-volume
-      configMap:
-         name: test-cfg
-         items:
-           - key: cache_host
-             path: path/to/special-key-cache
-           - key: app.properties
-             path: app.properties
-# 此容器只挂载了 app.properties，并且 /etc/config 目录下只有 app.properties 文件
 ~~~
 

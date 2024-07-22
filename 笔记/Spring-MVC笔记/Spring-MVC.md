@@ -4,19 +4,19 @@ Spring-MVC.Version.2.0.0
 ------
 
 
-# 1、Spring-MVC入门
+# 1、Spring-MVC 入门
 
-配置web.xml
+## 1、快速使用
 
-- 配置**DispatcherServlet**：**默认加载 /WEB-INF/servletName-servlet.xml**的Spring配置文件，启动WEB层的Spring容器，可以通过属性**contextConfigLocation**初始化参数，自定义配置文件的位置和名称
+通过配置文件 web.xml 配置 **DispatcherServlet**：**默认加载 /WEB-INF/servletName-servlet.xml** 的 Spring 配置文件，启动 WEB 层的 Spring 容器，可以通过属性 **contextConfigLocation** 初始化参数，自定义配置文件的位置和名称
 
 ```xml
 <servlet>
-    <!-- 设置servlet名字 -->
+    <!-- 设置 servlet 名字 -->
     <servlet-name>dispatcherServlet</servlet-name>
     <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
     <init-param>
-        <!-- 设置p -->
+        <!-- 设置 param -->
         <param-name>contextConfigLocation</param-name>
         <param-value>classpath:xxx.xml</param-value>
     </init-param>
@@ -30,7 +30,7 @@ Spring-MVC.Version.2.0.0
 </servlet-mapping>
 ```
 
-- 创建Spring-MVC配置文件：配置自动扫描、视图解析器
+创建 Spring-MVC 配置文件：配置自动扫描、视图解析器
 
 ```xml
 <context:component-scan base-package="xxx"/>
@@ -42,41 +42,51 @@ Spring-MVC.Version.2.0.0
 </bean>
 ```
 
-- 创建请求处理类：使用@Controller注解修饰类，@RequestMapping注解修饰方法
+创建请求处理类：使用 @Controller 注解修饰类，@RequestMapping 注解修饰方法
 
-## SpringMVC常用组件
 
-- DispatcherServlet：**前端控制器**，由框架提供
 
-作用：统一处理请求和响应，整个流程控制的中心，由它调用其它组件处理用户的请求
+## 2、常用组件
 
-- HandlerMapping：**处理器映射器**，由框架提供
+**DispatcherServlet**：**前端控制器**，由框架提供
 
-作用：根据请求的url、method等信息查找Handler，即控制器方法
+- 作用：统一处理请求和响应，整个流程控制的中心，由它调用其它组件处理用户的请求
 
-- Handler：**处理器**，需要工程师开发
 
-作用：在DispatcherServlet的控制下Handler对具体的用户请求进行处理
+**HandlerMapping**：**处理器映射器**，由框架提供
 
-- HandlerAdapter：**处理器适配器**，由框架提供
+- 作用：根据请求的url、method等信息查找Handler，即控制器方法
 
-作用：通过HandlerAdapter对处理器（控制器方法）进行执行
 
-- ViewResolver：**视图解析器**，由框架提供
+**Handler**：**处理器**，需要工程师开发
 
-作用：进行视图解析，得到相应的视图，例如：ThymeleafView、InternalResourceView、RedirectView
+- 作用：在DispatcherServlet的控制下Handler对具体的用户请求进行处理
 
-- View：**视图**
 
-作用：将模型数据通过页面展示给用户
+**HandlerAdapter**：**处理器适配器**，由框架提供
+
+- 作用：通过HandlerAdapter对处理器（控制器方法）进行执行
+
+
+**ViewResolver**：**视图解析器**，由框架提供
+
+- 作用：进行视图解析，得到相应的视图，例如：ThymeleafView、InternalResourceView、RedirectView
+
+
+**View**：**视图**
+
+- 作用：将模型数据通过页面展示给用户
+
+
+
 
 # 2、注解大全
 
-## @Controller注解
+## 1、@Controller
 
-### 简介
+### 1、简介
 
-在SpringBoot中@Controller注解及其相关注解，主要分三个层面，请求前、处理中、返回。
+@Controller 注解及其相关注解，主要分三个层面，请求前、处理中、返回
 
 | **应用场景** | **注解**        | **注解说明**                         |
 | ------------ | --------------- | ------------------------------------ |
@@ -92,36 +102,45 @@ Spring-MVC.Version.2.0.0
 | 请求参数     | @RequestBody    | 请求参数以json格式提交               |
 | 返回参数     | @ResponseBody   | 返回 json 格式                       |
 
-### 注意
-
-- **@RestController**是@Controller的子集，该注解是@Controller和@ResponseBody的集合
-- @GetMapping、@PostMapping、@PutMapping、@DeleteMapping 是 @RequestMapping 的子集
-
-@Controller 与 @RestController应用场景：
+@Controller 与 @RestController 应用场景：
 
 - @Controller 一般应用在有返回界面的应用场景下
 - @RestController 如果只是接口，那么就用 @RestController 来注解
 
-## @RequestMapping注解
 
-### 简介
 
-1、@RequestMapping注解为**控制器@Controller**指定可以处理哪些URL请求
+### 2、注意
 
-2、在控制器@Controller的**类定义**以及**方法定义**处都可以用该注解修饰
+- **@RestController** 是 @Controller 的子集，该注解是 @Controller 和 @ResponseBody 的集合
+- @GetMapping、@PostMapping、@PutMapping、@DeleteMapping 是 @RequestMapping 的子集
 
-- 类定义处：提供初步的请求映射信息，相对于WEB应用的根目录
 
-- 方法处：提供细分映射信息，相对于类定义处的URL
-  - **注意**：若类定义处无该注解，则此URL相对于WEB应用的根目录
 
-3、DispatcherServlet拦截请求后，通过控制器上的@RequestMapping提供的映射信息确定请求对应的处理方法
+## 2、@RequestMapping
 
-4、@RequestMapping还可以设定**请求方法**、**请求参数**、**请求头的映射**等让映射更加精确
+### 1、简介
 
-### 属性
+@RequestMapping 注解为控制器 @Controller 指定可以处理哪些 URL 请求，DispatcherServlet 拦截请求后，通过控制器上的 @RequestMapping 提供的映射信息确定请求对应的处理方法
 
-- **Value**：请求URL
+@RequestMapping 在控制器 @Controller 的**类**以及**方法**处都可以用
+
+- 类：提供初步的请求映射信息，相对于 WEB 应用的根目录
+
+- 方法：提供细分映射信息，相对于类定义处的 URL
+
+@RequestMapping 还可以设定**请求方法**、**请求参数**、**请求头的映射**等让映射更加精确
+
+
+
+**注意**：
+
+- 若类定义处无该注解，则此 URL 相对于 WEB 应用的根目录
+
+
+
+### 2、属性
+
+- **Value**：请求 URL
 
 - **Method**：请求方法
 
@@ -130,106 +149,116 @@ Spring-MVC.Version.2.0.0
 - **Heads**：请求头，支持简单表达式
 
 ```java
-// 表明映射URL为/helloThree
-// 请求方法必须为GET
-// 必须要含有参数userName与age且age的值不能为18
+// 表明映射 URL 为 /helloThree
+// 请求方法必须为 GET
+// 必须要含有参数 userName 与 age 且 age 的值不能为 18
 // 请求头必须为指定的
 @RequestMapping(
-
     value = "/helloThree", 
-
     method = RequestMethod.GET,
-
     params = {"userName", "age!=18"}, 
-
     headers = {"Accept-Language=zh-CN,zh;q=0.9"}
 )
 ```
 
-### 支持Ant风格的URL
 
-- 支持三种匹配符
-  - ？：匹配文件名中的一个字符
-  - *：匹配文件名中的任意字符
-  - **：匹配多层路径
+
+### 3、支持 Ant 风格的 URL
+
+支持三种匹配符
+- **?** ：匹配文件名中的一个字符
+- **\***：匹配文件名中的任意字符
+- **\*\***：匹配多层路径
 
 ```text
 1. 例子：/user/*/creatUser
-
 	匹配：/user/aaa/creatUser
 
 2. 例子：/user/**/creatUser
+	匹配：/user/creatUser	/uer/xxx/yyy/creatUser
 
-	匹配：/user/creatUser，/uer/xxx/yyy/creatUser
-
-3. 例子：/user/creatUser？？
-
+3. 例子：/user/creatUser??
 	匹配：/user/creatUserxxx
 ```
 
-##  @PathVariable注解
 
-### 简介
 
-1、@PathVariable注解**映射URL绑定的占位符**，通过该注解可以将URL中**占位符参数绑定**到控制器@Controller的处理方法的**入参**中，即URL中的{xxx}占位符可以通过@PathVariable（“xxx“）绑定到处理方法的入参中。
+##  3、@PathVariable
 
-**注意**：参数类型一定要对应，否则报错400，一般传入的都是String类型
+### 1、简介
+
+@PathVariable 注解**映射 URL 绑定的占位符**，通过该注解可以将 URL 中**占位符参数绑定**到控制器 @Controller 的处理方法的**入参**中，即URL 中的 {xxx} 占位符可以通过 @PathVariable(“xxx“) 绑定到处理方法的入参中
+
+
+
+**注意**：
+
+- 参数类型一定要对应，否则报错 400，一般传入的都是 String 类型
+- 只支持简单的数据类型，不支持复杂的数据类型以及自定义的数据类型
+- 只支持 GET 请求
+
+
 
 ```java
 @RequestMapping(value = "/helloFive/{name}/{age}")
 public String testFive(@PathVariable("name") String name,@PathVariable("age") String age)
 ```
 
-2、只支持简单的数据类型，**只支持GET请求**，**不支持复杂的数据类型以及自定义的数据类型**。
 
-### 参数
 
-@PathVariable**只有一个参数**，用于指定绑定到哪个入参中，不填写**默认绑定**到与URL占位符参数**同名的入参**中
+### 2、参数
 
-## @RequestParam注解
+@PathVariable **只有一个参数**，用于指定绑定到哪个入参中，不填写**默认绑定**到与 URL 占位符参数**同名的入参**
 
-### 简介
 
-1、Spring-MVC通过分析处理方法的签名，将HTTP的请求信息，绑定到处理方法的相应入参中。
 
-2、可以对方法以及方法的入参标注相应的注解例如**@PathVariable**、**@RequestParam**、**@RequestHeader**。
+## 4、@RequestParam
 
-3、在处理方法**入参处使用**@RequestParam可以**把请求参数传递给处理方法的入参**。
+### 1、简介
 
-4、支持GET、POST、PUT、DELETE请求方法。
+Spring-MVC 通过分析处理方法的签名，将 HTTP 的请求信息，绑定到处理方法的相应入参中
 
-### 属性
+可以对方法以及方法的入参标注相应的注解例如：**@PathVariable**、**@RequestParam**、**@RequestHeader**
 
-- **Value**：参数名
-- **Required**：该请求参数是否必须？，默认为true，表示必须存在，不存在将抛出异常。
-- **defaultValue**：默认参数值，如果设置了该值，required=true将失效，自动为false，如果没有传该参数，就使用默认值。
+在处理方法**入参处使用** @RequestParam 可以**把请求参数传递给处理方法的入参**
+
+支持 GET、POST、PUT、DELETE 请求方法
+
+
+
+### 2、属性
+
+**Value**：参数名
+
+**Required**：该请求参数是否必须**?**，默认为 true，表示必须存在，不存在将抛出异常
+
+**defaultValue**：默认参数值，如果设置了该值，required=true 将失效，自动为 false，如果没有传该参数，就使用默认值
 
 ```java
 @RequestParam(value = "age", defaultValue = "0", required = false) int age
 ```
 
-如果传入的数据是一个相同的K，多个V，则可以使用数组或者List接收。
+如果传入的数据是一个相同的 K，多个 V，则可以使用数组或者 List 接收
 
 ```java
 @RequestParam(value = "age", defaultValue = "0", required = false) int[] age
 ```
-也可以使用Map直接全部接收，但是无法接收一个K多个V的类型，其内只会保存首个KV组合，需要另外使用数组或者List接收
+也可以使用 Map 直接全部接收，但是无法接收一个 K 多个 V 的类型，其内只会保存首个 KV 组合，需要另外使用数组或者 List 接收
 ```java
-// 此处did有多个值，但是map只保存了首个，需要dids数组全部接收
-public ModelAndView addPrescription(
-    @RequestParam Map<String, String> map, 
-	@RequestParam("dId") String[] dIds)   
+// 此处 did 有多个值，但是 map 只保存了首个，需要 dids 数组全部接收
+public ModelAndView addPrescription(@RequestParam Map<String, String> map, 
+                                    @RequestParam("dId") String[] dIds)   
 ```
 
 
 
-## @RequestHeader注解
+## 5、@RequestHeader
 
-### 简介
+### 1、简介
 
-1、注解绑定请求报头的属性值。
+@RequestHeader 注解绑定请求头的属性值
 
-2、**请求报头包含了若干个属性**，服务器可据此获知客户端的信息，通过该注解即可**将请求头中的属性值绑定到处理方法的入参**中。
+请求报头包含了若干个属性，服务器可据此获知客户端的信息，通过该注解即可**将请求头中的属性值绑定到处理方法的入参**中
 
 ```java
 @RequestHeader(value = "Accept-Language") String val
@@ -237,19 +266,21 @@ public ModelAndView addPrescription(
 
 
 
-## @CookieValue注解
+## 6、@CookieValue
 
-### 简介
+### 1、简介
 
-1、让处理方法绑定请求中的某个Cookie值。
+让处理方法绑定请求中的某个 Cookie 值
 
-### 属性
 
-- **value**：参数名称
 
-- **required**：是否必须
+### 2、属性
 
-- **defaultValue**：默认值
+**value**：参数名称
+
+**required**：是否必须
+
+**defaultValue**：默认值
 
 ```java
 @CookieValue(value = "JSESSIONID") String val
@@ -257,41 +288,42 @@ public ModelAndView addPrescription(
 
 
 
-## <a name="@SessionAttributes注解">@SessionAttributes注解</a> 
+## <a name="@SessionAttributes注解">7、@SessionAttributes</a> 
 
-### 简介
+### 1、简介
 
-默认情况下Spring MVC将模型中的数据存储到request域中，当一个请求结束后，数据就失效了。
+默认情况下 Spring MVC 将模型中的数据存储到 request 域中，当一个请求结束后，数据就失效了，如果要跨页面使用，那么需要使用到session，而 @SessionAttributes 注解就可以使得**模型中的数据**存储一份到 session 域中
 
-如果要跨页面使用，那么需要使用到session。而@SessionAttributes注解就可以使得**模型中的数据**存储一份到session域中。
+
 
 **注意**：
 
-- @SessionAttributes只能使用在类定义上。
+- @SessionAttributes 只能使用在类定义上
 - 在**控制器**上使用该注解修饰，即可在多个请求之间共用某个模型属性的数据
 
-### 参数
 
-- **names**：这是一个字符串数组。里面应写需要存储到session中数据的名称。
-- **types**：根据指定参数的类型，将模型中对应类型的参数存储到session中
-- **value**：其实和names是一样的。
-  - **value和type之间是并集关系**
 
-@SessionAttributes 除了可以通过属性名指定需要放到会话中的属性外
+### 2、参数
 
-还可以通过模型属性的对象类型指定哪些模型属性需要放到会话中
+**names**：这是一个字符串数组，里面应写需要存储到 session 中数据的名称
+
+**types**：根据指定参数的类型，将模型中对应类型的参数存储到 session 中
+
+**value**：其实和 names 是一样的，**value和type之间是并集关系**
+
+@SessionAttributes 除了可以通过**属性名**指定需要放到会话中的属性，还可以通过模型属性的**对象类型**指定
 
 ~~~java
-// 会将model中所有类型为 User的属性添加到会话中。
+// 会将 model 中所有类型为 User 的属性添加到会话中
 @SessionAttributes(types=User.class)
 
-// 会将model中属性名为user1和user2的属性添加到会话中。
+// 会将 model 中属性名为 user1 和 user2 的属性添加到会话中
 @SessionAttributes(value={“user1”, “user2”}) 
 
-// 会将model中所有类型为 User和Dept的属性添加到会话中。
+// 会将 model 中所有类型为 User 和 Dept 的属性添加到会话中
 @SessionAttributes(types={User.class, Dept.class}) 
 
-// 会将model中属性名为user1和user2以及类型为Dept的属性添加到会话中。
+// 会将 model 中属性名为 user1 和 user2 以及类型为 Dept 的属性添加到会话中
 @SessionAttributes(value={“user1”,“user2”},types={Dept.class})
 ~~~
 
@@ -299,7 +331,6 @@ public ModelAndView addPrescription(
 @SessionAttributes(value={"user"})
 @Controller
 public class UserController {
-
     @RequestMapping("/testSessionAttributes")
     public String testSessionAttributes(Model model){
         User user = new User("jack","123456");
@@ -309,7 +340,9 @@ public class UserController {
 }
 ~~~
 
-清除数据：可以在入参处传入SessionStatus，调用其setComplete()方法清楚，此举仅会清楚注解所传入的数据。
+清除数据：可以在入参处传入 SessionStatus，调用其 setComplete() 方法清楚，此举仅会清楚注解所传入的数据
+
+
 
 ##  @ResponseBody注解
 

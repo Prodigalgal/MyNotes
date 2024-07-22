@@ -1600,9 +1600,9 @@ GROUP BY department_id ;
 - 使用多个列进行分组
 
 ~~~sql
-SELECT department_id dept_id, job_id, SUM(salary)
+SELECT department_id , job_id, SUM(salary)
 FROM employees
-GROUP BY department_id, job_id ;
+GROUP BY department_id, job_id;
 ~~~
 
 <img src="images/image-20220316120003069.png" alt="image-20220316120003069" style="zoom:67%;" />
@@ -2424,7 +2424,7 @@ MySQL8.0版本支持的日期和时间类型主要有：YEAR类型、TIME类型�
 
 ## 9.6、文本字符串类型
 
-MySQL中，文本字符串总体上分为 CHAR 、 VARCHAR 、 TINYTEXT 、 TEXT 、 MEDIUMTEXT 、 LONGTEXT 、 ENUM 、 SET 等类型。
+MySQL中，文本字符串总体上分为 CHAR 、 VARCHAR 、 TINYTEXT 、 TEXT 、 MEDIUMTEXT 、 LONGTEXT 、 ENUM 、 SET 等类型
 
 | 字符串(文本)类型 | 特点               | 长度 | 长度范围                          | 占用的存储空间        |
 | ---------------- | ------------------ | ---- | --------------------------------- | --------------------- |
@@ -3488,10 +3488,8 @@ END
 
   - INOUT ：当前参数既可以为输入参数，也可以为输出参数
   - 如果没有定义参数种类， 默认就是 IN ，表示输入参数
-
 - **参数类型**：
   - MySQL数据库中的任意类型
-
 - **characteristics** 表示创建存储过程时指定的对存储过程的约束条件，其取值信息如下：
   - LANGUAGE SQL ：说明存储过程执行体是由SQL语句组成的，当前系统支持的语言为SQL
   - [NOT] DETERMINISTIC ：指明存储过程执行的结果是否确定
@@ -3519,7 +3517,6 @@ END
   - 把从数据表中查询的结果存放到变量中，也就是为变量赋值
 - **DELIMITER**：
   - 设置新的结束标记，因为MySQL默认的语句结束符号为分号，为了避免与存储过程中SQL语句结束符相冲突，需要DELIMITER改变存储过程的结束符
-- 
 
 ~~~sql
 LANGUAGE SQL
