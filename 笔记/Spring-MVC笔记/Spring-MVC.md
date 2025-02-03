@@ -416,9 +416,6 @@ public String testRequestBody(@RequestBody String requestBody){
 - 与@RequestParam可以同时使用，@RequestBody最多只能有一个，而@RequestParam可以有多个。
 - 当@RequestBody 与 @RequestParam 同时使用时，原SpringMVC接收参数的机制不变，只不过 @RequestBody 接收的是请求体里面的数据，而@RequestParam接收的是key-value里面的参数，所以它会被切面进行处理从而可以用普通元素、数组、集合、对象等接收。
 - 如果参数时放在请求体中，application/json传入后台的话，那么后台要用@RequestBody才能接收到，如果不是放在请求体中的话，那么后台接收前台传过来的参数时，要用@RequestParam来接收，或则形参前什么也不写也能接收。
-- 
-
-
 
 
 
@@ -2512,6 +2509,8 @@ public Callable<String> async01(){
 1. 原生API的**AsyncListener** 
 2. SpringMVC：实现**AsyncHandlerInterceptor** 
 
+
+
 # 12、原生Servlet
 
 ## 1、Servlet API作为入参
@@ -2533,6 +2532,8 @@ public String testServletAPI(HttpServletResponse response, HttpServletRequest re
 8、Reader
 9、Writer
 ```
+
+
 
 ## 2、Servlet3.0
 

@@ -4,45 +4,81 @@
 
 Spring Security 基于 Spring 框架，提供了一套 Web 应用安全性的完整解决方案。
 
-一般来说，Web 应用的安全性包括**用户认证（Authentication）**和**用户授权 （Authorization）**两个部分，这两点也是 Spring Security 重要核心功能：
+一般来说，Web 应用的安全性包括**认证（Authentication）**和**授权 （Authorization）**两个部分，这两点也是 Spring Security 重要核心功能：
 
-- 用户认证：**验证某个用户是否为系统中的合法主体**，也就是说用户**能否访问该系统**。用户认证一般要求用户提供用户名和密码。系统通过校验用户名和密码来完成认证过程。**通俗点说就是系统认为用户是否能登录**。
-- 用户授权：**验证某个用户是否有权限执行某个操作**。在一个系统中，**不同用户所具有的权限是不同的**。一般来说，系统会**为不同的用户分配不同的角色**，而**每个角色则对应一系列的权限**。**通俗点讲就是系统判断用户是否有权限去做某些事情**。
+- **认证**：验证某个用户是否为系统中的合法主体，用户认证一般要求用户提供用户名和密码，系统通过校验用户名和密码来完成认证过程
+- **授权**：验证某个用户是否有权限执行某个操作，在一个系统中，不同用户所具有的权限是不同的，一般来说，系统会为不同的用户分配不同的角色，而每个角色则对应一系列的权限
 
 
 
 ## 2、权限管理相关概念
 
-**主体**：
+**主体**：principal，使用系统的用户或设备或从其他系统远程登录的用户等等
 
-- 英文单词：principal 
+**认证**：authentication，权限管理系统确认一个主体的身份，允许主体进入系统
 
-- 使用系统的用户或设备或从其他系统远程登录的用户等等。简单说就是**谁使用系统谁就是主体**。
+**授权**：authorization，将操作系统的权力，授予主体，这样主体就具备了操作系统中特定功 能的能力
 
-**认证**：
 
-- 英文单词：authentication 
-- 权限管理系统确认一个主体的身份，允许主体进入系统。简单说就是**“主体”证明自己是谁**。 
-- 笼统的认为就是以前所做的**登录操作**。
 
-**授权**：
-
-- 英文单词：authorization 
-- 将操作系统的“权力”“授予”“主体”，这样主体就具备了操作系统中特定功 能的能力。 所以简单来说，**授权就是给用户分配权限**。
-
-## 3、权限管理数据模型
+## 3、RBAC 模型
 
 权限表 -------多对多------- 角色表 -------多对多------- 用户表
 
 权限--角色关系表、角色--用户关系表
 
+
+
+### 1、核心概念
+
+角色基于访问控制（Role-Based Access Control，RBAC）是一种访问控制机制，它通过为用户分配角色并根据这些角色授予权限来管理用户对系统资源的访问
+
+- **用户 (User)**：指需要访问系统资源的个人或实体，用户通常在系统中具有唯一标识符
+- **角色 (Role)**：角色是一个定义良好的访问权限集合，代表系统中的一组职责和任务，角色通常基于业务功能或职责来定义
+- **权限 (Permission)**：权限是对系统资源的具体访问权利，例如读取、写入、修改或删除资源，权限通常与具体的操作相关联
+- **会话 (Session)**：用户在一个会话中激活一个或多个角色，以获得相应的权限，会话使得用户能够灵活地在不同角色之间切换
+
+
+
+### 2、主要特性
+
+**简化权限管理**：通过角色来管理权限，而不是直接为每个用户分配权限，从而简化了权限管理过程
+
+**提高安全性**：确保用户只具有其角色所需的最小权限，减少了权限滥用的风险
+
+**增强可审计性**：通过角色分配和权限设置，可以清楚地跟踪和审计用户对系统资源的访问
+
+
+
+### 3、三种基本模型
+
+**RBAC0 (核心 RBAC)**：这是最基本的模型，包括用户、角色和权限的概念，用户通过其分配的角色获得权限
+
+**RBAC1 (层次化 RBAC)**：在核心 RBAC 的基础上增加了角色的层次结构，使得角色可以继承权限，通过定义角色的父子关系，子角色自动继承父角色的权限
+
+**RBAC2 (约束 RBAC)**：在核心 RBAC 的基础上增加了约束机制，主要包括分离职责 (Separation of Duties, SoD) 约束，SoD 约束可以防止某个用户通过多个角色同时拥有可能导致冲突或欺诈的权限
+
+**RBAC3 (统一 RBAC)**：这是最复杂的模型，结合了层次化 RBAC 和约束 RBAC，既支持角色的层次结构，又支持复杂的约束机制
+
+
+
+### 4、实施步骤
+
+1. **定义角色**：根据业务需求和职责定义系统中的角色
+2. **分配权限**：为每个角色分配相应的权限
+3. **分配角色**：将用户分配给适当的角色
+4. **建立会话**：用户登录系统时，激活所需的角色以获得相应的权限
+
+
+
 # 2、入门案例
 
-1、导入SpringWEB以及SpringSecurity依赖
+1、导入 SpringWEB 以及 SpringSecurity 依赖
 
 2、编写一个配置类
 
 ```java
+// 旧版本使用 and 连接，新版 SS 推荐使用 lambda
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
@@ -54,9 +90,37 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .authenticated(); // 都需要身份验证
     }
 }
+
+// 新版本
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .formLogin(formLogin -> formLogin
+                .loginPage("/login")
+                .permitAll()
+            )
+            .rememberMe(Customizer.withDefaults());
+
+        return http.build();
+    }
+}
 ```
 
-**注意**：默认账号：user，默认密码由项目启动时自动生成。
+
+
+**注意**：
+
+- 默认账号：user，默认密码由项目启动时自动生成
+
+
 
 3、添加一个控制器进行访问
 
@@ -78,18 +142,22 @@ public class TestController {
 
 ![image-20210928145117928](images/image-20210928145117928.png)
 
+
+
 # 3、常用注解
 
-使用Spring Security注解之前要先在配置类上开启
+使用 Spring Security 注解之前要先在配置类上开启
 
 ~~~java
 // 在主配置类上开启注解
 @EnableGlobalMethodSecurity(securedEnabled=true)
 ~~~
 
+
+
 ## 1、@Secured
 
-**判断是否具有角色**，另外需要注意的是这里匹配的字符串**需要添加前缀“ROLE_“**。 
+**判断是否具有角色**，另外需要注意的是这里匹配的字符串**需要添加前缀“ROLE_“**
 
 在控制器的方法上添加注解
 
@@ -103,9 +171,11 @@ public String helloUser() {
 }
 ```
 
+
+
 ## 2、@PreAuthorize
 
-**进入方法前的权限验证**， @PreAuthorize 可以将登录用户的 roles/permissions 参数传到方法中。
+**进入方法前的权限验证**， @PreAuthorize 可以将登录用户的 roles/permissions 参数传到方法中
 
 ```java
 @RequestMapping("/preAuthorize")
@@ -118,9 +188,11 @@ public String preAuthorize(){
 }
 ```
 
+
+
 ## 3、@PostAuthorize
 
-该注解使用并不多，在**方法执行后再进行权限验证**，适合验证带有返回值的权限。
+该注解使用并不多，在**方法执行后再进行权限验证**，适合验证带有返回值的权限
 
 ```java
 @RequestMapping("/testPostAuthorize")
@@ -131,6 +203,8 @@ public String preAuthorize(){
     return "PostAuthorize";
 }
 ```
+
+
 
 ## 4、@PostFilter
 
@@ -151,6 +225,8 @@ public List<UserInfo> getAllUser(){
 }
 ```
 
+
+
 ## 5、@PreFilter
 
 进入控制器之前对数据进行过滤
@@ -165,6 +241,8 @@ public List<UserInfo> getTestPreFilter(@RequestBody List<UserInfo> list){
     return list;
 }
 ```
+
+
 
 # 4、基本原理
 
@@ -189,11 +267,13 @@ org.springframework.security.web.access.ExceptionTranslationFilter
 org.springframework.security.web.access.intercept.FilterSecurityInterceptor
 ```
 
+
+
 ## 2、主要的三个过滤器
 
 ### 1、FilterSecurityInterceptor
 
-**方法级的权限过滤器**，位于过滤器链的**最底部**。
+**方法级的权限过滤器**，位于过滤器链的**最底部**
 
 ```java
 public void invoke(FilterInvocation fi) throws IOException, ServletException {
@@ -299,7 +379,7 @@ public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
 
 ### 3、UsernamePasswordAuthenticationFilter
 
-对**/login** 的 **POST** 请求做拦截，校验表单中用户名，密码。
+对**/login** 的 **POST** 请求做拦截，校验表单中用户名，密码
 
 ```java
 public Authentication attemptAuthentication(HttpServletRequest request,
@@ -333,6 +413,8 @@ public Authentication attemptAuthentication(HttpServletRequest request,
 }
 ```
 
+
+
 # 5、重要的俩个接口
 
 ## 1、UserDetailsService接口 
@@ -341,7 +423,7 @@ public Authentication attemptAuthentication(HttpServletRequest request,
 
 当Security什么也没有配置的时候，账号和密码是由 Spring Security 定义随机生成的。
 
-而在实际项目中账号和密码都是从数据库中查询出来的，所以要通过**自定义逻辑控制认证逻辑**。
+而在实际项目中账号和密码都是从数据库中查询出来的，所以要通过**自定义逻辑控制认证逻辑**
 
 如果需要自定义逻辑时，需要**实现 UserDetailsService 接口**即可，接口定义如下：
 
@@ -365,13 +447,19 @@ public interface UserDetailsService {
 }
 ```
 
+
+
 **注意**：
 
-- 在项目启动时，会被注入进DaoAuthenticationProvider，在**InitializeUserDetailsBeanManagerConfigurer**类中进行，由getBeanOrNull(Class\<T> type)方法根据Bean的类型获取。
+- 在项目启动时，会被注入进DaoAuthenticationProvider，在**InitializeUserDetailsBeanManagerConfigurer**类中进行，由getBeanOrNull(Class\<T> type)方法根据Bean的类型获取
+
+
 
 **扩展**：
 
 - 多用户类型登陆时，可以多实现该接口，并提供support方法判断是否适用于此用户
+
+
 
 ### 2、返回值UserDetails
 
@@ -396,11 +484,13 @@ public interface UserDetails extends Serializable {
 }
 ```
 
+
+
 ### 3、实现类User
 
 <img src="images/image-20210928151117077.png" alt="image-20210928151117077" style="zoom:100%;" />
 
-SpringSecurity内具有一个UserDetails的实现类**User**，之后只需要使用这个实体类即可。
+SpringSecurity 内具有一个 UserDetails 的实现类 **User**，之后只需要使用这个实体类即可
 
 简单的构造函数：
 
@@ -413,7 +503,9 @@ public User(String username,
 }
 ```
 
-方法参数 **username**：表示用户名，此值是客户端表单传递过来的数据，**默认情况下必须叫 username**，否则无法接收，密码同理。
+方法参数 **username**：表示用户名，此值是客户端表单传递过来的数据，**默认情况下必须叫 username**，否则无法接收，密码同理
+
+
 
 ## 2、PasswordEncoder接口
 
@@ -431,7 +523,7 @@ public interface PasswordEncoder {
     boolean matches(CharSequence rawPassword, String encodedPassword);
     
     // 用于如果解析的密码能够再次进行解析且达到更安全的结果则返回 true，否则返回false。
-    // 默认返回 false。
+    // 默认返回 false
     default boolean upgradeEncoding(String encodedPassword) {
         return false;
     }
@@ -440,7 +532,7 @@ public interface PasswordEncoder {
 
 ![image-20210928151950799](images/image-20210928151950799.png)
 
-PasswordEncoder接口实现类非常多，**BCryptPasswordEncoder** 是 Spring Security 官方**推荐**的密码解析器，大多使用这个解析器。
+PasswordEncoder 接口实现类非常多，**BCryptPasswordEncoder** 是 Spring Security 官方**推荐**的密码解析器，大多使用这个解析器
 
 BCryptPasswordEncoder 是对 **bcrypt** 强散列方法的具体实现，是基于 **Hash** 算法实现的单向加密，可以通过 **strength** 控制加密强度，默认 **10**.
 
@@ -468,15 +560,19 @@ public PasswordEncoder passwordEncoder() {
 }
 ```
 
+
+
 ### 2、DelegatingPasswordEncoder
 
 #### 1、简介
 
-默认加载的**委派密码编码器**，内部其实是一个**Map集合**，根据传递的**Key**（Key为加密方式）获取Map集合的Value，而Value则是具体的PasswordEncoder实现类。
+默认加载的**委派密码编码器**，内部其实是一个**Map集合**，根据传递的**Key**（Key为加密方式）获取Map集合的Value，而Value则是具体的PasswordEncoder实现类
 
 也就是说它将具体编码的实现根据要求委派给不同的算法，以此来实现不同编码算法之间的兼容和变化协调。
 
-- 默认加载进DaoAuthenticationProvider。
+- 默认加载进DaoAuthenticationProvider
+
+
 
 #### 2、构造方法
 
@@ -546,6 +642,8 @@ public static PasswordEncoder createDelegatingPasswordEncoder() {
 
 同时，对历史上使用ldap、MD4、MD5等等加密算法的密码认证保持兼容（如果数据库里的密码使用的是MD5算法，那使用matches方法认证仍可以通过，但新密码会使用bcrypt进行储存）。
 
+
+
 #### 3、密码存储格式
 
 {encodingId}encodedPassword
@@ -574,6 +672,8 @@ encodingId标识**PaswordEncoder**的种类，**encodedPassword**是原密码被
 
 - 若没有在DelegatingPasswordEncoder中设置defaultPasswordEncoderForMatches，数据库中的密码必须按照存储格式储存。
 - 若设置了defaultPasswordEncoderForMatches，则不一定需要按照密码格式储存。
+
+
 
 #### 4、密码编码与匹配
 
@@ -610,6 +710,8 @@ public boolean matches(CharSequence rawPassword, String prefixEncodedPassword) {
     return delegate.matches(rawPassword, encodedPassword);
 }
 ```
+
+
 
 #### 5、defaultPasswordEncoderForMatches
 
@@ -659,7 +761,7 @@ public  static PasswordEncoder passwordEncoder( ){
 
 ### 1、UserDetailsService
 
-自定义实现一个CustomUserDetailsService接口，编写一个接口support，用于后续判断
+自定义实现一个 CustomUserDetailsService 接口，编写一个接口 support，用于后续判断
 
 ~~~java
 public interface CustomUserDetailsService extends UserDetailsService {
@@ -667,7 +769,7 @@ public interface CustomUserDetailsService extends UserDetailsService {
 }
 ~~~
 
-继承CustomUserDetailsService，实现loadUserByUsername与support方法
+继承 CustomUserDetailsService，实现 loadUserByUsername 与 support 方法
 
 ~~~java
 @Service(value="vistorUserDetailsService")
@@ -708,11 +810,13 @@ public class VistorUserDetailsServiceImpl implements CustomUserDetailsService {
 }
 ~~~
 
+
+
 ### 2、AuthenticationDetails
 
-通过继承WebAuthenticationDetails，保存用户登陆发送过来的数据额外数据，例如验证码、类型等
+通过继承 WebAuthenticationDetails，保存用户登陆发送过来的数据额外数据，例如验证码、类型等
 
-原始的WebAuthenticationDetails只能保存账号密码，sessionid、ip
+原始的 WebAuthenticationDetails 只能保存账号密码，sessionid、ip
 
 ~~~java
 public class CustomWebAuthenticationDetails extends WebAuthenticationDetails {
@@ -732,7 +836,7 @@ public class CustomWebAuthenticationDetails extends WebAuthenticationDetails {
 }
 ~~~
 
-通过继承WebAuthenticationDetailsSource将CustomWebAuthenticationDetails置入容器中
+通过继承 WebAuthenticationDetailsSource 将 CustomWebAuthenticationDetails 置入容器中
 
 ~~~java
 @Component
@@ -745,9 +849,11 @@ public class CustomWebAuthenticationDetailsSource extends WebAuthenticationDetai
 }
 ~~~
 
+
+
 ### 3、AuthenticationProvider
 
-由于账户密码登陆是由DaoAuthenticationProvider进行校验的，且其中需要自定义的方法retrieveUser被设为final无法重写，所以我们继承其父类AbstractUserDetailsAuthenticationProvider，并实现retrieveUser方法
+由于账户密码登陆是由 DaoAuthenticationProvider 进行校验的，且其中需要自定义的方法 retrieveUser 被设为 final 无法重写，所以我们继承其父类 AbstractUserDetailsAuthenticationProvider，并实现 retrieveUser 方法
 
 ~~~java
 @Component
@@ -814,9 +920,11 @@ public class CustomDaoAuthenticationProvider extends AbstractUserDetailsAuthenti
 }
 ~~~
 
+
+
 ### 4、config
 
-最后在config中将所配置的自定义类注入
+最后在 config 中将所配置的自定义类注入
 
 ~~~java
 @Resource
@@ -851,7 +959,7 @@ public AuthenticationManagerBuilder authenticationManagerBuilder(
 
 
 
-# 6、WEB案例
+# 6、WEB 案例
 
 ## 1、固定账号密码
 
@@ -1108,7 +1216,7 @@ protected void configure(HttpSecurity http) throws Exception {
 
 
 
-## 4、Session控制
+## 4、Session 控制
 
 ~~~java
 @Bean
@@ -2254,6 +2362,8 @@ SpringSecurity 采用的是**责任链**的设计模式，它有一条很长的�
 
  15、**RememberMeAuthenticationFilter**：当用户没有登录而直接访问资源时，从 cookie  里找出用户的信息，如果 Spring Security 能够识别出用户提供的 remember me cookie，用户将不必填写用户名和密码，而是直接登录进入，该过滤器默认不开启。
 
+
+
 ## 2、SpringSecurity 基本流程
 
 Spring Security 采取过滤链实现认证与授权，只有当前过滤器通过，才能进入下一个 过滤器
@@ -2316,7 +2426,7 @@ AuthenticationManager接口的实现类会判断 Authentication对象属于哪�
 
 如果同时通过web授权和方法授权则先执行web授权，再执行方法授权，最后决策通过，则允许访问资源，否则将禁止访问。
 
-首先会拦截请求，已认证用户访问受保护的web资源将被SecurityFilterChain中的 **FilterSecurityInterceptor** 拦截，在该过滤器中会从**SecurityContextHolder** 获取其中的 **Authentication**，然后获取当前用户的权限信息，用于后续判断是否拥有访问当前资源所需的权限。
+首先会拦截请求，已认证用户访问受保护的web资源将被 SecurityFilterChain 中的 **FilterSecurityInterceptor** 拦截，在该过滤器中会从**SecurityContextHolder** 获取其中的 **Authentication**，然后获取当前用户的权限信息，用于后续判断是否拥有访问当前资源所需的权限。
 
 然后获取资源访问允许列表，FilterSecurityInterceptor 会从 **SecurityMetadataSource** 获取要访问当前资源所需要的权限 Collection，SecurityMetadataSource 其实就是读取访问策略的抽象，而读取的内容，其实就是配置的访问规则。
 
@@ -4676,7 +4786,7 @@ public SecurityFilterChain filterChain(@NotNull HttpSecurity http) throws Except
 
 
 
-## SecurityContextHolder 接口
+## 13、SecurityContextHolder 接口
 
 **SecurityContextHolder** 类 ， 该类其实是对 **ThreadLocal** 的封装 ， 存储 **SecurityContext** 对象
 
@@ -4737,7 +4847,9 @@ public class SecurityContextHolder {
 }
 ```
 
-## **ThreadLocalSecurityContextHolderStrategy**源码
+
+
+## 14、ThreadLocalSecurityContextHolderStrategy 源码
 
 ```java
 final class ThreadLocalSecurityContextHolderStrategy implements SecurityContextHolderStrategy {
@@ -4780,7 +4892,7 @@ final class ThreadLocalSecurityContextHolderStrategy implements SecurityContextH
 
 
 
-## SecurityMetadataSource 接口
+## 15、SecurityMetadataSource 接口
 
 **SecurityMetadataSource** 是Spring Security的一个概念模型接口，用于表示对受权限保护的"安全对象"的权限设置信息。
 
@@ -4820,7 +4932,7 @@ Spring Security对SecurityMetadataSource提供了两个子接口 ：
 
 
 
-## AuthorityUtils 工具类
+## 16、AuthorityUtils 工具类
 
 此类一般用于UserDetailsService的实现类中的loadUserByUsername方法
 
@@ -4851,7 +4963,7 @@ Set<String> set=AuthorityUtils.authorityListToSet(list);
 
 
 
-## @EnableWebSecurity注解
+## 17、@EnableWebSecurity 注解
 
 **@EnableWebSecurity**是Spring Security用于**启用Web安全的注解**。
 
@@ -4939,7 +5051,7 @@ public class WebSecurityEnablerConfiguration {}
 
 
 
-## HttpSecurity 方法列表
+## 18、HttpSecurity 方法列表
 
 ### 1、formLogin()
 
@@ -5235,6 +5347,8 @@ http
 
 - 说明：添加过滤器
 
+
+
 # 问题
 
 ## 1、自定义UsernamePasswordAuthenticationFilter
@@ -5243,6 +5357,8 @@ http
 - 或者继承UsernamePasswordAuthenticationFilter默认的successHandler------>**SavedRequestAwareAuthenticationSuccessHandler**，重写其方法
 
 若使用第一种，springsecurity不会自动跳转登陆前的页面
+
+
 
 ## 2、JWT过期后获取Claims报错
 
@@ -5253,6 +5369,8 @@ http
 ```java
 throw new ExpiredJwtException(header, claims, msg);
 ```
+
+
 
 ## 3、为什么账号密码必须为username和password
 
@@ -5272,6 +5390,8 @@ public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
      .passwordParameter("xxxx") // 指定获取的登陆密码的字段名
 ```
 
+
+
 ## 4、loginPage的两种写法
 
 如果里面写URL，则需要一个对应的Controller去跳转，该Controller需要返回一个页面，可以重定到一个页面，也可以跳转。
@@ -5282,7 +5402,7 @@ public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
 
 
 
-## 6、当继承了默认User后UserDetailsService的loadUserByUsername修改
+## 5、当继承了默认User后UserDetailsService的loadUserByUsername修改
 
 在继承了默认User后，loadUserByUsername因该返回自定义的SecurityUser，否则可能会报错
 
@@ -5304,7 +5424,7 @@ class org.springframework.security.core.userdetails.User cannot be cast to class
 
 
 
-## 7、SuccessForwardUrl的405报错
+## 6、SuccessForwardUrl 的 405 报错
 
 ```java
 @Override
@@ -5352,7 +5472,7 @@ public ModelAndView failLogin(){
 
 
 
-## 8、defaultSuccessUrl/SuccessForwardUrl区别
+## 7、defaultSuccessUrl/SuccessForwardUrl 区别
 
 **defaultSuccessUrl** 有一个重载的方法，如果我们在 defaultSuccessUrl 中指定登录成功的跳转页面为 ”/index”，此时分两种情况
 
@@ -5383,7 +5503,9 @@ public final T defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
 
 **注意**：defaultSuccessUrl 另外一个重载方法，第二个参数如果输入为 true，则效果和 successForwardUrl 一致。
 
-## 9、登陆成功页面跳转原理
+
+
+## 8、登陆成功页面跳转原理
 
 首先，框架默认的 **AuthenticationSuccessHandler** 为 **SavedRequestAwareAuthenticationSuccessHandler。**
 

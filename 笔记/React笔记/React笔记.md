@@ -1051,6 +1051,8 @@ props 只读，不能修改，组件内部不能修改 props 数据，新的 pro
 
 可以通过 props 从组件外向组件内传递变化的数据
 
+在构造器里的 props 参数里可以获取到 props
+
 
 
 ### 2、父组件传入
@@ -1068,12 +1070,11 @@ export default function Profile() {
 }
 ~~~
 
-使用解构语法对 props 进行展开，一次性传入，避免重复的代码
-
 ~~~react
 function Profile(props) {
   return (
     <div className="card">
+      // 使用解构语法对 props 进行展开，一次性传入，避免重复的代码
       <Avatar {...props} />
     </div>
   );
@@ -1140,6 +1141,8 @@ function Avatar({ person, size = 100 }) {
 
 将内容嵌套在 JSX 标签中时，父组件将在名为 **children** 的 props 中接收到该内容
 
+这个属性比较少用
+
 ~~~react
 import Avatar from './Avatar.js';
 
@@ -1168,10 +1171,6 @@ export default function Profile() {
 }
 
 ~~~
-
-
-
-
 
 
 
@@ -1959,7 +1958,7 @@ ReactDOM.render(<Count count={199}/>,document.getElementById('test'))
 
 ## 1、概述
 
-redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理react应用中多个**组件共享**的状态
+redux 是一个专门用于做**状态管理**的 JS 库，可以集中式管理 react 应用中多个**组件共享**的状态
 
 <img src="images/image-20230904103000225.png" alt="image-20230904103000225" style="zoom:80%;" />
 
@@ -1969,7 +1968,7 @@ redux是一个专门用于做**状态管理**的 JS 库，可以集中式管理r
 
 ### 1、action
 
-目标动作对象，包含2个属性：
+目标动作对象，包含 2 个属性：
 
 - **type**：标识属性，值为字符串，唯一，必要属性
 - **data**：数据属性，值类型任意，可选属性
@@ -2887,6 +2886,11 @@ React Router 以三个不同的包发布到 npm 上，它们分别为：
 3. react-router-native：包括 react-router 所有内容，并添加一些专门用于 ReactNative 的 API 例如：\<NativeRouter> 等
 
 React Router 中有三种类型的组件： router components、route matching components、navigation components
+
+在 SPA 应用中，大部分页面结构不改变，只改变部分页面内容
+
+- 一个路由就是一个映射关系（key:value）
+- key 为路径，value 可能是 function 或 component
 
 
 

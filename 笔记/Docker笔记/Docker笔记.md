@@ -660,10 +660,12 @@ flush privileges;
 docker run -p 3306:3306 --name mysql01 \
 -v /data/mysql/mysql01/log:/var/log/mysql \
 -v /data/mysql/mysql01/data:/var/lib/mysql \
--v /data/mysql/mysql01/conf:/etc/mysql \
+-v /data/mysql/mysql01/conf:/etc/mysql/conf.d \
 -v /data/mysql/mysql01/mysql-files:/var/lib/mysql-files \
--e MYSQL_ROOT_PASSWORD=fuckharkadmin \
+-e MYSQL_ROOT_PASSWORD=root \
 -e MYSQL_ROOT_HOST=% \
+--privileged=true \
+--restart=always \
 -itd mysql
 ```
 

@@ -818,8 +818,6 @@ from my_package import function1, function2
 
 
 
-
-
 #### 3、标准库
 
 为了实现开箱即用的思想，Python 提供了一个模块的标准库，在这个标准库中，有很多很强大的模块可以直接使用，并且标准库会随Python 的安装一同安装
@@ -2058,44 +2056,82 @@ def add(a:int, b:int) -> int:
 
 ### 1、作用域
 
-在 Python 中一共有两种作用域：
+#### 1、概述
 
-1. **全局作用域**
-   - 全局作用域在程序执行时创建，在程序执行结束时销毁
-   
-   - 所有函数以外的区域都是全局作用域
-   
-   - 在全局作用域中定义的变量，都属于全局变量，全局变量可以在程序的任意位置被访问
-   
-2. **函数作用域**
+在 Python 中，变量有四个主要的作用域（scope），分别是：
 
-   - 函数作用域在函数调用时创建，在调用结束时销毁
+1. 本地作用域（Local）
+2. 嵌套的本地作用域（Enclosing）
+3. 全局作用域（Global）
+4. 内置作用域（Built-in）
 
-   - 函数每调用一次就会产生一个新的函数作用域
+Python 按照 LEGB（Local, Enclosing, Global, Built-in）的顺序来解析变量
 
-   - 在函数作用域中定义的变量，都是局部变量，它只能在函数内部被访问
 
-**变量的查找**：
 
-- 当使用变量时，会优先在当前作用域中寻找该变量，如果有则使用
+#### 2、本地作用域
 
-- 如果没有则继续去上一级作用域中寻找，如果有则使用，如果没有，以此类推，最后找到全局作用域，依旧没有则报错NameError: name 'a' is not defined
-
+在函数内部定义的变量。它们的作用范围仅限于该函数内部，在函数执行时，会首先查找本地作用域中的变量
 
 ~~~python
-def fn3():
-    # 在函数中为变量赋值时，默认都是为局部变量赋值
-    # a = 10 
-    # 如果希望在函数内部修改全局变量，则需要使用global关键字，来声明变量
-    # 声明在函数内部的使用a是全局变量，此时再去修改a时，就是在修改全局的a
-    global a 
-    a = 10 # 修改全局变量
-    print('函数内部：','a =',a)
+def my_function():
+    x = 10  # x 是本地变量
+    print(x)
+
+my_function()  # 输出 10
 ~~~
 
 
 
-### 2、命名空间(namespace)
+#### 3、嵌套的本地作用域
+
+外部函数的本地作用域，通常出现在嵌套函数中，当内部函数引用一个在外部函数中定义的变量时，会在嵌套的本地作用域中查找
+
+~~~python
+def outer_function():
+    x = 20  # x 是外部函数的本地变量
+
+    def inner_function():
+        print(x)  # 访问外部函数的本地变量
+
+    inner_function()  # 输出 20
+
+outer_function()
+~~~
+
+
+
+#### 4、全局作用域
+
+在模块的最外层定义的，作用范围是整个模块，全局变量可以在模块中的任何地方被访问
+
+全局变量通常在模块中全局定义，但在函数中访问时需要使用 global 关键字来修改它
+
+~~~python
+x = 30  # x 是全局变量
+
+def my_function():
+    global x
+    x = 40  # 修改全局变量 x
+    print(x)
+
+my_function()  # 输出 40
+print(x)  # 输出 40，因为全局变量 x 被修改
+~~~
+
+
+
+#### 5、内置作用域
+
+内置作用域是 Python 内置的命名空间，其中包含了 Python 解释器内置的函数和异常等，这些变量可以在任何地方直接访问
+
+~~~python
+print(len("hello"))  # len 是内置函数，输出 5
+~~~
+
+
+
+### 2、命名空间
 
 命名空间指的是变量存储的位置，每一个变量都需要存储到指定的命名空间当中
 
@@ -2836,7 +2872,17 @@ CMD ["bash"]
 
 
 
+### 3、从源码构建
 
+使用 apt install build-essential libssl-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libsqlite3-dev libreadline-dev libffi-dev，准备编译环境
+
+从官网下载 tgz 格式 Python 源码
+
+使用 tar -xzvf 解压
+
+使用 chmod 777 -R 授权
+
+使用 ./configure --enable-optimizations 根据系统配置生成 MakeFile 文件，并启用额外的编译优化
 
 
 

@@ -1,50 +1,48 @@
-# ApplicationEvent事件机制源码分析
+# ApplicationEvent 事件机制源码分析
 
 ## 1、三点重要概念
 
-### 1、事件源：
+### 1、事件源
 
-​	事件对象的产生者，任何一个EventObject都有一个来源
-
-
-
-### 2、事件监听器注册表：
-
-​	当事件框架或组件收到一个事件后，需要通知所有相关的事件监听器来进行处理，这个时候就需要有个存储监听器的地方，也就是事件监听器注册表。事件源与事件监听器关联关系的存储。
+事件对象的产生者，任何一个 EventObject 都有一个来源
 
 
 
-### 3、事件广播器：
+### 2、事件监听器注册表
 
-​	事件广播器在整个事件机制中扮演一个中介的角色，当事件发布者发布一个事件后，就需要通过广播器来通知所有相关的监听器对该事件进行处理。
+当事件框架或组件收到一个事件后，需要通知所有相关的事件监听器来进行处理，这个时候就需要有个存储监听器的地方，也就是事件监听器注册表。事件源与事件监听器关联关系的存储。
+
+
+
+### 3、事件广播器
+
+事件广播器在整个事件机制中扮演一个中介的角色，当事件发布者发布一个事件后，就需要通过广播器来通知所有相关的监听器对该事件进行处理。
 
 ![image-20210830232136946](images\ApplicationEvent事件机制源码分析.assets\image-20210830232136946.png)
 
 
 
-## 2、Spring中的监听器模式
+## 2、三个主要角色
 
-### 1、三个主要角色
-
-Spring在事件处理机制中使用了监听器模式，其中有三个主要角色
+Spring 在事件处理机制中使用了监听器模式，其中有三个主要角色
 
 
 
-#### 1、事件，ApplicationEvent
+#### 1、ApplicationEvent
 
-- 该抽象类继承了EventObject
+该抽象类继承了 EventObject
 
-- EventObject是JDK中的类，并建议所有的事件都应该继承自EventObject
+EventObject 是 JDK 中的类，并建议所有的事件都应该继承自 EventObject
 
 
 
-#### 2、事件监听器，ApplicationListener
+#### 2、ApplicationListener
 
-- 一个接口，该接口继承了EventListener接口。
+一个接口，该接口继承了 EventListener 接口
 
-- EventListener接口是JDK中的，并建议所有的事件监听器都应该继承EventListener。
+EventListener接口是JDK中的，并建议所有的事件监听器都应该继承EventListener。
 
-- 监听器是用于接收事件，并触发事件的操作，简单的说就是，Listener是监听ApplicationContext.publishEvent()方法的调用，一旦调用publishEvent，就会执行ApplicaitonListener中的方法，下面这个是ApplicationContext的源码。
+监听器是用于接收事件，并触发事件的操作，简单的说就是，Listener是监听ApplicationContext.publishEvent()方法的调用，一旦调用publishEvent，就会执行ApplicaitonListener中的方法，下面这个是ApplicationContext的源码。
 
 - ```java
   public interface ApplicationListener<E extends ApplicationEvent> extends EventListener {
@@ -60,13 +58,13 @@ Spring在事件处理机制中使用了监听器模式，其中有三个主要�
 
 
 
-#### 3、事件发布，ApplicationEventPublisher
+#### 3、ApplicationEventPublisher
 
-- ApplicationContext继承了该接口，在ApplicationContext的抽象实现类AbstractApplicationContext中做了实现。
+ApplicationContext 继承了该接口，在 ApplicationContext 的抽象实现类 AbstractApplicationContext 中做了实现
 
 
 
-## 3、Spring事件发布机制
+## 3、Spring 事件发布机制
 
 事件机制如下图，具体的实现采用观察者模式
 
@@ -74,9 +72,7 @@ Spring在事件处理机制中使用了监听器模式，其中有三个主要�
 
 
 
-## 4、Spring事件异步机制流程
-
-
+## 4、Spring 事件异步机制流程
 
 ### 1、ApplicationEventPublisher
 

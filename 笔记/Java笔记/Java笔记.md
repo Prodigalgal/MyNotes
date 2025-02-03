@@ -4010,7 +4010,8 @@ public class StampedLockDemo {
 
     public void write() {
         long stamp = stampedLock.writeLock();
-        System.out.println(Thread.currentThread().getName()+"\t"+"=====写线程准备修改");
+        System.out.println(Thread.currentThread().getName()
+                           +"\t"+"=====写线程准备修改");
         try {
             number = number + 13;
         } catch (Exception e){
@@ -4018,23 +4019,31 @@ public class StampedLockDemo {
         } finally {
             stampedLock.unlockWrite(stamp);
         }
-        System.out.println(Thread.currentThread().getName()+"\t"+"=====写线程结束修改");
+        System.out.println(Thread.currentThread().getName()
+                           +"\t"+"=====写线程结束修改");
     }
 
     // 悲观读
     public void read() {
         long stamp = stampedLock.readLock();
-        System.out.println(Thread.currentThread().getName()
-                           +"\t come in readlock block,4 seconds continue...");
-        // 暂停几秒钟线程
-        for (int i = 0; i <4 ; i++) {
-            try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
-            System.out.println(Thread.currentThread().getName()+"\t 正在读取中......");
+        System.out.println(Thread.currentThread().getName() 
+                           + "\t readlock block, 4 seconds continue...");
+        // 暂停4s线程
+        for (int i = 0; i < 4 ; i++) {
+            try { 
+                TimeUnit.SECONDS.sleep(1); 
+            } catch (InterruptedException e) { 
+                e.printStackTrace(); 
+            }
+            System.out.println(Thread.currentThread().getName() +"\t 正在读取中......");
         }
         try {
             int result = number;
-            System.out.println(Thread.currentThread().getName()+"\t"+" 获得成员变量值result：" + result);
-            System.out.println("写线程没有修改值，因为 stampedLock.readLock()读的时候，不可以写，读写互斥");
+            System.out.println(Thread.currentThread().getName() 
+                               + "\t" 
+                               + " 获得成员变量值result：" 
+                               + result);
+            System.out.println("写线程没有修改值，因为 stampedLock.readLock() 读的时候，不可以写，读写互斥");
         } catch (Exception e){
             e.printStackTrace();
         } finally {
@@ -4046,14 +4055,23 @@ public class StampedLockDemo {
     public void tryOptimisticRead() {
         long stamp = stampedLock.tryOptimisticRead();
         int result = number;
-        // 间隔4秒钟，很乐观的认为没有其他线程修改过number值，实际靠判断
+        // 间隔 4 秒钟，很乐观的认为没有其他线程修改过 number 值，实际靠判断
         System.out.println("4秒前stampedLock.validate值(true无修改，false有修改)"
-                           +"\t"+stampedLock.validate(stamp));
-        for (int i = 1; i<=4 ; i++) {
-            try { TimeUnit.SECONDS.sleep(1); } catch (InterruptedException e) { e.printStackTrace(); }
-            System.out.println(Thread.currentThread().getName()+"\t 正在读取中......"+i+
-                    "秒后stampedLock.validate值(true无修改，false有修改)"+"\t"
-                    +stampedLock.validate(stamp));
+                           + "\t"
+                           + stampedLock.validate(stamp));
+        // 睡眠 4 s
+        for (int i = 1; i <= 4 ; i++) {
+            try { 
+                TimeUnit.SECONDS.sleep(1); 
+            } catch (InterruptedException e) { 
+                e.printStackTrace(); 
+            }
+            System.out.println(Thread.currentThread().getName()
+                               + "\t 正在读取中......"
+                               + i 
+                               + "秒后stampedLock.validate值(true无修改，false有修改)"
+                               + "\t"
+                               + stampedLock.validate(stamp));
         }
         if(!stampedLock.validate(stamp)) {
             System.out.println("有人动过--------存在写操作！");
@@ -4061,7 +4079,7 @@ public class StampedLockDemo {
             try {
                 System.out.println("从乐观读 升级为 悲观读");
                 result = number;
-                System.out.println("重新悲观读锁通过获取到的成员变量值result：" + result);
+                System.out.println("重新悲观读锁通过获取到的成员变量值 result：" + result);
             } catch (Exception e){
                 e.printStackTrace();
             } finally {
@@ -4079,7 +4097,7 @@ public class StampedLockDemo {
             // resource.tryOptimisticRead();
         }, "readThread").start();
 
-        // 2秒钟时乐观读失败，6秒钟乐观读取成功resource.tryOptimisticRead();，修改切换演示
+        // 2秒钟时乐观读失败，6秒钟乐观读取成功 resource.tryOptimisticRead();，修改切换演示
         // try { TimeUnit.SECONDS.sleep(6); } catch (InterruptedException e) { e.printStackTrace(); }
 
         new Thread(() -> {
@@ -6680,7 +6698,7 @@ System.out.println(completableFuture.getNow(444));
 
 ##### 3、join()
 
-获取结果，与get有细微差异，<a href="#CompletableFuture的join与get方法的差别">详情</a>
+获取结果，与 get 有细微差异，<a href="#CompletableFuture的join与get方法的差别">详情</a>
 
 ~~~java
 System.out.println(CompletableFuture.supplyAsync(() -> "abc").thenApply(r -> r + "123").join());
@@ -6965,7 +6983,7 @@ public static void main(String[] args) throws Exception{
 
 区别在于：
 
-- thenCombine 会将两个任务都完成的执行结果作为方法入参传递到指定方法中，且该方法有返回值，先完成的等待
+- thenCombine 会将两个完成的任务结果作为方法入参传递到指定方法中，且该方法有返回值，先完成的等待
 
 - thenAcceptBoth 同样将两个任务的执行结果作为方法入参，但是无返回值
 - runAfterBoth 没有入参，也没有返回值
@@ -7146,8 +7164,7 @@ public static void main(String[] args) throws Exception{
     list.add(job4);
     
     // 多任务合并
-    CompletableFuture<Void> cf4 = CompletableFuture.allOf(
-        list.toArray(new CompletableFuture[0])).whenComplete((a, b)->{
+    CompletableFuture<Void> cf4 = CompletableFuture.allOf(list.toArray(new CompletableFuture[0])).whenComplete((a, b)->{
         if(b != null){
             System.out.println("error stack trace->");
             b.printStackTrace();
@@ -7156,12 +7173,14 @@ public static void main(String[] args) throws Exception{
         }
     });
     
-    cf4.thenApply(x -> {
-        // 获取结果
-        return list.stream()
-            .map(CompletableFuture::join)
-            .collect(Collectors.toList());
-    })
+    CompletableFuture<List<Object>> listCompletableFuture = cf4.thenApply(x -> {
+            // 获取结果
+            return list.stream()
+                    .map(CompletableFuture::join)
+                    .collect(Collectors.toList());
+        });
+
+        List<Object> collect = listCompletableFuture.get();
 
     
 
@@ -8367,6 +8386,83 @@ JVM在运行Java程序时会把自己管理的内存划分为以上区域（运�
 <img src="images/image-20220413152555899.png" alt="image-20220413152555899" style="zoom:67%;" />
 
 **本地方法栈(Native Method Stacks)：** 本地方法栈属于线程私有的数据区域，这部分主要与虚拟机用到的 C所编写的 Native 方法相关，当有程序需要调用 Native 方法时，JVM会在本地方法栈中维护着一张本地方法登记表，这里只是做登记是哪个线程调用的哪个本地方法接口，并不会在本地方法栈中直接发生调用，因为这里只是做一个调用登记，而真正的调用需要通过本地方法接口去调用本地方法库中C编写的函数，一般情况下，我们无需关心此区域。
+
+
+
+# 扩展
+
+## 1、数据模型名词解释
+
+**与持久化相关**：
+
+**POJO（Plain Old Java Object）**：
+
+- 简单的 Java 对象，通常是没有特殊行为的类，只包含属性和 getter、setter 方法
+- 用于传递数据，避免复杂的业务逻辑，可以是任何 Java 对象的基础形式
+
+**PO（Persistent Object）**：
+
+- 持久化对象，通常与数据库表一一对应，用于 ORM（对象关系映射）框架中
+- PO 用于将数据库中的表映射为 Java 对象，通常直接映射数据库字段，用于持久化操作
+
+**DO（Data Object）**：
+
+- 数据对象，通常指在数据库层传递的数据对象
+- DO 类似于 PO，用于封装数据库数据的基本信息，通常作为数据模型进行存储
+
+**ENTITY（实体类）**：
+
+- 表示数据库中一张表的实体对象
+- 通常与 PO 类似，包含数据库字段映射的 Java 属性，用于 ORM 框架与数据库交互
+
+
+
+**与数据传输相关**：
+
+**DTO（Data Transfer Object）**：
+
+- 数据传输对象，主要用于在不同层或系统间传递数据
+- 通常只包含数据，不包含业务逻辑，以减少数据传输量，提升效率
+- DTO 常用于接口请求和响应对象
+
+**TO（Transfer Object）**：
+
+- 传输对象，广义上是用于数据传输的对象
+- 可以包含多种数据，通常为 DTO 的一种泛化，负责在不同系统之间传递数据
+
+
+
+**包含业务逻辑**：
+
+**DAO（Data Access Object）**：
+
+- 数据访问对象，封装了对数据库的访问操作
+- DAO 层负责对数据库的 CRUD（增、删、查、改）操作，隔离数据访问逻辑，降低业务层与数据库的耦合度
+
+**BO（Business Object）**：
+
+- 业务对象，封装了业务逻辑，用于处理业务需求
+- BO 通常在服务层中使用，代表系统中的业务实体，包含业务逻辑处理方法，使用 PO、DTO 等对象来实现业务功能
+
+
+
+**纯数据存储**：
+
+**VO（View Object / Value Object）**：
+
+- 视图对象或值对象，常用于将数据呈现给用户
+- VO 用于表示 UI 层数据结构，在系统与前端进行数据交互时，通过 VO 封装传递给前端
+- 有时 VO 也用于表示只包含数据而没有行为的方法，用于前端显示
+
+**QO（Query Object）**：
+
+- 查询对象，通常用于封装查询参数
+- QO 常用于复杂查询条件的传递，帮助代码在查询数据库时组织多种条件
+
+**AO（Application Object）**：
+
+- 应用对象，封装业务逻辑，以便对外提供应用功能
+- AO 是从应用层的角度设计的对象，适用于应用模块的逻辑抽象，与业务逻辑和领域模型相关联
 
 
 
