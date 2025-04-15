@@ -1,8 +1,10 @@
+> 2025.02.11.ver.v2
+
 # 1、Nginx简介
 
-高性能的 HTTP 和反向代理服务器，占有内存少，并发能 力强。
+高性能的 HTTP 和反向代理服务器，占有内存少，并发能力强
 
-Nginx 可以作为静态页面的 web 服务器，同时还支持 CGI 协议的动态语言。
+Nginx 可以作为静态页面的 web 服务器，同时还支持 CGI 协议的动态语言
 
 
 
@@ -150,13 +152,29 @@ tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      
 
 # 5、Nginx配置文件
 
-## 1、配置文件位置
+## 1、概述
 
-nginx 安装目录下，其默认的配置文件都放在 /usr/local/nginx 的 conf 目录下
+Nginx 配置文件通常位于 /etc/nginx/nginx.conf
 
-主配置文件 nginx.conf 也在其中，后续对 nginx 的使用基本上都是对此配置文件进行相应的修改。
+分为以下层级：
 
-```text
+- 全局块：配置全局参数（如工作进程数、用户权限等）
+
+- events 块：配置网络连接相关参数
+
+- http 块：定义 HTTP 服务器行为，包含多个 server 块
+
+- server 块：定义虚拟主机（域名/IP）
+
+- location 块：匹配 URI，定义请求处理规则
+
+server 块和虚拟主机有密切关系，虚拟主机从用户角度看，和一台独立的硬件主机是完全一样的
+
+每个 http 块可以包括多个 server 块，而每个 server 块就相当于一个虚拟主机
+
+而每个 server 块也分为全局 server 块，以及可以同时包含的多个 locaton 块
+
+```nginx
 worker_processes  1; 默认为1，表示开启一个业务进程
 
 events {
@@ -188,52 +206,369 @@ http {
 }
 ```
 
+
+
 ## 2、全局块
 
-从配置文件开始到 events 块之间的内容，主要会设置一些影响 nginx 服务器整体运行的配置指令，主要包括配置运行 Nginx 服务器的用户（组）、允许生成的 worker process 数，进程 PID 存放路径、日志存放路径和类型以及配置文件的引入等。
+### 1. user
 
-例如：
+**作用**：设置 Nginx 工作进程的用户和用户组
 
-```text
-worker_processes  1;
+**语法**：user <user> [group];
+
+**默认值**：nobody（在不同系统上可能不同
+
+```nginx
+user nginx nginx;
+# 这表示 Nginx 工作进程将以 nginx 用户和 nginx 组的身份运行
 ```
 
-这是 Nginx 服务器并发处理服务的关键配置，worker_processes 值越大，可以支持的并发处理量也越多
 
-受到硬件、软件等设备的制约。
 
-## 3、events块
+### 2. worker_processes
 
-events 块涉及的指令主要影响 Nginx 服务器与用户的网络连接。
+**作用**：设置 Nginx 启动的工作进程数量，一般来说将其设置为与 CPU 核心数相同，或者根据系统负载来调整
 
-常用的设置包括：
+**语法**：worker_processes <number>;
 
-- 是否开启对多 work process  下的网络连接进行序列化。
-- 是否允许同时接收多个网络连接。
-- 选取哪种事件驱动模型来处理连接请求。
-- 每个 word  process 可以同时支持的最大连接数等。 
+**默认值**：1
 
-这部分的配置对 Nginx 的性能影响较大，在实际中应该灵活配置。
+```nginx
+# 表示 Nginx 启动 4 个工作进程
+worker_processes 4;
+```
 
-例如：
 
-```text
+
+### 3. worker_cpu_affinity
+
+**作用**：设置工作进程绑定的 CPU 核心，以便实现负载均衡和性能优化
+
+**语法**：worker_cpu_affinity <mask>;
+
+**默认值**：无
+
+```nginx
+# 将工作进程绑定到指定的 CPU 核心上，具体的掩码可以根据硬件和需求来设置
+worker_cpu_affinity 0101 1010;
+```
+
+
+
+### 4. error_log
+
+**作用**：设置错误日志的路径和日志级别。
+
+**语法**：`error_log <file> [level];`
+
+**默认值**：`/var/log/nginx/error.log`，日志级别为 `error`
+
+```nginx
+# 表示设置错误日志文件的路径，并指定日志级别为 warn
+error_log /var/log/nginx/error.log warn;
+```
+
+
+
+### 5. pid
+
+**作用**：设置存储 Nginx 进程 ID 的文件路径。
+
+**语法**：`pid <file>;`
+
+**默认值**：/var/run/nginx.pid
+
+```nginx
+# 表示指定 Nginx 进程 ID 存储在 /var/run/nginx.pid  文件中
+pid /var/run/nginx.pid;
+```
+
+
+
+### 6. worker_connections
+
+**作用**：设置每个工作进程可以同时打开的最大连接数。这个值会影响 Nginx 能处理的并发请求数。
+
+**语法**：`worker_connections <number>;`
+
+**默认值**：`1024`
+
+```nginx
+# 表示每个工作进程最多可以同时处理 2048 个连接
+worker_connections 2048;
+```
+
+
+
+### 7. multi_accept
+
+**作用**：配置每个工作进程是否接受多个连接。开启后，工作进程将尽可能接受尽量多的连接。
+
+**语法**：`multi_accept on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示开启多个连接的接受
+multi_accept on;
+```
+
+
+
+### 8. worker_rlimit_nofile
+
+**作用**：设置工作进程的最大文件描述符数量，如果需要处理大量并发连接时，可能需要调整此参数
+
+**语法**：`worker_rlimit_nofile <number>;`
+
+**默认值**：无
+
+```nginx
+# 表示每个工作进程最多可以打开 65535 个文件
+worker_rlimit_nofile 65535;
+```
+
+
+
+### 9. worker_processes_max
+
+**作用**：设置最大工作进程数目
+
+**语法**：`worker_processes_max <number>;`
+
+**默认值**：无
+
+```nginx
+# 表示最多 16 个工作进程
+worker_processes_max 16;
+```
+
+
+
+### 10. log_format
+
+**作用**：设置日志格式。该指令用于定义 Nginx 访问日志的格式。
+
+**语法**：`log_format <name> <format>;`
+
+**默认值**：`main`（默认格式）
+
+```nginx
+log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+# 表示定义了一个名为 main 的日志格式，包含了客户端 IP、请求方式、返回状态等信息
+```
+
+
+
+### 11. access_log
+
+**作用**：设置访问日志的路径和格式
+
+**语法**：`access_log <file> [format];`
+
+**默认值**：`/var/log/nginx/access.log`，格式为 `main`
+
+```nginx
+# 表示设置访问日志的路径，并使用 main 格式记录日志
+access_log /var/log/nginx/access.log main;
+```
+
+
+
+### 12. **sendfile**
+
+**作用**：启用或禁用高效文件传输模式，在开启时，Nginx 会通过 `sendfile()` 系统调用传输文件，这对大文件的传输性能有较大提升
+
+**语法**：`sendfile on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用高效的文件传输模式
+sendfile on;
+```
+
+
+
+### 13. **tcp_nopush**
+
+**作用**：启用或禁用 TCP_NOPUSH 选项，优化传输效率
+
+**语法**：`tcp_nopush on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用 TCP_NOPUSH
+tcp_nopush on;
+```
+
+
+
+### 14. **tcp_nodelay**
+
+**作用**：启用或禁用 TCP_NODELAY 选项，用于优化延迟。
+
+**语法**：`tcp_nodelay on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用 TCP_NODELAY
+tcp_nodelay on;
+```
+
+
+
+### 15. **open_file_cache**
+
+**作用**：启用文件缓存，减少文件系统调用
+
+**语法**：`open_file_cache <max> [inactive=10m] [min_uses=1] [valid=1m];`
+
+**默认值**：无
+
+```nginx
+# 表示开启文件缓存，最多缓存 1000 个文件，文件在 20 秒内未使用则会从缓存中删除
+open_file_cache max=1000 inactive=20s;
+```
+
+
+
+## 3、events 块
+
+### 1. **worker_connections**
+
+**作用**：设置每个工作进程可以同时处理的最大连接数
+
+**语法**：`worker_connections <number>;`
+
+**默认值**：`1024`
+
+```nginx
+# 表示每个工作进程最多可以同时处理 2048 个连接。这个值直接影响 Nginx 处理并发请求的能力
+worker_connections 2048;
+```
+
+
+
+### 2. **use**
+
+**作用**：设置事件驱动模型，指定 Nginx 使用哪个机制来处理连接。不同的操作系统支持不同的事件模型。
+
+**语法**：`use <event-model>;`
+
+**默认值**：`select`（在某些平台上可能是 `epoll` 或其他）
+
+- 支持的值
+
+  - `select`：基本的事件模型，适用于老旧操作系统
+  - `poll`：更高效的事件模型，比 `select` 更好，但不如 `epoll` 高效
+  - `epoll`：最佳的事件驱动模型，专为 Linux 系统优化，适合高并发场景
+  - `kqueue`：针对 BSD 系统优化的事件模型
+  - `rtsig`：用于实时信号的事件模型，通常在高性能实时系统中使用
+
+  ```nginx
+  use epoll;
+  ```
+
+
+
+### 3. **worker_aio_requests**
+
+**作用**：设置每个工作进程允许的最大异步 I/O 请求数量。用于启用 `aio`（异步 I/O）模式时，控制可以同时处理的异步请求数量。
+
+**语法**：`worker_aio_requests <number>;`
+
+**默认值**：无
+
+```nginx
+# 表示每个工作进程最多可以处理 65535 个异步 I/O 请求
+worker_aio_requests 65535;
+```
+
+
+
+### 4. **multi_accept**
+
+**作用**：设置工作进程是否可以在一个循环中接受多个连接。启用后，工作进程会尽可能多地接受连接。
+
+**语法**：`multi_accept on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示每个工作进程在一个循环中会接受尽可能多的连接，而不是一个接一个地接受
+multi_accept on;
+```
+
+
+
+### 5. **accept_mutex**
+
+**作用**：启用或禁用接收连接时的互斥锁。它用于确保多个工作进程不会同时接受连接，以避免竞争条件。
+
+**语法**：`accept_mutex on | off;`
+
+**默认值**：`on`
+
+```nginx
+# 表示禁用互斥锁，允许多个工作进程同时接受连接，通常用于多核系统以提高性能
+accept_mutex off;
+```
+
+
+
+### 6. **accept_mutex_delay**
+
+**作用**：设置工作进程在尝试获取连接时等待的延迟时间。这个设置与 `accept_mutex` 配合使用，指定等待时间的上限。
+
+**语法**：`accept_mutex_delay <time>;`
+
+**默认值**：`500ms`
+
+```nginx
+# 表示工作进程尝试获取连接时会等待最多 100 毫秒的时间，超过此时间就放弃等待
+accept_mutex_delay 100ms;
+```
+
+
+
+### 7. **disable_accept_events**
+
+**作用**：启用此选项将禁止使用某些特定的接收事件，通常用于调试或特定的性能需求。
+
+**语法**：`disable_accept_events on | off;`
+
+**默认值**：`off`
+
+
+
+```nginx
+# 表示禁用接收事件，一般只在某些特定的调试或优化场景中使用
+disable_accept_events on;
+```
+
+
+
+### 8、完整示例
+
+```nginx
 events {
-    worker_connections  1024;
+    worker_connections 2048;       # 设置每个工作进程的最大连接数
+    use epoll;                     # 使用 epoll 事件模型（适用于 Linux 系统）
+    multi_accept on;               # 启用每次循环接受多个连接
+    accept_mutex on;               # 启用互斥锁，避免多个工作进程同时接受连接
+    accept_mutex_delay 100ms;      # 设置工作进程获取连接时的最大等待时间
 }
 ```
 
-上述例子就表示每个 work process 支持的最大连接数为 1024。
 
 
-
-## 4、http块
-
-这算是 Nginx 服务器配置中最频繁的部分。
-
-代理、缓存和日志定义等绝大多数功能和第三方模块的配置都在这里。 
-
-需要注意的是：http 块还包括 **http全局块**、**server块**。
+## 4、http 全局块
 
 ```text
 http {
@@ -263,146 +598,529 @@ http {
 
 
 
-### 1、http全局块
+### 1. **include**
 
-http 全局块配置的指令包括文件引入、MIME-TYPE 定义、日志自定义、连接超时时间、单链接请求数上限等。
+**作用**：引入外部配置文件或目录中的文件
+
+**语法**：`include <file | directory>;`
+
+**默认值**：无
+
+```nginx
+include mime.types;
+include /etc/nginx/conf.d/*.conf; 
+# 这表示将 mime.types 文件和 /etc/nginx/conf.d/ 目录下所有的 .conf 文件引入到当前的配置中
+```
 
 
 
-### 2、server块
+### 2. **log_format**
 
-server块和虚拟主机有密切关系，虚拟主机从用户角度看，和一台独立的硬件主机是完全一样的，该技术的产生是为了 节省互联网服务器硬件成本。
+**作用**：定义日志的格式，用于访问日志中每条请求的记录格式。
 
-每个 http 块可以包括多个 server 块，而每个 server 块就相当于一个虚拟主机。
+**语法**：`log_format <name> <format>;`
 
-而每个 server 块也分为全局 server 块，以及可以同时包含多个 locaton 块。
+**默认值**：`main`（定义了默认的日志格式）
 
-```text
+```nginx
+log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                  '"$http_user_agent" "$http_x_forwarded_for"';
+# 这表示定义一个名为 main 的日志格式，记录了客户端的 IP 地址、请求方式、状态码等信息
+```
+
+
+
+### 3. **access_log**
+
+**作用**：设置访问日志的路径及格式。
+
+**语法**：`access_log <file> [format];`
+
+**默认值**：`/var/log/nginx/access.log`，格式为 `main`
+
+```nginx
+# 表示设置访问日志文件的路径，并使用之前定义的 main 格式
+access_log /var/log/nginx/access.log main;
+```
+
+
+
+### 4. **error_log**
+
+**作用**：设置错误日志的路径及日志级别。
+
+**语法**：`error_log <file> [level];`
+
+**默认值**：`/var/log/nginx/error.log`，日志级别为 `error`
+
+```nginx
+# 表示设置错误日志文件路径，并使用 warn 级别记录错误信息
+error_log /var/log/nginx/error.log warn;
+```
+
+
+
+### 5. **sendfile**
+
+**作用**：启用或禁用高效文件传输模式。在启用时，Nginx 使用 `sendfile()` 系统调用进行文件传输。
+
+**语法**：`sendfile on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用高效的文件传输
+sendfile on;
+```
+
+
+
+### 6. **tcp_nopush**
+
+- **作用**：启用或禁用 TCP_NOPUSH 选项，用于优化传输效率。它确保数据块的完整性，减少 TCP 包的数量。
+- **语法**：`tcp_nopush on | off;`
+- **默认值**：`off`
+
+~~~nginx
+# 表示启用 TCP_NOPUSH，以优化数据包的传输
+tcp_nopush on;
+~~~
+
+
+
+### 7. **tcp_nodelay**
+
+**作用**：启用或禁用 TCP_NODELAY 选项，用于控制延迟。禁用该选项时，数据包会尽可能立即发送。
+
+**语法**：`tcp_nodelay on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用 TCP_NODELAY，以减少延迟
+tcp_nodelay on;
+```
+
+
+
+### 8. **keepalive_timeout**
+
+**作用**：设置连接的保持时间。在客户端和服务器之间保持连接，直到达到指定的时间。
+
+**语法**：`keepalive_timeout <time>;`
+
+**默认值**：`75s`
+
+```nginx
+# 表示将连接保持的最大超时时间设置为 65 秒
+keepalive_timeout 65s;
+```
+
+
+
+### 9. **types**
+
+**作用**：设置 MIME 类型（媒体类型）映射，用于响应 HTTP 请求时指定文件类型
+
+**语法**：`types { <extension> <type>; ... }`
+
+**默认值**：`types` 文件通常定义在 `mime.types` 文件中。
+
+```nginx
+# 表示为常见的文件扩展名设置 MIME 类型
+types {
+    text/html html htm;
+    text/css css;
+    application/javascript js;
+    image/jpeg jpg jpeg;
+    image/png png;
+}
+```
+
+
+
+### 10. **client_max_body_size**
+
+**作用**：设置客户端请求体的最大大小。用于限制请求内容的大小，例如上传文件的大小。
+
+**语法**：`client_max_body_size <size>;`
+
+**默认值**：`1m`
+
+```nginx
+# 表示将客户端请求体的最大大小设置为 10 MB
+client_max_body_size 10m;
+```
+
+
+
+### 11. **server_tokens**
+
+**作用**：控制是否在响应头中公开 Nginx 的版本号。
+
+**语法**：`server_tokens on | off;`
+
+**默认值**：`on`
+
+```nginx
+# 表示禁用在响应头中显示 Nginx 版本号，增强安全性
+server_tokens off;
+```
+
+
+
+### 12. **gzip**
+
+**作用**：启用或禁用对响应内容的压缩。启用后，Nginx 将使用 Gzip 压缩响应数据，以减小传输大小。
+
+**语法**：`gzip on | off;`
+
+**默认值**：`off`
+
+```nginx
+gzip on;
+gzip_comp_level 5;
+gzip_types text/plain application/javascript text/css application/json;
+
+# 表示启用 Gzip 压缩，并为某些文件类型（如 text/plain text/css）设置压缩
+```
+
+
+
+### 13. **http2**
+
+**作用**：启用 HTTP/2 协议。HTTP/2 提供了更高效的请求和响应处理方式，通常用于优化性能。
+
+**语法**：`http2 on | off;`
+
+**默认值**：`off`
+
+```nginx
+# 表示启用 HTTP/2 协议
+listen 443 ssl http2;
+```
+
+
+
+### 14. **server_names_hash_bucket_size**
+
+**作用**：设置 Nginx 内部哈希表的桶大小，用于存储虚拟主机名。适用于有很多不同主机名的虚拟主机配置。
+
+**语法**：`server_names_hash_bucket_size <size>;`
+
+**默认值**：`64`
+
+```nginx
+# 表示将哈希桶的大小设置为 128 字节
+server_names_hash_bucket_size 128;
+```
+
+
+
+### 15. **resolver**
+
+**作用**：配置 DNS 解析服务器，供 Nginx 用于解析域名。
+
+**语法**：`resolver <ip-address> [valid=<time>] [ipv6=on];`
+
+**默认值**：无
+
+```nginx
+# 表示使用 Google 的公共 DNS 服务器进行域名解析
+resolver 8.8.8.8 8.8.4.4;
+```
+
+
+
+### 16、default_type
+
+**作用**：`default_type` 指定了当 Nginx 无法根据文件扩展名确定文件类型时，默认使用的 MIME 类型，当服务器返回文件时，如果没有正确的 MIME 类型，客户端（浏览器）可能无法正确处理文件
+
+**语法**：default_type <mime-type>;
+
+**默认值**：application/octet-stream
+
+~~~nginx
+default_type application/octet-stream;
+~~~
+
+
+
+
+
+### 17、完整示例
+
+```nginx
+http {
+    include       mime.types;      # 引入 mime.types 文件，设置文件类型
+    default_type  application/octet-stream;   # 默认类型为二进制流
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" '
+                     '"$http_user_agent" "$http_x_forwarded_for"';  # 设置日志格式
+    access_log /var/log/nginx/access.log main;   # 设置访问日志路径和格式
+    error_log /var/log/nginx/error.log warn;     # 设置错误日志路径和级别
+
+    sendfile on;                  # 启用高效文件传输
+    tcp_nopush on;                # 启用 TCP_NOPUSH 优化
+    tcp_nodelay on;               # 启用 TCP_NODELAY
+    keepalive_timeout 65s;        # 设置连接保持时间
+    client_max_body_size 10m;     # 限制最大请求体为 10MB
+    gzip on;                      # 启用 Gzip 压缩
+    gzip_comp_level 5;            # 设置 Gzip 压缩级别
+    gzip_types text/plain application/javascript text/css application/json;  # 设置 Gzip 压缩类型
+
+    server_names_hash_bucket_size 128;  # 设置虚拟主机名哈希桶大小
+
+    resolver 8.8.8.8 8.8.4.4;  # 设置 DNS 解析服务器
+}
+```
+
+
+
+## 5、server 全局块
+
+### 1. **listen**
+
+**作用**：定义 Nginx 监听的 IP 地址和端口
+
+**语法**：`listen <address>:<port> [options];`
+
+**默认值**：`listen 80;`（对于 HTTP 默认端口）
+
+```nginx
+listen 80;  # 监听 HTTP 的标准端口
+listen 443 ssl;  # 监听 HTTPS 端口并启用 SSL
+listen 127.0.0.1:8080;  # 监听指定 IP 和端口
+```
+
+
+
+### 2. **server_name**
+
+**作用**：定义虚拟主机的域名，Nginx 根据请求的域名来匹配不同的 `server` 块，匹配分先后顺序，先匹配上就不会继续往下匹配
+
+**语法**：`server_name <domain> [subdomains] ...;`
+
+**默认值**：`localhost`（如果没有指定，则匹配 `localhost`）
+
+~~~nginx
+server_name vod.mmban.com www1.mmban.com; # 同一 servername 中匹配多个域名
+server_name *.mmban.com # 通配符起始匹配
+server_name vod.*; # 通配符结束匹配
+server_name ~^[0-9]+\.mmban\.com$; # 正则匹配
+~~~
+
+
+
+### 3. **root**
+
+**作用**：设置网站的根目录，也就是静态文件的位置
+
+**语法**：`root <path>;`
+
+**默认值**：无
+
+```nginx
+root /var/www/html;  # 网站的根目录
+```
+
+
+
+### 4. **index**
+
+**作用**：设置默认的首页文件，客户端访问根目录时会默认请求该文件。
+
+**语法**：`index <file> [file] ...;`
+
+**默认值**：`index.html index.htm`
+
+```nginx
+index index.html index.htm;  # 默认首页文件
+```
+
+
+
+### 5. **error_page**
+
+**作用**：自定义错误页面，用于当请求发生特定错误时，返回定制的页面
+
+**语法**：`error_page <code> [code] ... <uri>;`
+
+**默认值**：无
+
+```nginx
+error_page 404 /404.html;  # 设置 404 错误时的自定义页面
+error_page 500 502 503 504 /50x.html;  # 设置服务器错误时的自定义页面
+```
+
+
+
+### 6. **return**
+
+**作用**：设置服务器响应的返回值和 URL 重定向。
+
+**语法**：`return <status_code> [<uri>];`
+
+**默认值**：无
+
+```nginx
+return 301 http://www.example.com$request_uri;  # 重定向到 www 版本的 URL
+return 404;  # 返回 404 错误
+```
+
+
+
+### 7. **rewrite**
+
+**作用**：进行 URL 重写操作，可以通过正则表达式修改请求的 URL。
+
+**语法**：`rewrite <regex> <replacement> [flag];`
+
+**默认值**：无
+
+```nginx
+rewrite ^/oldpath/(.*)$ /newpath/$1 permanent;  # 将 /oldpath/ 重定向到 /newpath/
+```
+
+
+
+### 8. **ssl_certificate** 和 **ssl_certificate_key**
+
+**作用**：配置 SSL 证书和私钥文件，用于启用 HTTPS
+
+**语法**：
+
+```nginx
+ssl_certificate <path-to-cert>;
+ssl_certificate_key <path-to-key>;
+```
+
+**默认值**：无
+
+```nginx
+ssl_certificate /etc/nginx/ssl/example.com.crt;  # SSL 证书
+ssl_certificate_key /etc/nginx/ssl/example.com.key;  # SSL 私钥
+```
+
+
+
+### 9. **ssl_protocols** 和 **ssl_ciphers**
+
+- **作用**：配置支持的 SSL/TLS 协议和加密算法
+
+- **语法**：
+
+  ```nginx
+  ssl_protocols <protocols>;
+  ssl_ciphers <ciphers>;
+  ```
+
+- **默认值**：无
+
+  ```nginx
+  ssl_protocols TLSv1.2 TLSv1.3;  # 启用 TLS 1.2 和 1.3 协议
+  ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';  # 设置安全的加密算法
+  ```
+
+
+
+### 10. **limit_req** 和 **limit_conn**
+
+**作用**：限制请求的数量和连接的数量，防止 DoS 攻击或过载
+
+**语法**：
+
+```nginx
+limit_req zone=<zone> [burst=<number>] [nodelay];
+limit_conn zone=<zone> [max=<number>];
+```
+
+**默认值**：无
+
+```nginx
+limit_req zone=req_limit_per_ip burst=10 nodelay;  # 限制每秒的请求数量
+limit_conn addr 10;  # 每个 IP 地址最大允许 10 个连接
+```
+
+
+
+### 11、**完整示例**
+
+```nginx
 server {
-        listen       80;
-        server_name  localhost;
+    listen 80;  # 监听 HTTP 端口 80
+    server_name example.com www.example.com;  # 配置域名
+    root /var/www/html;  # 设置网站根目录
+    index index.html index.htm;  # 设置首页文件
 
-        location / {
-            root   html;
-            index  index.html index.htm;
-        }
+    # 日志配置
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log warn;
 
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
-
+    # 处理图片请求
+    location /images/ {
+        root /var/www/data;  # 图片存储目录
     }
-```
 
-#### 1、server全局块
+    # 代理 API 请求
+    location /api/ {
+        proxy_pass http://backend-server;  # 转发请求到后端服务
+    }
 
-最常见的配置是本虚拟机主机的监听配置和本虚拟主机的名称或 IP 配置。
+    # 自定义错误页面
+    error_page 404 /404.html;  # 404 错误时显示 404.html
+    error_page 500 502 503 504 /50x.html;  # 服务器错误时显示 50x.html
 
-```text
-listen       80;
-server_name  localhost;
-```
+    # SSL 配置（如果启用 HTTPS）
+    listen 443 ssl;
+    ssl_certificate /etc/nginx/ssl/example.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/example.com.key;
 
-**servername匹配规则**：
+    # URL 重写
+    rewrite ^/oldpath/(.*)$ /newpath/$1 permanent;
 
-- 匹配分先后顺序，写在前面的匹配上就不会继续往下匹配了。
-
-  - ~~~text
-    
-
-- 可以在同一servername中匹配多个域名。
-
-  - ~~~txt
-    server_name vod.mmban.com www1.mmban.com;
-    ~~~
-
-- 通配符开始匹配。
-
-  - ~~~txt
-    server_name *.mmban.com
-    ~~~
-
-- 通配符结束匹配。
-
-  - ~~~txt
-    server_name vod.*;
-    ~~~
-
-- 正则匹配。
-
-  - ~~~txt
-    server_name ~^[0-9]+\.mmban\.com$;
-    ~~~
-
-
-
-#### 2、location块
-
-一个 server 块可以配置多个 location 块。 
-
-这块的主要作用是基于 Nginx 服务器接收到的请求字符串（例如 server_name/uri-string），对虚拟主机名称（也可以是 IP 别名）之外的字符串（例如 前面的 /uri-string）进行匹配。
-
-对特定的请求进行处理，地址定向、数据缓存和应答控制等功能，还有许多第三方模块的配置也在这里进行。
-
-```text
-location / {
-	root   html;
-	index  index.html index.htm;
+    # 限制请求速率
+    limit_req zone=req_limit_per_ip burst=10 nodelay;
 }
 ```
 
-**指令说明**：
 
-该指令用于匹配 URL。 
 
-语法如下：
+## 6、location 块
 
-```text
-location [= | ~ | ~* | ^~ | ] uri {
+### 1、基本配置
 
+**作用**：配置 URL 路径的匹配规则，用于处理不同的请求路径，对特定的请求进行处理，地址定向、数据缓存和应答控制等功能，还有许多第三方模块的配置也在这里进行
+
+**语法**：location [=|~|~*|^~] <path> { ... }
+
+**默认值**：无
+
+常用匹配方式：
+
+- `location /`：匹配根路径
+- `location ~`：使用正则表达式匹配路径（区分大小写）
+- `location ~*`：使用正则表达式匹配路径（不区分大小写）
+- `location ^~`：优先匹配该路径，避免使用正则表达式匹配
+
+```nginx
+location /images/ {
+    root /var/www/data;  # 配置 images 目录的访问路径
+}
+
+location /api/ {
+    proxy_pass http://backend;  # 将请求转发到后端服务
 }
 ```
 
-1.  = ：用于不含正则表达式的 uri 前缀，要求请求字符串与 uri 严格匹配，如果匹配成功，就停止继续向下搜索并立即处理该请求
-
-    - ~~~json
-      location =/abc{
-      	....
-      }
-      可以匹配到
-      http://192.168.200.133/abc
-      http://192.168.200.133/abc?p1=TOM
-      匹配不到
-      http://192.168.200.133/abc/
-      http://192.168.200.133/abcdef
-      ~~~
-
-2.  ~ ：用于表示 uri 包含正则表达式，并且区分大小写
-
-3.  ~* ：用于表示 uri 包含正则表达式，并且不区分大小写
-
-4.  ^~ ：用于不含正则表达式的 uri 前缀，要求 Nginx 服务器找到标识 uri 和请求字符串匹配度最高的 location 后，立即使用此 location 处理请求，而不再使用 location  块中的正则 uri 和请求字符串做匹配。
-
-5.  / ：通用匹配，任何请求都会匹配到
-
-6.  空：必须以指定模式开始
-
-    - ~~~json
-      location /abc{
-          .....
-      }
-      
-      以下访问都是正确的
-      http://192.168.200.133/abc
-      http://192.168.200.133/abc?p1=TOM
-      http://192.168.200.133/abc/
-      http://192.168.200.133/abcdef
 
 
 **注意**：
 
 - 如果 uri 包含正则表达式，则必须要有 ~ 或者 ~* 标识
+
+
 
 **匹配顺序**：
 
@@ -413,11 +1131,19 @@ location [= | ~ | ~* | ^~ | ] uri {
 
 
 
-#### 3、proxy_pass
+### 2. **proxy_pass**
 
-~~~bash
-proxy_pass url
-~~~
+**作用**：将请求转发到其他服务器，通常用于反向代理
+
+**语法**：`proxy_pass <url>;`
+
+**默认值**：无
+
+```nginx
+location /api/ {
+    proxy_pass http://backend-server;  # 将请求转发到后端服务
+}
+```
 
 | 访问URL                        | location配置 | proxy_pass配置        | 后端接收的请求                 |
 | :----------------------------- | :----------- | :-------------------- | :----------------------------- |
@@ -442,6 +1168,279 @@ proxy_pass url
 
 - location 使用了正则
 - location块内使用了 rewrite
+
+
+
+### **3. root**
+
+**作用**：设置指定路径作为根目录，通常用于静态文件的服务
+
+**语法**：`root <path>;`
+
+```nginx
+location /images/ {
+    root /var/www/data;
+}
+```
+
+
+
+### **2. index**
+
+**作用**：设置默认首页文件，当访问目录时，Nginx 会返回这个文件
+
+**语法**：`index <file> [file] ...;`
+
+**默认值**：`index.html index.htm`
+
+```nginx
+location / {
+    index index.html index.htm;
+}
+```
+
+
+
+### **3. try_files**
+
+**作用**：尝试按照指定的顺序查找文件，如果文件不存在，按照指定的替代文件进行处理
+
+**语法**：`try_files <file> [file] ... <fallback>;`
+
+```nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+
+
+### **4. rewrite**
+
+**作用**：对请求 URL 进行重写。可以使用正则表达式修改 URL
+
+**语法**：`rewrite <regex> <replacement> [flag];`
+
+```nginx
+location /oldpath/ {
+    rewrite ^/oldpath/(.*)$ /newpath/$1 permanent;
+}
+```
+
+
+
+### **5. return**
+
+**作用**：设置响应的 HTTP 状态码及内容，或者进行 URL 重定向
+
+**语法**：`return <status_code> [<uri>];`
+
+```nginx
+location /oldpath/ {
+    return 301 /newpath/;
+}
+```
+
+
+
+### **7. fastcgi_pass**
+
+**作用**：将请求传递给 FastCGI 服务器，用于处理 PHP 或其他脚本语言
+
+**语法**：`fastcgi_pass <address>;`
+
+```nginx
+location ~ \.php$ {
+    fastcgi_pass 127.0.0.1:9000;
+    fastcgi_param SCRIPT_FILENAME /var/www/html$document_root$fastcgi_script_name;
+    include fastcgi_params;
+}
+```
+
+
+
+### **8. add_header**
+
+**作用**：在响应中添加 HTTP 头部
+
+**语法**：`add_header <name> <value> [always];`
+
+```nginx
+location /images/ {
+    add_header Cache-Control "public, max-age=86400";
+}
+```
+
+
+
+### **9. set**
+
+**作用**：设置一个变量的值，供后续指令使用
+
+**语法**：`set $variable <value>;`
+
+```nginx
+location /images/ {
+    set $image_path /var/www/data;
+}
+```
+
+
+
+### **10. limit_req**
+
+**作用**：限制请求频率，防止滥用或 DoS 攻击
+
+**语法**：`limit_req zone=<zone> [burst=<number>] [nodelay];`
+
+```nginx
+location /api/ {
+    limit_req zone=req_limit_per_ip burst=10 nodelay;
+}
+```
+
+
+
+### **11. limit_conn**
+
+**作用**：限制每个 IP 地址的连接数
+
+**语法**：`limit_conn <zone> <max>;`
+
+```nginx
+location /api/ {
+    limit_conn addr 10;
+}
+```
+
+
+
+### **12. expires**
+
+**作用**：设置文件的过期时间，常用于缓存策略
+
+**语法**：`expires <time>;`
+
+```nginx
+location /static/ {
+    expires 30d;
+}
+```
+
+
+
+### **13. access_log**
+
+**作用**：设置访问日志的位置和格式
+
+**语法**：`access_log <file> [format];`
+
+```nginx
+location /images/ {
+    access_log /var/log/nginx/images.log;
+}
+```
+
+
+
+### **14. error_log**
+
+**作用**：设置错误日志的位置和级别
+
+**语法**：`error_log <file> [level];`
+
+```nginx
+location / {
+    error_log /var/log/nginx/location_error.log warn;
+}
+```
+
+
+
+### **15. deny**
+
+**作用**：拒绝来自指定 IP 地址或网络的访问
+
+**语法**：`deny <address>;`
+
+```nginx
+location /admin/ {
+    deny 192.168.1.1;
+}
+```
+
+
+
+### **16. allow**
+
+**作用**：允许来自指定 IP 地址或网络的访问
+
+**语法**：`allow <address>;`
+
+```nginx
+location /admin/ {
+    allow 192.168.1.0/24;
+    deny all;
+}
+```
+
+
+
+### **17. if**
+
+**作用**：在 `location` 块内基于条件判断执行某些操作。通常用于设置特殊的配置或重定向
+
+**语法**：`if (<condition>) { ... }`
+
+```nginx
+location / {
+    if ($http_user_agent ~* "MSIE") {
+        return 403;
+    }
+}
+```
+
+
+
+### **18. fallback**
+
+**作用**：配置请求失败时的备用处理
+
+**语法**：`fallback <url>;`
+
+```nginx
+location /app/ {
+    try_files $uri /fallback.html;
+}
+```
+
+
+
+### **19. multi_accept**
+
+**作用**：允许每个工作进程接受多个连接
+
+**语法**：`multi_accept on | off;`
+
+```nginx
+location /api/ {
+    multi_accept on;
+}
+```
+
+
+
+### **20. cache**
+
+**作用**：配置请求的缓存
+
+**语法**：`cache <zone> [options];`
+
+```nginx
+location /media/ {
+    cache media_cache;
+}
+```
 
 
 
@@ -1283,6 +2282,8 @@ location ^~ /t/ {
 - alias虚拟目录配置中，location匹配的path目录如果后面不带 /，那么访问的url地址中这个path目录后面加不加 / 不影响访问，访问时它会自动加上 / 
 - 如果location匹配的path目录后面加上 / ，那么访问的url地址中这个path目录必须要加上 / ，访问时它不会自动加上 / ，如果不加上 / ，访问就会失败
 - alias对于location以及path路径最后的 / 必须两个同时存在或同时不存在
+
+
 
 ## 3、UrlRewrite
 

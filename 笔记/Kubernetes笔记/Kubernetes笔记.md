@@ -1,87 +1,75 @@
+>2025.2.18.ver.2
+
 # 1、Kubernetes 简介
 
 ## 1、基本介绍
 
-Kubernetes  用于管理云平台中多个主机上的容器化应用，其目标是让部署容器化应用变得更简单且高效
+Kubernetes 是一个开源的容器编排平台，用于自动化部署、扩展和管理容器化的应用程序，它能够在多台主机上协调容器的运行，确保应用的高可用性和可伸缩性
 
-Kubernetes  提供了应用部署、规划、更新、维护的一种机制
+Kubernetes 提供了一套完整的机制来管理应用的整个生命周期，包括部署、资源规划、自动扩展、滚动更新和故障恢复等，通过这些功能，Kubernetes 让容器化应用的部署和管理变得更加简单、高效
 
-容器化与传统对比：
+**基础功能**：
 
-- 传统的应用部署方式是通过插件或脚本来安装，这样做的缺点是应用的运行、配置、管理、生存周期与当前操作系统绑定，不利于应用的升级更新、回滚等操作。虽然可以通过创建虚拟机的方式来实现某些功能，但是虚拟机非常重，并不利于可移植性
-- 新的方式是通过将应用容器化进行部署，每个容器之间互相隔离，每个容器有自己的文件系统，容器之间进程不会相互影响，能区分计算资源。相对于虚拟机，容器能快速部署，并且由于容器与底层设施、机器文件系统解耦的，所以它能在不同的云、操作系统间进行迁移
+- **自动装箱**：基于容器对应用运行环境的资源配置要求，自动部署应用容器
 
-容器的优点：
+- **自我修复**：当容器失败时，会对容器进行重启，当所部署的 Node 节点出错，会对容器进行重新部署和重新调度，当容器未通过监控检查时，会关闭此容器直到容器正常运行，才对外提供服务
 
-- 需要资源少、部署快
-- 每个应用可以被打包成一个容器镜像，使得应用与容器之间是一对一的关系，不需要与其他应用堆栈进行组合
-- 不依赖于生产环境基础结构，使得测试、生产能提供一致环境
-- 便于监控与管理
+- **水平扩展**：通过简单的命令、用户 UI 或基于 CPU 等资源使用情况，对容器进行规模扩大或剪裁
 
-<img src="images/image-20230220205457511.png" alt="image-20230220205457511" style="zoom:70%;" />
+- **服务发现**：用户不需使用额外的服务发现机制，只需要基于 Kubernetes 自身能力实现服务发现和负载均衡
 
-架构说明：
+- **滚动更新**：可以根据应用的变化，对运行的应用容器，进行一次性或批量式更新
 
-- 核心层：Kubernetes 最核心的功能，对外提供 API 构建高层的应用，对内提供插件式应用执行环境
+- **版本回退**：可以根据应用部署情况，对运行的应用容器，进行历史版本的即时回退
 
-- 应用层：部署（无状态应用、有状态应用、批处理任务、集群应用等）和路由（服务发现、DNS 解析等）
+- **密钥和配置管理**：在不需要重新构建镜像的情况下，可以部署和更新密钥和应用配置，类似热部署
 
-- 管理层：系统度量（如基础设施、容器和网络的度量），自动化（如自动扩展、动态 Provision 等）以及策略管理（RBAC、Quota、PSP、NetworkPolicy 等）
+- **存储编排**：自动实现存储系统挂载及应用，特别对有状态应用实现数据持久化非常重要，存储系统可以来自于本地目录、网络存储(NFS、Gluster、Ceph 等)、公共云存储服
 
-- 接口层：kubectl 命令行工具、客户端 SDK 以及集群联邦
-
-- 生态系统：在接口层之上的庞大容器集群管理调度的生态系统，可以划分为两个范畴
-
-  - Kubernetes 外部：日志、监控、配置管理、CI、CD、Workflow、FaaS、OTS 应用、ChatOps 等
-
-  - Kubernetes 内部：CRI、CNI、CVI、镜像仓库、Cloud Provider、集群自身的配置和管理等
-
-部分生态：
-
-<img src="images/spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-923672fb5524e8b6e345b864e82844f8ede8deba_core-ecosystem (3).png" alt="spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-923672fb5524e8b6e345b864e82844f8ede8deba_core-ecosystem (3)" style="zoom: 80%;" />
+- **批处理**：提供一次性任务，定时任务，满足批量数据处理和分析的场景
 
 
 
-## 2、功能
+## 2、容器化与传统部署
 
-**自动装箱**：基于容器对应用运行环境的资源配置要求，自动部署应用容器
+传统的应用部署通常依赖于在操作系统上安装软件包或运行脚本，这种方式将应用的运行环境与主机操作系统紧密耦合，导致应用的管理、升级和回滚变得复杂且容易出错，虽然虚拟机技术可以提供隔离的运行环境，但虚拟机资源开销大，启动速度慢，且可移植性较差
 
-**自我修复**：当容器失败时，会对容器进行重启，当所部署的 Node 节点出错，会对容器进行重新部署和重新调度，当容器未通过监控检查时，会关闭此容器直到容器正常运行，才对外提供服务
-
-**水平扩展**：通过简单的命令、用户 UI 或基于 CPU 等资源使用情况，对容器进行规模扩大或剪裁
-
-**服务发现**：用户不需使用额外的服务发现机制，只需要基于 Kubernetes 自身能力实现服务发现和负载均衡
-
-**滚动更新**：可以根据应用的变化，对运行的应用容器，进行一次性或批量式更新
-
-**版本回退**：可以根据应用部署情况，对运行的应用容器，进行历史版本的即时回退
-
-**密钥和配置管理**：在不需要重新构建镜像的情况下，可以部署和更新密钥和应用配置，类似热部署
-
-**存储编排**：自动实现存储系统挂载及应用，特别对有状态应用实现数据持久化非常重要，存储系统可以来自于本地目录、网络存储(NFS、Gluster、Ceph 等)、公共云存储服
-
-**批处理**：提供一次性任务，定时任务，满足批量数据处理和分析的场景
-
-
-
-**应用部署架构分类**：
-
-- **无中心**：GlusterFS
-- **有中心**：HDFS、K8S
+容器化技术通过将应用及其依赖打包成一个独立的容器镜像，实现了应用与底层基础设施的解耦，每个容器都拥有自己的文件系统和隔离的运行环境，容器间的进程互不干扰，同时可以精确控制计算资源的使用，与虚拟机相比，容器启动速度快，资源占用少，并且能够在不同的云平台和操作系统间无缝迁移，这种灵活性和高效性使容器化成为现代应用部署的优选方式
 
 
 
 ## 3、架构
 
+### 1、概述
+
+Kubernetes 的架构是一个多层次的系统，每个层次提供特定的功能和服务，以支持容器化应用的部署、管理和调度
+
+以下是其主要层次的说明：
+
+- **核心层**：提供 Kubernetes 的核心功能，通过对外暴露 API 以支持上层应用开发，同时为插件式应用提供运行环境
+- **应用层**：负责部署和管理多种类型的应用，包括无状态应用、有状态应用、批处理任务和集群应用等，并提供服务发现和 DNS 解析等路由功能
+- **管理层**：提供系统度量（如基础设施、容器和网络的性能指标）、自动化功能（如自动扩展和动态资源分配）以及策略管理（如基于角色的访问控制 RBAC、资源配额 Quota、Pod 安全策略 PSP 和网络策略 NetworkPolicy 等）
+- **接口层**：包括用户交互工具，如 kubectl 命令行工具、客户端 SDK，以及支持多集群管理的集群联邦功能
+- **生态系统**：构建于接口层之上，是一个庞大且多样化的容器集群管理和调度生态，可分为两类：
+  - **Kubernetes 外部**：包括日志收集、监控、配置管理、持续集成/持续部署（CI/CD）、工作流（Workflow）、函数即服（FaaS）、现成应用（OTS）和 ChatOps 等
+  - **Kubernetes 内部**：包括容器运行时接口（CRI）、容器网络接口（CNI）、容器存储接口（CVI）、镜像仓库、云供应商集成（Cloud Provider）以及集群自身的配置和管理工具
+
+<img src="images/image-20230220205457511.png" alt="image-20230220205457511" style="zoom: 50%;" /><img src="images/spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-923672fb5524e8b6e345b864e82844f8ede8deba_core-ecosystem (3).png" alt="spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-923672fb5524e8b6e345b864e82844f8ede8deba_core-ecosystem (3)" style="zoom: 50%;" />
+
 ### 1、Master
 
 #### 1、概述
 
-集群控制节点，对集群进行调度管理，接受集群外用户的集群操作请求，Master Node 由 API Server、Scheduler、ClusterState Store（etcd 数据库）和 Controller Manger Server 所组成
+Master 节点是 Kubernetes 集群的控制中心，负责全局决策（如资源调度）和事件响应（如 Pod 副本不足时自动创建新 Pod）
 
-Master 节点是集群的控制平台（control plane）：负责集群中的全局决策（例如：调度），探测并响应集群事件（例如：当 Deployment 的实际 Pod 副本数未达到 replicas 字段的规定时，启动一个新的 Pod）
+Master 由以下组件构成：
 
-Master 节点组件可以运行于集群中的任何机器上，但是通常在同一台机器上运行所有的 Master 组件，且不在此机器上运行用户的容器
+- **API Server**
+- **Scheduler**
+- **Cluster State Store（etcd 数据库）**
+- **Controller Manager Server**
+
+Master 节点组件可以运行在集群中的任意机器上，但通常建议将所有组件部署在同一台机器上，并避免在此机器上运行用户容器，以确保控制平面的稳定性和安全性
 
 
 
@@ -89,74 +77,67 @@ Master 节点组件可以运行于集群中的任何机器上，但是通常在�
 
 ##### 1、kube-apiserver
 
-提供 Kubernetes API，提供集群管理的 REST API 接口，包括认证授权、数据校验、集群状态变更等
+**功能**：提供 Kubernetes 的 REST API 接口，是集群管理的前端，负责认证、授权、数据校验和集群状态变更
 
-提供其他模块之间的数据交互和通信的枢纽（其他模块通过 API Server 查询或修改数据，只有 API Server 才直接操作 etcd），kubectl / kubernetes dashboard 等 Kubernetes 管理工具就是通过 kubernetes API 实现对 Kubernetes 集群的管理
+**角色**：作为模块间的数据交互和通信枢纽，所有组件通过 API Server 查询或修改数据，且只有 API Server 直接操作 etcd，管理工具（如 kubectl 和 Kubernetes Dashboard）通过该 API 管理集群
 
-Kubernetes 控制平台的前端（front-end）可以水平扩展（通过部署更多的实例以达到性能要求）
 
-**访问控制**：Kubernetes API 的每个请求都会经过多阶段的访问控制之后才会被接受，这包括认证、授权、准入控制等
 
-<img src="images/image-20231014091607142.png" alt="image-20231014091607142" style="zoom:50%;" />
+**访问控制**：API 请求需经过多阶段验证
 
-**认证**：开启 TLS 时，所有的请求都需要首先认证，Kubernetes 支持多种认证机制，并支持同时开启多个认证插件（只要有一个认证通过即可），如果认证成功，则用户的 username 会传入授权模块做进一步授权验证，而对于认证失败的请求则返回 HTTP 401
+- **认证**：支持多种机制（如 TLS 证书、令牌等），请求需通过至少一个认证插件，成功则传递用户身份给授权模块，失败则返回 HTTP 401，Kubernetes 不直接管理用户，无法创建 user 对象或存储用户名
+- **授权**：支持多种授权模式（如 RBAC），请求需通过至少一个授权插件，成功则进入准入控制，失败则返回 HTTP 403
+- **准入控制**：对请求进行额外验证（如修改默认值或限制资源）
 
-> Kubernetes 不直接管理用户，虽然 Kubernetes 认证和授权用到了 username，但 Kubernetes 并不直接管理用户，不能创建 user 对象，也不存储 username
 
-**授权**：认证之后的请求就到了授权模块，跟认证类似，Kubernetes 也支持多种授权机制，并支持同时开启多个授权插件（只要有一个验证通过即可），如果授权成功，则用户的请求会发送到准入控制模块做进一步的请求验证，而对于授权失败的请求则返回 HTTP 403
 
-<img src="images/image-20231014092233968.png" alt="image-20231014092233968" style="zoom:67%;" />
+<img src="images/image-20231014091607142.png" alt="image-20231014091607142" style="zoom: 50%;" /><img src="images/image-20231014092233968.png" alt="image-20231014092233968" style="zoom: 50%;" />
 
 
 
 ##### 2、etcd
 
-支持一致性和高可用的名值对存储组件，Kubernetes 集群的所有配置信息都存储在 etcd 中
+**功能**：高可用、强一致性的键值存储系统，用于存储 Kubernetes 集群的所有配置信息和状态数据
 
 
 
 ##### 3、kube-scheduler
 
-监控所有新创建尚未分配到节点上的 Pod，并且自动选择为 Pod 选择一个合适的节点去运行
+**功能**：监控未分配节点的新建 Pod，并根据调度策略为其选择合适的运行节点
 
-影响调度的因素有：
-- 单个或多个 Pod 的资源需求
-- 硬件、软件、策略的限制
-- 亲和与反亲和（affinity and anti-affinity）的约定
-- 数据本地化要求
-- 工作负载间的相互作用
+**调度因素**：
+
+- 资源需求（CPU、内存等）
+- 硬件、软件或策略限制
+- 亲和性与反亲和性规则
+- 数据本地化需求
+- 工作负载间交互
 
 
 
 ##### 4、kube-controller-manager
 
-运行了所有的控制器，逻辑上来说，每一个控制器是一个独立的进程，但是这些控制器都被合并运行在一个进程里
+**功能**：运行所有控制器，负责集群的自动化管理，逻辑上各控制器独立，但实际编译为单一进程
 
-包含的控制器有：
-- 节点控制器： 负责监听节点停机的事件并作出对应响应（下文 Node 篇有简要介绍）
-- 副本控制器： 负责为集群中每一个 副本控制器对象（Replication Controller Object）维护期望的 Pod 副本数
-- 端点（Endpoints）控制器：负责为端点对象（Endpoints Object，连接 Service 和 Pod）赋值
-- Service Account & Token控制器： 负责为新的名称空间创建 default Service Account 以及 API Access Token
+**包含的控制器**
+
+- **节点控制器**：监控节点状态并响应故障
+- **副本控制器**：维护 Pod 副本数与预期一致
+- **端点控制器**：管理 Service 和 Pod 的连接关系
+- **Service Account & Token 控制器**：为新命名空间创建默认账户和访问令牌
 
 
 
 ##### 5、cloud-controller-manager
 
-运行了与具体云基础设施供应商互动的控制器，这是 Kubernetes 1.6 版本中引入的特性
+**功能**：与云基础设施供应商交互，管理云相关的控制器（自 Kubernetes 1.6 引入），实现云供应商代码与 Kubernetes 核心代码的解耦
 
-只运行特定于云基础设施供应商的控制器，使得云供应商的代码和 Kubernetes 的代码可以各自独立的演化，在此之前的版本中，Kubernetes 的核心代码是依赖于云供应商的代码的，在后续的版本中，特定于云供应商的代码将由云供应商自行维护，并在运行 Kubernetes 时链接到 cloud-controller-manager
+**依赖的控制器**：
 
-包含的云供应商相关的依赖：
-
-- 节点控制器：当某一个节点停止响应时，调用云供应商的接口，以检查该节点的虚拟机是否已经被云供应商删除
-  - 私有化部署 Kubernetes 时，由于不知道运行节点的系统是否被删除，所以在移除系统后，要自行通过 kubectl delete node 将节点对象从 Kubernetes 中删除
-
-- 路由控制器：在云供应商的基础设施中设定网络路由
-  - 私有化部署 Kubernetes 时，需要自行规划 Kubernetes 的拓扑结构，并做好路由配置
-- 服务（Service）控制器：创建、更新、删除云供应商提供的负载均衡器
-  - 私有化部署 Kubernetes 时，不支持 LoadBalancer 类型的 Service，如需要此特性，需要创建 NodePort 类型的 Service，并自行配置负载均衡器
-- 数据卷（Volume）控制器：创建、绑定、挂载数据卷，并协调云供应商编排数据卷
-  - 私有化部署 Kubernetes 时，需要自行创建和管理存储资源，并通过 Kubernetes 的存储类、存储卷、数据卷等关联
+- **节点控制器**：检查云端节点状态
+- **路由控制器**：配置云网络路由
+- **服务控制器**：管理云负载均衡器
+- **数据卷控制器**：处理存储卷的创建和挂载
 
 
 
@@ -164,18 +145,22 @@ Kubernetes 控制平台的前端（front-end）可以水平扩展（通过部署
 
 #### 1、概述
 
-**Worker Node**：集群工作节点，运行用户业务应用容器，Worker Node 包含 Node 组件例如：kubelet、kube proxy 和 ContainerRuntime
+Node 节点（也称 Worker Node）是集群的工作单元，负责运行用户业务应用的容器，Node 节点组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
 
-Node 节点组件运行在每一个节点上（包括 Master 节点和 Worker 节点）负责维护运行中的 Pod 并提供 Kubernetes 运行时环境
+每个 Node 包含以下组件：
 
-每个 Node 都有自身的状态，Node 状态包含如下信息：（这些信息由节点上的 kubelet 收集）
+- **kubelet**
+- **kube-proxy**
+- **容器运行时**
+
+Node 的状态信息由 kubelet 收集并报告给 Master，包括：
 
 - **Addresses**：
-
-  - 依据集群部署的方式（在哪个云供应商部署，或是在物理机上部署）Addesses 字段可能有所不同
-    - HostName： 在节点执行 hostname 命令所获得的值，启动 kubelet 时，可以通过参数 --hostname-override 覆盖
-    - ExternalIP：通常是节点的外部 IP，可以从集群外访问的内网 IP 地址，在集群搭建篇的例子中，为空值
-    - InternalIP：通常是从节点内部可以访问的 IP 地址
+  - HostName：节点主机名
+  - ExternalIP：外部可访问 IP
+  - InternalIP：内部网络 IP
+- **Capacity and Allocatable**：节点的资源总量和可分配资源（如 CPU、内存、Pod 数量上限）
+- **Info**：基本信息，如内核版本、Kubernetes 版本等
 
 - **Conditions**：
 
@@ -209,18 +194,16 @@ Node 节点组件运行在每一个节点上（包括 Master 节点和 Worker �
 
 - **Capacity and Allocatable**：
 
-  - Capacity 中的字段表示节点上的资源总数，Allocatable 中的字段表示该节点上可分配给普通 Pod 的资源总数
-    - CPU
-    - 内存
-    - 该节点可调度的最大 Pod 数量
+  - Capacity 中的字段表示节点上的资源总数
+  - Allocatable 中的字段表示该节点上可分配给普通 Pod 的资源总数
+    - CPU、内存、该节点可调度的最大 Pod 数量
 
-- **Info**：
+- **Info**：描述了节点的基本信息
 
-  - 描述了节点的基本信息，例如：
-    - Linux 内核版本
-    - Kubernetes 版本（kubelet 和 kube-proxy 的版本）
-    - Docker 版本
-    - 操作系统名称
+  - Linux 内核版本
+  - Kubernetes 版本（kubelet 和 kube-proxy 的版本）
+  - Docker 版本
+  - 操作系统名称
 
 ~~~bash
 # 查看所有 Node
@@ -235,7 +218,7 @@ kubectl describe node <node-name>
 
 ##### 1、kubelet
 
-运行在每一个集群节点上的代理程序，确保 Pod 中的容器处于运行状态，默认监听 10250 端口，其通过多种途径获得 PodSpec 定义，并确保 PodSpec 定义中所描述的容器处于运行和健康的状态，并通过 cAdvisor 监控节点和容器的资源
+**功能**：确保 Pod 中的容器正常运行，监控节点和容器的资源使用情况，并通过 cAdvisor 提供资源统计
 
 
 
@@ -247,98 +230,45 @@ kubectl describe node <node-name>
 
 ##### 2、kube-proxy
 
-网络代理程序，运行在集群中的每一个节点上，是实现 Kubernetes Service 概念的重要部分
+**功能**：维护网络规则，实现 Service 的网络通信
 
-其在节点上维护网络规则，这些网络规则使得用户可以在集群内、集群外正确地与 Pod 进行网络通信
+**代理模式**
 
-如果操作系统中存在 packet filtering layer，kube-proxy 将使用这一特性（iptables 代理模式），否则 kube-proxy 将自行转发网络请求（User space 代理模式）
+- iptables：利用系统包过滤层
+- User space：自行转发请求
 
 
 
 ##### 3、容器运行时
 
-负责运行容器
-
-Kubernetes 支持多种容器引擎：
-- Docker
-- containerd
-- cri-o
-- rktlet
-- 以及任何实现了 Kubernetes 容器引擎接口的容器运行时
+**功能**：负责运行容器，支持多种实现，如 Docker、containerd、cri-o 和 rktlet 等
 
 
 
 #### 3、Node 管理
 
-与 Pod 和 Service 不一样，节点并不是由 Kubernetes 创建的，节点由云供应商（例如：Google Compute Engine、阿里云等）创建，或者节点已经存在于本地物理机/虚拟机的资源池
+##### 1、概述
 
-Kubernetes 中创建节点时，仅仅是创建了一个描述该节点的 API 对象，节点 API 对象创建成功后，Kubernetes 将检查该节点是否有效
+Node 由云供应商或本地资源池创建，Kubernetes 仅生成对应的 API 对象，节点控制器负责管理其生命周期，包括：
 
-假设创建如下节点信息：
-
-~~~yaml
-kind: Node
-apiVersion: v1
-metadata:
-  name: "10.240.79.157"
-  labels:
-    name: "my-first-k8s-node"
-~~~
-
-Kubernetes 在 APIServer 上创建一个节点 API 对象（节点的描述），并且基于 metadata.name 字段对节点进行健康检查，如果节点有效（节点组件正在运行），则可以向该节点调度 Pod，否则该节点 API 对象将被忽略，并且 Kubernetes 的节点控制器会一直检测节点的状态，直到节点变为有效状态或者由集群管理员手动删除节点
-
-节点控制器是一个负责管理节点的 Kubernetes master 组件，主要功能：
-
-- 节点控制器在注册节点时为节点分配 CIDR 地址块
-
-- 节点控制器通过云供应商接口检查节点列表中每一个节点对象对应的虚拟机是否可用，在云环境中，只要节点状态异常，节点控制器检查其虚拟机在云供应商的状态，如果虚拟机不可用，自动将节点对象从 APIServer 中删除
-
-- 节点控制器监控节点的健康状况，当节点变得不可触达时（例如：由于节点已停机，节点控制器不再收到来自节点的心跳信号）节点控制器将节点 API 对象的 Node Status Condition 取值从 NodeReady 更新为 Unknown，然后在等待 pod-eviction-timeout 时间后，将节点上的所有 Pod 从节点驱逐
-
-  - 默认 40 秒未收到心跳，修改 Node Status Condition 为 Unknown
-  - 默认 pod-eviction-timeout 为 5分钟
-  - 节点控制器每隔 --node-monitor-period 秒检查一次节点的状态
-  - **流程**：
-    - Kubelet 每隔 10s (--node-status-update-frequency=10s) 更新 Node 的状态，而节点控制器每隔 5s 检查一次 Node 的状态 (--node-monitor-period=5s)
-    - 节点控制器会在 Node 未更新状态超过 40s 时 (--node-monitor-grace-period=40s)，将其标记为 NotReady (Node Ready Condition: True on healthy, False on unhealthy and not accepting pods, Unknown on no heartbeat)
-    - 当 Node 超过 5m 未更新状态，则 kube-controller-manager 会驱逐该 Node 上的所有 Pod
-
-- 每个节点都有一个 kube-node-lease 名称空间下对应的 Lease 对象，节点控制器周期性地更新 Lease 对象，此时 NodeStatus 和 node-lease 都被用来记录节点的心跳信号
-
-  - NodeStatus 的更新频率远高于 node-lease，原因是：
-
-    - 每次节点向 Master 发出心跳信号，NodeStatus 都将被更新
-
-    - 只有在 NodeStatus 发生改变，或者足够长的时间未接收到 NodeStatus 更新时，节点控制器才更新 node-lease（默认为1分钟，比节点失联的超时时间 40 秒要更长）
-    - 由于 node-lease 比 NodeStatus 更轻量级，该特性显著提高了节点心跳机制的效率，并使 Kubernetes 性能和可伸缩性得到了提升
-
-在 Kubernetes v1.4 中，优化了节点控制器的逻辑使其更好的处理大量节点不能触达 Master 的情况（例如：Master 出现网络故障），主要的优化点在于，节点控制器在决定是否执行 Pod 驱逐的动作时，会检查集群中所有节点的状态，大多数情况下，节点控制器限制了驱逐 Pod 的速率为 --node-eviction-rate （默认值是0.1）每秒，即节点控制器每 10 秒驱逐 1 个 Pod
-
-当节点所在的高可用区出现故障时，节点控制器驱逐 Pod 的方式将不一样，节点控制器驱逐 Pod 前，将检查高可用区里故障节点的百分比（NodeReady Condition 的值为 Unknown 或 False），节点控制器按照可用区将 Node 划分为不同的组，再根据可用区的状态进行速率调整：
-
-- Normal：默认速率
-
-- PartialDisruption：如果故障节点的比例不低于 --unhealthy-zone-threshold（默认为 0.55），则降低驱逐 Pod 的速率
-  - 如果集群规模较小（少于等于 --large-cluster-size-threshold 个节点，默认值为 50），则停止驱逐 Pod
-  - 如果集群规模大于 --large-cluster-size-threshold 个节点，则驱逐 Pod 的速率降低到 --secondary-node-eviction-rate （默认值为 0.01）每秒
-
-- FullDisruption：所有节点都 NotReady，返回使用默认速率驱逐，但当所有可用区都处在 FullDisruption 时，停止驱逐
-
-针对每个高可用区使用这个策略的原因是，某一个高可用区可能与 Master 隔开了，而其他高可用区仍然保持连接，如果集群并未分布在云供应商的多个高可用区上，此时只有一个高可用区（即整个集群），将集群的节点分布到多个高可用区最大的原因是，在某个高可用区出现整体故障时，可以将工作负载迁移到仍然健康的高可用区，因此如果某个高可用区的所有节点都出现故障时，节点控制器仍然使用正常的驱逐 Pod 的速率（--node-eviction-rate），最极端的情况是，所有的高可用区都完全不可用（例如：集群中一个健康的节点都没有），此时节点控制器 Master 节点的网络连接出现故障，并停止所有的驱逐 Pod 的动作，直到某些连接得到恢复
-
-- 自 Kubernetes v1.6 开始，节点控制器同时也负责为带有 NoExecute 污点的节点驱逐其上的 Pod，同时节点控制器还负责根据节点的状态（例如：节点不可用，节点未就绪等）为节点添加污点
-
-
-- 自 Kubernetes v1.8 开始，节点控制器可以根据节点的 Condition 为节点添加污点
+- 分配 CIDR 地址块
+- 监控节点健康状态
+- 故障时驱逐 Pod
+- **节点自注册**：kubelet 可通过 --register-node 参数自动向 API Server 注册，并配置标签或污点
+- **手动管理**：管理员可手动创建或修改节点对象，并标记节点为不可调度（kubectl cordon）
 
 
 
 
-#### 5、节点自注册
+##### 2、节点自注册
 
-如果 kubelet 的启动参数 --register-node为 true（默认为 true），kubelet 会尝试将自己注册到 API Server
+节点自注册是指当 Kubelet 服务在节点上启动时，如果配置了 --register-node=true（默认值），Kubelet 会尝试与 Kubernetes API 服务器建立连接，并创建对应的 Node 对象
 
-kubelet自行时，将使用如下选项：
+**工作流程**：Kubelet 使用 --client-certificate 和 --client-key 提供的凭据进行认证，然后向 API 服务器提交节点信息，包括节点名称、IP 地址等，注册完成后，节点即可被调度器用于运行 Pod，集成到集群中
+
+
+
+Kubelet 提供多个参数来控制自注册行为：
 
 - --kubeconfig：向 apiserver 进行认证时所用身份信息的路径
 - --cloud-provider：向云供应商读取节点自身元数据
@@ -352,11 +282,9 @@ kubelet自行时，将使用如下选项：
 
 
 
-#### 6、手动管理节点
+##### 3、手动管理节点
 
-如果管理员想要手动创建节点 API 对象，可以将 kubelet 的启动参数 --register-node 设置为 false
-
-管理员可以修改节点 API 对象（不管是否设置了 --register-node 参数）
+手动管理节点是指在 Kubernetes 集群中，通过管理员干预来添加、更新或删除节点，而不依赖于自动自注册机制
 
 可以修改的内容有：
 
@@ -378,48 +306,20 @@ kubectl cordon $NODENAME
 
 
 
-#### 7、节点容量
-
-节点 API 对象中描述了节点的容量（Capacity），例如：CPU数量、内存大小等信息
-
-通常节点在向 APIServer 注册的同时，在节点 API 对象里汇报了其容量（Capacity），如果手动管理节点，需要在添加节点时手动设置节点的容量
-
-Kubernetes 调度器在调度 Pod 到节点上时，调度器将检查节点上所有容器的资源 request ≤ 节点的容量，但只能检查由 kubelet 启动的容器，不包括由容器运行时直接启动的容器，以及不在容器里运行的进程
-
-
-
-**注意**：
-
-- 可以显示的为 Pod 以外的进程预留资源
-
-
-
 ### 3、Addons
 
 #### 1、概述
 
-Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功能特性（插件）
+Addons 是使用 Kubernetes 资源（如 DaemonSet、Deployment）实现的集群功能，部署于 kube-system 命名空间
 
-由于其提供集群级别的功能特性，addons 使用到的 Kubernetes 资源都放置在 kube-system 名称空间下
+常用 Addons 包括：
 
-下面描述了一些经常用到的 addons，参考 [Addons](https://kubernetes.io/docs/concepts/cluster-administration/addons/) 查看更多列表
-
-- **DNS**：
-  - 除了 DNS Addon 以外，其他的 addon 都不是必须的，所有 Kubernetes 集群都应该有 Cluster DNS
-  
-  - Cluster DNS 是一个 DNS 服务器，是对已有环境中其他 DNS 服务器的一个补充，存放了 Kubernetes Service 的 DNS 记录
-  
-  - Kubernetes 启动容器时，自动将该 DNS 服务器加入到容器的 DNS 搜索列表中
+- **DNS**：提供集群内 DNS 服务，自动配置到容器
+  - 除了 DNS Addon 以外，其他的 addon 都不是必须的，所有 Kubernetes 集群都应该有 Cluster DNS，Cluster DNS 是一个 DNS 服务器，是对已有环境中其他 DNS 服务器的一个补充，存放了 Kubernetes Service 的 DNS 记录，Kubernetes 启动容器时，自动将该 DNS 服务器加入到容器的 DNS 搜索列表中
   - 目前默认安装 Core DNS
-  
-- **Web UI**：
-  - [Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) 是一个 Kubernetes 集群的 Web 管理界面，让用户可以通过该界面管理集群
-
-- **ContainerResource Monitoring**
-  - [Container Resource Monitoring](https://kubernetes.io/docs/tasks/debug-application-cluster/resource-usage-monitoring/) 将容器的度量指标（metrics）记录在时间序列数据库中，并提供了 UI 界面查看这些数据
-
-- **Cluster-level Logging**
-  - [Cluster-level logging](https://kubernetes.io/docs/concepts/cluster-administration/logging/) 负责将容器的日志存储到一个统一存储中，并提供搜索浏览的界面
+- **Web UI**：Dashboard 是一个 Kubernetes 集群的 Web 管理界面，让用户可以通过该界面管理集群
+- **ContainerResource Monitoring**：记录容器资源使用情况，将容器的度量指标（metrics）记录在时间序列数据库中，并提供了 UI 界面查看这些数据
+- **Cluster-level Logging**：集中管理容器日志，并提供搜索浏览的界面
 
 <img src="images/image-20221229202009990.png" alt="image-20221229202009990" style="zoom:67%;" />
 
@@ -431,58 +331,61 @@ Addons 使用 Kubernetes 资源（DaemonSet、Deployment等）实现集群的功
 
 ### 4、集群通信
 
-##### 1、Node To Master
+#### 1、Node To Master
 
-所有从集群访问 Master 节点的通信，都是通过 APIServer （没有任何其他 Master 组件发布远程调用接口）
+所有从集群访问 Master 的通信均通过 API Server 完成，其他 Master 组件（如 Scheduler、Controller Manager）不提供远程调用接口
 
-通常安装 Kubernetes 时，APIServer 监听 HTTPS 端口（443），并且配置了一种或多种客户端认证方式，至少需要配置一种形式的授权方式，尤其是匿名访问或 Service Account Tokens 被启用的情况下
+**API Server 配置**：在典型安装中，API Server 监听 HTTPS 端口（默认 443），并支持多种客户端认证方式（如证书、令牌等），为确保安全性，至少需启用一种授权机制，尤其是在允许匿名访问或使用 Service Account Tokens 时
 
-节点上必须配置集群（APIServer）的公钥根证书（public root certificate），在提供有效的客户端身份认证的情况下，节点可以安全地访问 APIServer，例如：在 Google Kubernetes Engine 的默认 K8s 安装里，通过客户端证书为 kubelet 提供客户端身份认证
+**节点访问**：每个节点需配置 API Server 的公钥根证书（Public Root Certificate），通过有效的客户端认证（如 Google Kubernetes Engine 默认使用的 Kubelet 客户端证书），节点能够安全访问 API Server
 
-对于需要调用 APIServer 接口的 Pod，应该为其关联 Service Account，此时 Kubernetes 将在创建 Pod 时自动为其注入公钥根证书（public root certificate）以及一个有效的 bearer token（放在 HTTP 请求头 Authorization 字段）
+**Pod 访问**：需要调用 API Server 的 Pod 应关联 Service Account，创建 Pod 时，Kubernetes 会自动注入公钥根证书和 Bearer Token（置于 HTTP 请求头 Authorization 字段），确保通信安全
 
-所有名称空间中，都默认配置了名为 Kubernetes 的 Service，该 Service 对应一个虚拟 IP（默认为 10.96.0.1）将发送到该地址的请求将由 kube-proxy 转发到 APIServer 的 HTTPS 端口上
+**服务发现**：每个命名空间默认包含一个名为 kubernetes 的 Service，其虚拟 IP（默认 10.96.0.1）由 kube-proxy 转发至 API Server 的 HTTPS 端点，这种设计使得集群内部通信高效且一致
 
-得益于这些措施，默认情况下从集群（节点以及节点上运行的 Pod）访问 Master 的连接是安全的，可以通过不受信的网络或公网连接 Kubernetes 集群
-
-
-
-##### 2、Master To Node
-
-从 Master（APIServer）到 Node 存在着两条主要的通信路径：
-
-- apiserver 访问集群中每个节点上的 kubelet 进程
-- 使用 apiserver 的 proxy 功能，从 apiserver 访问集群中的任意节点、Pod、Service
+**安全性**：得益于 HTTPS 加密和认证机制，节点及 Pod 到 Master 的默认连接是安全的，即使通过不受信任的网络或公网也能保持可靠
 
 
 
-##### 3、apiserver to kubelet
+#### 2、Master To Node
 
-apiserver 在如下情况下访问 kubelet：
+从 Master（API Server）到节点的通信主要有两条路径：
 
-- 抓取 Pod 的日志
-- 通过 kubectl exec -it 指令（或 kuboard 的终端界面）获得容器的命令行终端
-- 提供 kubectl port-forward 功能
-
-这些连接的访问端点是 kubelet 的 HTTPS 端口，默认情况下，apiserver 不校验 kubelet 的 HTTPS 证书，这种情况下，连接可能会收到 man-in-the-middle 攻击，因此该连接如果在不受信网络或者公网上运行时，是不安全的
-
-如果要校验 kubelet 的 HTTPS 证书，可以通过 --kubelet-certificate-authority 参数为 apiserver 提供校验 kubelet 证书的根证书，否则建议开启 Kubelet authentication/authorization 以保护 kubelet API
+1. **直接访问 Kubelet**：API Server 直接与节点上的 Kubelet 进程通信，用于特定操作
+2. **代理访问**：通过 API Server 的代理（Proxy）功能，访问集群中的节点、Pod 或 Service
 
 
 
-**apiserver to nodes, pods, services**：
+#### 3、apiserver to kubelet
 
-从 apiserver 到 节点、Pod、Service 的连接使用的是 HTTP 连接，没有进行身份认证，也没有进行加密传输，也可以通过增加 https 作为 节点、Pod、Service 请求 URL 的前缀，但是 HTTPS 证书并不会被校验，也无需客户端身份认证，因此该连接是无法保证一致性的
+API Server 在以下场景中需要访问 Kubelet：
 
-目前，此类连接如果运行在非受信网络或公网上时，是不安全的
+- 获取 Pod 日志
+- 通过 kubectl exec -it（或类似工具如 Kuboard 的终端界面）进入容器命令行
+- 实现 kubectl port-forward 功能
+
+**连接方式**：Kubelet 默认监听 HTTPS 端口，但 API Server 不验证 Kubelet 的证书，这种配置可能导致中间人攻击风险，尤其在不受信任的网络或公网上运行时，安全性无法保障
+
+**安全改进**：
+
+- 可通过 --kubelet-certificate-authority 参数为 API Server 配置 Kubelet 证书的根证书，以启用证书验证
+- 建议启用 Kubelet 的认证和授权机制（Authentication/Authorization），增强 API 安全性
 
 
 
-**SSH**：
+#### 4、apiserver to nodes, pods, services
 
-Kubernetes 支持 SSH隧道（tunnel）来保护 Master --> Node 访问路径，APIServer 将向集群中的每一个节点建立一个 SSH 隧道（连接到端口 22 的 ssh 服务）并通过隧道传递所有发向 kubelet、node、pod、service 的请求
+**连接方式**：API Server 到节点、Pod 或 Service 的通信默认使用 HTTP，未加密且无身份认证，虽然可以通过在 URL 前添加 https:// 切换至 HTTPS，但证书未被验证，且无需客户端认证，导致数据一致性无法保证
 
-SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通信方式
+**安全性**：在不受信任的网络或公网上，此类连接存在安全隐患，容易被拦截或篡改
+
+
+
+#### 5、SSH
+
+**功能**：Kubernetes 曾支持通过 SSH 隧道保护 Master 到节点的通信，API Server 在每个节点上建立连接（默认端口 22），通过隧道转发至 Kubelet、节点、Pod 或 Service 的请求
+
+**现状**：SSH 隧道现已被标记为不推荐使用，Kubernetes 社区正在开发更现代化的替代方案
 
 
 
@@ -492,9 +395,7 @@ SSH 隧道当前已被不推荐使用，Kubernetes 正在设计新的替代通�
 
 ### 1、Kubeadm
 
-Kubeadm 是官方社区推出的一个用于快速部署 Kubernetes 集群的工具
-
-这个工具通过两条指令完成一个 Kubernetes 集群的部署： 
+Kubeadm 是官方社区推出的一个用于快速部署 Kubernetes 集群的工具，通过这个工具的两条指令，就可以完成一个 Kubernetes 集群的部署： 
 
 - 创建一个 Master 节点：kubeadm init 
 - 将 Node 节点加入到当前集群中：kubeadm join 
@@ -502,8 +403,6 @@ Kubeadm 是官方社区推出的一个用于快速部署 Kubernetes 集群的工
 
 
 ### 2、Kubectl
-
-#### 1、基本介绍
 
 Kubectl 是 Kubernetes 命令行工具，可以让用户对 Kubernetes 集群运行命令
 
@@ -524,135 +423,6 @@ kubectl [command] [type] [name] [flags]
 **注意**：
 
 - Kubectl 版本和集群版本之间的差异必须在一个小版本号内
-- 使用 kubectl --help 获取更多信息
-
-
-
-#### 2、命令指南
-
-**基础命令**：
-
-| 命令    | 说明                                             |
-| ------- | ------------------------------------------------ |
-| creat   | 通过文件或标准输入创建资源                       |
-| expose  | 将一个资源公开为一个新的 Service                 |
-| run     | 在集群中运行一个特定的镜像                       |
-| set     | 在对象上设定特定的功能                           |
-| get     | 显示一个或多个的资源                             |
-| explain | 显示文档参考资料                                 |
-| edit    | 使用默认编辑器直接编辑一个资源，保存后会立即生效 |
-| delete  | 通过文件、标准输入、资源名称、标签选择器删除资源 |
-
-
-
-**管理命令**：
-
-| 命令           | 说明                                                      |
-| -------------- | --------------------------------------------------------- |
-| rollout        | 管理资源的发布                                            |
-| rollout-update | 对给定的复制控制器滚动更新                                |
-| scale          | 扩容或缩容 Pod、Deployment、ReplicaSet、RC、Job           |
-| certificate    | 修改证书资源                                              |
-| cluster-info   | 显示集群信息                                              |
-| top            | 显示资源（CPU、MEM、Storage）使用，需要使用 Headster 运行 |
-| cordon         | 标记节点不可调度                                          |
-| uncordon       | 标记节点可调度                                            |
-| drain          | 驱逐节点上的资源，一般准备下线                            |
-| taint          | 修改节点 taint 标记                                       |
-
-
-
-**调试命令**：
-
-| 命令         | 说明                                                         |
-| ------------ | ------------------------------------------------------------ |
-| describe     | 显示资源或资源组的详细信息                                   |
-| logs         | 在一个 Pod 中打印一个容器的日志，如果 Pod 只有一个容器，容器名称是可选的 |
-| attach       | 附加到一个运行的容器里                                       |
-| exec         | 执行命令到容器                                               |
-| port-forward | 转发一个或多个本地端口到一个 Pod                             |
-| proxy        | 运行一个 proxy 到 Kubernetes API Server                      |
-| cp           | 拷贝文件或目录到容器中                                       |
-| auth         | 检查授权                                                     |
-
-
-
-**其他命令**：
-
-| 命令         | 说明                                                 |
-| ------------ | ---------------------------------------------------- |
-| apply        | 通过文件或标准输入对资源进行更改                     |
-| patch        | 使用补丁修改、更新资源的字段                         |
-| repalce      | 通过文件或标准输入替换一个资源                       |
-| conver       | 不同的 API 版本之间转换配置文件                      |
-| label        | 更新资源上的标签                                     |
-| annotate     | 更新资源上的注释                                     |
-| completion   | 用于实现 kubectl 工具的自动补全                      |
-| api-versions | 打印支持的 API 版本                                  |
-| config       | 修改 kubeconfig 文件，用于访问 API，比如配置认证信息 |
-| help         | 显示帮助信息                                         |
-| plugin       | 运行一个命令行插件                                   |
-| version      | 打印客户端和服务版本的信息                           |
-
-
-
-**原生安装**：
-
-根据目标系统修改，本次实验使用的是OracleLinux8，ARM64
-
-如果要下载指定版本号，只需替换 $(curl -L -s https://dl.k8s.io/release/stable.txt) 这一部分
-
-```bash
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
-```
-
-安装
-
-~~~bash
-install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-~~~
-
-测试，下载的是最新版
-
-~~~bash
-kubectl version --client
-~~~
-
-
-
-**开启命令提示**：
-
-~~~bash
-yum install -y bash-completion
-source /usr/share/bash-completion/bash_completion
-source <(kubectl completion bash)
-echo "source <(kubectl completion bash)" >> ~/.bashrc
-~~~
-
-或者
-
-~~~bash
-source /usr/share/bash-completion/bash_completion
-source <(kubectl completion bash)
-~~~
-
-
-
-#### 3、使用技巧
-
-##### 1、使用 -o 参数截取属性
-
-使用 -o 与 go-template 参数可以将资源的参数部分截取
-
-~~~bash
-kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ .data }}'
-~~~
-
-如果属性存在字符 **-** 则会报错，需要使用 index 并将属性用空格分隔而不是字符 **.**
-
-~~~bash
-kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ index .data "admin-user" }}
-~~~
 
 
 
@@ -664,11 +434,9 @@ Kubelet 是在每个 Node 节点上运行的主要节点代理，用于在集群
 
 ### 4、容器运行时
 
-#### 1、概述
+在 Kubernetes v1.24 之前，Docker Engine 集成了一个名为 Dockershim 的组件，负责与 Kubernetes 的通信，然而从 v1.24 版本开始，Dockershim 被移除，因此 Kubernetes 要求每个集群节点安装符合容器运行时接口（CRI）的容器运行时，以便 Pod 能够运行在该环境中，从 v1.26 开始，Kubernetes 强烈建议使用 CRI 兼容的运行时
 
-v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dockershim，但是自 v1.24 版起，Dockershim 已从 Kubernetes 项目中移除，所以需要在集群内每个节点上安装一个容器运行时以使 Pod 可以运行在上面，v1.26 要求使用符合容器运行时接口（CRI）的运行时
-
-容器运行时具有掌控容器运行的整个生命周期，包括镜像的构建和管理、容器的运行和管理等，其向上提供容器调用接口，包括容器生成与销毁的全生命周期管理的功能，向下提供调用接口，负责具体的容器操作事项
+容器运行时管理容器的整个生命周期，包括镜像构建、管理、容器的启动、运行与销毁等，它为上层提供容器管理接口，并向下提供容器操作的实现
 
 常见的容器运行时：
 
@@ -679,132 +447,22 @@ v1.24 之前的版本直接集成了 Docker Engine 的一个组件，名为 Dock
 
 
 
-Kubernetes为容器提供了一系列重要的资源：
+Kubernetes 为容器提供了一系列重要的资源：
 
-- 由镜像、一个或多个数据卷合并组成的文件系统
+- 由镜像一个或多个数据卷合并组成的文件系统
 - 容器自身的信息
 - 集群中其他重要对象的信息
 
-在容器中执行 hostname 命令或者在libc 中执行 gethostname 函调用，获得的是容器所在 Pod 的名字
+Kubernetes 提供了 Downward API，可以将 Pod 的名称、命名空间等信息注入容器的环境变量，用户还可以通过 ConfigMap 自定义容器的环境变量
 
-Pod 的名字，以及 Pod 所在名称空间可以通过 downward API 注入到容器的环境变量里。
+例如：在容器中执行 hostname 命令或者在 libc 中执行 gethostname 函调用，获得的是容器所在 Pod 的名字
 
-用户也可以使用 configMap 为容器自定义环境变量
-
-在容器创建时，集群中所有的 Service 的连接信息将以环境变量的形式注入到容器中
+例如，集群中的所有 Service 的连接信息（如 ClusterIP 和端口）会被注入为环境变量，格式如下：
 
 ~~~bash
 FOO_SERVICE_HOST=<Service的ClusterIP>
 FOO_SERVICE_PORT=<Service的端口>
 ~~~
-
-
-
-#### 2、RunTime Class
-
-使用 RuntimeClass 这一特性可以为容器选择运行时的容器引擎，以在性能和安全之间取得平衡
-
-如果要使用，请确保 RuntimeClass 的 feature gate 在 apiserver 和 kubelet 上都是是激活状态，其依赖于 Container Runtime Interface（CRI）的具体实现
-
-RuntimeClass 默认要求集群中所有节点上的容器引擎的配置都是相同的，Kubernetes v1.16 中才开始引入对节点上容器引起不同的情况下的支持
-
-
-
-**containerd**：
-
-修改配置文件 /etc/containerd/config.toml 配置其 Runtime handler，请注意该文档的如下内容
-
-```toml
-# 旧版为 cri
-# 新版查看安装过程中配置
-[plugins.cri.containerd.runtimes.${HANDLER_NAME}]
-```
-
-此配置会有一个 handler 名称，用来唯一地标识该 CRI 的配置，此时需要为每一个 handler 创建一个对应的 RuntimeClass api 对象
-
-RuntimeClass 目前只有两个主要的字段：
-
-- RuntimeClass name（metadata.name）
-- handler (handler)
-
-~~~yaml
-apiVersion: node.k8s.io/v1beta1
-kind: RuntimeClass
-metadata:
-  name: myclass # RuntimeClass 没有名称空间
-handler: myHandler  # 对应 CRI 配置的 handler 名称
-~~~
-
-为集群完成 RuntimeClass 的配置后，在 Pod 的定义中指定 runtimeClassName 即可
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: mypod
-spec:
-  runtimeClassName: myclass
-~~~
-
-kubelet 将依据这个字段使用指定的 RuntimeClass 来运行该 Pod，如果指定的 RuntimeClass 不存在，或者 CRI 不能运行对应的 handler 配置，则 Pod 将进入 Failed 这个终止阶段，需要查看 Pod 的日志排查，如果 Pod 中未指定 runtimeClassName，kubelet 将使用默认的 RuntimeHandler 运行 Pod
-
-
-
-#### 3、容器钩子
-
-Kubernetes中为容器提供了两个 hook（钩子函数）：
-
-- **PostStart**：
-  - 此钩子函数在容器创建后将立刻执行，并不能保证该钩子函数在容器的 ENTRYPOINT 之前执行
-  - 该钩子函数没有输入参数
-- **PreStop**：
-  - 此钩子函数在容器被 terminate（终止）之前执行，例如：
-    - 通过接口调用删除容器所在 Pod
-    - 某些管理事件的发生：健康检查失败、资源紧缺等
-  - 如果容器已经被关闭或者进入了 completed 状态，preStop 钩子函数的调用将失败
-  - 该函数的执行是同步的，即 Kubernetes 将在该函数完成执行之后才删除容器
-  - 该钩子函数没有输入参数
-
-容器只要实现并注册 hook handler 便可以使用钩子函数，容器可以实现两种类型的 hook handler：
-
-- **Exec**：在容器的名称空进和 cgroups 中执行一个指定的命令，例如：pre-stop.sh
-  - 该命令所消耗的 CPU、内存等资源，将计入容器可以使用的资源限制
-- **HTTP**：向容器的指定端口发送一个 HTTP 请求
-
-当容器的生命周期事件发生时，Kubernetes 在容器中执行该钩子函数注册的 handler，对于 Pod 而言，hook handler 的调用是同步的，即如果是 PostStart hook，容器的 ENTRYPOINT 和 hook 是同时出发的，然而如果 hook 执行的时间过长或者挂起了，容器将不能进入到 Running 状态，PreStop hook 的行为与此相似，如果 hook 在执行过程中挂起了，Pod phase 将停留在 Terminating 的状态，并且在 terminationGracePeriodSeconds 超时之后，Pod被删除，如果 PostStart 或者 PreStop hook 执行失败，则 Kubernetes 将 kill 该容器
-
-用户应该使其 hook handler 越轻量级越好，例如：对于长时间运行的任务，在停止容器前，调用 PreStop 钩子函数，以保存当时的计算状态和数据
-
-Hook 将至少被触发一次，即，当指定事件 PostStart 或 PreStop 发生时，hook 有可能被多次触发，因此 hook handler 的实现需要保证即使多次触发，执行也不会出错
-
-Hook handler 的日志并没有在 Pod 的 events 中发布，如果 handler 因为某些原因失败了，kubernetes 将广播一个事件 PostStart hook 发送 FailedPreStopHook 事件，可以执行命令 kubectl describe pod $(pod_name) 以查看这些事件
-
-~~~bash
-# 创建一个 Pod 并在其内定义 hook
-apiVersion: v1
-kind: Pod
-metadata:
-  name: lifecycle-demo
-spec:
-  containers:
-  - name: lifecycle-demo-container
-    image: nginx
-    lifecycle:
-      postStart:
-        exec:
-          command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
-      preStop:
-        exec:
-          command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
-~~~
-
-
-
-**注意**：
-
-- Kubernetes 只在 Pod Teminated 状态时才发送 preStop 事件，处于其他状态不会发送
-
-
 
 
 
@@ -815,7 +473,7 @@ spec:
 目前生产部署 Kubernetes 集群主要有两种方式：
 
 - **Kubeadm**：Kubeadm 是一个 K8s 部署工具，提供 kubeadm init 和 kubeadm join，用于快速部署 Kubernetes 集群
-- **二进制包**（推荐）：从 Github 下载发行版的二进制包，手动部署每个组件，组成 Kubernetes 集群
+- **二进制包**：从 Github 下载发行版的二进制包，手动部署每个组件，组成 Kubernetes 集群
 
 
 
@@ -827,135 +485,98 @@ spec:
 
 ### 2、<a name='安装要求'>安装要求</a>
 
-**硬件配置**：
+#### 1、硬件配置
 
-- 2GB 或更多 RAM，2 个 CPU 或更多 CPU，硬盘 30GB 或更多
-
-**网络配置**：
-
-- 集群中所有机器之间网络互通
-
-  - ~~~bash
-    # 不一定要，如果 VPS 在同一个 VPC 内就不用，K8s 集群搭建不建议跨 VPC，网络问题很多
-    # RHEL系
-    # 公网 VPS IP 一般不会直接绑定在网卡上
-    # 检查公网 IP 是否绑定在网卡上
-    ip a | grep xx.xx.xx.xx
-    
-    # 临时
-    # 如果没有,需要绑定
-    # 机器重启会失效
-    ifconfig 网卡名:1 xx.xx.xx.xx
-    
-    # 永久
-    # 在该 /etc/sysconfig/network-scripts 文件夹下创建 ifcfg-网卡名:1 的文件
-    # 例如
-    touch /etc/sysconfig/network-scripts/ifcfg-enp0s3:1
-    
-    # 添加如下内容
-    DEVICE=enp0s3:1
-    TYPE=Ethernet
-    ONBOOT=yes
-    NM_CONTROLLED=yes
-    BOOTPROTO=static
-    IPADDR=公网IP
-    NETMASK=255.255.255.0
-    
-    # Ubuntu系
-    # 修改 /etc/netplan/00-installer-config.yaml
-    network:
-      ethernets:
-        ens33:
-          dhcp4: false
-          addresses:
-          # 静态 IP \ 公网 IP
-            - 192.168.100.136/24
-            # 网关
-          gateway4: 192.168.100.1
-          nameservers:
-            addresses:
-            # DNS
-              - 114.114.114.114
-      version: 2
-    chmod -R 777 /etc/netplan/00-installer-config.yaml
-    netplan apply
-    ~~~
-
-- 可以访问外网，需要拉取镜像
-
-- 节点之中不可以有重复的主机名、MAC 地址或 product_uuid
-
-  - ~~~bash
-    # 获取网络接口的 MAC 地址
-    ip link
-    ifconfig -a
-    
-    # 对 product_uuid 校验
-    cat /sys/class/dmi/id/product_uuid
-    ~~~
-
-- 桥接的 IPv4 流量传递到 iptables，因为 Kubernetes 的网络模型需要
-
-  - ~~~bash
-    cat <<EOF | tee /etc/modules-load.d/k8s.conf
-    overlay
-    br_netfilter
-    EOF
-    
-    modprobe overlay
-    modprobe br_netfilter
-    
-    cat <<EOF | tee /etc/sysctl.d/k8s.conf
-    net.bridge.bridge-nf-call-iptables  = 1
-    net.bridge.bridge-nf-call-ip6tables = 1
-    net.ipv4.ip_forward                 = 1
-    EOF
-    
-    # 应用 sysctl 参数而不重新启动
-    # 设置所需的 sysctl 参数，参数在重新启动后保持不变
-    sysctl --system
-    
-    # 检查非常重要
-    lsmod | grep br_netfilter
-    lsmod | grep overlay
-    sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward
-    ~~~
-  
-- 防火墙
-
-  - ~~~bash
-    # 为了省事直接关闭
-    # 否则需要开启对应端口与协议
-    systemctl disable firewalld
-    systemctl stop firewalld
-    ~~~
+2GB 或更多 RAM，2 个 CPU 或更多 CPU，硬盘 30GB 或更多
 
 
-**禁止 swap 分区**：
 
-- ~~~bash
-  # 临时 
-  swapoff -a 
-  
-  # 永久
-  # 或者直接手动 vim 进入注释掉 swap 相关的行
-  sed -ri 's/.*swap.*/#&/' /etc/fstab
-  
-  # 检查 swap 状态
-  free -m
-  ~~~
+**注意**：
 
-**关闭 selinux**：
+- 本次部署是在 VMware 操作，为了实现虚拟机迁移的时候，网络保持正常，需要修改 VMware 的虚拟机网络 VMnet 8 配置
+  - 子网 IP：192.168.154.0
+  - 子网掩码：255.255.255.0
+  - 网关 IP：192.168.154.2
+- 本次部署的 Linux 系统均为 Debian12
 
-- ~~~bash
-  # 临时 
-  setenforce 0
-  
-  # 永久 
-  sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
-  ~~~
 
-**关闭防火墙**（不一定需要），但是一定要**开放所需的端口**：
+
+#### 2、网络配置
+
+所有虚拟机配置静态网卡
+
+~~~bash
+vim /etc/network/interfaces
+~~~
+
+~~~bash
+auto eth0
+iface eth0 inet static
+    address 192.168.154.132   # 替换为节点 IP
+    netmask 255.255.255.0
+    gateway 192.168.154.2
+~~~
+
+~~~bash
+systemctl restart networking
+~~~
+
+集群中所有机器之间网络互通，且可以访问外网，需要拉取镜像
+
+~~~shell
+ip a | grep xx.xx.xx.xx
+~~~
+
+节点之中不可以有重复的主机名、MAC 地址或 product_uuid
+
+~~~bash
+# 获取网络接口的 MAC 地址
+ip link
+ifconfig -a
+
+# 对 product_uuid 校验
+cat /sys/class/dmi/id/product_uuid
+~~~
+
+桥接的 IPv4 流量传递到 iptables，因为 Kubernetes 的网络模型需要
+
+~~~bash
+cat <<EOF | tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+modprobe overlay
+modprobe br_netfilter
+
+cat <<EOF | tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+# 应用 sysctl 参数而不重新启动
+# 设置所需的 sysctl 参数，参数在重新启动后保持不变
+sysctl --system
+
+# 检查非常重要
+lsmod | grep br_netfilter
+lsmod | grep overlay
+sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward
+~~~
+
+关闭防火墙
+
+~~~bash
+# 为了省事直接关闭
+# 否则需要开启对应端口与协议
+systemctl disable firewalld
+systemctl stop firewalld
+~~~
+
+
+
+关闭防火墙**（不一定需要），但是一定要**开放所需的端口：
 
 - 控制面板：
 
@@ -973,35 +594,77 @@ spec:
   | ---- | ---- | ----------- | ------------------ | ------------ |
   | TCP  | 入站 | 10250       | Kubelet API        | 自身, 控制面 |
   | TCP  | 入站 | 30000-32767 | NodePort Services† | 所有         |
-  
-- 开放额外协议：
 
-  ICMP、IPIP协议
+- 开放额外协议：ICMP、IPIP协议
 
-**时间同步**：（部份 OS 不需要）
 
-- ~~~bash
-  yum install -y ntpdate
-  ntpdate time.windows.com
-  ~~~
 
-**个人喜好**：
 
-- ~~~bash
-  # 允许 Root 账号密码登录
-  sudo passwd root
-  sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
-  sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
-  sudo service sshd restart
-  ~~~
+#### 3、禁止 swap 分区
+
+~~~bash
+# 临时 
+swapoff -a 
+~~~
+
+或者
+
+~~~bash
+# 永久
+# 或者直接手动 vim 进入注释掉 swap 相关的行
+sed -ri 's/.*swap.*/#&/' /etc/fstab
+~~~
+
+或者
+
+~~~bash
+vim /etc/default/grub
+# 为 GRUB_CMDLINE_LINUX 追加 cgroup_enable=memory swapaccount=1
+update-grub && reboot
+~~~
+
+~~~bash
+# 检查 swap 状态
+free -m
+~~~
+
+
+
+#### 4、关闭 selinux
+
+如果是 RHEL 系需要关闭
+
+~~~bash
+# 临时 
+setenforce 0
+
+# 永久 
+sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+~~~
+
+
+
+#### 5、时间同步
+
+~~~bash
+apt-get install -y ntp
+systemctl start ntp && sudo systemctl enable ntp
+~~~
+
+
+
+#### 6、允许 Root 登录
+
+~~~bash
+sudo passwd root
+sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
+sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
+sudo service sshd restart
+~~~
 
 
 
 ## 3、包管理器安装版
-
-**注意**：内网外网搭建的区别
-
-
 
 ### 1、基准配置
 
@@ -1010,13 +673,6 @@ spec:
 访问 [Index of /yum/repos// (google.com)](https://packages.cloud.google.com/yum/repos/) 发现，Kubernetes 只适配到 el7，但是 el8 也可以使用，如果后续适配了可能需要修改
 
 配置完包管理器的 repo，K8s 三件套可以一次安装了
-
-RHEL 系：
-
-~~~bash
-# 环境准备
-yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++ tc
-~~~
 
 Deb 系：
 
@@ -1027,7 +683,60 @@ apt-get install -y apt-transport-https ca-certificates curl gpg
 
 
 
+RHEL 系：
+
+~~~bash
+# 环境准备
+yum install -y yum-utils device-mapper-persistent-data lvm2 gcc gcc-c++ tc
+~~~
+
+
+
 #### 2、设置组件仓库
+
+Deb 系：
+
+~~~bash
+# 仓库准备，根据版本不同自定义
+# 如果 `/etc/apt/keyrings` 目录不存在，则应在 curl 命令之前创建它
+# sudo mkdir -p -m 755 /etc/apt/keyrings
+# 添加仓库密匙
+# 所有仓库都使用相同的签名密钥，可以忽略 URL 中的版本
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+~~~
+
+~~~bash
+# 添加 Kubernetes apt 仓库
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+~~~
+
+~~~bash
+# 阿里云方案 1.29
+apt-get update && apt-get install -y apt-transport-https
+curl -fsSL https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/ /" |
+    tee /etc/apt/sources.list.d/kubernetes.list
+    
+apt-get update
+apt-get install -y kubelet kubeadm kubectl containerd kubernetes-cni
+~~~
+
+~~~bash
+# 设置 docker 仓库密钥
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.
+chmod a+r /etc/apt/keyrings/docker.asc
+~~~
+
+~~~bash
+# 添加 docker 仓库
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+~~~
+
+
 
 RHEL 系：
 
@@ -1061,142 +770,108 @@ yum config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/
 yum install -y kubectl kubelet kubeadm containerd kubernetes-cni
 ~~~
 
-Deb 系：
+
+
+
+
+
+
+#### 3、安装组件
 
 ~~~bash
-# 仓库准备，根据版本不同自定义
-# 如果 `/etc/apt/keyrings` 目录不存在，则应在 curl 命令之前创建它
-# sudo mkdir -p -m 755 /etc/apt/keyrings
-# 添加仓库密匙
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
-
+# 安装三件套
 apt-get update
-apt-get install -y kubelet kubeadm kubectl
+apt-get install -y kubelet kubeadm kubectl containerd.io
 apt-mark hold kubelet kubeadm kubectl
+~~~
 
-# 阿里云 1.29 后
-apt-get update && apt-get install -y apt-transport-https
-curl -fsSL https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/Release.key |
-    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/deb/ /" |
-    tee /etc/apt/sources.list.d/kubernetes.list
-    
-apt-get update
-apt-get install -y kubelet kubeadm kubectl containerd kubernetes-cni
+~~~bash
+systemctl start kubelet containerd
+systemctl enable kubelet containerd
 ~~~
 
 
 
-#### 2、配置 CGroups
+**开启命令提示**：
+
+~~~bash
+yum install -y bash-completion
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" >> ~/.bashrc
+~~~
+
+或者
+
+~~~bash
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+~~~
+
+
+
+#### 4、配置 CGroups
 
 配置 containerd：
 
-- ~~~bash
-  # 修改
-  # 安装完 containerd 先启动一次生成配置文件
-  # 如果没有，则手动生成
-  mkdir /etc/containerd/
-  containerd config default > /etc/containerd/config.toml
-  vim /etc/containerd/config.toml
-  
-  # 粘贴
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc] 
-    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options] 
-       SystemdCgroup = true
-  
-  # 重启 containerd
-  systemctl daemon-reload
-  systemctl restart containerd
-  systemctl status containerd
-  ~~~
+~~~bash
+# 安装完 containerd 先启动一次生成配置文件
+# 如果没有，则手动生成
+mkdir /etc/containerd/
+containerd config default > /etc/containerd/config.toml
+vim /etc/containerd/config.toml
+~~~
 
-配置 Kubelet：
-
-- ~~~bash
-  # v1.22 后默认就是 systemd, 也即不需要这样配置了
-  vim /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-  
-  # 在 Environment="KUBELET_KUBECONFIG_ARGS 这行后面的双引号前添加如下内容，注意使用空格分隔
-  --cgroup-driver=systemd
-  
-  # 重启 kubelet
-  systemctl daemon-reload
-  systemctl restart kubelet
-  systemctl status kubelet
-  ~~~
-
-配置 Docker：（直接使用 containerd 就不需要再配置 Docker）
-
-- ~~~bash
-  # docker安装后默认没有daemon.json这个配置文件，需要进行手动创建
-  vim /etc/docker/daemon.json
-  "exec-opts": ["native.cgroupdriver=systemd"]
-  
-  # 如果没有则使用
-  echo {\"exec-opts\": [\"native.cgroupdriver=systemd\"]} > /etc/docker/daemon.json
-  
-  # 重启 docker
-  systemctl daemon-reload
-  systemctl restart docker
-  systemctl status docker
-  
-  # 查看 Driver
-  docker info|grep Driver
-  ~~~
-
-
-
-#### 3、配置文件初始化
+~~~toml
+# 修改，默认是 true
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc] 
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options] 
+     SystemdCgroup = true
+~~~
 
 ~~~bash
-# init.default初始化文件
-kubeadm config print init-defaults > init.default.yaml
-
-# 添加 networking.podSubnet: 10.244.0.0/16 // flannel
-# 添加 localAPIEndpoint.advertiseAddress: MasterIP
-# 修改 nodeRegistration.name: MasterHostName
-
-# 国内需要修改 init.default.yaml 的镜像地址 registry.aliyuncs.com/google_containers
-# 国外默认
-# 或者不使用 --config 启动，改为 --image-repository= 加上镜像地址
-# 使用配置文件，拉取相关镜像
-kubeadm config images pull --config=init.default.yaml
-# 或者使用命令行
-kubeadm config images pull --image-repository=registry.aliyuncs.com/google_containers
+# 重启 containerd
+systemctl daemon-reload
+systemctl restart containerd
+systemctl status containerd
 ~~~
 
 
 
-#### 4、配置 CNI
-
-flannel 使用：
+配置 Kubelet：
 
 ~~~bash
-mkdir -p /etc/cni/net.d
-cat >/etc/cni/net.d/10-mynet.conf <<-EOF
-{
-    "cniVersion": "0.3.0",
-    "name": "mynet",
-    "type": "bridge",
-    "bridge": "cni0",
-    "isGateway": true,
-    "ipMasq": true,
-    "ipam": {
-        "type": "host-local",
-        "subnet": "10.244.0.0/16",
-        "routes": [
-            {"dst": "0.0.0.0/0"}
-        ]
-    }
-}
-EOF
-cat >/etc/cni/net.d/99-loopback.conf <<-EOF
-{
-    "cniVersion": "0.3.0",
-    "type": "loopback"
-}
-EOF
+# v1.22 后默认就是 systemd, 也即不需要这样配置了
+vim /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+# 在 Environment="KUBELET_KUBECONFIG_ARGS 这行后面的双引号前添加如下内容，注意使用空格分隔
+--cgroup-driver=systemd
+
+# 重启 kubelet
+systemctl daemon-reload
+systemctl restart kubelet
+systemctl status kubelet
+~~~
+
+
+
+配置 Docker：（如果使用 Docker 就不用配置）
+
+~~~bash
+# docker安装后默认没有daemon.json这个配置文件，需要进行手动创建
+vim /etc/docker/daemon.json
+"exec-opts": ["native.cgroupdriver=systemd"]
+
+# 如果没有则使用
+echo {\"exec-opts\": [\"native.cgroupdriver=systemd\"]} > /etc/docker/daemon.json
+
+# 重启 docker
+systemctl daemon-reload
+systemctl restart docker
+systemctl status docker
+
+# 查看 Driver
+docker info|grep Driver
 ~~~
 
 
@@ -1208,31 +883,44 @@ EOF
 修改镜像源：
 
 ~~~bash
-# 修改 init.default.yaml 文件
-imageRepository: registry.aliyuncs.com/google_containers
 # 修改 containerd 的 config.toml
 [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
- [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
-  endpoint = ["registry.aliyuncs.com/google_containers"]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+          endpoint = ["https://xxx.fr.eu.org", "https://hub.xxx.eu.org"]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."ghcr.io"]
+          endpoint = ["https://ghcr.xxx.eu.org","https://xxx.fr.eu.org"]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+          endpoint = ["https://xxx.fr.eu.org"]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+          endpoint = ["https://xxx.fr.eu.org"]
 ~~~
 
-~~~bash
-# 国内 Aliyun 镜像下载的 sandbox_image 的 tag 与 原版有出入，需要在配置中修改对应 sanbox_image tag
-# 查看镜像 crictl image list
-# 修改完同样需要重启
-[plugins]
- [plugins."io.containerd.gc.v1.scheduler"]
-  [plugins."io.containerd.grpc.v1.cri"]
-   sandbox_image = "registry.aliyuncs.com/google_containers/pause:3.9"
-~~~
+
+
+#### 6、配置文件初始化
 
 ~~~bash
-# 对于已经下载好的，可以修改镜像名字
-# 国内 Aliyun 下载的 sandbox_image 为 3.9
-# 在修改 containerd 的 sandbox_image 失效的情况下，直接修改 tag 即可
-# 具体修改为多少的 tag，可查看任意容器日志得到
-ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k8s.io/pause:3.6
+# init.default初始化文件
+kubeadm config print init-defaults > init.default.yaml
 ~~~
+
+添加 networking.podSubnet: 10.244.0.0/16，为 flunnel 网络插件准备
+
+修改 localAPIEndpoint.advertiseAddress: MasterIP，可以不设置，自动设置
+
+修改 nodeRegistration.name: MasterHostName
+
+~~~bash
+# 国内需要修改 init.default.yaml 的镜像加速地址，建议自建
+# 使用配置文件，拉取相关镜像，先需要 containerd 的镜像加速地址
+kubeadm config images pull --config=init.default.yaml
+# 或者使用命令行
+kubeadm config images pull --image-repository=registry.proxy.com/google_containers
+~~~
+
+
+
+### 2、初始化 Master
 
 
 
@@ -1244,13 +932,8 @@ ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k
 
 
 
-### 2、初始化 Master
-
 ~~~bash
-# 启动 Master 节点，国内需要添加 --image-repository
-kubeadm init --apiserver-advertise-address=masterIP --kubernetes-version v1.26.0 --service-cidr=10.1.0.0/16 --pod-network-cidr=10.244.0.0/16 --image-repository=registry.aliyuncs.com/google_containers
-
-# 或者使用上面创建的配置文件
+# 使用配置文件
 kubeadm init --config init.default.yaml
 ~~~
 
@@ -1290,12 +973,13 @@ chown $(id -u):$(id -g) $HOME/.kube/config
 
 # root 用户运行 kubectl
 vim ~/.bashrc
+
 # 在末尾添加
 export KUBECONFIG=/etc/kubernetes/admin.conf
 source ~/.bashrc
 ~~~
 
-到此 Master 节点安装完毕
+到此 Master 节点安装完毕，可以尝试移除掉 Master 节点的不可调度标签
 
 ~~~bash
 kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule-
@@ -1306,25 +990,7 @@ kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule-
 ### 3、初始化 Node
 
 ~~~bash
-# 使用配置文件加入，麻烦不建议
-# 加入Master，创建join-config.ymal文件
-vim join-config.ymal
-
-# apiServerEndpoint 为 Master 的地址
-# token、 tlsBootstrapToken 为 Master 初始化生成的 Token
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: JoinConfiguration
-discovery:
-  bootstrapToken:
-    apiServerEndpoint: Master节点公网IP:6443
-    token: t5a7cg.19va3edzrgbnldza
-    unsafeSkipCAVerification: true
-  tlsBootstrapToken: t5a7cg.19va3edzrgbnldza
-
-# 加入集群
-kubeadm join --config join-config.ymal
-
-# 或者使用命令行加入
+# 命令行加入
 kubeadm join MasterIP:6443 --token pw1mwc.e3cjvdsnhfc6nvmc --discovery-token-ca-cert-hash sha256:03d450c1455f3b72eccc1b7ddd3f2c0b6737e1f5492729de552dbd5c45a4781e
 ~~~
 
@@ -1353,15 +1019,7 @@ Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
 
 必须部署一个基于 Pod 网络插件的容器网络接口（CNI），以便 Pod 可以相互通信
 
-在安装网络插件之前，集群 DNS（CoreDNS）将不会启动
-
-Pod 网络不得与任何主机网络重叠
-
-默认情况下，kubeadm 将集群设置为强制使用 RBAC，确认网络插件支持 RBAC
-
-如果集群使用双栈协议，确认网络插件支持
-
-每个集群只能安装一个 Pod 网络
+在安装网络插件之前，集群 DNS（CoreDNS）将不会启动，处于 Pending 状态
 
 ~~~bash
 # 同一个 VPC 内的节点处于同一个内网，但是跨 VPC 容易出现下列问题
@@ -1370,31 +1028,74 @@ Pod 网络不得与任何主机网络重叠
 iptables -t nat -I OUTPUT -d Node内部IP -j DNAT --to Node真实IP
 ~~~
 
+
+
 **注意**：
 
-- 以下插件二选一
+- CNI 插件只能安装一个
+- Pod 网络不得与任何主机网络重叠
+- 如果集群使用双栈协议，确认网络插件支持
+- 默认情况下，kubeadm 将集群设置为强制使用 RBAC，确认网络插件支持 RBAC
 
 
 
 #### 2、calico
 
+##### 1、概述
+
+原理：基于 BGP 路由协议或 IP-in-IP 封装（IPIP 模式），实现非封装的 L3 网络，减少性能损耗
+
+性能：高，尤其在大规模集群中表现优异（接近宿主机性能）
+
+功能：支持网络策略、跨集群通信，集成 Istio 服务网格，提供细粒度流量控制
+
+适用场景：中大型集群，需高性能、网络策略及安全性的场景（如生产环境）
+
+
+
+##### 2、部署
+
+下载并部署 Calico 的 Operator
+
 ~~~bash
-# 下载配置文件
-curl https://docs.projectcalico.org/manifests/calico.yaml -O
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.2/manifests/tigera-operator.yaml
 ~~~
 
-修改 name: CALICO_IPV4POOL_CIDR 的 value 为 Master 节点启动时的 --pod-network-cidr 参数值
-
-在 CLUSTER_TYPE 参数的下方添加新配置，value 为 Master 节点的网卡名
-
-~~~yml
-- name: IP_AUTODETECTION_METHOD
-	value: "interface=enp0s3"
-~~~
+下载配置文件
 
 ~~~bash
-# 安装 calico
-kubectl apply -f calico.yaml
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.29.2/manifests/custom-resources.yaml -O
+~~~
+
+修改其中的 cidr 为集群初始化的 podsubnet 值
+
+~~~yaml
+apiVersion: operator.tigera.io/v1  
+kind: Installation                 
+metadata:
+  name: default                    # 资源的名称，通常为 default，表示默认安装配置
+spec:
+  calicoNetwork:                   # 配置 Calico 的网络相关参数
+    ipPools:                       # 定义 Calico 使用的 IP 地址池
+    - name: default-ipv4-ippool    # IP 池的名称，可以自定义
+      blockSize: 26                # 每个节点分配的 IP 地址块大小，26 表示每个节点分配一个 /26 的地址块
+      cidr: 10.244.0.0/16          # 整个集群的 Pod 网络地址范围，10.244.0.0/16
+      encapsulation: VXLANCrossSubnet  # 跨子网时使用 VXLAN 封装，跨子网通信的封装模式
+      natOutgoing: Enabled         # 是否启用 NAT 出站流量，Enabled 表示允许 Pod 访问外部网络时进行 NAT 转换
+      nodeSelector: all()          # 定义 IP 池适用的节点范围，all() 表示所有节点都使用此 IP 池
+---
+# 以下部分配置 Calico API Server
+apiVersion: operator.tigera.io/v1  # 指定使用的 API 版本，这里是 Calico Operator 的 v1 版本
+kind: APIServer                    # 定义资源类型，这里是 Calico API Server 的配置
+metadata:
+  name: default                    # 资源的名称，通常为 default，表示默认配置
+spec: {}                           # 配置 Calico API Server 的具体参数，这里为空表示使用默认配置
+~~~
+
+部署 Calico，默认使用 BGP 路由协议 + Full Mesh 组网 + VXLAN 封装协议
+
+~~~bash
+kubectl create -f custom-resources.yaml
 ~~~
 
 等待所有的 Pod 构建、运行完成
@@ -1411,10 +1112,11 @@ kubectl get nodes
 
 ~~~bash
 # Master 节点
-kubectl delete -f calico.yaml
+kubectl delete -f custom-resources.yaml tigera-operator.yaml
 
 # 所有节点
 modprobe -r ipip
+
 # 停止所有生成的虚拟网卡
 ifconfig xxx down
 ~~~
@@ -1422,6 +1124,20 @@ ifconfig xxx down
 
 
 #### 3、flannel
+
+##### 1、概述
+
+原理：基于 Overlay 网络（默认 VXLAN 模式），为每个节点分配子网，通过封装（如 VXLAN、UDP）实现跨节点通信
+
+性能：中等，VXLAN 模式性能优于 UDP 模式，但相比 Calico 和 Cilium 有更高延迟
+
+功能：仅支持基础网络通信，不支持网络策略，安全性较弱
+
+适用场景：小型集群、简单网络需求，适合快速部署和低维护成本的环境
+
+
+
+##### 2、部署
 
 ~~~bash
 # 下载 flannel 的 yaml 配置文件
@@ -1439,11 +1155,37 @@ kubectl apply -f kube-flannel.yml
 
 #### 4、wave
 
+##### 1、概述
+
+原理：通过 Overlay 网络（VXLAN/UDP）和自研路由算法实现动态流量优化
+
+性能：中等，适合中小规模集群，但大规模部署可能受限
+
+功能：支持网络策略和简单加密，但功能丰富性不如 Calico/Cilium
+
+适用场景：动态环境或需快速部署的轻量级网络
+
+
+
+##### 2、部署
+
 ~~~bash
 kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d'\n')"
 ~~~
 
 
+
+#### 5、Cilium
+
+##### 1、概述
+
+原理：基于 eBPF 技术，在内核层实现网络策略、负载均衡等，支持 L3-L7 层流量管理
+
+性能：最高，eBPF 绕过传统 iptables，减少延迟并提升吞吐量
+
+功能：支持透明加密（IPSec/WireGuard）、多集群 Mesh、深度可观测性（Hubble）
+
+适用场景：大规模集群、高安全性需求
 
 
 
@@ -1464,25 +1206,27 @@ kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl versio
 通过在 Master 节点发布 Deployment，Master 节点会选择合适的 Worker 节点创建 Container，Container 会包含在 Pod 里
 
 ~~~yaml
-apiVersion: apps/v1	# 与 k8s 集群版本有关，使用 kubectl api-versions 即可查看当前集群支持的版本
-kind: Deployment	# 配置的类型，使用的是 Deployment
-metadata:	        # 元数据，即 Deployment 的一些基本属性和信息
-  name: nginx-deployment	# Deployment 的名称
-  labels:	    # 标签，可以灵活定位一个或多个资源，其中 key:value 均自定义，可以定义多组
-    app: nginx	# 为该 Deployment 设置标签
-spec:	        # 关于该 Deployment 的预期状态
-  replicas: 1	# 使用该 Deployment 创建一个实例
-  selector:	    # 标签选择器，与上面的标签共同作用
-    matchLabels: # 选择包含标签 app:nginx 的资源
-      app: nginx
-  template:	    # 这是选择或创建的 Pod 的模板
-    metadata:	# Pod 元数据
-      labels:	# Pod 标签，上面的 selector 即选择包含标签 app:nginx 的 Pod
-        app: nginx
-    spec:	    # Pod 预期状态
-      containers:	# 生成 container，与 docker 中的 container 是同一种
-      - name: nginx	# container 名称
-        image: nginx:1.7.9	# 使用镜像 nginx:1.7.9 创建 container，该 container 默认 80 端口可访问
+apiVersion: apps/v1          # 指定 Kubernetes API 的版本，我们正在使用应用程序管理 API v1
+kind: Deployment             # 资源类型是 Deployment，用于管理 Pod 的副本
+metadata:
+  name: nginx-deployment     # 部署的名称是 nginx-deployment
+  labels:                    # 设置 Deployment 的标签
+    app: nginx-deployment    # 用于标识和选择这个 Deployment
+spec:
+  replicas: 2                # 设置 Pod 的副本数为 2，表示会有两个 Nginx 实例运行
+  selector:
+    matchLabels:
+      app: nginx             # 选择器用于选择与 Deployment 关联的 Pods，选择 app 为 nginx 的 Pod
+  template:
+    metadata:
+      labels:                # 设置 Pod 的标签
+        app: nginx           # 每个 Pod 会带有标签 app: nginx，方便选择和管理
+    spec:
+      containers:            # 定义容器部分
+      - name: nginx          # 容器的名称是 nginx
+        image: nginx:latest  # 使用最新版本的 nginx 镜像
+        ports:
+        - containerPort: 80  # 容器会监听 80 端口，Nginx 默认端口
 ~~~
 
 ~~~bash
@@ -1741,30 +1485,152 @@ apt-get install helm -y
 
 
 
+### 8、多主多从
+
+#### 1、克隆虚拟机
+
+通过 VMware 的克隆虚拟机，可以批量复制 master 或者 node 节点
+
+~~~bash
+# 重置新的节点
+kubeadm reset -f
+
+# 修改 hostname
+hostnamectl set-hostname nodexx
+
+# 修改 hosts，将旧的 noodename 改为新的 nodexx
+vim /etc/hosts
+~~~
+
+
+
+#### 2、新 node 节点加入
+
+~~~bash
+# 申请创新新的 token，然后在新的 node 节点输入即可
+kubeadm token create --print-join-command
+~~~
+
+
+
+#### 3、新 master 节点加入
+
+首先使用 keepalived 实现虚拟 IP，在所有 master 节点安装 keepalived
+
+~~~bash
+apt-get install -y keepalived
+~~~
+
+编辑 /etc/keepalived/keepalived.conf 文件，并给所有 master 节点配置
+
+~~~bash
+vrrp_instance VI_1 {
+    state MASTER                 # 主节点为 MASTER，备份节点为 BACKUP
+    interface ens33               # 实际使用的网卡接口名称
+    virtual_router_id 51         # 虚拟路由器的ID（可以选择任何数字）
+    priority 101                 # 主节点的优先级，越大越优先，备用节点的值需要小些
+    advert_int 1                 # 广播间隔时间（单位：秒）
+    authentication {             # 设置认证方式（可选）
+        auth_type PASS			 # 使用密码认证
+        auth_pass 0000           # 密码（确保主备节点上的认证密码一致）
+    }
+    virtual_ipaddress {
+        192.168.154.99            # 虚拟 IP 地址
+    }
+}
+~~~
+
+启动 keepalived
+
+~~~bash
+systemctl enable keepalived
+systemctl start keepalived
+~~~
+
+获取旧的配置文件，获取其中的 ClusterConfiguration，添加 controlPlaneEndpoint
+
+~~~bash
+kubectl get configmaps kubeadm-config -n kube-system -o yaml > kubeadm-config.yaml
+~~~
+
+~~~yaml
+apiServer:
+  certSANs:
+    - "192.168.154.99"
+apiVersion: kubeadm.k8s.io/v1beta4
+caCertificateValidityPeriod: 87600h0m0s
+certificateValidityPeriod: 8760h0m0s
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+controlPlaneEndpoint: 192.168.154.99:6443
+controllerManager: {}
+dns: {}
+encryptionAlgorithm: RSA-2048
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: registry.k8s.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.32.0
+networking:
+  dnsDomain: cluster.local
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/12
+proxy: {}
+scheduler: {}
+~~~
+
+重新上传配置，更新证书与密钥
+
+~~~bash
+# 备份旧证书
+mv /etc/kubernetes/pki/apiserver.{crt,key} ~/
+
+# 重新生成证书
+kubeadm init phase certs apiserver --config=kubeadm-config.yaml
+# 上传最新配置到集群
+kubeadm init phase upload-config kubeadm --config=kubeadm-config.yaml
+# 上传证书并生成新的解密密钥
+kubeadm init phase upload-certs --upload-certs --config=kubeadm-config.yaml
+~~~
+
+需要在原本的加入命令里面加入 --control-plane --certificate-key <证书密钥>
+
+~~~bash
+
+# 申请加入做为 master 节点
+kubeadm join xxxx:6443 \
+--token xx \
+--discovery-token-ca-cert-hash xx \
+--control-plane --certificate-key <证书密钥>
+~~~
+
 
 
 # 3、Kubernetes 对象
 
-## 1、基本概念
+## 1、概述
 
-Kubernetes  对象指的是集群系统的持久化实体，也可以叫 K8s 对象，并通过 APIServer 存储在 etcd 中，这些数据 / 对象描述了：
+Kubernetes  对象指的是集群系统的持久化实体，也可以叫 K8s 对象，并通过 APIServer 存储在 etcd 中，这些数据描述了：
 
-- 集群中运行了哪些容器化应用程序（以及在哪个节点上运行）
-- 集群中对应用程序可用的资源
-- 应用程序相关的策略定义，例如，重启策略、升级策略、容错策略
-- 其他 Kubernetes 管理应用程序时所需要的信息
+- 集群中运行的容器化应用程序及其所在节点
+- 应用程序可用的资源
+- 应用程序相关的策略定义，如重启策略、升级策略、容错策略
+- 其他 Kubernetes 管理应用程序时所需的信息
 
-一个 Kubernetes 对象代表着用户的一个意图（a record of intent），一旦创建了一个 Kubernetes 对象，Kubernetes 将持续工作，以尽量实现此用户的意图，Kubernetes 对象就是告诉 Kubernetes，需要的集群中的工作负载是什么（集群的**目标状态**）
+每个 Kubernetes 对象代表用户的意图（a record of intent），一旦创建，Kubernetes 会持续工作，以实现用户的**期望状态**
 
-所有 K8s 对象都包含三个状态：
 
-- **spec**：必须由用户来提供，描述了用户对该对象所期望的预期状态
-- **status**：只能由 Kubernetes 系统来修改，描述了该对象在 Kubernetes 系统中的实际状态
-- **metadata**：元数据是用来标识对象的，每个对象都至少有3个元数据：namespace、name、uid
 
-同一个 Kubernetes 对象应该只使用一种方式管理，否则可能会出现不可预期的结果
+## 2、组成结构
 
-以下列举的内容都是 Kubernetes 中的对象，这些对象都可以在 yaml 文件中作为一种 API 类型来配置
+所有 Kubernetes 对象包含三个主要部分：
+
+- **spec**：由用户提供，描述期望状态
+- **status**：由 Kubernetes 系统修改，描述实际状态
+- **metadata**：元数据，用于标识对象，每个对象都至少有3个元数据：namespace、name、uid
+
+以下是 Kubernetes 中的主要对象，可在 YAML 文件中作为 API 类型进行配置：
 
 | 类别 | 名称                                                         |
 | :--- | :----------------------------------------------------------- |
@@ -1775,37 +1641,41 @@ Kubernetes  对象指的是集群系统的持久化实体，也可以叫 K8s 对
 
 
 
-## 2、对象管理
+## 3、对象管理
 
-| 管理方式         | 操作对象                     | 推荐的环境 |
-| ---------------- | ---------------------------- | ---------- |
-| 指令性的命令行   | Kubernetes 对象              | 开发环境   |
-| 指令性的对象配置 | 单个 yaml 文件               | 生产环境   |
-| 声明式的对象配置 | 包含多个 yaml 文件的多个目录 | 生产环境   |
+| 管理方式       | 操作对象                     | 推荐的环境 |
+| -------------- | ---------------------------- | ---------- |
+| 指令性命令行   | Kubernetes 对象              | 开发环境   |
+| 指令性对象配置 | 单个 YAML 文件               | 生产环境   |
+| 声明式对象配置 | 包含多个 YAML 文件的多个目录 | 生产环境   |
 
 ~~~bash
 # 指令性命令行
 kubectl create deployment nginx --image nginx
 
-# 指令性 yaml
+# 指令性 YAML
 kubectl create -f nginx.yaml
 
-# 声明式 yaml
+# 声明式 YAML
 kubectl diff -f configs/
 kubectl apply -f configs/
 ~~~
 
 
 
-## 3、Name 与 UID
+**注意**：
+
+- 同一个 Kubernetes 对象应仅通过一种方式管理，以避免不可预期的结果
+
+
+
+## 4、Name 与 UID
 
 ### 1、概述
 
-集群中的每一个对象使用一个 **Name** 来标识在同类资源中的唯一性，使用一个 **UID** 来标识在整个集群中的唯一性
+集群中的每个对象使用 **Name** 来标识在同类资源中的唯一性，使用 **UID** 来标识在整个集群中的唯一性，对于用户提供的非唯一性属性，Kubernetes 提供了 Label 和 Annotation 机制
 
-比如：在同一个名字空间中只能有一个名为 myapp-1234 的 Pod，但是可以命名一个 Pod 和一个 Deployment 同为 myapp-1234
-
-> 对于用户提供的非唯一性的属性，Kubernetes 提供了 Label 和 Annotation 机制
+例如：在同一命名空间中只能有一个名为 myapp-1234 的 Pod，但可以有一个名为 myapp-1234 的 Pod 和一个名为 myapp-1234 的 Deployment
 
 
 
@@ -1813,9 +1683,9 @@ kubectl apply -f configs/
 
 客户端提供的字符串，引用资源 URL 中的对象，如：/api/v1/pods/appname
 
-某一时刻只能有一个给定类型的对象具有给定的名称，也即同类型不能同名称，但是如果删除该对象，则可以创建同名的新对象
+某一时刻，同一类型的对象只能有一个给定名称，删除该对象后，可以创建同名的新对象
 
-名称在同一资源的所有 API 版本中必须是唯一的，这些 API 资源通过各自的 API 组、资源类型、名字空间、名称来区分
+名称在同一资源的所有 API 版本中必须唯一，这些 API 资源通过各自的 API 组、资源类型、名字空间、名称来区分
 
 
 
@@ -1825,27 +1695,25 @@ kubectl apply -f configs/
 
 
 
-### 3、ID
+### 3、UID
 
-Kubernetes 系统生成的字符串，唯一标识对象
+Kubernetes 系统生成的字符串，唯一标识对象，在 Kubernetes 集群的整个生命周期中，每个对象都有一个不同的 UID，用于区分历史事件
 
-在 Kubernetes 集群的整个生命周期中创建的每个对象都有一个不同的 UID，它旨在区分类似实体的历史事件
-
-Kubernetes UID 是全局唯一标识符，UUID 是标准化的，见 ISO/IEC 9834-8 和 ITU-T X.667
+Kubernetes UID 是全局唯一标识符，符合 UUID 标准，见 ISO/IEC 9834-8 和 ITU-T X.667
 
 
 
-## 3、资源清单
+## 5、资源清单
 
 ### 1、概述
 
-Kubernetes 通过声明 yaml 文件来解决资源管理和资源对象编排与部署，这种文件叫做资源清单文件
+Kubernetes 通过声明式 YAML 文件来管理资源对象的编排和部署，这些文件称为资源清单文件
 
-通过 kubectl 命令使用资源清单文件可以实现对大量的资源对象进行编排
+通过 kubectl 命令使用资源清单文件，可以对大量资源对象进行编排
 
 
 
-### 2、必须属性
+### 2、基本属性
 
 | 参数名                | 字段类型 | 说明                                            |
 | --------------------- | -------- | ----------------------------------------------- |
@@ -1858,49 +1726,52 @@ Kubernetes 通过声明 yaml 文件来解决资源管理和资源对象编排与
 | metadata.annotation[] | List     | 自定义注解属性列表                              |
 | spec                  | Object   | 详细定义对象，固定值写 Spec                     |
 
+
+
+### 3、annotations
+
+~~~yaml
+metadata:
+  annotations:
+    key1: value1
+    key2: value2
+~~~
+
+注解的 key 有两个部分：可选的前缀和注解名，通过 / 分隔
+
+注解名：
+
+- 注解名部分是必须的，且不能多于 63 个字符，必须由字母、数字开始和结尾
+- 可以包含字母、数字、减号-、下划线_、小数点.
+
+注解前缀：
+
+- 注解前缀部分是可选的
+- 如果指定，必须是一个 DNS 的子域名，同 Label 前缀
+- 不能多于 253 个字符
+- 使用 / 和标签名分隔
+
+类似于下面的信息可以记录在注解中：
+
+- 声明式配置层用到的状态信息
+- Build、release、image，例如：timestamp、release ID、git branch、PR number、image hash、registry address
+- 日志、监控、分析、审计系统的参数
+- 第三方工具所需要的信息，例如：name、version、build information、URL
+- 轻量级的发布工具用到的信息，例如：config、checkpoint
+- 负责人的联系方式，例如：电话号码、网址、电子信箱
+- 用户用来记录备忘信息的说明，例如：对标准镜像做了什么样的修改、维护过程中有什么特殊信息需要记住
+
+
+
 **注解**：
 
-- 可以存入任意的信息，Kubernetes 的客户端或者自动化工具可以存取这些信息以实现其自定义的逻辑
-
-- ~~~yaml
-  metadata:
-    annotations:
-      key1: value1
-      key2: value2
-  ~~~
-
-- 注解的 key 有两个部分：可选的前缀和标签名，通过 / 分隔。
-
-  - 注解名：
-    - 标签名部分是必须的
-    - 不能多于 63 个字符
-    - 必须由字母、数字开始和结尾
-    - 可以包含字母、数字、减号-、下划线_、小数点.
-  - 注解前缀：
-    - 注解前缀部分是可选的
-    - 如果指定，必须是一个DNS的子域名，同 Label 前缀
-    - 不能多于 253 个字符
-    - 使用 / 和标签名分隔
-
-- 类似于下面的信息可以记录在注解中：
-
-  - 声明式配置层用到的状态信息。
-  - Build、release、image，例如：timestamp、release ID、git branch、PR number、image hash、registry address
-  - 日志、监控、分析、审计系统的参数
-  - 第三方工具所需要的信息，例如：name、version、build information、URL
-  - 轻量级的发布工具用到的信息，例如：config、checkpoint
-  - 负责人的联系方式，例如：电话号码、网址、电子信箱
-  - 用户用来记录备忘信息的说明，例如：对标准镜像做了什么样的修改、维护过程中有什么特殊信息需要记住
+- 可以存入任意的信息，Kubernetes 的客户端或自动化工具可以存取这些信息以实现自定义逻辑
 
 
 
+### 4、spec
 
-
-### 3、spec 属性
-
-sspec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表达该组件要达到什么预期状态
-
-每个 K8s 对象都有 spec 属性，只是其中的参数有所不同
+spec 是 Kubernetes 资源清单中用于定义期望状态的核心部分，每个 K8s 对象都有 spec 属性，其参数根据对象类型而有所不同
 
 | 参数名                                      | 字段类型 | 说明                                                         |
 | ------------------------------------------- | -------- | ------------------------------------------------------------ |
@@ -1935,504 +1806,1163 @@ sspec 存在于多个 Kubernetes 组件的 yaml 描述当中，主要用于表�
 
 
 
-## 4、总体资源概览
+## 6、总体资源概览
+
+### 1、工作负载类对象
+
+#### 1、Pod
+
+Pod 是 Kubernetes 集群中部署应用或服务的最小单元，支持多个容器在同一 Pod 内共享网络地址和文件系统，这种设计使得容器之间可以通过进程间通信和文件共享的方式高效地协同工作
+
+Pod 对多容器的支持是 Kubernetes 的核心设计理念，是集群中所有业务类型的基础
+
+~~~yaml
+apiVersion: v1  # 指定 API 版本
+kind: Pod  # 资源类型为 Pod
+metadata:
+  name: my-pod  # Pod 的名称
+  labels:
+    app: my-app  # 标签，用于标识 Pod
+spec:
+  containers:
+    - name: container-1  # 第一个容器的名称
+      image: nginx:latest  # 使用最新版本的 nginx 镜像
+      ports:
+        - containerPort: 80  # 容器监听的端口
+    - name: container-2  # 第二个容器的名称
+      image: busybox:latest  # 使用最新版本的 busybox 镜像
+      command: ["sh", "-c", "echo Hello from container-2 && sleep 3600"]  # 容器启动时执行的命令
+      ports:
+        - containerPort: 8080  # 容器监听的端口
+~~~
+
+
+
+#### 2、Replication Controller
+
+Replication Controller（RC）是 Kubernetes 集群中用于确保指定数量 Pod 副本运行的最早的 API 对象，它通过监控运行中的 Pod，确保集群中始终有指定数量的 Pod 副本，如果运行的 Pod 数量少于指定数目，RC 会启动新的 Pod 副本，如果多于指定数目，RC 会删除多余的 Pod 副本，然而 Replication Controller 已被更强大的 ReplicaSet 所取代，后者提供了更多的功能和灵活性，因此，建议使用 ReplicaSet
+
+~~~yaml
+apiVersion: apps/v1  # 指定 API 版本，apps/v1 是管理 ReplicaSet 的常用版本
+kind: ReplicaSet  # 资源类型为 ReplicaSet
+metadata:
+  name: my-replicaset  # ReplicaSet 的名称
+  labels:
+    app: my-app  # 标签，用于标识 ReplicaSet
+spec:
+  replicas: 3  # 指定期望运行的 Pod 副本数量
+  selector:
+    matchLabels:
+      app: my-app  # 选择标签为 app: my-app 的 Pod
+  template:
+    metadata:
+      labels:
+        app: my-app  # Pod 的标签，必须与 selector 匹配
+    spec:
+      containers:
+        - name: my-container  # 容器的名称
+          image: nginx:latest  # 使用最新版本的 nginx 镜像
+          ports:
+            - containerPort: 80  # 容器监听的端口
+~~~
+
+
+
+#### 3、Replica Set
+
+RS（副本集）是新一代的RC（复制控制器），提供同样的高可用能力，主要区别在于 RS 的功能更能丰富，能够支持更多种类的匹配模式
+
+RS 通常不单独使用，而是作为 Deployment 的理想状态参数
+
+~~~yaml
+apiVersion: apps/v1            # 使用的 API 版本，ReplicaSet 属于 apps/v1 组
+kind: ReplicaSet              # 资源类型为 ReplicaSet
+metadata:                     # 元数据部分，定义资源的名称、标签等信息
+  name: my-replicaset         # ReplicaSet 的名称
+  labels:                    # 标签，用于标识和组织资源
+    app: nginx                # 标签键值对，标识应用为 nginx
+spec:                         # 定义 ReplicaSet 的期望状态
+  replicas: 3                 # 期望的 Pod 副本数，ReplicaSet 会确保始终有 3 个 Pod 运行
+  selector:                  # 选择器，用于匹配管理的 Pod
+    matchLabels:             # 匹配 Pod 的标签
+      app: nginx             # 仅管理标签为 `app: nginx` 的 Pod
+  template:                 # Pod 模板，定义 ReplicaSet 创建的 Pod 的规格
+    metadata:               # Pod 的元数据
+      labels:               # Pod 的标签
+        app: nginx          # Pod 的标签必须与 selector 匹配
+    spec:                   # Pod 的规格定义
+      containers:           # 定义 Pod 中的容器列表
+      - name: nginx         # 容器名称
+        image: nginx:1.25   # 容器使用的镜像
+        ports:              # 容器暴露的端口
+        - containerPort: 80 # 容器监听的端口
+        resources:          # 资源请求和限制
+          requests:        # 容器启动时请求的资源
+            memory: "64Mi"  # 请求 64MB 内存
+            cpu: "250m"    # 请求 0.25 个 CPU 核心
+          limits:           # 容器资源使用的上限
+            memory: "128Mi" # 内存上限为 128MB
+            cpu: "500m"    # CPU 上限为 0.5 个核心
+      restartPolicy: Always # Pod 的重启策略（ReplicaSet 中必须为 Always）
+~~~
+
+
 
-### 1、Pod
-
-Pod 是在 K8s 集群中运行部署应用或服务的最小单元，它是可以支持多容器的
-
-Pod 的设计理念是支持多个容器在一个 Pod 中共享网络地址和文件系统，可以通过进程间通信和文件共享这种简单高效的方式组合完成服务
-
-Pod 对多容器的支持是 K8s 最基础的设计理念，Pod 是 K8s 集群中所有业务类型的基础
-
-
-
-### 2、Replication Controller
-
-RC 是 K8s 集群中最早的保证 Pod 高可用的 API 对象，通过监控运行中的 Pod 来保证集群中运行指定数目的 Pod 副本
-
-指定的数目可以是多个也可以是 1 个，少于指定数目，RC 就会启动运行新的 Pod 副本，多于指定数目，RC 就会杀死多余的 Pod 副本
-
-
-
-### 3、Replica Set
-
-RS 是新一代 RC，提供同样的高可用能力，区别主要在于 RS 后来居上，能支持更多种类的匹配模式
-
-副本集对象一般不单独使用，而是作为 Deployment 的理想状态参数使用
-
-
-
-### 4、Deployment
-
-部署表示用户对 K8s 集群的一次更新操作
-
-部署是一个比 RS 应用模式更广的 API 对象，可以是创建一个新的服务，更新一个新的服务，也可以是滚动升级一个服务
-
-滚动升级一个服务，实际是创建一个新的 RS，然后逐渐将新 RS 中副本数增加到理想状态，将旧 RS 中的副本数减小到0的复合操作
-
-
-
-### 5、Service
-
-要稳定地提供服务需要服务发现和负载均衡能力
-
-服务发现完成的工作，是针对客户端访问的服务，找到对应的的后端服务实例，每个 Service 会对应一个集群内部有效的虚拟 IP，集群内部通过虚拟 IP 访问一个服务
-
-在 K8s 集群中微服务的负载均衡是由 Kube-proxy 实现的，Kube-proxy 是 K8s 集群内部的负载均衡器，它是一个分布式代理服务器，在K8s 的每个节点上都有一个
-
-
-
-### 6、Job
-
-Job 是 K8s 用来控制批处理型任务的 API 对象
-
-批处理业务与长期伺服业务的主要区别是批处理业务的运行有头有尾，而长期伺服业务在用户不停止的情况下永远运行
-
-Job 管理的 Pod 根据用户的设置把任务成功完成就自动退出了，成功完成的标志根据不同的 spec.completions 策略而不同：单 Pod 型任务有一个 Pod 成功就标志完成，定数成功型任务保证有 N 个任务全部成功，工作队列型任务根据应用确认的全局成功而标志成功
-
-
-
-### 7、DaemonSet
-
-后台支撑型服务的核心关注点在 K8s 集群中的节点（物理机或虚拟机），保证每个节点上都有一个此类 Pod 运行，节点可能是所有集群节点也可能是通过 nodeSelector 选定的一些特定节点
-
-典型的后台支撑型服务包括：存储，日志、监控等，在每个节点上支撑K8s集群运行的服务
-
-
-
-### 8、StatefulSet
-
-RC 和 RS 主要是控制提供无状态服务的，其所控制的 Pod 的名字是随机设置的，一个 Pod 出故障了就被丢弃掉，在另一个地方重启一个新的 Pod，而 StatefulSet 是用来控制有状态服务，StatefulSet 中的每个 Pod 的名字都是事先确定的，不能更改，且关联与该Pod对应的状态
-
-对于 RC 和 RS 中的 Pod，一般不挂载存储或者挂载共享存储，保存的是所有 Pod 共享的状态，对于 StatefulSet 中的 Pod，每个 Pod 挂载自己独立的存储，如果一个 Pod 出现故障，从其他节点启动一个同样名字的 Pod，要挂载上原来 Pod 的存储继续以它的状态提供服务
-
-适合于 StatefulSet 的业务包括数据库服务 MySQL 和 PostgreSQL，集群化管理服务 Zookeeper、etcd 等有状态服务
-
-StatefulSet 的另一种典型应用场景是作为一种比普通容器更稳定可靠的模拟虚拟机的机制，使用 StatefulSet，Pod 仍然可以通过漂移到不同节点提供高可用，而存储也可以通过外挂的存储来提供高可靠性，StatefulSet 做的只是将确定的 Pod 与确定的存储关联起来保证状态的连续性
-
-
-
-### 9、Federation
-
-在云计算环境中，服务的作用距离范围从近到远一般可以有：同主机（Host，Node）、跨主机同可用区（Available Zone）、跨可用区同地区（Region）、跨地区同服务商（Cloud Service Provider）、跨云平台
-
-K8s 的设计定位是单一集群在同一个地域内，因为同一个地区的网络性能才能满足 K8s 的调度和计算存储连接要求，而联合集群服务就是为提供跨 Region 跨服务商 K8s 集群服务而设计的
-
-每个 K8s Federation 有自己的分布式存储、API Server、Controller Manager
-
-用户可以通过 Federation 的 API Server 注册该 Federation 的成员 K8s Cluster，当用户通过 Federation 的 API Server 创建、更改 API 对象时，Federation API Server 会在自己所有注册的子 K8s Cluster 都创建一份对应的 API 对象
-
-在提供业务请求服务时，K8s Federation 会先在自己的各个子 Cluster 之间做负载均衡，而对于发送到某个具体 K8s Cluster 的业务请求，会依照这个 K8s Cluster 独立提供服务时一样的调度模式去做 K8s Cluster 内部的负载均衡，Cluster 之间的负载均衡是通过域名服务的负载均衡来实现的
-
-
-
-### 10、Volume
-
-K8s 集群中的存储卷跟 Docker 的存储卷有些类似，只不过 Docker 的存储卷作用范围为一个容器，而 K8s 的存储卷的生命周期和作用范围是一个 Pod
-
-每个 Pod 中声明的存储卷由 Pod 中的所有容器共享，K8s 支持非常多的存储卷类型
-
-K8s还支持使用 Persistent Volume Claim 即 PVC 这种逻辑存储，使用这种存储，使得存储的使用者可以忽略后台的实际存储技术，而将有关存储实际技术的配置交给存储管理员通过 Persistent Volume 来配置
-
-
-
-### 11、Persistent Volume/Persistent Volume Claim
-
-PV 和 PVC 使得 K8s 集群具备了存储的逻辑抽象能力，使得在配置 Pod 的逻辑里可以忽略对实际后台存储技术的配置，而把这项配置的工作交给 PV 的配置者，即集群的管理者
-
-存储的 PV 和 PVC 的这种关系，跟 Node 和 Pod 的关系是非常类似的，PV 和 Node 是资源的提供者，根据集群的基础设施变化而变化，由 K8s 集群管理员配置，而 PVC 和 Pod 是资源的使用者，根据业务服务的需求变化而变化，由 K8s 集群的使用者即服务的管理员来配置
-
-
-
-### 12、Node
-
-最初 Node 称为服务节点 Minion，后来改名为 Node
-
-K8s 集群中的 Node 也就等同于 Mesos 集群中的 Slave 节点，是所有 Pod 运行所在的工作主机，可以是物理机也可以是虚拟机，工作主机的统一特征是上面要运行 kubelet 管理节点上运行的容器
-
-
-
-### 13、Secret
-
-Secret 是用来保存和传递密码、密钥、认证凭证这些敏感信息的对象
-
-使用 Secret 的好处是可以避免把敏感信息明文写在配置文件里
-
-
-
-### 14、User Account/Service Account
-
-用户帐户为人提供账户标识，而服务账户为计算机进程和 K8s 集群中运行的 Pod 提供账户标识
-
-用户帐户和服务帐户的一个区别是作用范围，用户帐户对应的是人的身份，人的身份与服务的 namespace 无关，所以用户账户是跨namespace 的，而服务帐户对应的是一个运行中程序的身份，与特定 namespace 是相关的
-
-
-
-### 15、Namespace
-
-名字空间为 K8s 集群提供虚拟的隔离作用，K8s 集群初始有两个名字空间，分别是默认名字空间 default 和系统名字空间 kube-system，除此以外，管理员可以创建新的名字空间以满足需要
-
-
-
-### 16、RBAC
-
-相对于基于属性的访问控制（Attribute-based Access Control，ABAC），RBAC 主要是引入了角色（Role）和角色绑定（RoleBinding）的抽象概念
-
-在 ABAC 中，K8s 集群中的访问策略只能跟用户直接关联，而在 RBAC 中，访问策略可以跟某个角色关联，具体的用户再跟一个或多个角色相关联
-
-
-
-# 4、Kubernetes Pod
+#### 4、Deployment
+
+部署（Deployment） 对服务的管理对象，提供了更广泛的应用场景，不仅可以用于创建新服务，还可以用于更新现有服务或者进行滚动升级，滚动升级本质上是一个复合操作：它首先会创建一个新的 ReplicaSet，然后逐步将新 ReplicaSet 的副本数增加到期望值，同时将旧 ReplicaSet 的副本数减少至零，这种方式可以确保服务的持续可用性，同时完成升级操作
+
+~~~yaml
+apiVersion: apps/v1  	# 指定 API 版本，apps/v1 是部署对象的 API 版本
+kind: Deployment  		# 这是一个部署对象，管理应用程序的生命周期
+metadata:
+  name: nginx-deployment  # 部署的名称，确保在集群中唯一
+spec:
+  replicas: 3  			# 设置副本数量，表示需要 3 个副本运行
+  selector:
+    matchLabels:
+      app: nginx  		# 定义选择器，根据标签选择匹配的 Pod，此处选择 app=nginx 的 Pod
+  template:  			# Pod 模板，定义了将要创建的 Pod 的规格
+    metadata:
+      labels:
+        app: nginx  	# 给 Pod 打标签，用于与 ReplicaSet 匹配
+    spec:
+      containers:
+      - name: nginx  	# 容器的名称
+        image: nginx:v1  # 使用 nginx:v1 镜像
+        ports:
+        - containerPort: 80  # 容器暴露的端口，服务监听端口是 80
+  strategy:
+    type: RollingUpdate  # 滚动更新策略，默认值，表示逐步替换 Pod
+    rollingUpdate:
+      maxSurge: 1  		# 每次滚动更新时，最多允许创建一个额外的 Pod
+      maxUnavailable: 1  # 每次滚动更新时，最多允许 1 个 Pod 不可用
+
+~~~
+
+
+
+#### 5、Job
+
+**Job** 是用于管理批处理任务的 API 对象，主要用于那些具有明确开始和结束的任务，与长期运行的服务型业务不同，批处理任务的特点是有头有尾，即任务在完成后会自动退出
+
+**批处理业务** 与 **长期服务业务** 的主要区别在于：批处理任务是一次性、有限的任务，通常会在任务完成后退出，而长期服务型业务会持续运行，直到用户主动停止
+
+Job 会创建并管理 Pod，根据用户的配置，任务完成后会自动退出，任务的完成标准取决于不同的 spec.completions 策略：
+
+- **单 Pod 型任务**：只有一个 Pod 成功完成时，任务标志为完成
+- **定数成功型任务**：确保有 N 个任务成功完成，任务才算完成
+- **工作队列型任务**：根据应用确认的全局成功来标记任务是否完成
+
+~~~yaml
+apiVersion: batch/v1                  # 指定 API 版本，这里使用 batch/v1，表示 Job 对象的版本
+kind: Job                             # 类型为 Job，表示这是一个批处理任务对象
+metadata:
+  name: example-job                   # Job 的名称，确保在集群内唯一
+spec:
+  completions: 3                       # 设置 Job 成功完成所需的 Pod 数量，保证至少有 3 个 Pod 成功
+  parallelism: 2                       # 设置并行执行的 Pod 数量，最多同时运行 2 个 Pod
+  template:                            # Pod 模板，定义 Job 创建的 Pod 配置
+    metadata:
+      name: example-job-pod            # 给每个 Pod 起个名称，默认会加上 Job 名称作为前缀
+    spec:
+      containers:
+      - name: busybox                   # 容器名称
+        image: busybox                  # 容器镜像，这里用 busybox 执行一些简单任务
+        command: ["sh", "-c", "echo Hello, Kubernetes! && sleep 10"] # 容器执行的命令
+      restartPolicy: Never              # 重启策略设置为 Never，Pod 执行完任务后不会重启
+~~~
+
+
+
+#### 6、DaemonSet
+
+DaemonSet 是 Kubernetes 中一种资源对象，用于确保在集群中的每个节点上运行一个 Pod，它常用于部署后台支撑型服务，如日志收集、监控、存储等。无论节点数如何变化，DaemonSet 会自动在新加入的节点上创建 Pod，确保每个节点都有一个 Pod 实例，与 Deployment 不同，DaemonSet 适用于那些需要在每个节点上都运行的服务
+
+**节点亲和性（Node Affinity）**：为了确保每个节点上都有一个 Pod 运行，可以使用 nodeSelector 或 affinity 来指定 Pod 只能调度到特定节点，这有助于确保后台服务在集群的每个节点上都有副本运行，而不是仅仅依赖于少数节点，除了 nodeSelector，还可以使用 affinity 和 taints/tolerations 来提供更精细的调度控制，例如，可以利用 nodeAffinity 来基于节点的属性（如标签）进行更加灵活的调度，或使用 taints 和 tolerations 来排除某些节点，只允许满足特定条件的 Pod 被调度
+
+**高可用性和容错性**：通常这类服务需要保证高可用性，在每个节点上都部署一个副本，确保即使某些节点出现故障，集群的监控、日志收集等服务依然能够继续运行
+
+~~~yaml
+apiVersion: apps/v1                     # 指定 API 版本，这里是应用部署的 v1 版本
+kind: DaemonSet                         # 使用 DaemonSet 来确保每个节点上都有一个 Pod
+metadata:
+  name: log-collector                   # DaemonSet 的名称
+spec:
+  selector:
+    matchLabels:
+      app: log-collector                # 标签选择器，匹配具有该标签的 Pod
+  template:
+    metadata:
+      labels:
+        app: log-collector               # Pod 的标签，确保与 selector 匹配
+    spec:
+      containers:
+      - name: fluentd                    # 容器名称
+        image: fluent/fluentd:v1          # 容器镜像，使用 Fluentd 来收集日志
+        ports:
+        - containerPort: 24224            # Fluentd 使用的端口
+      nodeSelector:
+        disktype: ssd                    # 使用 nodeSelector 选择特定节点，只有 `disktype=ssd` 的节点才能调度
+      restartPolicy: Always               # 重启策略，确保 Pod 总是运行
+~~~
+
+
+
+#### 7、StatefulSet
+
+**ReplicationController (RC)** 和 **ReplicaSet (RS)** 主要用于管理无状态服务，控制的 Pod 名称是随机分配的，当 Pod 出现故障时，它会被删除并在其他节点上重新启动一个新的 Pod，这些 Pod 不保存任何独立的状态，相比之下，**StatefulSet** 用于管理有状态服务，它确保每个 Pod 都有一个固定且唯一的名称，并与该名称绑定状态，StatefulSet 中的 Pod 不同于 RC 和 RS 中的 Pod，它们拥有稳定的标识符和与之关联的持久化存储
+
+在 RC 和 RS 中，Pod 通常不挂载存储或使用共享存储，存储中的数据是全局共享的，而在 StatefulSet 中，每个 Pod 都会挂载独立的存储，当 Pod 发生故障时，Kubernetes 会根据原有名称在其他节点启动一个新的 Pod，并挂载上原 Pod 的存储，以确保服务的状态得以延续
+
+适合使用 StatefulSet 的应用包括有状态服务，如 MySQL、PostgreSQL 数据库，和集群管理服务如 Zookeeper、etcd 等
+
+StatefulSet 的另一个典型应用场景是模拟虚拟机的高可用性，通过 StatefulSet，Pod 可以在不同节点之间漂移而保持高可用性，并且存储可以通过外部持久化存储提供高可靠性，StatefulSet 通过将 Pod 与特定的存储绑定，保证了服务状态的一致性和连续性
+
+~~~yaml
+apiVersion: apps/v1                       # 指定使用的 API 版本，这里是 apps/v1，适用于 StatefulSet 对象
+kind: StatefulSet                         # 类型为 StatefulSet，表示管理有状态服务的对象
+metadata:
+  name: mysql-statefulset                 # StatefulSet 的名称，用于标识这个有状态服务
+  labels:
+    app: mysql                            # 标签选择器，标识该 StatefulSet 为 mysql 服务
+spec:
+  serviceName: "mysql"                    # 关联的 headless service 名称，Pod 会通过该服务进行访问
+  replicas: 3                             # 指定副本数量，这里设置为 3，表示要运行 3 个 Pod 实例
+  selector:                               # 选择器，用于与 Pod 匹配
+    matchLabels:
+      app: mysql                          # 选择器匹配标签为 app=mysql 的 Pod
+  template:                               # Pod 模板，定义了创建 Pod 的配置
+    metadata:
+      labels:
+        app: mysql                        # Pod 的标签，确保与 StatefulSet 的 selector 匹配
+    spec:
+      containers:
+      - name: mysql                        # 容器的名称
+        image: mysql:5.7                   # 容器镜像，使用 MySQL 5.7 镜像
+        ports:
+        - containerPort: 3306              # 容器暴露的端口，MySQL 默认端口 3306
+        volumeMounts:
+        - name: mysql-storage              # 挂载存储卷
+          mountPath: /var/lib/mysql         # 挂载到容器内的路径，MySQL 数据库存储路径
+  volumeClaimTemplates:                    # 持久化存储卷的模板，确保每个 Pod 都有独立的存储
+  - metadata:
+      name: mysql-storage                  # 存储卷的名称
+    spec:
+      accessModes:                         # 存储的访问模式，设置为 ReadWriteOnce，表示单一 Pod 可读写
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi                    # 为每个 Pod 请求 10GB 的存储
+  podManagementPolicy: OrderedReady         # Pod 管理策略，OrderedReady 保证 Pod 按顺序启动
+  updateStrategy:
+    type: RollingUpdate                    # 更新策略，RollingUpdate 表示滚动更新
+    rollingUpdate:
+      partition: 0                          # 设置滚动更新的分区，保证不会一次性停止所有 Pod
+~~~
+
+
+
+### 2、服务类对象
+
+#### 1、Service
+
+为了确保服务的高可用性和稳定性，**服务发现**和**负载均衡**是必不可少的关键能力
+
+- **服务发现**：每个 Service 在创建时会被分配一个虚拟 IP（ClusterIP），这个 IP 对集群内的所有节点都是有效的，客户端通过该虚拟 IP 访问服务时，Kubernetes 会自动将请求转发到该服务的后端 Pod，优点在于，当 Pod 或者服务实例的 IP 发生变化时，客户端无需知晓，只要虚拟 IP 不变，服务发现机制会自动处理所有的 IP 变化。
+- **Kube-proxy 负载均衡**：Kube-proxy 是 Kubernetes 中实现服务负载均衡的组件，它会监听集群中服务的变化，并根据需要更新每个节点上的路由规则，在每个节点上，Kube-proxy 会维护一组代理规则，这些规则将集群外部或其他节点发来的请求，按照一定的负载均衡策略（如轮询、最少连接等），转发到相应的后端 Pod，这样，不论请求来自哪个节点，Kube-proxy 都会保证流量均匀分配到各个服务实例，提高系统的可扩展性和可靠性
+
+~~~yaml
+apiVersion: v1                          # 指定 API 版本，v1 是 Service 对象的版本
+kind: Service                            # 类型是 Service，表示这是一个服务对象
+metadata:                                # 元数据部分，包含服务的基本信息
+  name: nginx-service                    # 服务的名称，唯一标识服务
+  namespace: default                      # 服务所在的命名空间，默认为 default
+  labels:                                # 标签，可以用于服务选择器和标识
+    app: nginx                           # 标签 app 用于标识这个服务属于 nginx 应用
+spec:                                    # 服务的规格定义
+  selector:                              # 选择器，用来匹配 Pod 的标签
+    app: nginx                           # 选择 app=nginx 的 Pod，服务会把流量导向这些 Pod
+  ports:                                 # 服务的端口配置
+  - port: 80                             # 服务暴露的端口，客户端通过此端口访问服务
+    targetPort: 80                       # 目标端口，指的是 Pod 内部容器暴露的端口
+    protocol: TCP                         # 使用的协议，通常是 TCP 或 UDP
+    name: http                            # 为该端口指定一个名字（可选），方便引用
+  clusterIP: 10.96.0.1                   # 服务的虚拟 IP，Kubernetes 集群内的内部 IP，客户端通过此 IP 访问
+  type: ClusterIP                        # 服务的类型，ClusterIP 是默认类型，表示只能在集群内部访问
+  sessionAffinity: None                   # 会话亲和性，设置为 None 表示不保持客户端与 Pod 的会话状态
+  loadBalancerIP: 10.96.0.2              # 如果服务类型是 LoadBalancer，这里会指定外部负载均衡器的 IP（此例未启用）
+  externalIPs:                           # 外部 IP 配置，当外部网络直接访问服务时使用
+    - 192.168.1.100                      # 外部可访问的 IP 地址
+  ports:                                 # 可以定义多个端口
+  - port: 443                            # 新定义的端口，服务外部可通过 443 端口访问
+    targetPort: 443                       # 对应容器的 443 端口
+    protocol: TCP                         # 使用 TCP 协议
+    name: https                           # 为该端口指定名字
+  externalName: nginx.example.com        # 如果设置为 ExternalName，服务会解析到外部 DNS 名称
+  publishNotReadyAddresses: false        # 是否允许暴露未准备好的 Pod，设置为 false 时不会暴露不健康的 Pod
+  selector:                              # 如果没有定义 selector，Service 会匹配所有的 Pod
+    app: nginx                           # 通过标签选择器匹配服务的 Pod
+~~~
+
+
+
+#### 2、Ingress
+
+管理外部 HTTP/HTTPS 流量路由到集群内部服务
+
+
+
+### 3、配置类对象
+
+#### 1、Secret
+
+**Secret** 对象用于存储和管理敏感信息，如密码、密钥和认证凭证，使用 Secret 可以避免将敏感信息明文写入配置文件，从而提高安全性
+
+~~~yaml
+apiVersion: v1  # API 版本，v1 表示使用 Kubernetes 的第一个版本
+kind: Secret  # 资源类型为 Secret
+metadata:
+  name: my-secret  # Secret 的名称为 my-secret
+  namespace: default  # Secret 所在的命名空间为 default
+type: Opaque  # Secret 的类型为 Opaque，表示用户自定义的类型
+data:
+  username: YWRtaW4=  # 用户名的 base64 编码值（'admin' 的 base64 编码）
+  password: MWYyZDFlMmU2N2Rm  # 密码的 base64 编码值（'1f2d1e2e67df' 的 base64 编码）
+~~~
+
+~~~bash
+# 使用以下命令自动将敏感信息进行 base64 编码并创建 Secret
+kubectl create secret generic my-secret --from-literal=username=admin --from-literal=password=1f2d1e2e67df
+~~~
+
+
+
+#### 2、ConfigMap
+
+存储非敏感配置数据（如环境变量、配置文件）
+
+
+
+### 4、存储类对象
+
+#### 1、Volume
+
+存储卷（Volume）类似于 Docker 的存储卷，但其作用范围更广，Docker 的存储卷作用于单个容器，而 Kubernetes 的存储卷的生命周期和作用范围是整个 Pod，每个 Pod 中声明的存储卷由 Pod 中的所有容器共享，Kubernetes 支持多种类型的存储卷
+
+此外，Kubernetes 还支持使用持久卷声明（Persistent Volume Claim，PVC）来管理存储，使用 PVC 存储的使用者可以忽略后台的实际存储技术，将有关存储实际技术的配置交给存储管理员通过持久卷（Persistent Volume，PV）来配置
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod  # Pod 的名称
+spec:
+  containers:
+    - name: my-container  # 容器的名称
+      image: nginx:latest  # 使用最新的 nginx 镜像
+      volumeMounts:
+        - mountPath: /usr/share/nginx/html  # 容器内挂载路径
+          name: my-volume  # 挂载的卷名称
+  volumes:
+    - name: my-volume  # 卷的名称
+      emptyDir: {}  # 使用 emptyDir 类型的卷
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod  # Pod 的名称
+spec:
+  containers:
+    - name: my-container  # 容器的名称
+      image: nginx:latest  # 使用最新的 nginx 镜像
+      volumeMounts:
+        - mountPath: /usr/share/nginx/html  # 容器内挂载路径
+          name: my-volume  # 挂载的卷名称
+  volumes:
+    - name: my-volume  # 卷的名称
+      hostPath:
+        path: /data  # 宿主机上的目录路径
+        type: Directory  # 指定挂载的类型为目录
+~~~
+
+
+
+#### 2、Persistent Volume/Persistent Volume Claim
+
+持久卷（Persistent Volume，PV）和持久卷声明（Persistent Volume Claim，PVC）提供了存储的逻辑抽象能力，使得在配置 Pod 时，可以忽略对实际后台存储技术的配置，而将这项配置的工作交给 PV 的配置者，即集群的管理员
+
+PV 和 PVC 之间的关系类似于节点（Node）和 Pod 之间的关系，PV 和节点是资源的提供者，根据集群的基础设施变化而变化，由 Kubernetes 集群管理员配置，而 PVC 和 Pod 是资源的使用者，根据业务服务的需求变化而变化，由 Kubernetes 集群的使用者，即服务的管理员来配置
+
+~~~yaml
+# 定义一个持久卷（Persistent Volume，PV）
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-pv  # 持久卷的名称
+spec:
+  capacity:
+    storage: 1Gi  # 存储容量为 1Gi
+  volumeMode: Filesystem  # 卷的模式为文件系统
+  accessModes:
+    - ReadWriteOnce  # 访问模式为单节点读写
+  persistentVolumeReclaimPolicy: Retain  # 回收策略为保留
+  storageClassName: standard  # 存储类名称为 standard
+  hostPath:
+    path: /mnt/data  # 宿主机上的路径
+    type: DirectoryOrCreate  # 如果路径不存在，则创建目录
+
+---
+# 定义一个持久卷声明（Persistent Volume Claim，PVC）
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc  # 持久卷声明的名称
+spec:
+  accessModes:
+    - ReadWriteOnce  # 访问模式为单节点读写
+  resources:
+    requests:
+      storage: 1Gi  # 请求的存储容量为 1Gi
+  storageClassName: standard  # 存储类名称为 standard
+
+---
+# 定义一个 Pod，使用上述 PVC
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod  # Pod 的名称
+spec:
+  containers:
+    - name: my-container  # 容器的名称
+      image: nginx:latest  # 使用最新的 nginx 镜像
+      volumeMounts:
+        - mountPath: /usr/share/nginx/html  # 容器内挂载路径
+          name: my-volume  # 挂载的卷名称
+  volumes:
+    - name: my-volume  # 卷的名称
+      persistentVolumeClaim:
+        claimName: my-pvc  # 引用之前定义的 PVC
+~~~
+
+
+
+### 5、集群类对象
+
+#### 1、Node
+
+**Node**（节点）是运行 Pod 的工作主机，类似于 Apache Mesos 集群中的 **Slave** 节点，这些节点可以是物理机或虚拟机，其共同特征是都运行着 **kubelet**，负责管理和运行容器，最初 Kubernetes 中的节点被称为 **Minion**，后来更名为 **Node**
+
+
+
+#### 2、User Account/Service Account
+
+**用户账户**用于标识人类用户，而 **服务账户**（ServiceAccount）用于标识运行在集群中的计算机进程和 Pod
+
+- 用户账户通常用于集群外部的身份验证和授权，与外部身份验证系统（如 LDAP、OIDC）集成，不由 Kubernetes 直接管理
+- 服务账户用于集群内部的身份验证和授权，服务账户与特定的命名空间（namespace）相关联，通常用于 Pod 的身份验证
+
+~~~yaml
+apiVersion: v1                 # 使用的 API 版本，ServiceAccount 属于核心 API 组（v1）
+kind: ServiceAccount           # 资源类型为 ServiceAccount
+metadata:                      # 元数据部分，定义 ServiceAccount 的名称和标签
+  name: my-service-account     # ServiceAccount 的名称
+  namespace: default           # 所属命名空间（默认为 default）
+  labels:                      # 标签，用于标识和组织资源
+    app: my-app                # 标识该 ServiceAccount 属于 my-app 应用
+    env: prod                  # 标识该 ServiceAccount 用于生产环境
+  annotations:                 # 注解，用于存储附加信息
+    description: "Service account for my-app in production"  # 描述信息
+secrets:                       # 关联的 Secret 列表（自动生成，通常无需手动配置）
+- name: my-service-account-token-abc12  # 自动生成的 Token Secret 名称
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  serviceAccountName: my-service-account  # 指定使用的 ServiceAccount
+  containers:
+  - name: my-container
+    image: nginx:1.25
+~~~
+
+
+
+#### 3、Namespace
+
+**命名空间（Namespace）** 提供了虚拟的隔离机制，使得同一集群中的资源可以相互独立地运行和管理
+
+Kubernetes 集群初始包含两个命名空间：除了这两个命名空间，管理员可以根据需要创建新的命名空间，以满足不同的业务需求
+
+- default：默认命名空间，所有未指定命名空间的资源都会被创建在此
+- kube-system：用于存放 Kubernetes 系统组件的命名空间
+
+~~~yaml
+apiVersion: v1  # API 版本，v1 表示使用 Kubernetes 的第一个版本
+kind: Namespace  # 资源类型为 Namespace
+metadata:
+  name: my-namespace  # 命名空间的名称为 my-namespace
+  # metadata 字段包含命名空间的元数据
+  # name：命名空间的名称
+  # labels：可选的标签，用于标识和组织资源
+  # annotations：可选的注解，用于存储附加信息
+  # creationTimestamp：命名空间的创建时间戳
+  # resourceVersion：资源版本，用于乐观并发控制
+  # selfLink：资源的 URL 链接
+  # uid：命名空间的唯一标识符
+~~~
+
+
+
+#### 4、RBAC
+
+**基于角色的访问控制（Role-Based Access Control，RBAC）** 通过引入角色（Role）和角色绑定（RoleBinding）的概念，实现了对集群资源的细粒度访问控制，与基于属性的访问控制（Attribute-Based Access Control，ABAC）不同，RBAC 允许将访问策略与角色关联，然后将角色与用户或服务账户关联，从而实现权限的集中管理和分配
+
+~~~yaml
+# 定义服务账户
+apiVersion: v1  # API 版本，v1 表示使用 Kubernetes 的第一个版本
+kind: ServiceAccount  # 资源类型为 ServiceAccount
+metadata:
+  name: my-service-account  # 服务账户的名称为 my-service-account
+  namespace: default  # 服务账户所在的命名空间为 default
+
+# 定义角色
+apiVersion: rbac.authorization.k8s.io/v1  # RBAC API 版本
+kind: Role  # 资源类型为 Role
+metadata:
+  name: pod-reader  # 角色的名称为 pod-reader
+  namespace: default  # 角色所在的命名空间为 default
+rules:
+  - apiGroups: [""]  # 空字符串表示核心 API 组
+    resources: ["pods"]  # 资源类型为 pods
+    verbs: ["get", "list"]  # 允许的操作为获取和列出
+
+# 定义角色绑定
+apiVersion: rbac.authorization.k8s.io/v1  # RBAC API 版本
+kind: RoleBinding  # 资源类型为 RoleBinding
+metadata:
+  name: read-pods  # 角色绑定的名称为 read-pods
+  namespace: default  # 角色绑定所在的命名空间为 default
+subjects:
+  - kind: ServiceAccount  # 绑定的主体类型为 ServiceAccount
+    name: my-service-account  # 绑定的服务账户名称为 my-service-account
+    namespace: default  # 服务账户所在的命名空间为 default
+roleRef:
+  kind: Role  # 角色类型为 Role
+  name: pod-reader  # 绑定的角色名称为 pod-reader
+  apiGroup: rbac.authorization.k8s.io  # RBAC API 组
+~~~
+
+
+
+#### 5、Federation
+
+在云计算环境中，服务的作用范围从近到远可分为：同主机（Host，Node）、跨主机同可用区（Available Zone）、跨可用区同地区（Region）、跨地区同服务商（Cloud Service Provider）、跨云平台
+
+Kubernetes（K8s）的设计初衷是单一集群在同一地域内运行，因为同一地区的网络性能才能满足K8s的调度和计算存储连接要求，然而，随着业务需求的增长，跨地域和跨服务商的部署变得越来越重要，为此，Kubernetes 联合集群（Federation）应运而生，旨在提供跨 Region、跨服务商的 K8s 集群服务
+
+每个 K8s Federation 拥有独立的分布式存储、API Server 和 Controller Manager，用户可以通过 Federation 的 API Server 注册各个子 K8s 集群，当用户通过 Federation 的 API Server 创建或更改 API 对象时，Federation API Server 会在所有注册的子 K8s 集群中创建对应的 API 对象
+
+在处理业务请求时，K8s Federation 会首先在各个子集群之间进行负载均衡，对于发送到某个具体 K8s 集群的业务请求，会按照该集群内部的调度模式进行负载均衡，集群之间的负载均衡通常通过域名服务的负载均衡来实现
+
+通过这种方式，K8s Federation 实现了跨地域、跨服务商的高可用性和灾备能力，满足了现代云原生应用对全球分布式部署的需求
+
+~~~yaml
+# 在 K8s Federation 中创建一个跨集群的 Service
+# 定义一个名为 'my-service' 的 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  # 在 Federation 中，Service 的标签用于跨集群的服务发现
+  labels:
+    app: my-app
+spec:
+  # 服务的类型，ClusterIP 表示仅在集群内部可访问
+  type: ClusterIP
+  # 服务选择器，匹配具有相同标签的 Pod
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      # 服务的端口映射，外部访问端口 80，内部 Pod 的端口 8080
+~~~
+
+
+
+
+
+# 4、Kubernetes Namspace
+
+## 1、概述
+
+**Namspace 核心作用**：
+
+- **资源隔离**：逻辑隔离集群资源（开发/测试/生产环境）
+- **访问控制**：配合 RBAC 实现权限管理
+- **资源配额**：通过 ResourceQuota 限制资源使用 [source_id:0]
+- **命名域**：同一命名空间内资源名称唯一
+
+**适用场景**：
+
+- 多团队共享集群环境
+- 项目生命周期管理（开发 → 测试 → 生产）
+- 需要细粒度资源控制的场景
+
+
+
+## 3、系统预置命名空间
+
+| 命名空间        | 用途说明                                 | 访问权限特点     |
+| --------------- | ---------------------------------------- | ---------------- |
+| default         | 未指定命名空间时的默认位置               | 常规用户资源存放 |
+| kube-system     | 系统核心组件（API Server, Scheduler 等） | 限制普通用户访问 |
+| kube-public     | 集群级公共配置（如 bootstrap token）     | 所有用户可读     |
+| kube-node-lease | 节点心跳记录（Lease 对象）               | 系统自动维护     |
+
+**集群级资源类型**，以下资源不受命名空间限制：
+
+- Node
+- PersistentVolume
+- StorageClass
+- ClusterRole
+- Namespace 自身
+
+
+
+## 3、资源定义
+
+~~~yaml
+# 创建命名空间
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-env
+  labels:
+    env: development
+---
+# 在指定命名空间创建 Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug-tool
+  namespace: dev-env
+spec:
+  containers:
+  - name: debugger
+    image: busybox:1.28
+    command: ["sleep", "3600"]
+~~~
+
+
+
+**注意**：
+
+- **命名规范**：
+
+  - 必须符合 DNS-1123 标签标准
+  - 允许字符：小写字母、数字、"-"
+  - 长度限制：1-63 字符
+
+- **设计建议**：
+
+  - 避免使用 `default` 命名空间存放业务资源
+
+  - 不要使用 `kube-` 前缀（系统保留）
+
+  - 使用标签进行细粒度资源管理
+
+- **跨命名空间通信**：
+
+  - Service 访问格式：<service-name>.<namespace>.svc.cluster.local
+
+  - 需要配置对应的网络策略
+
+
+
+## 4、操作实践
+
+### 1、基本操作
+
+~~~bash
+# 查看所有命名空间
+kubectl get namespaces
+
+# 筛选命名空间作用域资源
+kubectl api-resources --namespaced=true
+
+# 创建新命名空间
+kubectl create namespace dev-env
+~~~
+
+
+
+## 5、高级配置
+
+#### 1、上下文配置技巧
+
+~~~bash
+# 设置默认命名空间
+kubectl config set-context --current --namespace=dev-env
+
+# 验证当前上下文
+kubectl config view --minify | grep namespace:
+~~~
+
+
+
+# 5、Kubernetes Label
 
 ## 1、基本概念
 
-Pod 是 Kubernetes 中可以创建和管理的最小单元，是资源对象模型中由用户创建或部署的最小资源对象模型，其他的资源对象都是用来支撑或者扩展 Pod 对象功能的，比如：控制器对象是用来管控 Pod 对象的、Service 或者 Ingress 资源对象是用来暴露 Pod 引用对象的，PersistentVolume 资源对象是用来为 Pod 提供存储等等
+标签（Labels）是键值对数据，附加到 Pod、Service、Node 等资源对象上，用于标识和分组资源
 
-Kubernetes 只能直接处理 Pod，Pod 是由一个或多个 container 组成，其中的每个容器都称为副本（replication），由对应的 Controller 管理，每一个 Pod 都有一个特殊的被称为根容器的 Pause 容器，Pause 容器对应的镜像属于 Kubernetes 平台的一部分，除了 Pause 容器，每个 Pod 还包含一个或多个紧密相关的用户业务容器，以及这些容器包含的资源，这些资源包括：
+**主要特性**：
 
-- 共享存储：称为卷 Volumes
-- 网络：每个 Pod 在集群中有个唯一的 IP，Pod 中的 container 共享该 IP 地址
-- container 的基本信息，例如：容器的镜像版本，对外暴露的端口等
+- **筛选依据**：支持通过选择器进行复杂查询
+- **动态管理**：支持通过 kubectl label 命令实时修改
+- **多维度标识**：一个资源可拥有多个标签（如 env=prod 和 tier=frontend）
 
-<img src="images/image-20230107131244951.png" alt="image-20230107131244951" style="zoom: 33%;" />
+**应用场景**：
 
-某些 Pod 除了使用 app container （工作容器）以外，还会使用 init container （初始化容器），初始化容器运行并结束后，工作容器才开始启动
+~~~yaml
+# Deployment 中定义资源标签与 Pod 模板标签
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:  # 资源级标签（用于 Deployment 自身标识）
+    app.kubernetes.io/name: web-store
+    component: frontend
+spec:
+  template:
+    metadata:
+      labels:  # Pod 模板标签（用于关联 Service 等资源）
+        tier: web
+        env: prod
+~~~
+
+
+
+## 2、格式规范
+
+### 1、键值规则
+
+| 要素       | 规则                                                         | 合法示例                 | 非法示例               |
+| ---------- | ------------------------------------------------------------ | ------------------------ | ---------------------- |
+| **键名**   | 63 字符以内<br>允许：小写字母/数字/-/_/.<br>必须字母/数字开头结尾 | `app.kubernetes.io/name` | `-prod-environment`    |
+| **键前缀** | 需符合 DNS 子域名规范（253 字符）<br>使用`/`分隔前缀与名称   | `example.com/custom-tag` | `kubernetes.io/custom` |
+| **键值**   | 63 字符以内（可为空）<br>非空时遵循键名规则                  | `v1.2.3`                 | `Production_Env`       |
+
+
+
+### 2、保留前缀
+
+**系统保留**：kubernetes.io/ 和 k8s.io/ 开头的标签（如 kubernetes.io/arch=amd64）
+
+**用户规范**：建议使用反向域名格式避免冲突（如 com.example.project）
+
+
+
+## 3、标签选择器
+
+### 1、概述
+
+**非唯一性**：允许资源与标签呈现多对多关系（M:N）
+
+**动态筛选**：与 Name/UID 不同，支持运行时条件匹配
+
+
+
+### 2、选择器类型
+
+API Server 支持两种标签选择器：
+
+- **基于等式的选择器（Equality-Based）**：
+  - 操作符：=, ==, !=（== 等同于 =）
+  
+  - 示例：environment=production、tier!=frontend
+  
+  - 多个条件用逗号分隔，等同于 AND 逻辑，例如 environment=production,tier!=frontend
+  
+  - ~~~bash
+    # 选择 env=prod 且 tier!=frontend 的资源
+    kubectl get pods -l 'env=prod,tier!=frontend'
+    ~~~
+  
+- **基于集合的选择器（Set-Based）**：
+  
+  - 操作符：in, notin, exists, doesnotexist
+  
+  - 示例：environment in (production, qa)、tier notin (frontend, backend)、partition（exists）、!partition（does not exist）
+  
+  - 使用小括号表示集合，条件之间也是 AND 逻辑
+  
+  - ~~~bash
+    # 选择 env 为 prod 或 staging，且 tier 存在的资源
+    kubectl get pods -l 'env in (prod,staging),tier'
+    ~~~
+
+
+
+### 3、API 请求编码
+
+两种选择器均支持 API 查询，但需符合 URL 编码：
+
+- 基于等式的选择：?labelSelector=environment%3Dproduction,tier%3Dfrontend
+- 基于集合的选择：?labelSelector=environment+in+%28production%2Cqa%29%2Ctier+in+%28frontend%29
+
+空选择器或未指定选择器的含义由具体 API 接口决定，通常匹配所有对象
+
+
+
+## 4、字段选择器
+
+字段选择器（Field Selector）类似于标签选择器，但基于对象的字段值（非标签）进行筛选
+
+**使用方式**：默认无选择器时，匹配指定资源类型的所有对象
+
+**支持字段**：不同对象类型支持的字段不同，所有对象均支持 metadata.name 和 metadata.namespace，使用不支持的字段会报错
+
+**操作符**：支持 =, ==, !=（= 和 == 含义相同），多个字段用逗号分隔
+
+**跨资源类型**：字段选择器可跨资源类型使用
+
+~~~bash
+# 跨资源类型
+kubectl get statefulsets,services --all-namespaces --field-selector metadata.namespace!=default
+
+# 选择状态为 Running 的所有 Pod
+kubectl get pods --field-selector status.phase=Running
+# 选择状态非 Running 且重启策略为 Always 的 Pod
+kubectl get pods --field-selector=status.phase!=Running,spec.restartPolicy=Always
+~~~
+
+
+
+## 5、命名空间选择器
+
+命名空间选择器（namespaceSelector）用于根据命名空间的标签选择一组命名空间，常用于 Pod 亲和性规则等场景
+
+**匹配规则**：
+
+- 空选择器 {} 匹配所有命名空间
+- null 或空 namespaces 列表结合 null namespaceSelector，通常指当前 Pod 的命名空间，具体行为取决于上下文
+
+**应用场景**：如在 Pod 亲和性中，指定某些命名空间内的 Pod 作为亲和性计算目标
+
+
+
+## 6、标签在资源定义中的应用
+
+Job、Deployment、ReplicaSet、DaemonSet 等资源对象也支持标签选择器，通过 selector 字段定义：
+
+- **matchLabels**：
+  - 是一个 {key, value} 映射，相当于 matchExpressions 中的一个元素，操作符为 In，values 数组只包含一个值
+  - 示例：matchLabels: {component: redis} 等同于 matchExpressions: [{key: component, operator: In, values: [redis]}]
+- **matchExpressions**：
+  - 支持操作符 In, NotIn, Exists, DoesNotExist
+  - 当操作符为 In 或 NotIn 时，values 数组不能为空
+  - 所有条件以 AND 逻辑合并计算，即必须同时满足
+
+~~~yaml
+selector:
+  matchLabels:     # 精确键值匹配
+    component: redis
+  matchExpressions:  # 表达式匹配
+    - key: tier
+      operator: In
+      values: [cache]
+    - key: environment
+      operator: NotIn
+      values: [dev]
+~~~
+
+
+
+**注意**：
+
+- matchLabels 与 matchExpressions 条件为 **AND** 关系
+
+
+
+## 7、Finalizers
+
+### 1、概述
+
+**Finalizers** 是 Kubernetes 中一种**资源级别的保护机制**，本质上是存储在对象元数据中的一组键（字符串标识符）
+
+它的核心作用是：**阻止资源被意外删除，直到所有预定义的清理操作完成**
+
+~~~yaml
+# PersistentVolume 保护机制
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  finalizers:
+  - kubernetes.io/pv-protection  # 阻止被使用中的存储卷被删除
+~~~
+
+
+
+**内置 Finalizers 示例**：
+
+| Finalizer 名称                 | 作用                                        |
+| ------------------------------ | ------------------------------------------- |
+| `kubernetes.io/pv-protection`  | 防止正在使用的 PersistentVolume 被删除      |
+| `kubernetes.io/pvc-protection` | 防止正在使用的 PersistentVolumeClaim 被删除 |
+| `foregroundDeletion`           | 实现级联删除，确保子资源先于父资源删除      |
+
+
+
+### 2、工作流程
+
+1. **删除触发**：用户发起删除带 Finalizers 的对象
+2. **状态锁定**：API Server 设置 metadata.deletionTimestamp，对象进入 Terminating 状态
+3. **清理控制**：关联控制器执行预定义清理逻辑（如释放存储卷）
+4. **完成删除**：Finalizers 列表清空后对象被永久移除
+
+**示例**：kubernetes.io/pv-protection Finalizer 防止 PersistentVolume 被意外删除，当 Pod 使用该卷时，Kubernetes 添加此 Finalizer，删除请求会被阻塞，直到 Pod 释放卷后清除 Finalizer
+
+
+
+**注意**：
+
+- Finalizers 可能导致对象卡在删除状态，需检查依赖对象和 Finalizers 排查原因
+- 手动移除 Finalizers 不建议，除非了解其用途，可能导致集群问题
+
+
+
+~~~mermaid
+sequenceDiagram
+    participant User
+    participant APIServer
+    participant Controller
+
+    User->>APIServer: 发送删除请求
+    APIServer->>APIServer: 1. 设置 deletionTimestamp<br>2. 返回 202 Accepted
+    APIServer->>Controller: 通知对象更新
+    Controller->>Controller: 执行 Finalizer 关联的清理逻辑
+    Controller->>APIServer: 移除已完成的 Finalizer
+    APIServer->>APIServer: 检查 finalizers 是否为空
+    APIServer->>APIServer: 是 → 永久删除对象
+~~~
+
+
+
+### 3、与 OwnerReference 对比
+
+| 特性         | Finalizers   | OwnerReference               |
+| ------------ | ------------ | ---------------------------- |
+| 作用阶段     | 删除时       | 整个生命周期                 |
+| 控制方向     | 阻止删除     | 级联删除                     |
+| 数量限制     | 可多个       | 单个对象只能有一个属主       |
+| 典型应用场景 | 外部资源清理 | Pod 与 ReplicaSet 的关系管理 |
+
+
+
+## 8、使用 kubectl 管理标签
+
+kubectl 提供命令行工具管理资源标签，操作简单高效：
+
+~~~bash
+# 查看标签（显示所有标签）
+kubectl get pod <pod-name> --show-labels
+
+# 添加/更新标签
+kubectl label pod <pod-name> env=prod --overwrite
+
+# 删除标签
+kubectl label pod <pod-name> env-
+
+# 为所有匹配的 Pod 添加标签
+kubectl label pods -l tier=web env=prod
+~~~
+
+
+
+# 6、Kubernetes Pod
+
+## 1、概述
+
+在 Kubernetes 中，Pod 是最小的可部署单元，包含一个或多个紧密耦合的容器，这些容器共享存储、网络和运行环境，通常作为一个整体进行调度和管理，也即会被调度到相同 Node 节点，并在相同 Node 节点的共享上下文中运行
+
+Pod 中的容器共享以下资源：
+
+- **共享存储（卷 Volumes）**：容器可以通过共享卷来交换数据，确保数据在容器重启后仍然存在
+- **网络**：每个 Pod 在集群中拥有一个唯一的 IP 地址，Pod 内的所有容器共享该 IP 地址和端口空间，可以通过 localhost 互相通信
+- **容器的基本信息**：包括容器的镜像版本、对外暴露的端口等配置
+
+Pod 内的容器可以分为四种类型：
+
+| 容器类型       | 功能说明                                                     |
+| -------------- | ------------------------------------------------------------ |
+| Pause 容器     | 为 Pod 内的其他容器提供共享的网络和存储环境，通过管理 Pause 容器，达到管理 Pod 中所有容器的效果 |
+| Init 容器      | 在业务容器启动之前运行，用于执行一些初始化任务，如设置环境变量、等待依赖服务等 |
+| Ephemeral 容器 | Kubernetes 为诊断场景设计的特殊容器类型                      |
+| 业务容器       | 承载具体业务逻辑的容器（至少 1 个）                          |
+
+**Pod 分类**：
+
+- **托管 Pod**：由用户直接创建或由控制器管理的 Pod，如果 Pod 运行的节点发生故障，或者是调度器本身故障，这个 Pod 就会被删除。同样的，如果 Pod 所在节点缺少资源或者 Pod 处于维护状态，Pod 也会被驱逐
+- **静态 Pod**：由用户直接创建的，由 Kubelet 直接管理的 Pod，不受控制器管理，这种 Pod 本身是不能自我修复的，当 Pod 被创建后，会被 Kubernetes 调度到集群的 Node 上，直到 Pod 的进程终止、被删掉、因为缺少资源而被驱逐、或者 Node 故障之前，这个 Pod 都会一直保持在那个 Node 上
 
 
 
 **建议**：
 
-- 如果多个容器紧密耦合并且需要共享磁盘等资源，则应该被部署在同一个 Pod
-- 应该尽量避免在 Kubernetes 中直接创建单个 Pod，推荐的做法是使用 Controller 来管理 Pod
+- 如果多个容器紧密耦合并且需要共享磁盘等资源，应该将它们部署在同一个 Pod 中
+- 应尽量避免在 Kubernetes 中直接创建单个 Pod，推荐使用控制器（如 Deployment、StatefulSet 等）来管理 Pod，以便实现自动化的扩缩容和自愈能力
+
+
+
+**注意**：
+
+- 当 Pod 由控制器（如 Deployment）根据 Pod 模板创建后，修改 Pod 模板的内容不会影响已创建的 Pod。要使更改生效，需要删除旧的 Pod，控制器会根据新的模板创建新的 Pod
 
 <img src="images/image-20230216234334535.png" alt="image-20230216234334535" style="zoom:50%;" />
 
-**注意**：
-
-- Pod 由控制器依据 Pod Template 创建以后，此时再修改 Pod Template 的内容，已经创建的 Pod 不会被修改
 
 
+## 2、生命周期
 
-## 2、特点
+### 1、概述
 
-同一个 Pod 中的容器总会被调度到相同 Node 节点，并在相同 Node 节点的共享上下文中运行
-
-不同节点间 Pod 的通信基于**虚拟二层网络技术**实现
-
-Pod 本身并不能自愈（self-healing）
-
-Pod 又分为普通与静态
+**生命周期短暂**：Pod 属于生命周期比较短暂的组件，比如：当 Pod 所在节点发生故障，那么该节点上的 Pod 会被调度到其他节点，但需要注意的是，被重新调度的 Pod 是一个全新的 Pod，跟之前的 Pod 毫无关系，除了配置相同外，其余属性均不相同，例如：IP、Name
 
 
 
-**资源共享**：
+### 2、核心阶段
 
-- 一个 Pod 里的多个容器可以共享存储和网络，可以看作一个逻辑的主机
-  - 资源：namespace、cgroups 或者其他的隔离资源
+Pod 的 status.phase 字段表示 Pod 在其生命周期中的整体阶段 ，是 Pod 状态的宏观概括
 
-- 同一个 Pod 里的多个容器共享 Pod 的 IP、端口、namespace
-  - 一个 Pod 内的多个容器之间可以通过 localhost 来进行通信，但需要注意的是容器之间的端口冲突
+Pod 的 status.phase 字段记录其核心生命周期状态，包括以下取值：
 
-- 不同的 Pod 有不同的 IP，不同 Pod 内的容器之前通信，不可以使用 IPC（进程间通信，如果没有特殊指定的话），通常情况下使用 Pod 的 IP 进行通信
-- 一个 Pod 里的多个容器可以共享存储卷，这个存储卷会被定义为 Pod 的一部分，并且可以挂载到该 Pod 里的所有容器的文件系统上
-- 每个 Pod 中有一个 Pause 容器保存所有容器状态， 通过管理 Pause 容器，达到管理 Pod 中所有容器的效果
+| 状态      | 触发条件                                                     |
+| --------- | ------------------------------------------------------------ |
+| Pending   | 等待调度（未找到满足资源请求的节点）、依赖资源未就绪（如 PV、ConfigMap）、镜像拉取失败（ImagePullBackOff） |
+| Running   | Pod 已绑定到节点，且至少一个容器在运行                       |
+| Succeeded | 所有容器正常退出（exit code 0），常见于 Job/CronJob 管理的 Pod |
+| Failed    | 至少一个容器异常退出（非 0 状态码）、健康检查失败（如 livenessProbe 连续失败） |
+| Unknown   | 节点失联（kubelet 心跳停止超 40 秒）、控制平面通信故障       |
 
+**常见转换原因**：
 
+- **Pending → Running** ：正常调度和启动流程
+- **Running → Succeeded** ：任务型Pod成功结束
+- **Running → Failed** ：容器异常终止且无重启策略
+- **Running → CrashLoopBackOff** ：容器持续崩溃触发重启策略
+- **任何状态 → Terminating → 消失** ：用户或控制器发起删除操作
 
-**生命周期短暂**：
+**常见 Failed 原因**：
 
-- Pod 属于生命周期比较短暂的组件，比如：当 Pod 所在节点发生故障，那么该节点上的 Pod 会被调度到其他节点，但需要注意的是，被重新调度的 Pod 是一个全新的 Pod，跟之前的 Pod 毫无关系，除了配置相同外，其余属性均不相同，例如：IP、Name
-
-
-
-**平坦的网络**：
-
-- Kubernetes 集群中的所有 Pod 都在同一个共享网络地址空间中，也就是说每个 Pod 都可以通过其他 Pod 的 IP 地址来实现访问
-- 每个 Pod 都是应用的一个实例，有专用的 IP
-
-
-
-## 3、定义
-
-Pod Template 是关于 Pod 的定义，其包含在其他的 Kubernetes 对象中（例如：Deployment、StatefulSet、DaemonSet 等控制器），控制器通过 Pod Template 信息来创建 Pod
-
-配置文件（配置项尚未校对完毕）
-
-~~~yaml
-apiVersion: v1
-
-kind: Pod
-
-metadata: # 元数据
-	name: string
-	namespace: string
-	labels:
-		-name: string
-		
-annotations:
-	-name: string
-	
-spec:
-	containers: # Pod 中的容器列表，可以有多个容器
-		- name: string # 容器的名称
-		
-		image: string # 容器中的镜像
-		imagesPullPolicy: [Always|Never|IfNotPresent] # 获取镜像的策略，默认值为 Always，每次都尝试重新下载镜像
-		
-		command: [string] # 容器的启动命令列表（不配置的话使用镜像内部的命令） args: [string] 启动参数列表
-		
-		workingDir: string # 容器的工作目录 
-		volumeMounts: # 挂载到到容器内部的存储卷设置
-			- name: string
-		mountPath: string # 存储卷在容器内部 Mount 的绝对路径 
-		readOnly: boolean # 默认值为读写
-		
-		ports: # 容器需要暴露的端口号列表
-			- name: string
-		containerPort: int # 容器要暴露的端口
-		hostPort: int # 容器所在主机监听的端口（容器暴露端口映射到宿主机的端口
-		# 设置 hostPort 时同一台宿主机将不能再启动该容器的第 2 份副本）
-		
-		protocol: string # TCP 和 UDP，默认值为 TCP 
-		env: # 容器运行前要设置的环境列表
-			- name: string 
-			  value: string
-		
-		resources:
-			limits: # 资源限制，容器的最大可用资源数量 
-				cpu: Srting
-				memory: string
-		requeste: # 资源限制，容器启动的初始可用资源数量 
-			cpu: string
-			memory: string
-			
-	livenessProbe: # pod 内容器健康检查的设置 
-	exec:
-		command: [string] # exec 方式需要指定的命令或脚本 
-		
-	httpGet: # 通过 httpget 检查健康
-        path: string 
-        port: number 
-        host: string 
-        scheme: Srtring 
-        httpHeaders:
-            - name: Stirng 
-              value: string
-	tcpSocket: # 通过 tcpSocket 检查健康
-		port: number 
-		initialDelaySeconds: 0 # 首次检查时间 
-		timeoutSeconds: 0 # 检查超时时间
-		periodSeconds: 0 # 检查间隔时间
-		successThreshold: 0
-		failureThreshold: 0 
-		
-	securityContext: # 安全配置
-	privileged: falae
-	restartPolicy: [Always|Never|OnFailure] # 重启策略，默认值为 Always
-	nodeSelector: object # 节点选择，表示将该 Pod 调度到包含这些 label 的 Node 上，以 key:value 格式指定
-
-	imagePullSecrets:
-		-name: string
-		
-hostNetwork: false # 是否使用主机网络模式，弃用 Docker 网桥，默认否
-volumes: # 在该 pod 上定义共享存储卷列表
-	- name: string emptyDir: {} hostPath:
-	  path: string 
-secret:
-	secretName: string 
-	item:
-		- key: string 
-		  path: string
-configMap: 
-	name: string 
-	items:
-		- key: string
-		  path: string
-~~~
+- 节点故障（心跳丢失超 5 分钟）
+- 资源超限（如 OOMKilled）
+- 主动驱逐（维护或手动删除）
 
 
 
-**注意**：
+### 3、容器状态
 
-- imagePullPolicy 字段和 image tag的可能取值将影响到 kubelet 如何抓取镜像：
-  - Policy=IfNotPresent 仅在节点上没有该镜像时，从镜像仓库抓取
-  - Policy=Always 每次启动 Pod 时，从镜像仓库抓取
-  - Policy未填写，tag=latest 或者未填写，则同 Always 每次启动 Pod 时，从镜像仓库抓取
-  - Policy未填写，tag != latest，则同 IfNotPresent 仅在节点上没有该镜像时，从镜像仓库抓取
-  - Policy=Never，Kubernetes 假设本地存在该镜像，并且不会尝试从镜像仓库抓取镜像
+容器状态 （status.containerStatuses）记录 Pod 中**每个容器的详细状态** （包括主容器和临时容器）
 
+| 状态             | 原因                                       |      |
+| ---------------- | ------------------------------------------ | ---- |
+| Waiting          | 容器未运行（如镜像拉取中）                 |      |
+| Running          | 容器正在运行                               |      |
+| Terminated       | 容器已停止（含退出码和原因）               |      |
+| CrashLoopBackOff | 容器频繁崩溃，触发重启策略（指数退避延迟） |      |
 
+**phase 与 containerStatuses 核心区别**：
 
+| **维度**     | status.phase          | status.containerStatuses              |
+| ------------ | --------------------- | ------------------------------------- |
+| **作用范围** | Pod 整体状态          | 单个容器的详细状态                    |
+| **典型用途** | 快速判断 Pod 是否正常 | 调试容器级问题（如崩溃、启动失败）    |
+| **数据粒度** | 粗粒度（宏观）        | 细粒度（每个容器的状态）              |
+| **依赖关系** | 由容器状态综合决定    | 直接影响phase（如容器失败导致Failed） |
 
+**示例说明**：
 
-## 4、使用
-
-在 Kubernetes 中对运行容器的要求为：容器的主程序需要一直在前台运行，而不是后台运行
-
-因此应用需要改造成前台运行的方式，例如：创建的 Docker 镜像的启动命令是后台执行程序，则在 Kubelet 创建包含这个容器的 Pod 之 后运行完该命令，就认为 Pod 已经结束，将立刻销毁该 Pod，如果为该 Pod 定义了 RC，则会陷入一个无限循环创建、销毁的过程中
-
-配置文件示例：
-
-~~~yaml
-# 一个容器组成的 Pod
-apiVersion: v1 
-kind: Pod 
-metadata:
-	name: mytomcat 
-	labels:
-		name: mytomcat 
-spec:
-	containers:
-        - name: mytomcat 
-        image: tomcat 
-        ports:
-        	- containerPort: 8000
-~~~
-
-~~~yaml
-# 两个容器组成的 Pod
-apiVersion: v1 
-kind: Pod 
-metadata:
-	name: myweb 
-	labels:
-		name: tomcat-redis
-spec:
-	containers:
-		- name: tomcat 
-		image: tomcat 
-		ports:
-			- containerPort: 8080
-			
-		- name: redis 
-		image: redis 
-		ports:
-			- containerPort: 6379
-~~~
-
-~~~bash
-# 创建
-kubectl creat -f xxx.yml
-# 删除
-kubectl delete -f pod xxx.yml
-~~~
+- **场景 1**：
+  - phase: Running，但某个容器的 containerStatuses.state 为 Waiting（原因：CrashLoopBackOff）
+  - 结论 ：Pod 整体处于运行阶段，但某容器因崩溃正在等待重启
+- **场景 2**：
+  - phase: Failed，且所有容器的 containerStatuses.state 均为 Terminated（退出码非零）
+  - 结论 ：Pod 因容器失败而整体标记为 Failed
 
 
 
-## 5、分类
+### 3、条件状态
 
-Pod 有两种类型：普通和静态
-
-**普通**：
-
-- 普通 Pod 一旦被创建，就会被放入到 etcd 中存储，随后会被 Kubernetes Master 调度到某个具体的 Node 上并进行绑定，随后该 Pod 对应的 Node 上的 Kubelet 进程实例化成一组相关的容器并启动起来
-- 在默认情况下，当 Pod 里某个容器停止时，Kubernetes 会自动检测到这个问题并且重新启动这个 Pod 里此类的所有容器， 如果 Pod 所在的 Node 宕机，则会将这个 Node 上的所有 Pod 重新调度到其它节点上
-
-**静态**：
-
-- 静态 Pod 是由 Kubelet 进行管理的仅存在于特定 Node 上的 Pod，它们不能通过 API Server 进行管理，无法与 ReplicationController、Deployment、DaemonSet 进行关联，并且 Kubelet 也无法对它们进行健康检查
-
-
-
-## 6、生命周期
-
-Pod phase 代表其所处生命周期的阶段，phase 并不是用来代表其**容器**的状态，也不是一个严格的状态机
-
-| 状态       | 说明                                                         |
-| ---------- | ------------------------------------------------------------ |
-| Pending    | API Server 已经创建了 Pod，但其中的容器镜像还未创建，包括镜像下载 |
-| Running    | Pod 内所有容器已经创建，并且至少有一个容器处于运行中或启动中或重启中 |
-| Compeleted | Pod 内所有容器均成功退出，并且不会重启                       |
-| Failed     | Pod 内所有容器均退出，但至少有一个容器失败                   |
-| Unknow     | 由于未知原因无法获取 Pod 状态，例如：网络通信不畅            |
-
-
-
-Pod 内有一个状态数组描述其是否达到某些指定的条件：
+Pod 通过状态数组（status.conditions）记录 Pod 在其生命周期中经历的关键事件或状态转换，描述其是否满足特定条件，每个条件包含以下字段：
 
 | 字段名             | 描述                                                         |
 | ------------------ | ------------------------------------------------------------ |
-| type               | type 是最重要的字段，可能的取值有：<br />**PodScheduled：** Pod 已被调度到一个节点<br />**Ready：** Pod 已经可以接受服务请求，应该被添加到所匹配 Service 的负载均衡的资源池<br />**Initialized：**Pod 中所有初始化容器已成功执行<br />**Unschedulable：**不能调度该 Pod（缺少资源或者其他限制）<br />**ContainersReady：**Pod 中所有容器都已就绪 |
-| status             | 可能的取值：True、False、Unknown                             |
-| reason             | Condition 发生变化的原因，使用一个符合驼峰规则的英文单词描述 |
-| message            | Condition 发生变化的原因的详细描述，human-readable           |
-| lastTransitionTime | Condition 发生变化的时间戳                                   |
-| lastProbeTime      | 上一次针对 Pod 做健康检查/就绪检查的时间戳                   |
+| type               | 条件类型，合法值包括：<br />**PodScheduled：** Pod 已被调度到一个节点<br />**Ready：** Pod 已经可以接受服务请求，应该被添加到所匹配 Service 的负载均衡的资源池<br />**Initialized：**Pod 中所有初始化容器已成功执行<br />**ContainersReady：**Pod 中所有容器都已就绪 |
+| status             | 状态值：True/False/Unknown                                   |
+| reason             | conditions 变化原因（驼峰格式，如：Unschedulable）<br />**Unschedulable：**不能调度该 Pod（缺少资源或者其他限制） |
+| message            | conditions 详细信息（如容器未就绪原因）                      |
+| lastTransitionTime | conditions 最后一次变更的时间戳                              |
+| lastProbeTime      | 上次探针检查时间（仅适用于通过探针触发的条件）               |
 
-当 Pod 被创建后，Pod 将一直保留在该节点上，直到 Pod 以下情况发生：
 
-- Pod 中的容器全部结束运行
-- Pod 被删除
-- 由于节点资源不够，Pod 被驱逐
-- 节点出现故障（例如死机）
 
-Pod 代表了运行在集群节点上的进程，而进程的终止有两种方式：
+**注意**：
 
-- gracefully terminate （优雅地终止）
-- 直接 kill，此时进程没有机会执行清理动作
+- reason 的 Unschedulable 值是 PodScheduled 类型的一个 reason 值，表示调度失败，而非独立条件类型 
+- type 的 ContainersReady 值表示所有应用容器已就绪，需与 Ready 条件结合使用 
 
-当用户发起删除 Pod 的指令时，Kubernetes 需要：
 
-- 让用户知道 Pod 何时被删除
-- 确保删除 Pod 的指令最终能够完成
 
-Kubernetes 收到用户删除 Pod 的指令后：
+### 4、创建流程
 
-1. 记录强制终止前的等待时长（grace period）
-2. 向 Pod 中所有容器的主进程发送 TERM 信号
-3. 一旦等待超时，向超时的容器主进程发送 KILL 信号
-4. 删除 Pod 在 API Server 中的记录
-
-如果要手动强制删除 Pod，必须为 kubectl delete 命令同时指定两个选项 --grace-period=0 和 --force，通常如果没有人或者控制器删除 Pod，Pod 不会自己消失，除非 Pod 处于 Scucceeded 或 Failed 的 phase，并超过了垃圾回收的时长（在 Kubernetes Master 中通过 terminated-pod-gc-threshold 参数指定），kubelet 自动将其删除
-
-Pod 创建流程：
-
-1. 用户通过 REST API 创建一个 Pod
-2. API Server 将其写入 etcd
-3. Scheduluer 检测到未绑定 Node 的 Pod，开始调度并更新 Pod 的 Node 绑定
-4. Kubelet 检测到有新的 Pod 调度过来，通过 Container Runtime 运行该 Pod
-5. Kubelet 通过 Container Runtime 取到 Pod 状态，并更新到 API Server 中
-
-<img src="images/image-20231013202603429.png" alt="image-20231013202603429" style="zoom:67%;" />
+1. **提交创建请求** ：用户通过 API 或 `kubectl` 创建 Pod
+2. **持久化存储** ：API Server 将 Pod 元数据写入 etcd
+3. **调度阶段**：
+   - Scheduler 检测未绑定的 Pod，根据资源需求和约束选择节点
+   - 更新 Pod 的 nodeName 字段并写入 etcd
+4. **容器启动**：
+   - 目标节点的 kubelet 通过 CRI 创建容器沙箱并挂载存储卷。
+   - 若启用 PodReadyToStartContainers 特性门控，添加对应条件到 status.conditions
+5. **状态上报** ：kubelet **直接**持续监控容器状态并更新至 API Server
 
 <img src="images/spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-51ecc70d225e1670655e30528d537276f21e5150_pod-start (1).png" alt="spaces_-LDAOok5ngY4pc1lEDes-887967055_uploads_git-blob-51ecc70d225e1670655e30528d537276f21e5150_pod-start (1)" style="zoom:70%;" />
 
 
 
-## 7、容器重启策略
+### 5、终止流程
+
+**优雅终止流程** ：
+
+1. **触发删除** ：用户或控制器发起删除操作，API Server 标记 deletionTimestamp
+2. **TERM 信号** ：kubelet 向容器主进程发送 SIGTERM，触发 preStop 钩子
+3. **等待期** ：默认等待 terminationGracePeriodSeconds（30 秒）
+4. **清理资源** ：删除容器、解绑存储卷
+5. **API 清理** ：从 etcd 中移除 Pod 记录
+
+**强制终止** ：
+
+- 使用 kubectl delete --grace-period=0 --force 跳过等待期，直接删除 API 对象（可能残留节点进程）
+
+通常如果没有人或者控制器删除 Pod，Pod 不会自己消失，除非 Pod 处于 Scucceeded 或 Failed 的 phase，并超过了垃圾回收的时长（在 Kubernetes Master 中通过 terminated-pod-gc-threshold 参数指定），kubelet 自动将其删除
+
+
+
+### 6、重启策略
 
 | 策略      | 说明                                                   |
 | --------- | ------------------------------------------------------ |
 | Always    | 当容器失效时，由 Kubelet 重启容器                      |
 | OnFailure | 当容器非正确终止（退出码不为 0 ），由 Kubelet 重启容器 |
 | Never     | 无论容器如何终止，都不重启                             |
-
-kubelet 将在五分钟内，按照递延的时间间隔（10s, 20s, 40s ......）尝试重启已退出的容器，并在十分钟后再次启动这个循环，直到容器成功启动，或者 Pod 被删除
-
-控制器 Deployment、StatefulSet、DaemonSet，只支持 Always 这一个选项，不支持 OnFailure 和 Never 选项
-
-
-
-Pod 重启时，所有的初始化容器都会重新执行，Pod 重启的原因可能有：
-
-- 用户更新了 Pod 的定义，并改变了初始化容器的镜像
-  - 改变任何一个初始化容器的镜像，将导致整个 Pod 重启
-  - 改变工作容器的镜像，将只重启该工作容器，而不重启 Pod
-- Pod 容器所在节点的基础设施被重启（例如：docker engine），通常只有 Node 节点的 root 用户才可以执行此操作
-- Pod 中所有容器都已经结束，restartPolicy 是 Always，且初始化容器执行的记录已经被垃圾回收，此时将重启整个 Pod
-
-
-
-**注意**：
-
-- 区分 Pod 重启与容器重启
-
-
-
-## 8、状态转换
-
-在 K8s 里面这个状态机制之间这个状态转换会产生相应的事件，而这个事件又通过类似像 normal 或者是 warning 的方式进行暴露，可以通过上层 Condition Status 相应的一系列字段来判断当前应用的具体状态并进行诊断
 
 | 包含容器数 | 当前状态 | 发生事件        | 结果状态 |           | 结果状态结果状态 |
 | ---------- | -------- | --------------- | -------- | --------- | ---------------- |
@@ -2444,85 +2974,286 @@ Pod 重启时，所有的初始化容器都会重新执行，Pod 重启的原因
 
 <img src="images/fd5234589b3e19eed61ce07381ef27e5de8f1123.451480e1.png" alt="fd5234589b3e19eed61ce07381ef27e5de8f1123.451480e1" style="zoom:50%;" />
 
+kubelet 采用指数退避策略管理容器重启：
+
+- 初始间隔：10 秒
+- 退避间隔：按 10s → 20s → 40s... 逐级倍增
+- 最大间隔：5 分钟（达到该阈值后保持固定间隔）
+- 循环周期：持续尝试直到容器成功启动或 Pod 被删除
+
+当 Pod 发生重启时，所有初始化容器（Init Containers）将重新执行，常见触发场景包括：
+
+1. 镜像配置变更：
+
+   - 修改任意初始化容器镜像 → 触发全 Pod 重启
+   - 仅修改工作容器镜像 → 仅重启对应容器
+
+2. 节点基础设施重启：
+
+   - Docker 引擎等运行时组件重启，通常需要节点 root 权限执行操作
+
+3. 生命周期策略触发：
+
+   - 所有容器执行完毕，restartPolicy 设置为 Always，初始化容器记录已被垃圾回收
+
+   
+
+**注意**：
+
+- 区分 Pod 重启与容器重启
+- 控制器 Deployment、StatefulSet、DaemonSet，只支持 Always 这一个选项，不支持 OnFailure 和 Never 选项
 
 
-## 9、资源配置
 
-可以对每个 Pod 能使用的计算资源限额
 
-Kubernetes 中可以限额的计算资源有 CPU 与 Memory 两种
-
-- CPU：资源单位为 CPU 数量，是一个绝对值而非相对值
-- Memory：资源单位为内存字节数，配额也是一个绝对值
-
-对一个计算资源进行限额需要设定以下两个参数： 
-
-- Requests：该资源最小申请数量
-- Limits：该资源最大允许使用的量
-
-当容器试图使用超过 Limits 时，可能会被 Kubernetes Kill 并重启
+## 3、资源定义
 
 ~~~yaml
-sepc:
-	containers:
-		- name: db
-		image: mysql
-		
-		resources:
-			requests: # 最小额度
-				memory: "64Mi"
-				cpu: "250m"
-				
-			limits: # 最大额度
-				memory: "128Mi"
-				cpu: "500m"
-				
-# MySQL 容器申请最少 0.25 个 CPU 以及 64MiB 内存
-# 在运行过程中容器所能使用的资源配额为 0.5 个 CPU 以及 128MiB 内存
-# m 表示千分位，250m = 0.25
+apiVersion: v1                 # Kubernetes API 版本
+kind: Pod                      # 资源类型为 Pod
+metadata:
+  name: myapp-pod              # Pod 名称（需符合 DNS 子域名规范）
+  namespace: production        # 部署的目标命名空间
+  labels:                      # 标签用于资源选择
+    app: myapp                 
+    tier: backend
+spec:
+  containers:                  # 容器定义列表（必填字段）
+  - name: web-container        # 容器名称
+    image: nginx:1.21          # 容器镜像（含版本号）
+    imagePullPolicy: IfNotPresent  # 镜像拉取策略
+    ports:
+    - containerPort: 80        # 容器暴露端口
+      protocol: TCP
+    resources:                 # 资源请求与限制
+      requests:
+        cpu: "500m"            # 0.5 个 CPU 核心
+        memory: "512Mi"        # 512 MB 内存
+      limits:
+        cpu: "1"               # 最大 1 个 CPU 核心
+        memory: "1Gi"          # 最大 1 GB 内存
+    volumeMounts:              # 存储卷挂载配置
+    - name: config-volume
+      mountPath: /etc/nginx
+      readOnly: true
+    livenessProbe:             # 存活探针配置
+      httpGet:
+        path: /healthz
+        port: 80
+      initialDelaySeconds: 15
+      periodSeconds: 20
+    readinessProbe:            # 就绪探针配置
+      httpGet:
+        path: /ready
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    env:                       # 环境变量注入
+    - name: ENV_MODE
+      value: "production"
+    securityContext:           # 容器安全上下文
+      runAsUser: 1000          # 以非 root 用户运行
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      readOnlyRootFilesystem: true
+  volumes:                     # 存储卷定义
+  - name: config-volume
+    configMap:
+      name: nginx-config
+  securityContext:             # Pod 级安全上下文
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  restartPolicy: Always        # 容器重启策略（Always/OnFailure/Never）
+  nodeSelector:                # 节点选择约束
+    disktype: ssd
+  tolerations:                 # 污点容忍配置
+  - key: "special"
+    operator: "Exists"
+    effect: "NoSchedule"
 ~~~
 
 
 
-## 10、初始化容器
+**注意**：
 
-### 1、概述
-
-Pod 可以包含多个工作容器，也可以包含一个或多个初始化容器，初始化容器在工作容器启动之前执行，初始化容器与工作容器完全相同，除了如下几点：
-
-- 初始化容器总是运行并自动结束
-- kubelet 按顺序执行 Pod 中的初始化容器，前一个初始化容器成功结束后，下一个初始化容器才开始运行。所有的初始化容器成功执行后，才开始启动工作容器
-- 如果 Pod 的任意一个初始化容器执行失败，kubernetes 将反复重启该 Pod，直到初始化容器全部成功（除非 Pod 的 restartPolicy 被设定为 Never）
-- 初始化容器的 Resource request / limits 处理不同
-- 初始化容器不支持就绪检查，因为初始化容器必须在 Pod ready 之前运行并结束
+- imagePullPolicy 字段和镜像标签（tag）的取值会影响 kubelet 如何拉取镜像：
+  - imagePullPolicy: IfNotPresent：仅当节点上不存在该镜像时，从镜像仓库拉取
+  - imagePullPolicy: Always：每次启动 Pod 时，从镜像仓库拉取镜像
+  - 未设置 imagePullPolicy，且镜像标签为 latest 或未指定标签：等同于 Always，每次启动 Pod 时，从镜像仓库拉取镜像
+  - 未设置 imagePullPolicy，且镜像标签不是 latest：等同于 IfNotPresent，仅当节点上不存在该镜像时，从镜像仓库拉取
+  - imagePullPolicy: Never：Kubernetes 假设本地存在该镜像，并且不会尝试从镜像仓库拉取
 
 
 
-### 2、行为
+## 4、特殊容器
 
-Pod 的启动时，首先初始化网络和数据卷，然后按顺序执行每一个初始化容器
+### 1、初始化容器
 
-- 任何一个初始化容器都必须成功退出，才能开始下一个初始化容器
-- 如果某一个容器启动失败或者执行失败，kubelet 将根据 Pod 的 restartPolicy 决定是否重新启动 Pod
+#### 1、概述
 
-只有所有的初始化容器全都执行成功，Pod 才能进入 ready 状态
+初始化容器与业务容器共享相同的容器规范定义，但在行为机制上存在关键差异：
 
-- 初始化容器的端口是不能够通过 kubernetes Service 访问的
-- Pod 在初始化过程中处于 Pending 状态，并且同时有一个 type 为 initializing status 为 True 的 Condition
+1. **执行顺序与依赖**
+   - 严格串行执行：kubelet 按声明顺序逐个运行初始化容器，前一个容器**完全成功退出**后才会启动下一个
+   - 前置依赖：所有初始化容器**必须成功执行完毕** ，才会启动工作容器
+2. **生命周期管理**
+   - 单次运行特性：每个初始化容器仅执行**单次运行直至退出** （无持续运行模式）
+   - 失败处理策略： 
+     1. 任意初始化容器失败 → 触发 Pod 重启（遵循 restartPolicy 策略）→  restartPolicy: Never 时 → Pod 直接进入 Failed 状态
+3. **资源配额计算**
+   - 资源聚合规则：Pod 的有效资源请求/限制取**所有初始化容器中的最大值**
+   - 独立于工作容器：初始化容器资源配额**不会与工作容器叠加计算**
+4. **健康检查机制**
+   - 禁止就绪探针：初始化容器**不支持 readinessProbe** 检查
+   - 启动保障：初始化容器必须在 Pod 进入 Ready 状态前**完成所有执行流程**
+5. **更新策略差异**
+   - 镜像变更影响：修改任意初始化容器镜像 → 触发**全 Pod 重建**
+   - 工作容器更新：修改工作容器镜像 → 仅触发**容器热重启** （Pod 保持运行）
 
-如果 Pod 重启，所有的初始化容器也将被重新执行
+如果 Pod 的状态以 **Init:** 开头，表示该 Pod 正在执行初始化容器
 
-可以重启、重试、重新执行初始化容器，因此初始化容器中的代码必须是幂等的
+| 状态                       | 描述                                                       |
+| -------------------------- | ---------------------------------------------------------- |
+| Init:N/M                   | Pod 中包含 M 个初始化容器，其中 N 个初始化容器已经成功执行 |
+| Init:Error                 | Pod 初始化容器执行失败                                     |
+| Init:CrashLoopBackOff      | Pod 初始化容器反复执行失败                                 |
+| Pending                    | Pod 还未开始执行初始化容器                                 |
+| PodInitializing or Running | Pod 已经完成初始化容器的执行                               |
 
-可以组合使用就绪检查和 activeDeadlineSeconds，以防止初始化容器始终失败
-
-Pod 中不能包含两个同名的容器（初始化容器和工作容器也不能同名）
 
 
+#### 2、执行流程
 
-### 3、配置
+1. **预初始化阶段**
+   - 网络栈初始化：建立 Pod 网络命名空间
+   - 存储卷挂载：完成所有 Volume 的 attach/mount 操作
+2. **初始化容器执行阶段**
+   - 严格顺序执行：前一个初始化容器**必须成功退出** （exit code 0）后，才会启动下一个容器
+   - 全成功约束：**所有**初始化容器成功是工作容器启动的**必要前提条件**
+3. **状态转换机制**
+   - 阶段状态标识：
+     - 初始化期间：Pod 处于 Pending 状态
+     - 状态条件标记：type: Initialized + status: False
+   - 完成标志：当最后一个初始化容器成功，type: Initialized 变为 True
+
+
+
+#### 3、异常处理机制
+
+**失败重启策略**：
+
+- 任意初始化容器失败 → 触发 Pod 重启（遵循 restartPolicy 策略）
+- restartPolicy: Never 时 → Pod 直接进入 Failed 终态
+
+**防护机制**：
+
+- **幂等性要求**：初始化容器代码必须支持重复执行
+- **探针组合**：对业务容器使用 activeDeadlineSeconds + 就绪检查可防止死循环
+
+
+
+#### 4、关键限制规范
+
+**网络隔离**：
+
+- 初始化容器端口**不暴露**给 Service
+- 服务发现机制**不适用**于初始化阶段
+
+**命名空间约束**：
+
+- 全容器命名唯一：初始化容器与工作容器**禁止同名**
+- 资源配额独立：初始化容器资源需求单独计算
+
+**状态持久化**：
+
+- 重启保留策略：Pod 重启后**所有初始化容器重新执行**
+- 记录清除条件：仅当 Pod 被删除时初始化记录才移除
+
+
+
+#### 5、示例
 
 ~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-container-demo
+  labels:
+    app: web-server
+spec:
+  # 初始化容器定义（按顺序执行）
+  initContainers:
+  - name: init-service-check
+    image: busybox:1.28
+    command: ['sh', '-c', 'until nslookup mysql-service; do echo waiting for mysql; sleep 2; done']
+    resources:
+      limits:
+        cpu: "100m"
+        memory: "50Mi"
+      requests:
+        cpu: "50m"
+        memory: "20Mi"
+
+  - name: init-config-generator
+    image: config-builder:v1.2
+    args: ["--output=/etc/app/config.ini"]
+    volumeMounts:
+    - name: app-config
+      mountPath: /etc/app
+    # 初始化容器特有的资源计算方式
+    resources:
+      limits:
+        cpu: "500m"  # 最终 Pod 的 CPU limit 取所有初始化容器中的最大值
+        memory: "256Mi"
+
+  - name: init-db-migration
+    image: postgres:13-alpine
+    env:
+    - name: DB_HOST
+      value: "mysql-service"
+    command: ["sh", "-c", "pg_migrate --host $(DB_HOST)"]
+    # 初始化容器不支持 readinessProbe
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "echo 'Cleaning migration locks'"]
+
+  # 主容器定义
+  containers:
+  - name: web-server
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: app-config
+      mountPath: /etc/nginx/conf.d
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 80
+    resources:
+      limits:
+        cpu: "1"
+        memory: "512Mi"
+      requests:
+        cpu: "500m"
+        memory: "256Mi"
+
+  # 共享存储卷定义
+  volumes:
+  - name: app-config
+    configMap:
+      name: app-configmap
+
+  # 重启策略设置
+  restartPolicy: Always  # 初始化容器失败时触发 Pod 重启
+  activeDeadlineSeconds: 300  # 初始化阶段超时限制
+~~~
+
+~~~yaml
+# Pod 中初始化容器和应用程序共享了同一个数据卷，初始化容器将该共享数据卷挂载到 /work-dir 路径，应用程序容器将共享数据卷挂载到 /usr/share/nginx/html 路径，初始化容器执行完命令后，就退出执行
 apiVersion: v1
 kind: Pod
 metadata:
@@ -2554,158 +3285,564 @@ spec:
     emptyDir: {}
 ~~~
 
-Pod 中初始化容器和应用程序共享了同一个数据卷，初始化容器将该共享数据卷挂载到 /work-dir 路径，应用程序容器将共享数据卷挂载到 /usr/share/nginx/html 路径，初始化容器执行完命令后，就退出执行
 
 
+### 2、Ephemeral 容器
 
-### 4、Debug
+#### 1、概述
 
-~~~bash
-kubectl logs <pod-name> -c <init-container-1>
-~~~
+Ephemeral Containers（临时容器）是 Kubernetes **v1.16+ 引入的调试专用容器**（Alpha 阶段），自 **v1.23 起默认启用**（Beta 阶段）
 
-如果 Pod 的状态以 **Init:** 开头，表示该 Pod 正在执行初始化容器
+**核心特性**：
 
-| 状态                       | 描述                                                       |
-| -------------------------- | ---------------------------------------------------------- |
-| Init:N/M                   | Pod 中包含 M 个初始化容器，其中 N 个初始化容器已经成功执行 |
-| Init:Error                 | Pod 初始化容器执行失败                                     |
-| Init:CrashLoopBackOff      | Pod 初始化容器反复执行失败                                 |
-| Pending                    | Pod 还未开始执行初始化容器                                 |
-| PodInitializing or Running | Pod 已经完成初始化容器的执行                               |
+- **兼容性**：
+  - Kubernetes v1.16+，启用 EphemeralContainers 特性门控
+  - v1.23+ 默认启用，无需特性门控
+- **安全限制**：
+  - 需 ephemeral-containers RBAC 权限
+  - 支持调试工具链执行
+  - 默认不挂载存储卷，也不能挂载新的卷
+  - 仅可挂载 Pod 中已声明的存储卷
+- **资源管理**：
+  - 共享进程/网络命名空间
+  - 资源使用计入 Pod 配额，建议设置 resources.limits 防止资源耗尽
+- **生命周期**：
+  - 动态注入到运行中的 Pod，生命周期与 Pod 绑定，不自动重启
+  - 节点重启后临时容器不自动恢复
+  - 不支持通过控制器管理
+  - 不可直接删除或修改，需替换 Pod
 
+**典型使用场景** ：
 
+- 当主容器崩溃或镜像缺失调试工具时（如无 bash/curl 等），进行交互式故障排查
+- 诊断网络问题或检查文件系统（需启用 shareProcessNamespace 查看其他容器进程）
 
-## 11、Disruptions
+| 特性         | 常规容器       | 临时容器                |
+| ------------ | -------------- | ----------------------- |
+| 创建时机     | Pod 创建时定义 | Pod 运行期间动态注入    |
+| 资源限制     | 完整支持       | 支持 `resources.limits` |
+| 自动重启     | 支持           | 禁止                    |
+| 服务暴露     | 支持 Service   | 不暴露                  |
+| 镜像更新策略 | 滚动更新       | 需重新注入              |
 
-### 1、概述
 
-除非人为销毁 Pod，或者出现不可避免的硬件/软件故障，否则 Pod 不会凭空消失，此类不可避免的情况，称之为非自愿的干扰
 
-例如：
+#### 2、注入容器
 
-- 节点所在物理机的硬件故障
-- 集群管理员误删了虚拟机
-- 云供应商或管理程序故障导致虚拟机被删
-- Linux 内核故障
-- 集群所在的网络发生分片，导致节点不可用
-- 节点资源耗尽，导致 Pod 被驱逐
+注入临时容器
 
-还有一类毁坏，称之为自愿的干扰，主要包括由应用管理员或集群管理员主动执行的操作
+--target：指定共享命名空间的目标容器
 
-应用管理员可能执行的操作有：
+--image：推荐使用包含调试工具的镜像
 
-- 删除 Deployment 或其他用于管理 Pod 的控制器
-- 修改 Deployment 中 Pod 模板的定义，导致 Pod 重启
-- 直接删除一个 Pod
+```bash
+kubectl debug <pod-name> -it --image=busybox:latest --target=<target-container>
+```
 
-集群管理员可能执行的操作有：
-
-- 排空节点，以便维修、升级、集群缩容
-- 从节点上删除某个 Pod，以使得其他的 Pod 能够调度到该节点上
-
-
-
-**注意**：
-
-- 并非所有自愿的干扰都受 Pod Disruption Budgets 限制，例如：删除 Deployment 或 Pod
-
-
-
-### 2、处理干扰
-
-弥补非自愿干扰可以采取的方法有：
-
-- 确保的 Pod 申请合适的计算资源
-- 如果需要高可用，运行多个副本
-- 如果需要更高的高可用性，将应用程序副本分布到多个机架上或分不到多个地区
-
-自愿干扰，发生频率不定，在一个基础的 Kubernetes 集群中，可能不会发生自愿干扰，当集群管理员或者托管供应商运行某些额外的服务是可能导致自愿干扰发生，例如：
-
-- 更新节点上的软件
-- 自定义实现的自动伸缩程序
-
-Kubernetes 提供了 Disruption Budget 这一特性，以在高频次自愿干扰情况下，仍然运行高可用的应用程序
-
-应用程序管理员可以为每一个应用程序创建 PodDisruptionBudget 对象（PDB），PDB 限制了多副本应用程序在自愿干扰情况发生时，最多有多少个副本可以同时停止，例如：一个 web 前端的程序需要确保可用的副本数不低于总副本数的一定比例
-
-集群管理员以及托管供应商在进行系统维护时，应该使用兼容 PodDisruptionBudget 的工具（例如：kubectl drain，此类工具调用 Eviction API，而不是直接删除 Pod 或者 Deployment，kubectl drain 命令会尝试将节点上所有的 Pod 驱逐掉，驱逐请求可能会临时被拒绝，kubectl drain 将周期性地重试失败的请求，直到节点上所有的 Pod 都以终止，或者直到超过了预先配置的超时时间
-
-PDB 指定了应用程序最少期望的副本数（相对于总副本数）例如：某个 Deployment 的 .spec.replicas 为 5，如果其对应的 PDB 允许最低 4个副本数，则 Eviction API（kubectl drain）在同一时刻最多会允许1个自愿干扰，而不是2个或更多
-
-- PDB 通过 Pod 的 .metadata.ownerReferences 查找到其对应的控制器（Deployment、StatefulSet）
-- PDB 通过控制器的 .spec.replicas 字段来确定期望的副本数
-- PDB 通过控制器的 label selector 来确定哪些 Pod 属于同一个应用程序
-- PDB 不能阻止非自愿干扰发生，但是当这类毁坏发生时，将被计入到当前毁坏数里
-- 通过 kubectl drain 驱逐 Pod 时，Pod 将被优雅地终止
-
-
-
-**注意**：
-
-- 在滚动更新过程中被删除的 Pod 也将计入到 PDB 的当前干扰数，但是控制器在执行滚动更新时，并不受 PDB 的约束，滚动更新过程中，同时可删除 Pod 数量在控制器对象的定义中规定
-
-
-
-Kubernetes 中如下因素决定了干扰发生的频率：（也即干扰时删除 Pod 的速度）
-
-- 应用程序所需要的副本数
-- 对一个 Pod 执行优雅终止（gracefully shutdown）所需要的时间
-- 新的 Pod 实例启动所需要的时间
-- 控制器的类型
-- 集群资源的容量
-
-
-
-### 3、PodDisruptionBudget
-
-使用 PodDisruptionBudget 保护应用程序：
-
-1. 首先要确定哪个应用程序需要使用 PodDisruptionBudget 保护
-2. 思考应用程序如何处理干扰
-3. 创建 PDB yaml 文件
-4. 从 yaml 文件创建 PDB 对象
-
-通常如下几种 Kubernetes 控制器创建的实例可以使用 PDB：
-
-- Deployment
-
-- ReplicationController
-- ReplicaSet
-- StatefulSet
-
-
-
-PodDisruptionBudget 包含三个字段：
-
-- .spec.selector：用于指定 PDB 适用的 Pod，此字段为必填
-- .spec.minAvailable：当完成驱逐时，最少要保留多少个 Pod 可用，该字段可以是一个整数，也可以是一个百分比
-- .spec.maxUnavailable： 当完成驱逐时，最多有多少个 Pod 被终止，该字段可以是一个整数，也可以是一个百分比
-
-
-
-**注意**：
-
-- 在一个 PodDisruptionBudget 中，只能指定 maxUnavailable 和 minAvailable 中的一个
-
-- maxUnavailable 只能应用到那些有控制器的 Pod 上
-- 通常一个 PDB 对应一个控制器创建的 Pod，例如：Deployment、ReplicaSet、StatefulSet
-- PodDisruptionBudget 只能保护应用避免受到自愿干扰的影响，而不是所有原因的毁坏
-- PDB 中 .spec.selector 字段的内容必须与控制器中 .spec.selector 字段的内容相同
-- maxUnavailable 为 0%（或0）或者 minAvailable 为 100%（或与控制器的 .spec.replicas 相等）将阻止节点排空任务
-- 当名称空间中有多个 PDB 时，必须小心，PDB 的标签选择器之间不能重叠
-
-
-
->自 Kubernetes v 1.15 开始，PDB 支持激活了 scale subresource 的 custom controller，也可以为那些不是通过上述控制器创建的 Pod 设置 PDB，但存在一些限制条件
->
->- 只能使用 .spec.minAvailable，不能使用 .spec.maxUnavailable
->- .spec.minAvailable 字段中只能使用整型数字，不能使用百分比
-
-
+ 如果使用 yaml 配置临时容器，需通过 kubectl replace --raw 提交
 
 ~~~yaml
-apiVersion: policy/v1beta1
+apiVersion: v1
+kind: EphemeralContainers
+metadata:
+  name: myapp-pod
+spec:
+  ephemeralContainers:
+  - name: debug-tools
+    image: nicolaka/netshoot:v0.8
+    command: [ "/bin/bash", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
+    stdin: true
+    tty: true
+    targetContainerName: main-app
+~~~
+
+查看临时容器状态
+
+~~~bash
+kubectl describe pod <pod-name> | grep Ephemeral
+~~~
+
+
+
+#### 3、调试容器
+
+~~~bash
+# 查看目标容器进程树
+kubectl debug <pod> --image=busybox --target=main-app -- ps aux
+
+# 分析线程状态
+kubectl debug <pod> --image=ubuntu --target=main-app -- strace -p 1
+
+# TCP 连接检查
+kubectl debug <pod> --image=nicolaka/netshoot --target=main-app -- netstat -tulpn
+
+# DNS 解析测试
+kubectl debug <pod> --image=busybox --target=main-app -- nslookup kubernetes.default
+~~~
+
+参数：
+
+- --copy-to：创建目标 Pod 的副本，并将副本命名为指定名称
+
+- --container 指定新的容器名，如果没有使用 ，kubectl debug 会自动生成的
+- --share-processes 与 --copy-to 一起使用时，在副本中启用进程命名空间共享
+
+
+
+#### 4、最佳实践
+
+通过 kubectl debug 命令创建临时容器（自动处理 API 调用）
+
+诊断完成后立即终止临时容器进程
+
+生产环境建议预置调试镜像避免临时注入，因为临时注入可能带来多种安全风险
+
+- 引入未经验证的第三方组件，存在供应链攻击风险，预置镜像可通过安全扫描和签名验证，确保符合企业安全基线
+- 节点网络隔离时，临时拉取镜像可能导致故障排查延迟，特别是 air-gapped 环境，预置镜像可规避镜像仓库不可用或网络抖动带来的影响
+- 调试工具版本与运行环境严格匹配（如 glibc 版本依赖），预置镜像可避免临时注入不同架构的镜像导致兼容性问题
+- 满足审计日志完整性：预置镜像可提前登记到 CMDB 系统
+
+
+
+## 5、容器管理
+
+### 1、网络通信
+
+#### 1、Pod 网络基础
+
+**唯一 IP 与端口共享**：每个 Pod 会被分配一个集群内唯一的 IP 地址，其内部所有容器共享此 IP 和端口空间，容器间可通过 localhost 直接通信，但需注意**端口冲突风险** （例如：同一 Pod 内两个容器监听 8080 端口将导致异常）
+
+**跨节点通信实现**：不同节点上的 Pod 通信依赖 **CNI（容器网络接口）插件**实现网络互联，常见技术包括 Overlay 网络（如 VXLAN）、BGP 路由或云厂商 SDN 方案，最终确保跨节点流量可达
+
+
+
+#### 2、容器间通信模式
+
+| 通信场景        | 通信方式                   | 限制条件                                                 |
+| --------------- | -------------------------- | -------------------------------------------------------- |
+| 同一 Pod 内容器 | localhost + 端口           | 共享网络命名空间，需避免端口冲突                         |
+| 不同 Pod 内容器 | 目标 Pod IP + 端口         | 依赖集群网络策略及服务发现                               |
+| 跨节点 Pod      | 通过 CNI 插件路由/隧道转发 | 基于**虚拟二层网络技术**实现，需网络插件支持跨节点连通性 |
+
+
+
+#### 3、平坦网络模型
+
+所有 Pod 处于全局统一的网络地址空间，满足以下特性：
+
+- 任意 Pod 可直接通过目标 Pod IP 通信，无需 NAT 转换
+- 无论 Pod 分布在哪个节点，其网络行为表现一致
+- 支持通过 NetworkPolicy 实现细粒度流量控制
+
+**与传统架构的差异**：Kubernetes 摒弃了传统虚拟机/物理机中常见的多层 NAT 结构，使得微服务间通信更透明
+
+
+
+### 2、持久化存储
+
+#### 1、概述
+
+存储卷（Volume）是定义在 Pod 层级的资源，与容器生命周期解耦,其核心特性包括：
+
+- **多容器共享** ：同一 Pod 内所有容器可同时挂载同一存储卷
+- **数据持久化** ：卷中数据在容器重启后保留（具体持久性取决于卷类型）
+- **类型扩展性** ：支持 20+ 存储驱动（如 emptyDir、hostPath、NFS、云存储等）
+
+| 卷类型   | 生命周期           | 典型场景                   |
+| -------- | ------------------ | -------------------------- |
+| emptyDir | 与 Pod 共存亡      | 临时文件交换、缓存         |
+| hostPath | 与节点物理机共存亡 | 节点级日志采集             |
+| PVC/PV   | 独立于 Pod 存在    | 数据库持久化、共享文件系统 |
+
+
+
+#### 2、实践指南
+
+**存储选型决策树**
+
+~~~bash
+是否需要跨节点共享？ → 是 → 选择 NFS/CephFS  
+↓ 否  
+是否需要持久化？ → 是 → 选择云存储/PVC  
+↓ 否  
+使用 emptyDir
+~~~
+
+**生产环境建议**
+
+- 避免使用 hostPath（存在节点单点故障风险）
+- 对敏感数据配置 volumeMode: Block 实现原始块设备加密
+- 通过 kubectl describe pvc/[claim-name] 查看 PVC 绑定状态
+
+~~~bash
+# 检查存储卷挂载状态
+kubectl describe pod/[pod-name] | grep -A 10 Volumes
+
+# 验证 PVC 绑定情况
+kubectl get pvc
+
+# 进入容器检查挂载点
+kubectl exec -it [pod-name] -- ls /mount/path
+~~~
+
+
+
+### 3、日志监控
+
+#### 1、概述
+
+Kubernetes 强制容器将日志输出到 stdout/stderr，通过容器运行时（如 containerd）捕获并存储至节点文件系统：
+
+~~~bash
+# 默认日志存储路径（节点视角）  
+/var/log/pods/<namespace>_<pod-name>_<pod-uid>/<container-name>/  
+~~~
+
+**日志轮转策略** ：由 kubelet 自动管理，默认单个日志文件超过 10MB 或保存 5 个备份后触发轮转
+
+
+
+#### 2、最佳实践
+
+**日志分级策略**：
+
+~~~bash
+# 容器环境变量配置日志级别
+# 开发环境：DEBUG 级别日志
+# 生产环境：WARN 或 ERROR 级别日志
+env:  
+  - name: LOG_LEVEL  
+    value: "INFO"  
+~~~
+
+**敏感信息过滤**
+
+- 使用 Logstash 的 mutate 插件脱敏信用卡号、密码等字段
+- 通过正则表达式匹配并替换敏感内容
+
+~~~bash
+# 实时查看容器日志（支持 -f 持续跟踪）  
+kubectl logs <pod-name> -c <container-name> --tail=100  
+
+# 查看节点日志存储状态  
+kubectl describe node <node-name> | grep -i 'log'  
+
+# 检查 Prometheus 指标抓取状态  
+curl -X POST http://prometheus-server:9090/-/reload  
+~~~
+
+
+
+
+
+### 4、健康检查
+
+#### 1、基本概念
+
+Kubernetes 通过 **探针（Probe）** 实现容器健康状态的动态感知，由 kubelet 定期执行诊断操作，支持以下**三种探针**类型：
+
+| 探针类型                  | 核心作用                   | 默认状态 | 关键场景                                     |
+| ------------------------- | -------------------------- | -------- | -------------------------------------------- |
+| **存活探针（Liveness）**  | 检测容器是否处于运行状态   | Success  | 处理死锁/僵尸进程，触发容器重启              |
+| **就绪探针（Readiness）** | 判断容器是否准备好接收流量 | Failure  | 延迟服务注册，避免流量涌入未初始化完成的容器 |
+| **启动探针（Startup）**   | 检测容器是否完成启动初始化 | Success  | 保护慢启动应用，避免存活/就绪探针过早介入    |
+
+每类探针都支持**四种探测方法**：
+
+| 方法类型      | 实现机制           | 适用场景           | 健康判定标准       |
+| ------------- | ------------------ | ------------------ | ------------------ |
+| **exec**      | 执行容器内命令     | 无 HTTP 接口的服务 | 命令退出码为 0     |
+| **httpGet**   | 发送 HTTP GET 请求 | Web 服务/微服务    | 响应状态码 200-399 |
+| **tcpSocket** | 建立 TCP 连接      | 数据库/中间件      | 成功建立连接       |
+| **gRPC**      | 执行 gRPC 健康检查 | gRPC 服务          | 响应状态为 SERVING |
+
+**探针探测结果**：
+
+- **Success**：Container 通过了检查
+- **Failure**：Container 未通过检查
+- **Unknown**：未能执行检查，不采取任何措施
+
+**注意**：
+
+- gRPC 方法要求 Kubernetes 1.24+ 版本并启用 GRPCContainerProbe 特性门控
+
+
+
+#### 2、探针类型
+
+##### 1、Liveness Probe
+
+**核心逻辑**：
+
+- 周期性检测容器健康状态，失败时触发容器重启（遵循 restartPolicy）
+- 默认状态为 Success，需显式配置以启用检测
+- 与就绪探针协同使用，避免流量导向异常容器
+
+~~~yaml
+livenessProbe:  
+  httpGet:  
+    path: /healthz  
+    port: 8080  
+  initialDelaySeconds: 15  # 避免过早触发检测  
+  periodSeconds: 20        # 检测间隔需大于服务恢复时间  
+  failureThreshold: 3      # 允许短暂异常  
+~~~
+
+**流程**：Liveness 探测的结果会存储在 LivenessManager 中，kubelet 在 syncPod 时，发现该容器的 Liveness 探针检测失败时，会将其加入待启动的容器列表中，在之后的操作中会重新创建该容器
+
+如果容器能够在遇到问题或不健康的情况下自行崩溃，则不一定需要存活态探针，kubelet 将根据 Pod 的 restartPolicy 自动修复
+
+一般情况下存活探针与就绪探针会搭配使用，因为单单使用存活探针无法阻止流量导向问题容器
+
+
+
+##### 2、Readiness Probe
+
+**核心逻辑**：
+
+- 控制 Pod 是否加入 Service 的 Endpoints
+- 默认状态为 Failure，需显式配置通过条件
+- 失败时触发流量隔离，但不重启容器
+
+~~~yaml
+readinessProbe:  
+  exec:  
+    command:  
+      - /bin/sh  
+      - -c  
+      - "curl -s localhost:8080/ready | grep OK"  
+  initialDelaySeconds: 5  
+  periodSeconds: 5  
+~~~
+
+**流程**：Readiness 检查结果会通过 SetContainerReadiness 函数，设置到 Pod 的 Status 中，从而更新 Pod 的 Ready Condition，如果为 True，才允许服务将流量发送到新副本
+
+比如：使用 Tomcat 的应用程序来说，并不是简单地说 Tomcat 启动成功就可以对外提供服务的，还需要等待 Spring 容器初始化，数据库连接等等，对于 Spring Boot 应用，默认的 actuator 带有 /health 接口，可以用来进行启动成功的判断
+
+
+
+##### 3、Startup Probe
+
+**核心逻辑**
+
+- 保护慢启动应用，禁用其他探针直至启动成功
+- 失败时触发容器重启（类似存活探针），默认状态为 Success
+- 需设置较高 failureThreshold 容忍长启动时间
+
+~~~yaml
+startupProbe:  
+  httpGet:  
+    path: /init  
+    port: 8080  
+  failureThreshold: 30  # 允许最长 30*10=300 秒启动时间  
+  periodSeconds: 10  
+~~~
+
+使用启动探针，将不再需要配置一个较长的存活探针初次探测时间以及探测间隔，从而允许使用远远超出存活态时间间隔所允许的时长
+
+比如：如果容器启动时间通常超出 initialDelaySeconds + failureThreshold × periodSeconds 总值，应该设置一个启动探针，对存活探针所使用的同一端点执行检查，periodSeconds 的默认值是 10 秒，应该将其 failureThreshold 设置得足够高，以便容器有充足的时间完成启动，并且避免更改存活态探针所使用的默认值，这一设置有助于减少死锁状况的发生
+
+
+
+#### 3、操作实践
+
+**多探针协同配置**
+
+~~~yaml
+apiVersion: v1  
+kind: Pod  
+metadata:  
+  name: springboot-app  
+spec:  
+  containers:  
+  - name: app  
+    image: springboot:2.7  
+    ports:  
+      - containerPort: 8080  
+    # 启动探针（保护初始化阶段）  
+    startupProbe:  
+      httpGet:  
+        path: /actuator/health/startup  
+        port: 8080  
+      failureThreshold: 30  
+      periodSeconds: 10  
+    # 存活探针（长期运行监控）  
+    livenessProbe:  
+      httpGet:  
+        path: /actuator/health/liveness  
+        port: 8080  
+      initialDelaySeconds: 60  # 等待启动探针完成  
+      periodSeconds: 15  
+    # 就绪探针（流量控制）  
+    readinessProbe:  
+      httpGet:  
+        path: /actuator/health/readiness  
+        port: 8080  
+      initialDelaySeconds: 30  
+      periodSeconds: 5  
+~~~
+
+
+
+#### 4、最佳实践
+
+**参数调优原则**：
+
+- initialDelaySeconds > 容器启动至服务可用的最长时间
+- periodSeconds 根据业务敏感度设置（生产环境建议 5-30 秒）
+- failureThreshold 需考虑网络抖动容忍度
+
+| 参数                | 推荐值           | 计算依据                    | 监控指标           |
+| ------------------- | ---------------- | --------------------------- | ------------------ |
+| initialDelaySeconds | 平均启动时间+20% | 应用启动日志分析            | 容器启动耗时 P99   |
+| periodSeconds       | 5-30 秒          | SLA 要求（99.9% vs 99.99%） | 探针执行成功率     |
+| failureThreshold    | 3-5 次           | 网络抖动频率+业务容忍度     | 网络丢包率         |
+| timeoutSeconds      | 1-3 秒           | 应用响应时间 P99            | 接口响应时间直方图 |
+
+**命令指南**：
+
+~~~bash
+# 查看探针事件记录  
+kubectl describe pod/[pod-name] | grep -A 10 "Liveness"  
+
+# 手动触发探针检测  
+kubectl exec -it [pod-name] -- curl http://localhost:8080/healthz  
+
+# 检查容器重启历史  
+kubectl get pod/[pod-name] -o jsonpath='{.status.containerStatuses[0].restartCount}'  
+~~~
+
+**探针工作流**：
+
+~~~bash
+[容器启动] --> [Startup Probe] --成功--> [启用 Liveness/Readiness]  
+                              |  
+                              --失败--> [重启容器]  
+
+[运行中] --> [Liveness 定期检测]  --失败--> [触发重启]  
+        --> [Readiness 定期检测] --失败--> [从 Service 摘除]  
+~~~
+
+**探针选择**：
+
+~~~bash
+[应用是否需要处理长时间初始化] ---> 是 ---> 启用 Startup Probe
+                          ---> 否 ---> 启用 Liveness/Readiness Probe
+[应用是否可能死锁]           ---> 是 ---> 启用 Liveness Probe
+[应用是否需要精细流量控制]    ---> 是 ---> 启用 Readiness Probe
+~~~
+
+
+
+#### 5、探针状态机
+
+~~~mermaid
+stateDiagram-v2
+    [*] --> ContainerStart
+    ContainerStart --> StartupCheck: 启动阶段
+    StartupCheck --> StartupSuccess: 检测通过
+    StartupCheck --> ContainerRestart: 连续失败
+    
+    StartupSuccess --> LivenessCheck: 运行阶段
+    LivenessCheck --> ContainerRestart: 连续失败
+    LivenessCheck --> ReadinessCheck: 存活正常
+    
+    ReadinessCheck --> ServiceEndpoint: 就绪通过
+    ReadinessCheck --> TrafficIsolation: 连续失败
+    
+    ContainerRestart --> [*]
+    TrafficIsolation --> ReadinessCheck: 定期重试
+~~~
+
+
+
+## 6、故障排查
+
+### 1、基本流程
+
+在 Kubernetes 里面 Pod 的状态机制之间这个状态转换会产生相应的事件，而这个事件又通过类似像 normal 或者是 warning 的方式进行暴露，可以通过上层 Condition Status 相应的一系列字段来判断当前应用的具体状态并进行诊断
+
+**诊断流程**：
+
+1. 观察 phase ：若 Pod 处于 Pending，初步判断调度或资源问题
+2. 检查 conditions：
+   - 若 PodScheduled 为 False，结合 reason 和 message 定位调度失败原因
+   - 若 Ready 为 False 但 ContainersReady 为 True，说明容器已运行但未通过就绪探针
+3. 查看事件：
+   - 发现 Warning FailedScheduling 事件 → 检查节点资源或亲和性规则
+   - 发现 Warning BackOff 事件 → 查看容器日志排查崩溃原因
+
+**调试建议** ：
+
+1. 查看事件日志：
+
+   ~~~bash
+   kubectl describe pod <name> | grep -A 20 "Events"
+   ~~~
+
+2. 检查资源限制：
+
+   ~~~bash
+   kubectl top nodes && kubectl get pod -o wide
+   ~~~
+
+3. 验证探针配置：确保 readinessProbe/livenessProbe 路径和端口正确 
+
+
+
+### 2、中断管理
+
+#### 1、中断类型
+
+**非自愿中断（Involuntary Disruptions）**
+
+由不可控因素导致的中断场景：
+
+- 物理硬件故障
+- 云提供商虚拟机误删除
+- 内核崩溃
+- 节点资源耗尽触发Pod驱逐
+- 网络分区导致节点失联
+
+**自愿中断（Voluntary Disruptions）**
+
+由管理员主动触发的操作： 
+
+- **应用管理员操作**：
+
+  - 删除 Deployment/StatefulSet 等控制器
+
+  - 更新 Pod 模板触发滚动更新
+
+  - 直接删除 Pod
+
+- **集群管理员操作**：
+
+  - 节点排空（drain）进行维护
+
+  - 手动Pod驱逐实现调度优化
+
+**关键区别**：
+
+- PDB 仅保护自愿中断场景，直接删除 Pod/控制器不受 PDB 约束
+
+
+
+#### 2、中断处理策略
+
+**非自愿中断应对**：
+
+- 合理设置 Pod 资源请求/限制
+- 多副本部署（建议至少 3 副本）
+- 跨故障域分布（机架/可用区/区域）
+
+**自愿中断管理**：
+
+使用 PodDisruptionBudget（PDB）保障可用性：
+
+~~~yaml
+apiVersion: policy/v1 # 更新 API 版本
 kind: PodDisruptionBudget
 metadata:
   name: zk-pdb
@@ -2716,459 +3853,70 @@ spec:
       app: zookeeper
 ~~~
 
-~~~bash
-apiVersion: policy/v1beta1
+**PDB工作机制**：
+
+1. 通过 Pod 的 ownerReferences 关联控制器
+2. 读取控制器的 .spec.replicas 确定副本总数
+3. 使用控制器相同的标签选择器
+4. 与 Eviction API 协同工作（kubectl drain）
+
+
+
+#### 3、PodDisruptionBudget
+
+##### 1、核心字段
+
+~~~yaml
+spec:
+  selector: LabelSelector # 必填，需与控制器选择器一致
+  minAvailable: int | str # 最小可用数（绝对值或百分比）
+  maxUnavailable: int | str # 最大不可用数，不可以使用百分比
+~~~
+
+**使用限制**：
+
+1. minAvailable 与 maxUnavailable 互斥
+2. maxUnavailable 仅适用于控制器管理的 Pod
+3. 同一命名空间中多个 PDB 的选择器不得重叠，使用 kubectl describe pdb \<name> 查看冲突警告
+4. 100% minAvailable 会阻止节点排空
+
+**关键行为特性**：
+
+- **实时状态计算**：kubectl get pdb \<name> -o wide，输出中的 ALLOWED DISRUPTIONS 显示当前可安全中断的 Pod 数量
+- **非阻塞性保护**：
+  - 若节点故障导致非自愿中断，PDB 会计入当前中断数
+  - 后续自愿中断操作会受此影响（如已中断 2 个，maxUnavailable=3 时仍允许中断 1 个）
+
+
+
+**注意**：
+
+- **不保护的操作**：
+  - 直接删除 Pod（kubectl delete pod）
+  - 删除控制器（Deployment 等）
+  - 节点硬故障（非自愿中断）
+
+
+
+##### 2、示例
+
+~~~yaml
+# 保护ZooKeeper集群
+apiVersion: policy/v1  # 使用 v1 API（K8s v1.21+）
 kind: PodDisruptionBudget
 metadata:
   name: zk-pdb
 spec:
-  maxUnavailable: 1
+  minAvailable: 2     # 3 副本集群中至少保持 2 个在线
   selector:
     matchLabels:
       app: zookeeper
 ~~~
 
-~~~bash
-# 创建 pdb 对象
-kubectl apply -f mypdb.yaml
-~~~
-
-~~~bash
-# 查看 pdb 详细信息
-kubectl get poddisruptionbudgets zk-pdb -o yaml
-~~~
-
-
-
-## 12、调试
-
-先用 Deployment 创建两个 Pod
-
 ~~~yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-deployment
+# 滚动更新场景
 spec:
-  selector:
-    matchLabels:
-      app: nginx
-  replicas: 2
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
-        ports:
-        - containerPort: 80
-~~~
-
-
-
-### 1、使用 exec
-
-通过 kubectl exec 进入容器命令行终端进行问题诊断
-
-~~~bash
-# Pod 中只有一个容器时
-kubectl exec -it pod-name /bin/bash
-
-# Pod 中有多个容器时
-# kubectl exec ${POD_NAME} -c ${CONTAINER_NAME} -- ${CMD} ${ARG1} ${ARG2} ... ${ARGN}
-kubectl exec -it pod-name -c container-name -- sh
-~~~
-
-
-
-### 2、使用 debug
-
-~~~bash
-kubectl run ephemeral-demo --image=registry.k8s.io/pause:3.1 --restart=Never
-~~~
-
-debug 对于 Pod 内容器不包含 shell 等工具时调试非常方便
-
-~~~bash
-kubectl debug -it ephemeral-demo --image=busybox:1.28 --target=ephemeral-demo
-~~~
-
-此命令添加一个新的 busybox 容器并将其连接到该容器
-
-- --target 参数指定另一个容器的进程名称空间，这个指定进程名称空间的操作是必需的，因为 kubectl run 不能在它创建的 Pod 中启用共享进程命名空间
-
-~~~bash
-kubectl debug ephemeral-demo -it --image=ubuntu --share-processes --copy-to=ephemeral-demo-debug
-~~~
-
-此命令创建了一个 ephemeral-demo 的副本，并添加了一个用于调试的 ubuntu 容器
-
-- 如果没有使用 --container 指定新的容器名，kubectl debug 会自动生成的
-- --share-processes 允许在此 Pod 中的其他容器中查看该容器的进程
-
-
-
-**注意**：
-
-- 不要忘记清理调试容器
-
-
-
-## 13、临时容器
-
-临时容器与其他容器的不同之处在于，它们缺少对资源或执行的保证，并且永远不会自动重启，因此不适用于构建应用程序，临时容器使用与常规容器相同的 ContainerSpec 节来描述，但许多字段是不兼容和不允许的
-
-- 临时容器没有端口配置，因此像 ports、livenessProbe、readinessProbe 是不允许的
-- Pod 资源分配是不可变的，因此 resources 配置是不允许的
-- 有关允许字段的完整列表，请参见 [EphemeralContainer 参考文档](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#ephemeralcontainer-v1-core) 
-
-临时容器是 Ephemeralcontainers 处理器进行创建的，而不是直接添加到 pod.spec，因此无法使用 kubectl edit 来添加一个临时容器，且与常规容器一样，将临时容器添加到 Pod 后，将不能更改或删除临时容器
-
-临时容器在现有 Pod 中临时运行，以便完成用户发起的操作，可以使用临时容器来检查服务，但不是用它来构建应用程序
-
-当由于容器崩溃或容器镜像不包含调试工具而导致 kubectl exec 无用时， 临时容器对于交互式故障排查很有用
-
-使用临时容器时， 启用进程名字空间共享很有帮助， 可以查看其他容器中的进程
-
-
-
-# 5、Kubernetes Namspace
-
-## 1、Name 概念
-
-Kubernetes REST API 中，所有的对象都是通过 Name 和 UID 唯一性确定，例如：确定一个 RESTFUL 对象：
-
-```
-/api/v1/namespaces/{namespace}/pods/{name}
-```
-
-同一个名称空间下，限定一个类型的对象，可以通过 Name 唯一性确定
-
-~~~yaml
-# 例子
-apiVersion: v1
-kind: Pod
-metadata:
-	# Pod Name
-  name: nginx-demo
-spec:
-  containers:
-  # Contain Name
-  - name: nginx
-    image: nginx:1.14.2
-    ports:
-    - containerPort: 80
-~~~
-
-
-
-**注意**：
-
-- 所有的名字空间名称都必须是合法的 RFC 1123 DNS 标签
-
-
-
-## 2、基本概念
-
-Namespace 在很多情况下用于实现多用户的资源隔离，通过将集群内部的资源对象分配到不同的 Namespace 中形成逻辑上的分组，便于不同的分组在共享使用整个集群的资源同时还能被分别管理
-
-Kubernetes 安装成功后，默认有初始化了三个名称空间：
-
-- **default**：默认名称空间，如果 Kubernetes 对象中不定义 metadata.namespace 字段，该对象将放在此名称空间下
-- **kube-system**：Kubernetes 系统创建的对象放在此名称空间下
-- **kube-public**：此名称空间在安装集群时自动创建，并且所有用户都是可以读取的（即使是那些未登录的用户），其为集群预留的，例如：某些情况下，某些 Kubernetes 对象应该被所有集群用户看到
-- **kube-node-lease**：该名字空间包含用于与各个节点关联的 Lease 对象，节点租约允许 kubelet 发送心跳， 由此控制面能够检测到节点故障
-
-某些更底层的对象不被名称空间约束，例如：nodes、persistentVolumes、storageClass 等
-
-
-
-**注意**：
-
-- 名称空间内部的同类型对象不能重名，但是跨名称空间可以有同名同类型对象
-- 名称空间不可以嵌套，任何一个 Kubernetes 对象只能在一个名称空间中
-
-
-
-~~~bash
-# 查看名称空间
-kubectl get namespaces
-
-# 在名称空间里
-kubectl api-resources --namespaced=true
-# 不在名称空间里
-kubectl api-resources --namespaced=false
-~~~
-
-
-
-## 3、使用
-
-### 1、创建
-
-~~~yaml
-apiVersion: v1 
-kind: Namespace 
-metadata:
-	name: development
-
----------------------
-
-apiVersion: v1 
-kind: Pod 
-metadata:
-	name: busybox 
-	namespace: development
-spec:
-containers:
-    - image: busybox 
-    command:
-    	- sleep
-    	- -"3600"
-    name: busybox
-~~~
-
-~~~bash
-kubectl get pods --namespace=development
-~~~
-
-~~~bash
-# 执行命令时指定名称空间
-kubectl run nginx --image=nginx --namespace=<您的名称空间>
-kubectl get pods --namespace=<您的名称空间>
-~~~
-
-
-
-### 2、设置名称空间偏好
-
-以通过 set-context 命令改变当前 kubectl 上下文 的名称空间，后续所有命令都默认在此名称空间下执行
-
-~~~bash
-kubectl config set-context --current --namespace=<您的名称空间>
-# 验证结果
-kubectl config view --minify | grep namespace:
-~~~
-
-
-
-# 6、Kubernetes Label
-
-## 1、基本概念
-
-一个 Label 是一个 **k : v** 键值对，key 和 value 均自定义，但是有一定的限制，见下文
-
-同一个 Label 也可以被添加到任意数量的各种资源对象上，如 Node、Pod、 Service、RC，一个资源对象可以定义任意数量的 Label
-
-Label 通常在资源对象定义时确定，也可以在对象创建后动态添加或删除
-
-Label 的最常见的用法是使用 metadata.labels 字段，来为对象添加 Label，通过 spec.selector 来引用对象
-
-Label 附加到 Kubernetes 集群中各种资源对象上，目的就是对这些资源对象进行分组管理， 而分组管理的核心就是 Label Selector
-
-Label 与 Label Selector 都不能单独定义，必须附加在一些资源对象的定义文件上，一般附加在 RC 和 Service 的资源定义文件中
-
-
-
-标签名：
-
-- 标签名部分是必须的
-- 不能多于 63 个字符
-- 必须由字母、数字开始和结尾
-- 可以包含字母、数字、减号-、下划线_、小数点.
-
-标签前缀：
-
-- 标签前缀部分是可选的
-- 如果指定，必须是一个DNS的子域名
-  - 如果省略标签前缀，则标签的 key 将被认为是专属于用户的
-  - Kubernetes的系统组件向用户的Kubernetes对象添加标签时，必须指定一个前缀
-  - kubernetes.io/ 和 k8s.io/ 这两个前缀是 Kubernetes 核心组件预留
-- 不能多于 253 个字符
-- 使用 / 和标签名分隔
-
-标签的值：
-
-- 不能多于 63 个字符
-- 可以为空字符串
-- 如果不为空，则
-  - 必须由字母、数字开始和结尾
-  - 可以包含字母、数字、减号-、下划线_、小数点.
-
-
-
-## 2、标签选择器
-
-### 1、概述
-
-与 Name 和 UID 不同，标签不一定是唯一的，通常 K8s对象与标签是 M：N 的关系
-
-通过使用标签选择器（Label Selector），可以选择一组对象，标签选择器是 Kubernetes 中最主要的分类和筛选手段
-
-
-
-### 2、API Server
-
-Kubernetes **api server**支持两种形式的标签选择器，**equality-based** 基于等式的和 **set-based** 基于集合的
-
-- 基于等式：==、=、!=
-  - == 等同于 =
-- 基于集合：使用小括号表示集合
-  - 额外支持 notin、in、exists、dosenotexists 条件
-
-标签选择器可以包含多个条件，并使用逗号分隔，逗号等同于 and，此时只有满足所有条件的 Kubernetes 对象才会被选中，如果使用空的标签选择器或者不指定选择器，其含义由具体的 API 接口决定
-
-~~~bash
-environment = production
-tier != frontend
-environment=production,tier!=frontend
-~~~
-
-~~~bash
-environment in (production, qa)
-tier notin (frontend, backend)
-# 具有 partition key
-partition
-!partition
-~~~
-
-API 查询：两种类型都能支持，但要符合 URL 编码
-
-- 基于等式的选择方式： ?labelSelector=environment%3Dproduction,tier%3Dfrontend
-- 基于集合的选择方式： ?labelSelector=environment+in+%28production%2Cqa%29%2Ctier+in+%28frontend%29
-
-
-
-### 3、其他资源对象
-
-**Job、Deployment、ReplicaSet、DaemonSet** 等同样支持基于等式和基于集合
-
-~~~yaml
-selector:
-  matchLabels:
-    component: redis
-  matchExpressions:
-    - {key: tier, operator: In, values: [cache]}
-    - {key: environment, operator: NotIn, values: [dev]}
-~~~
-
-**matchLabels**：
-
-- 是一个 {key,value} 组成的 map，map 中的一个 {key,value} 条目相当于 matchExpressions 中的一个元素，其 key 为 map 的 key，operator 为 In， values 数组则只包含 value 一个元素
-
-**matchExpression**：
-
-- 等价于基于集合的选择方式，支持的 operator 有 In、NotIn、Exists 和 DoesNotExist，当 operator 为 In 或 NotIn 时，values 数组不能为空，所有的选择条件都以 AND 的形式合并计算，即所有的条件都满足才可以算是匹配
-
-
-
-**注意**：
-
-- 如果两个字段同时存在，则必须同时满足两个条件的 Pod 才被选中
-
-
-
-## 3、字段选择器
-
-字段选择器（Field Selector）可以用来基于的一个或多个字段的取值来选取一组 Kubernetes 对象，类似于 Label
-
-字段选择器本质上是一个 filter，默认情况下，没有添加 selector/filter 时，代表着指定资源类型的所有对象都被选中
-
-~~~bash
-# 选择了所有字段 status.phase 的取值为 Running 的 Pod
-kubectl get pods --field-selector status.phase=Running
-~~~
-
-不同的 Kubernetes 对象类型，可以用来查询的字段不一样。所有的对象类型都支持的两个字段是 metadata.name 和 metadata.namespace。在字段选择器中使用不支持的字段，将报错
-
-字段选择器中可以使用的操作符有 =、==、!= （= 和 == 含义相同），可以指定多个字段，用逗号 , 分隔
-
-~~~bash
-kubectl get pods --field-selector=status.phase!=Running,spec.restartPolicy=Always
-~~~
-
-字段选择器可以跨资源类型使用
-
-~~~bash
-kubectl get statefulsets,services --all-namespaces --field-selector metadata.namespace!=default
-~~~
-
-
-
-## 4、Finalizers
-
-### 1、概述
-
-Finalizer 是带有名称空间的键，告诉 Kubernetes 等到特定的条件被满足后， 再完全删除被标记为删除的资源
-
-Finalizer 提醒控制器清理被删除的对象拥有的资源
-
-当用户告诉 Kubernetes 删除一个指定了 Finalizer 的对象时， Kubernetes API 通过填充 .metadata.**deletionTimestamp** 来标记要删除的对象， 且返回 202 状态码(HTTP 已接受)，然后使其进入只读状态，此时控制平面或其他组件会采取 Finalizer 所定义的行动， 而目标对象仍然处于终止中（Terminating）的状态，这些行动完成后，控制器会删除目标对象相关的 Finalizer，当 metadata.**finalizers** 字段为空时，Kubernetes 认为删除已完成并删除目标对象
-
-可以使用 Finalizer 控制资源的垃圾收集，例如：可以定义一个 Finalizer，在删除目标资源前清理相关资源或基础设施
-
-可以通过使用 Finalizers 提醒控制器在删除目标资源前执行特定的清理任务， 来控制资源的垃圾收集
-
-Finalizers 通常不指定要执行的代码，它们通常是特定资源上的键的列表，类似于注解，Kubernetes 自动指定了一些 Finalizers，支持自定义
-
-
-
-### 2、工作流程
-
-当使用清单文件创建资源时，可以在 metadata.finalizers 字段指定 Finalizers
-
-当试图删除该资源时，处理删除请求的 API 服务器会注意到 finalizers 字段中的值， 并进行以下操作：
-
-- 修改对象，将开始执行删除的时间添加到 metadata.deletionTimestamp 字段
-- 禁止对象被删除，直到其 metadata.finalizers 字段为空
-- 返回 202 状态码（HTTP Accepted）
-
-管理 finalizer 的控制器注意到对象上发生的更新操作，对象的 metadata.deletionTimestamp 被设置，意味着已经请求删除该对象
-
-然后控制器会试图满足资源的 Finalizers 的条件，每当一个 Finalizer 的条件被满足时，控制器就会从资源的 finalizers 字段中删除该键
-
-当 finalizers 字段为空时，deletionTimestamp 字段被设置的目标对象会被自动删除，也可以使用 Finalizers 来阻止删除未被管理的资源
-
-例子：kubernetes.io/pv-protection， 它用来防止意外删除 PersistentVolume 对象，当一个 PersistentVolume 对象被 Pod 使用时， Kubernetes 会添加 pv-protection Finalizer，如果试图删除 PersistentVolume，它将进入 Terminating 状态， 但是控制器因为该 Finalizer 存在而无法删除该资源，当 Pod 停止使用 PersistentVolume 时， Kubernetes 清除 pv-protection Finalizer，控制器就会删除该卷
-
-
-
-**注意**：
-
-- 在某些情况下，Finalizers 会阻止依赖对象的删除， 这可能导致目标属主对象被保留的时间比预期的长，而没有被完全删除，在这些情况下，应该检查目标属主和附属对象上的 Finalizers 和属主引用，来排查原因
-- 当对象卡在删除状态的情况下，要避免手动移除 Finalizers，以允许继续删除操作，因为 Finalizers 通常有特殊原因才添加到资源上，所以强行删除它们会导致集群出现问题
-  - 如果一定要删除，只有了解 finalizer 的用途时才能这样做，并且应该通过一些其他方式来完成，例如：手动清除其余的依赖对象
-
-
-
-## 5、名字空间选择算符
-
-可以使用 **namespaceSelector** 选择匹配的名字空间，namespaceSelector 是对名字空间集合进行标签查询的机制，亲和性条件会应用到 namespaceSelector 所选择的名字空间和 namespaces 字段中所列举的名字空间之上
-
-**注意**：
-
-- 空的 namespaceSelector **{}** 会匹配所有名字空间，而 null 或者空的 namespaces 列表以及 null 值 namespaceSelector 意味着当前 Pod 的名字空间
-
-
-
-## 6、使用 kubectl 给资源打标签
-
-~~~bash
-# 查看资源对象标签
-kubectl get pod -n default --show-labels
-
-# 打标签
-# 添加参数 --overwrite 可更新标签
-kubectl label pod -n default podname key=value
-
-# 删除标签
-kubectl label pod -n default podname key-
+  maxUnavailable: 25% # 允许最多 25% 的 Pod 不可用（总副本为 4 时，允许中断 1 个）
 ~~~
 
 
@@ -3177,210 +3925,249 @@ kubectl label pod -n default podname key-
 
 ## 1、概述
 
-Kubernetes 通过引入 Controller（控制器）的概念来管理 Pod 实例，在 Kubernetes 中 Controller 由 kube-controller-manager 和 cloud-controller-manager 组成
+Kubernetes 通过引入控制器的概念来管理 Pod 实例，这是其声明式 API 的核心实现方式，在 Kubernetes 集群中，控制器由两个主要组件组成：
 
-在 Kubernetes 中，应该始终通过创建 Controller 来创建 Pod，而不是直接创建 Pod（非常重要），每个控制器通过监控 APIServer 至少追踪一种类型的资源，这些资源对象中有一个 spec 字段代表了预期状态，资源对象对应的控制器负责不断地将当前状态调整到预期状态，理论上，控制器可以直接执行调整动作，然而在 Kubernetes 普遍的做法是，控制器发送消息到 APIServer 从而间接去调整
+- **kube-controller-manager**：负责管理集群内部资源，如 Pod、Deployment、Service 等，这是 Kubernetes 控制平面的核心部分
+- **cloud-controller-manager**：在启用云提供商（如 AWS、GCP）时使用，负责与云服务交互，管理与云相关的资源，如节点（Node）、路由（Route）和服务（Service）
 
-作为一个底层设计原则，Kubernetes 使用了大量的控制器，每个控制器都用来管理集群状态的某一个方面，因此可能存在多种控制器可以创建或更新相同类型的 API 对象，为了避免混淆，Kubernetes 控制器在创建新的 API 对象时，会将该对象与对应的控制器关联，例如：Deployment 和 Job，这两类控制器都创建 Pod，但是 Job Controller 不会删除 Deployment Controller 创建的 Pod，因为控制器可以通过标签信息区分哪些 Pod 是它创建的
-
-**性能监控**：Controller manager metrics 提供了控制器内部逻辑的性能度量，如：Go 语言运行时度量、etcd 请求延时、云服务商 API 请求延时、云存储请求延时等，Controller manager metrics 默认监听在 kube-controller-manager 的 10252 端口，提供 Prometheus 格式的性能度量数据
-
-**高可用**：在启动时设置 --leader-elect=true 后，controller manager 会使用多节点选主的方式选择主节点，只有主节点才会调用 StartControllers() 启动所有控制器，而其他从节点则仅执行选主算法
-
-**高性能**：从 Kubernetes 1.7 开始，所有需要监控资源变化情况的调用均推荐使用 Informer，Informer 提供了基于事件通知的只读缓存机制，可以注册资源变化的回调函数，并可以极大减少 API 的调用
-
-**kube-controller-manager** 由一系列的控制器组成，这些控制器可以划分为三组：
-
-- 必须启动的控制器：
-  - EndpointController
-  - ReplicationController
-  - PodGCController
-  - ResourceQuotaController
-  - NamespaceController
-  - ServiceAccountController
-  - GarbageCollectorController
-  - DaemonSetController
-  - JobController
-  - DeploymentController
-  - ReplicaSetController
-  - HPAController
-  - DisruptionController
-  - StatefulSetController
-  - CronJobController
-  - CSRSigningController
-  - CSRApprovingController
-  - TTLController
-- 默认启动的可选控制器，可通过选项设置是否开启：
-  - TokenController
-  - NodeController
-  - ServiceController
-  - RouteController
-  - PVBinderController
-  - AttachDetachController
-- 默认禁止的可选控制器，可通过选项设置是否开启：
-  - BootstrapSignerController
-  - TokenCleanerController
-
-**cloud-controller-manager** 在 Kubernetes 启用 Cloud Provider 的时候才需要，用来配合云服务提供商的控制：
-
-- Node Controller
-- Route Controller
-- Service Controller
+根据 Kubernetes 的设计，**直接创建 Pod 不被推荐**，而应通过控制器创建 Pod，这是非常重要的实践，因为控制器能确保 Pod 的生命周期管理与集群状态的一致性，每个控制器通过监控 API Server，至少追踪一种资源类型（如 Pod、ReplicaSet），这些资源对象包含一个 spec 字段，定义了期望的状态（desired state），控制器的职责是持续调整当前状态（current state），使其与预期状态匹配，理论上，控制器可以直接执行调整动作，但 Kubernetes 的常见做法是通过向 API Server 发送消息间接调整状态，这种设计增强了系统的解耦性和可扩展性
 
 <img src="images/image-20231014105058704.png" alt="image-20231014105058704" style="zoom:80%;" />
 
+**控制器协作**：
+
+Kubernetes 系统中存在多个控制器，每个控制器负责管理集群状态的一个特定方面，例如，Deployment 控制器负责管理基于 Deployment 资源的 Pod 副本，而 Job 控制器则管理基于 Job 资源的任务型 Pod，由于多个控制器可能创建或更新相同类型的 API 对象（如 Pod），这可能导致潜在的冲突，为了避免混淆，Kubernetes 设计了标签（labels）机制，控制器在创建新 API 对象时，会通过标签将对象与自身关联，例如：
+
+- Deployment 控制器创建的 Pod 会有特定的标签，Job 控制器也能识别这些标签
+- Job 控制器不会删除 Deployment 控制器创建的 Pod，因为它能通过标签信息区分哪些 Pod 是自己创建的
+
+**性能监控与优化**：
+
+为了监控控制器的运行状态，kube-controller-manager 提供了丰富的性能指标，称为 Controller manager metrics，这些指标包括：
+
+- Go 语言运行时度量（如内存使用、CPU 占用）
+- etcd 请求延时，反映与存储后端的通信效率
+- 云服务商 API 请求延时，涉及云资源的交互
+- 云存储请求延时，涉及存储操作的性能
+
+这些指标默认监听在 kube-controller-manager 的 10252 端口，并以 Prometheus 格式提供，方便用户通过监控工具（如 Prometheus、Grafana）进行可视化分析
+
+此外，从 Kubernetes 1.7 开始，推荐使用 Informer 机制来监控资源变化，Informer 提供了一种基于事件通知的只读缓存机制，用户可以注册资源变化的回调函数，这种设计显著减少了直接调用 API 的频率，提升了性能，例如，在大规模集群中，Informer 能有效降低 API Server 的负载，确保系统的高效运行
+
+**高可用性设计**：
+
+Kubernetes 的控制器管理器支持高可用性，通过多节点选主机制实现，具体来说：
+
+- 在启动 kube-controller-manager 时，设置 --leader-elect=true 标志，启用领导者选举（leader election）
+- 多个节点会参与选主算法，最终选出一个主节点（leader）
+- 只有主节点会调用 StartControllers() 方法，启动所有控制器，而其他从节点（followers）仅参与选主算法，不执行控制器逻辑
+
+这种设计确保了即使主节点故障，集群也能快速切换到新的主节点，维持服务的连续性
+
+**控制器分类与管理**：
+
+kube-controller-manager 包含一系列控制器，根据启动需求可分为三类：
+
+| 类别                 | 描述                               | 示例                                                    |
+| -------------------- | ---------------------------------- | ------------------------------------------------------- |
+| 必须启动的控制器     | 核心功能控制器，必须始终启用       | EndpointController, DeploymentController, JobController |
+| 默认启动的可选控制器 | 可通过选项启用或禁用，满足特定需求 | TokenController, NodeController, ServiceController      |
+| 默认禁用的可选控制器 | 默认不启用，可通过选项手动开启     | BootstrapSignerController, TokenCleanerController       |
+
+cloud-controller-manager 则在启用云提供商时需要，主要负责以下控制器：
+
+- Node Controller：管理节点相关资源
+- Route Controller：管理路由信息
+- Service Controller：管理服务与云负载均衡的集成
 
 
-## 2、Replication Controller
 
-### 1、概述
+## 2、基本架构
 
-Replication Controller（RC）是 Kubernetes 系统中核心概念之一，当定义了一个 RC 并提交到 Kubernetes 集群中以后，Master 节点上的 Controller Manager 组件就得到通知，定期检查系统中存活的 Pod，并确保目标 Pod 实例的数量刚好等于 RC 的预期值，如果有过 多或过少的 Pod 运行，系统就会停掉或创建一些 Pod，此外可以通过修改 RC 的副本数量，来实现 Pod 的动态缩放功能
+```mermaid
+graph LR
+    A[API Server] -->|Watch| B(Informer)
+    B --> C[Local Cache]
+    B --> D[WorkQueue]
+    D --> E[Controller]
+    E --> F[Reconcile]
+    F --> G[Update Status]
+```
+
+**Informe机制**：建立 API Server 与控制器的实时数据通道
+
+- 实现 List-Watch 机制监听资源变更  
+- 维护本地缓存(Indexer)降低 API Server 压力  
+- 事件预处理（过滤/合并）后推送至 WorkQueue 
+
+**WorkQueue 设计** ：控制器的异步任务调度中枢
+
+- 带去重功能的优先级队列（防止重复处理）  
+- 实现指数退避重试机制（错误自动恢复）  
+- 支持速率限制（避免系统过载）
+
+**Reconcile 协调循环**：驱动系统向期望状态收敛
+
+- 持续对比spec（期望状态）与status（实际状态）
+- 执行创建/更新/删除等调谐操作
+- 保证操作的幂等性（多次执行结果一致）
+
+~~~mermaid
+graph LR
+    A[API Server] -->|Watch| B[Informer]
+    B -->|事件过滤| C[WorkQueue]
+    C -->|任务分发| D[Reconcile]
+    D -->|状态更新| A
+~~~
+
+**双环反馈机制**：
+
+~~~mermaid
+graph TD
+    A[用户声明期望状态] --> B(API Server)
+    B --> C[etcd持久化]
+    C --> D[控制器检测变化]
+    D --> E[调整实际状态]
+    E --> F[更新Status子资源]
+    F --> A
+~~~
+
+
+
+## 3、无状态工作负载控制器
+
+### 1、Replication Controller
+
+#### 1、概述
+
+Replication Controller（RC） 是 Kubernetes 早期版本的核心控制器，其核心机制是通过声明式配置确保 Pod 副本数始终与预期值一致。当用户创建 RC 并提交至集群后，Controller Manager 组件会持续监控 Pod 状态：若实际副本数多于预期，则终止多余 Pod；若少于预期，则创建新 Pod
+
+```mermaid
+   graph LR
+       A[RC Spec] --> B[Controller Manager]
+       B --> C{检查节点状态}
+       C -->|Pod不足| D[创建新Pod]
+       C -->|Pod过多| E[终止多余Pod]
+```
+
+通过调整 replicas 字段或使用以下命令，可实现动态扩缩容：
 
 ~~~bash
 kubectl scale rc nginx --replicas=5
 ~~~
 
-由于 Replication Controller 与 Kubernetes 代码中的模块 Replication Controller 同名， 所以在 Kubernetes v1.2 时， 它就升级成了另外一个新的概念 ReplicaSet，官方解释为下一代的 RC，RS 与 RC 区别是：ReplicaSet 支援基于集合的 Label selector，而 RC 只支持基于等式的 Label Selector
 
-很少单独使用 ReplicaSet 与 Replication Controller，它们主要被 Deployment 这个更高层面的资源对象所使用，从而形成一整套 Pod 创建、删除、更新的编排机制
 
-最好不要越过 RC 直接创建 Pod，因为 Replication Controller 会通过 RC 管理 Pod 副本，实现自动创建、补足、替换、删除 Pod 副本，这样就能提高应用的容灾能力，减少由于节点崩溃等意外状况造成的损失，即使应用程序只有一个 Pod 副本，也强烈建议使用 RC 来定 义 Pod
+**注意** ：
+
+- **不推荐直接使用 RC/RS** ：二者通常作为底层组件被 **Deployment** 管理，由 Deployment 实现 Pod 的滚动更新、版本回滚等高级编排功能
+- **避免绕过控制器直接创建 Pod** ：通过 RC/RS 管理 Pod 可自动实现副本修复、节点故障恢复等能力，即使单副本应用也应通过控制器部署，以提升容灾性
+
+
+
+### 2、ReplicaSet
+
+#### 1. 概述
+
+**基本特性**：
+
+- 与 Replication Controller 的核心区别：
+  - 支持集合式选择器（支持 matchLabels 和 matchExpressions）
+  - 属于 apps/v1 API 版本（Replication Controller 使用旧版本 API）
+- Kubernetes 官方建议通过 Deployment 管理 ReplicaSet 和 Pod，而非直接操作
+
+**所有权机制**：
+
+- 通过 Pod 的 metadata.ownerReferences 字段维护从属关系
+- 所有权接管规则：
+  - 当无主 Pod 匹配 selector 时，自动添加 ownerReference
+  - 当已有 ownerReference 指向非控制器对象时，会被覆盖
+
+
+
+#### 2、资源定义
+
+~~~yaml
+apiVersion: apps/v1  # 必须使用 apps/v1 版本
+kind: ReplicaSet
+metadata:
+  name: <名称>
+spec:
+  replicas: <副本数>
+  selector:           # 支持 matchLabels/matchExpressions
+    matchLabels:
+      <标签键>: <标签值>
+  template:
+    metadata:
+      labels:         # 必须与 selector 匹配
+        <标签键>: <标签值>
+    spec:
+      containers: [...] 
+      restartPolicy: Always  # 默认值
+~~~
+
+
+
+#### 3、操作实践
+
+##### 1、基础操作
+
+~~~bash
+# 创建 RS 及关联 Pod
+kubectl apply -f frontend-rs.yaml
+
+# 查看 RS 状态
+kubectl get rs -l tier=frontend
+
+# 查看详细配置
+kubectl describe rs/frontend
+
+# 级联删除（默认删除 RS 及 Pod）
+kubectl delete rs/frontend
+
+# 非级联删除（保留 Pod）
+kubectl delete rs/frontend --cascade=orphan
+
+# 手动扩缩容修改副本数
+kubectl scale rs/frontend --replicas=5
+~~~
 
 
 
 **注意**：
 
-- Replication Controller 不支持基于集合的选择器，推荐使用 ReplicaSet 而不是 Replication Controller
+1. **标签管理**
+   - 确保 Pod template 的 labels 具有唯一性
+   - 避免与其他控制器的 selector 重叠
+2. **控制器接管**
+   - 新 ReplicaSet 需保持相同 selector 才能接管旧 Pod
+   - 模板更新不会影响已存在的 Pod（需重建才能应用新配置）
+3. **更新限制**
+   - 不支持滚动更新（需配合 Deployment 实现）
+   - 直接修改 template 不会触发 Pod 更新
 
-- kubectl rolling-update 只针对 ReplicationController，滚动省级过程中，出现任何问题均可回滚
-
-  - ~~~bash
-    kubectl rolling-update frontend-v1 frontend-v2 --rollback
-    ~~~
 
 
-
-
-### 2、ReplicaSet 
+### 3、Deployment
 
 #### 1、概述
 
-Replica Set 跟 Replication Controller 没有本质的不同，只是名字不一样，并且 Replica Set 支持集合式的 Selector（Replication Controller 仅支持等式）
+Deployment 是 Kubernetes v1.2 引入的 API 对象，用于声明式管理 Pod 和 ReplicaSet
 
-Kubernetes 官方强烈建议避免直接使用 ReplicaSet，而应该通过 Deployment 来创建 RS 和 Pod，由于 ReplicaSet 是 Replication Controller 的代替物，因此用法基本相同
+**核心功能**：
 
-ReplicaSet 创建的 Pod 中，有一个字段 metadata.**ownerReferences** 用于标识该 Pod 从属于哪一个 ReplicaSet，如果 Pod 没有 ownerReference 字段，或者 ownerReference 字段指向的对象不是一个控制器，但是该 Pod 匹配了 ReplicaSet 的 selector，则该 Pod 的 ownerReference 将被修改为该 ReplicaSet 的引用
+- 滚动更新（RollingUpdate）和回滚（Rollback）
+- 副本数扩缩容（Scaling）
+- 暂停/恢复更新（Pause/Resume）
 
-ReplicaSet的定义中，包含：
+**与 ReplicaSet 的关系**：
 
-- **apiVersion**：apps/v1
-- **kind**：始终为 ReplicaSet
-- **metadata**：一些元数据
-- **spec**： ReplicaSet 的详细定义
-
-- **selector**： 用于指定哪些 Pod 属于该 ReplicaSet 的管辖范围
-- **replicas**： 副本数，用于指定该 ReplicaSet 应该维持多少个 Pod 副本
-- **template**： Pod模板，在 ReplicaSet 使用 Pod 模板的定义创建新的 Pod
-  - 其中必须定义 .spec.template.metadata.labels 字段
-  - .spec.template.spec.restartPolicy 的默认值为 Always
+- 每个 Deployment 对应至少一个 ReplicaSet
+- 通过 spec.revisionHistoryLimit 控制保留的历史版本数量（默认 10）
 
 
 
-#### 2、使用
-
-~~~yaml
-# 创建 ReplicaSet
-apiVersion: apps/v1
-kind: ReplicaSet
-metadata:
-  name: frontend
-  labels:
-    app: guestbook
-    tier: frontend
-spec:
-  # 创建三副本
-  replicas: 3
-  selector:
-    matchLabels:
-      tier: frontend
-  template:
-    metadata:
-      labels:
-        tier: frontend
-    spec:
-      containers:
-      - name: nginx
-        image: nginx
-~~~
-
-~~~bash
-# 查看刚才创建的 rs
-kubectl get rs
-
-# 查看详情
-kubectl describe rs/frontend
-
-# 清理 RS 与 Pod
-# Garbage Collector 将自动删除该 ReplicaSet 所有从属的 Pod
-kubectl delete -f rs/frontend
-
-# 只删除 RS，保留从属 Pod
-kubectl delete --cascade=false
-~~~
-
-
-
-**注意**：
-
-- 如果通过直接创建 Pod，并且标签被 RS 匹配到，则该 Pod 将会立刻被管控，如果此时 Pod 副本数量超过预期值，新 Pod 立刻终止
-- 其中 Pod Template 内的标签最好不要与其他 RS 重叠，避免被其余 RS 管控
-- 当旧 RS 被删除，只要新 RS 的 .spec.selector 字段与旧 RS 的 .spec.selector 字段相同，则新的 RS 将接管旧 RS 的从属 Pod
-  - 新的 RS 中定义的 .spec.template 对遗留下来的 Pod 不会产生任何影响
-
-- ReplicaSet 不直接支持滚动更新
-
-
-
-#### 3、伸缩
-
-RS 可以轻易的 scale up 或者 scale down，只需要修改 .spec.replicas 字段即可
-
-RS 控制器将确保与其标签选择器 .spec.selector 匹配的 Pod 数量与 replicas 指定的数量相等
-
-可以使用 Horizontal Pod Autoscalers（HPA）对 RS 执行自动的水平伸缩，或者使用命令 kubectl autoscale rs frontend --max=10
-
-~~~bash
-apiVersion: autoscaling/v1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: frontend-scaler
-spec:
-  scaleTargetRef:
-    kind: ReplicaSet
-    name: frontend
-  minReplicas: 3
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 50
-~~~
-
-
-
-## 3、Deployment
-
-### 1、概述
-
-Deployment 是 Kubenetes v1.2 引入的新概念，引入的目的是为了更好的解决 Pod 的编排问题
-
-Deployment 内部使用了 ReplicaSet 来实现，Deployment 的定义与 ReplicaSet 的 定义很类似，除了 API 声明与 Kind 类型有所区别
-
-Deployment 是一个更高级别的概念，是最常用的用于部署无状态服务的方式，并可以声明式的更新与管理 ReplicaSet、Pod，以及其他的许多有用的特性
-
-
-
-### 2、使用
-
-#### 1、创建
+#### 2、资源定义
 
 ~~~yaml
 apiVersion: apps/v1
@@ -3393,7 +4180,7 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      app: nginx
+      app: nginx  # 必须与 template.labels 匹配
   template:
     metadata:
       labels:
@@ -3406,404 +4193,309 @@ spec:
         - containerPort: 80
 ~~~
 
-~~~~bash
-# 部署 Deploy
-kubectl apply -f xxx.yaml --record
-~~~~
 
-使用 --record 会让 kubectl 将刚运行的命令写入 Deployment 的 annotation 的 kubernetes.io/change-cause，以便后 rollout
+
+**注意** ：
+
+- selector.matchLabels 必须与 template.metadata.labels 完全匹配
+- pod-template-hash 标签由系统自动生成，禁止手动修改
+- 不同 Deployment 应使用不同的标签选择器避免冲突
+
+
+
+#### 3、操作实践
+
+##### 1、基础操作
 
 ~~~bash
-# 查看 Deployment 的发布状态（rollout status）
-kubectl rollout status deployment.v1.apps/deploy-name
+# 部署
+kubectl apply -f deploy.yaml
 
-# 查看 Deploy 创建的 RS
-kubectl get rs
+# 查看状态
+kubectl rollout status deployment/nginx-deployment
 
-# 查看 Pod Label
-kubectl get pods --show-labels
+# 查看关联的 ReplicaSet
+kubectl get rs -l app=nginx
 ~~~
 
 
 
-**注意**：
+##### 2、更新操作
 
-- Deployment 之间的 .spec.**selector** 和 .template.metadata.**labels**，尽量确保不同，否则可能发生冲突，并产生不可预见的行为，同时如果指定 .spec.selector，则必须和 .template.metadata.labels 匹配，如果不指定 .spec.selector，则默认等同于 .template.metadata.labels
-- pod-template-hash 标签是 Deployment 创建 RS 时添加到 RS 上的，RS 将此标签添加到 Pod 上，这个标签用于区分 Deployment 中哪个 RS 创建了哪些 Pod，切勿修改
-- 如果
+**触发条件**：
 
+- 仅当 .spec.template 字段变更时触发滚动更新
+- 修改副本数等参数不会触发更新
 
+**滚动更新策略**：
 
-#### 2、更新
-
-当且仅当 Deployment 的 Pod template（.spec.**template**）字段中的内容发生变更时（例如：标签、容器的镜像被改变），Deployment 的滚动更新（rollout）将被触发
-
-Deployment 中其他字段的变化（例如：修改 .spec.replicas）将不会触发 Deployment 的滚动更新（rollout）
-
-
-
-**滚动更新**：
-
-- 每创建一个 Deployment，Deployment Controller 都为其创建一个 RS，并设定其副本数为期望的 Pod 数，如果 Deployment 被更新，旧的 RS 将被 Scale down，新建的 RS 将被 Scale up，直到最后新旧两个 RS，一个副本数为 .spec.replias，另一个副本数为 0
-
-~~~bash
-# 修改镜像 tag
-kubectl --record deployment.apps/nginx-deployment set image deployment.v1.apps/nginx-deployment nginx=nginx:1.9.1
-
-# 查看 RS 情况
-kubectl get rs
+~~~yaml
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # 最大激增 Pod 数（相对期望副本数）
+      maxUnavailable: 25%  # 最大不可用 Pod 数
 ~~~
 
-Deployment 的更新是通过创建一个新的 RS 并同时将旧的 RS 的副本数缩容到 0 个副本来达成的
+**更新策略对比**：
 
-- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被关闭，默认情况下，Deployment 确保至少 .spec.replicas 的 75% 的 Pod 保持可用（25% maxUnavailable）
-- Deployment 将确保更新过程中，任意时刻只有一定数量的 Pod 被创建，默认情况下，Deployment 确保最多 .spec.replicas 的 25% 的 Pod 被创建（25% maxSurge）
+| 策略类型          | 特点                                                |
+| ----------------- | --------------------------------------------------- |
+| **RollingUpdate** | 平滑过渡，保证服务可用性（默认策略）                |
+| **Recreate**      | 先删除所有旧 Pod 再创建新 Pod（导致服务短暂不可用） |
 
-<img src="images/image-20231013160351330.png" alt="image-20231013160351330" style="zoom:50%;" />
-
-
-
-**覆盖更新**：
-
-当 Deployment 的 rollout 正在进行中的时候，如果再次更新 Deployment 的信息，此时 Deployment 将再创建一个新的 RS 并开始 scale up，将先前正在 scale up 的新 RS 也转为旧的 RS，并立刻 scale down
-
-
-
-#### 3、回滚
-
-默认 kubernetes 将保存 Deployment 的所有更新（rollout）历史，Deployment 的 revision history 存储在它控制的 ReplicaSets 中
-
-可以设定 revision history limit 来确定保存的历史版本数量
-
-当且仅当 Deployment 的 .spec.**template** 字段被修改时（例如：修改了容器的镜像），Kubernetes 将为其创建一个 Deployment revision，Deployment 的其他更新（例如：修改 .spec.replicas 字段）将不会创建新的 Deployment reviesion
+**更新操作**：
 
 ~~~bash
-# 查看更新状态
-kubectl rollout status deployment.v1.apps/name
-
-# 查看更新历史
-kubectl rollout history deployment.v1.apps/name
+# 更新镜像（推荐使用 patch 命令）
+kubectl patch deployment/nginx-deployment \
+  -p '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"nginx:1.9.1"}]}}}}'
 ~~~
 
-可以通过如下方式制定 **CHANGE-CAUSE** 信息：
 
-- 为 Deployment 增加注解
-  - kubectl annotate deployment.v1.apps/nginx-deployment kubernetes.io/change-cause="image updated to 1.9.1"
-- 执行 kubectl apply 命令时，增加 --record 选项
-- 手动编辑 Deployment 的 .metadata.annotation 信息
+
+##### 3、回滚操作
+
+**版本管理**：
+
+- 历史版本存储在 ReplicaSet 中
+- 通过 kubectl rollout history 查看变更记录
+
+**回滚操作**：
 
 ~~~bash
-# 查看特定版本信息
-kubectl rollout history deployment.v1.apps/name --revision=2
-
-# 回滚前一个版本
-kubectl rollout undo deployment.v1.apps/name
+# 回滚到上一个版本
+kubectl rollout undo deployment/nginx-deployment
 
 # 回滚到指定版本
-kubectl rollout undo deployment.v1.apps/name --to-revision=2
+kubectl rollout undo deployment/nginx-deployment --to-revision=2
 ~~~
 
-
-
-#### 4、伸缩
+**暂停/恢复更新**：通过 rollout 实现
 
 ~~~bash
-kubectl scale deployment.v1.apps/name --replicas=10
+# 暂停更新
+kubectl rollout pause deployment/nginx-deployment
+
+# 执行多次修改
+kubectl set image deployment/nginx-deployment nginx=nginx:1.19.3
+kubectl set resources deployment/nginx-deployment -c=nginx --limits=cpu=200m
+
+# 恢复更新
+kubectl rollout resume deployment/nginx-deployment
 ~~~
 
-如果您的集群启用了自动伸缩 HPA，执行以下命令，就可以基于 CPU 的利用率在一个最大和最小的区间自动伸缩您的 Deployment
+**历史记录配置**：
+
+~~~yaml
+spec:
+  revisionHistoryLimit: 10  # 默认保留 10 个历史版本
+~~~
+
+**CHANGE-CAUSE记录方式**：
 
 ~~~bash
-kubectl autoscale deployment.v1.apps/name --min=10 --max=15 --cpu-percent=80
+# --record 已弃用，建议使用 kubectl annotate 记录变更
+kubectl annotate deployment/nginx-deployment \
+  kubernetes.io/change-cause="Update image to 1.9.1"
 ~~~
 
 
 
-**按比例伸缩**：滚动更新 Deployment 过程中运行实例的多个版本
-
-如果 Deployment 正在执行滚动更新（也可能暂停了滚动更新），或者自动伸缩器对该 Deployment 执行伸缩操作，此时 Deployment Controller 会按比例将新建的 Pod 分配到当前活动的 RS ，以避免可能的风险
-
-根据按比例伸缩的原则：
-
-- 副本数多的 ReplicaSet 分配到更多比例的新 Pod
-- 副本数少的 ReplicaSet 分配到更少比例的新 Pod
-- 如果还有剩余的新 Pod 数未分配，直接追加到副本数最多的 RS
-- 副本数为 0 的 ReplicaSet，scale up 之后，副本数仍然为 0
-
-例子：假设已经运行了一个 10 副本数的 Deployment，其 maxSurge=3, maxUnavailable=2，然后将容器镜像更新到一个不存在的版本，Deployment Controller 将开始执行滚动更新，创建一个新的 RS，但由于 maxUnavailable 限制，在杀死两个旧 Pod 之后，滚动更新将被阻止，之后将 Deployment 的 replicas 调整到 15，此时 Deployment 需要决定如何分配新增的 5 个 Pod 副本，根据按比例伸缩原则，其中 3 个新副本被添加到旧的 ReplicaSet，2个新副本被添加到新的 ReplicaSet
-
-
-
-#### 5、暂停和继续
-
-可以先暂停 Deployment，然后再触发一个或多个更新，最后再继续（resume）该 Deployment
-
-这种做法使可以在暂停和继续中间对 Deployment 做多次更新，而无需触发不必要的滚动更新
+##### 4、伸缩操作
 
 ~~~bash
-# 暂停
-kubectl rollout pause deployment.v1.apps/name
+# 手动扩缩容
+kubectl scale deployment/nginx-deployment --replicas=5
+
+# 自动扩缩容
+kubectl autoscale deployment/nginx-deployment --min=3 --max=10 --cpu-percent=80
 ~~~
+
+
+
+#### 4、高级配置
+
+##### 1、状态管理
+
+| 状态类型    | 触发条件                                    |
+| ----------- | ------------------------------------------- |
+| Progressing | 正在执行更新/扩缩容操作                     |
+| Complete    | 所有 Pod 已更新且可用，无旧 ReplicaSet 运行 |
+| Failed      | 更新超时（默认600秒）或遇到不可恢复错误     |
+
+**状态检查命令**：
 
 ~~~bash
-# 更新
-kubectl set image deployment.v1.apps/name nginx=nginx:1.9.1
-
-# 再更新
-kubectl set resources deployment.v1.apps/name -c=nginx --limits=cpu=200m,memory=512Mi
-~~~
-
-~~~bash
-# 继续
-kubectl rollout resume deployment.v1.apps/nginx-deployment
+kubectl rollout status deployment/nginx-deployment
+kubectl describe deployment/nginx-deployment
 ~~~
 
 
 
-**注意**：
+##### 2、金丝雀发布
 
-- 不能 rollback 一个已暂停的 Deployment，除非 resume 该 Deployment
+金丝雀发布的核心是通过调整新旧版本的Pod副本数，逐步将流量从旧版本切换到新版本
+
+创建基线版本，然后更新时先部署新版本 1 个 Pod
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v1
+spec:
+  replicas: 3  # 初始部署 3 个副本
+  selector:
+    matchLabels:
+      app: my-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v1
+    spec:
+	......
+~~~
+
+~~~yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v2
+spec:
+  replicas: 1  # 初始只部署 1 个副本用于测试
+  selector:
+    matchLabels:
+      app: my-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v2
+    spec:
+	......
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: my-app  # 匹配所有版本的 Pod
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP  # 可根据需求调整类型
+~~~
+
+此时，总共有4 个 Pod（3 个 v1，1 个 v2），流量大约按比例分配：75% 流向 v1，25% 流向 v2
 
 
 
-### 3、状态
+##### 3、最小就绪时间
+
+避免过早接收流量导致启动中的服务过载
+
+~~~yaml
+spec:
+  minReadySeconds: 30  # Pod 就绪后需等待 30 秒才标记为可用
+~~~
+
+
+
+##### 4、更新超时
+
+触发条件：镜像拉取失败、资源不足等
+
+超时后需手动介入处理
+
+~~~yaml
+spec:
+  progressDeadlineSeconds: 600  # 超过 10 分钟未完成更新则标记为失败
+~~~
+
+
+
+## 4、有状态与特殊场景控制器
+
+### 1、StatefulSet
 
 #### 1、概述
 
-Deployment 的生命周期中，将会进入不同的状态，这些状态可能是：
-
-- **progressing**
-- **complete**
-- **fail**
-
-
-
-#### 2、progressing
-
-当如下任何一个任务正在执行时，Kubernete 将 Deployment 的状态标记为 progressing：
-
-- Deployment 创建了一个新的 ReplicaSet
-- Deployment 正在 scale up 最新的 ReplicaSet
-- Deployment 正在 scale down 旧的 ReplicaSet
-- 新的 Pod 变为 就绪（ready） 或 可用（available）
-
-可以使用命令 kubectl rollout status 监控 Deployment 滚动更新的过程
-
-
-
-#### 3、complete
-
-如果 Deployment 符合以下条件，Kubernetes 将其状态标记为 complete：
-
-- 该 Deployment 中的所有 Pod 副本都已经被更新到指定的最新版本
-- 该 Deployment 中的所有 Pod 副本都处于可用（available） 状态
-- 该 Deployment 中没有旧的 ReplicaSet 正在运行
-
-可以用 kubectl rollout status 命令查看 Deployment 是否完成，如果 rollout 成功完成，kubectl rollout status 将返回一个 0 值的 Exit Code
-
-
-
-#### 4、fail
-
-Deployment 在更新最新的 ReplicaSet 时，可能卡住而不能达到 complete 状态，Kubernetes 将其状态标记为 fail
-
-如下原因都可能导致此现象发生：
-
-- 集群资源不够
-- 就绪检查（readiness probe）失败
-- 镜像抓取失败
-- 权限不够
-- 资源限制
-- 应用程序的配置错误导致启动失败
-
-指定 Deployment .spec.**progressDeadlineSeconds** 字段，Deployment 将在等待指定的时长后，将 Deployment 的标记为 fail，然后更新 Deployment 的 Condition，添加如下 Condition：
-
-- Type=Progressing
-- Status=False
-- Reason=ProgressDeadlineExceeded
-
->其他一些状态原因：
->
->Type=Available 及 Status=True 代表部署了具备最小可用数的 Pod，Minimum availability 由 Deployment 中的 strategy 参数决定
->
->Type=Progressing 及 Status=True 代表要么处于滚动更新的过程中，要么已经成功完成更新并且 Pod 数达到了最小可用的数量
-
-可以针对 fail 状态下的 Deployment 执行任何适用于 Deployment 的指令，例如：
-
-- scale up / scale down
-- 回滚到前一个版本
-- 暂停（pause）Deployment，以对 Deployment 的 Pod template 执行多处更新
-
-
-
-**注意**：
-
-- Kubernetes 除了报告状态外，不会对被卡住的 Deployment 做任何操作，部分协调器可以对此作出反应，例如回滚
-- 暂停 Deployment 不会出发 progressDeadlineSeconds
-
-
-
-### 4、清理策略
-
-通过 Deployment 中 .spec.**revisionHistoryLimit** 字段，可指定为该 Deployment 保留多少个 revison，超出该数字的将被在后台进行垃圾回收
-
-该字段的默认值是 10，如果该字段被设为 0，Kubernetes 将清理掉该 Deployment 的所有历史版本，将无法执行回滚操作 kubectl rollout undo
-
-
-
-### 5、部署策略
-
-通过 Deployment 中 .spec.**strategy** 字段，可以指定使用 RollingUpdate 的部署策略，还是使用 Recreate 的部署策略
-
-**rollingUpdate**：当指定为 rollingUpdate 时，可以设定更新行为的规约：
-
-- strategy.rollingUpdate.**maxSurge**：最大超过期望数的新 Pod 数
-  - 可以是整数或者百分比，默认为 25%，通过百分比计算的绝对值向上取整
-  - 例如：设置为 30%，则滚动更新期间，可以先直接添加原本 30% 的新 Pod 数量，当旧 Pod 被杀死，可以继续扩容
-- strategy.rollingUpdate.**maxUnavailable**：最大不可用 Pod 数
-  - 可以是整数或者百分比，默认为 25%，通过计算百分比的绝对值向下取整
-  - 例如：设置为 30%，则滚动更新期间，可以直接先缩容到原本的 70%，当新 Pod 就绪，可以继续缩容
-
-**Recreate**：
-
-- 创建出新的 Pod 之前会先杀掉所有已存在的 Pod
-
-
-
-**注意**：
-
-- maxSurge 与 maxUnavailable 不能同时为 0，其中一个为 0 时，另一个为默认值为 1
-
-
-
-### 6、金丝雀发布
-
-首先发布一个副本数为 3 ，标签为 app=x，镜像标签 v1.0 的 Deployment ，再添加一个副本数为 1，标签相同，镜像版本 v2.0 的 Deployment，此时 Service 会将流量以 3：1分发到旧新副本中
-
-**局限**：
-
-- 不能根据用户注册时间、地区等请求中的内容属性进行流量分配
-- 同一个用户如果多次调用该 Service，有可能第一次请求到了旧版本的 Pod，第二次请求到了新版本的 Pod
-
-解决方案：
-
-- Istio 灰度发布
-- 业务代码编码实现
-- Spring Cloud 灰度发布
-
-
-
-### 7、其他配置
-
-.spec.**minReadySeconds**：可选项，用来说明 Pod 认为是可用状态的最小秒数，默认是 0 即 Pod 在 ready 后就会被认为是可用状态
-
-.spec.rollbackTo.**revision**：可选项，用来指定回退到的 revision，默认是 0，意味着回退到上一个 revision
-
-
-
-
-
-## 4、StatefulSet 
-
-### 1、概述
-
-StatefulSet 顾名思义，用于管理 Stateful 的实例
-
-StatefulSet 管理 Pod 时，确保其 Pod 有一个按顺序增长的 ID，其与 Deployment 相似，StatefulSet 基于一个 Pod 模板管理其 Pod，最大的不同在于 StatefulSet 始终将一系列不变的名字分配给其 Pod，这些 Pod 从同一个模板创建，但是并不能相互替换：每个 Pod 都对应一个特有的持久化存储标识
-
-同其他所有控制器一样，StatefulSet 也使用相同的模式运作：用户在 StatefulSet 中定义预期状态，StatefulSet 控制器执行需要的操作，以使得该结果被达成
-
-
+StatefulSet 用于管理有状态应用的 Pod 实例，与 Deployment 的关键区别在于：
+
+- 为每个 Pod 分配**唯一且稳定的标识**（包含序号、网络标识、持久化存储）
+- 通过 Headless Service 提供**稳定的 DNS 子域**
+- 支持**有序扩缩容**和**滚动更新**
 
 **适用场景**：
 
-- 稳定、唯一的网络标识（dnsname）
-- 每个Pod始终对应各自的存储路径（PersistantVolumeClaimTemplate）
-- 按顺序地增加副本、减少副本，并在减少副本时执行清理
-- 按顺序自动地执行滚动更新
-
-
+- 需要**稳定的网络标识**（如固定的 DNS 名称）
+- 每个 Pod 需要**独立的持久存储**（通过 PersistentVolumeClaimTemplate 实现）
+- Pod 需要**按顺序创建或删除**，并在删除时执行清理
+- 支持**按顺序的滚动更新**
 
 **限制**：
 
-- Pod 的存储要么由 Storage Class 对应的 PersistentVolume Provisioner 提供，要么由集群管理员事先创建
-- 删除或 scale down 一个 StatefulSet 将不会删除其对应的数据卷
-- 删除 StatefulSet 时，将无法保证 Pod 的终止是正常的，如果要按顺序 gracefully 终止 StatefulSet 中的 Pod，可以在删除 StatefulSet 前将其 scale down 到 0
-- 当使用默认的 PodManagementPolicy=OrderedReady 进行滚动更新时，可能进入一个错误状态，并需要人工介入才能修复
+- Pod 的存储需通过 **Storage Class** 动态分配，或由管理员预先创建 **PersistentVolume**
+- 删除或缩减 StatefulSet 时，**不会自动删除关联的 PersistentVolumeClaim (PVC)**
+- 删除 StatefulSet 时，Pod 可能无法正常终止，建议先将副本数缩减至 0 以确保优雅终止
+- 默认使用 PodManagementPolicy=OrderedReady 时，若滚动更新出错，可能需手动干预
 
 
 
 **注意**：
 
-- 如果一个应用程序不需要稳定的网络标识，或者不需要按顺序部署、删除、增加副本，应该考虑使用 Deployment
+- 若应用无需稳定的网络标识或顺序管理，建议优先选择 **Deployment**
 
 
 
-### 2、Pod 标识
+#### 2、Pod 标识
 
-**唯一标识**：StatefulSet 中的 Pod 都具备一个
+StatefulSet 为每个 Pod 提供**唯一标识**，包括以下三部分：
 
-- 序号
-- 稳定的网络标识
-- 稳定的存储
+**序号**：
 
-该标识始终与 Pod 绑定，无论该 Pod 被调度（重新调度）到哪一个节点上，假设一个 StatefulSet 的副本数为 N，其中的每一个 Pod 都会被分配一个序号，序号的取值范围从 0 到 N - 1，并且该序号在 StatefulSet 内部是唯一的
+- 从 0 到 N-1（N 为副本数），在 StatefulSet 内唯一
 
+**稳定的网络标识**：
 
-
-**稳定的网络 ID**：
-
-- StatefulSet 中 Pod 的 hostname 格式为：**$(StatefulSet Name) - $(Pod 序号)**
-  - 同时也是 PodName
-
-- StatefulSet 可以使用 Headless Service 来控制其 Pod 所在的域
-  - 该域（domain）的格式为：**$(Service Name).$(Namespace).svc.cluster.local**，其中 cluster.local 是集群的域
-- StatefulSet 中每一个 Pod 将被分配一个 DNSName，格式为： **$(PodName).$(所在域名)**
-
-
+- **Pod 主机名**：命名格式为 $(StatefulSet Name)-$(序号)，如 web-0、web-1
+- **域名管理**：通过 **Headless Service**（无 ClusterIP 的 Service）提供域名支持，格式为 $(Service Name).$(Namespace).svc.cluster.local
+- **DNS 名称**：Pod 的完整 DNS 名称为 $(PodName).$(域名)，如 web-0.nginx.default.svc.cluster.local
 
 **稳定的存储**：
 
-- Kubernetes 为每一个 VolumeClaimTemplate 创建一份 PersistentVolume
-- 当 Pod 被调度（或重新调度）到一个节点上，其挂载点将挂载该 PersistentVolume
-- 当 Pod 或 StatefulSet 被删除时，其关联的 PersistentVolumeClaim 以及其背后的 PersistentVolume 仍然存在
-- 如果相同的 Pod 或 StatefulSet 被再次创建，则新建的 Pod 仍将按序挂载到原来 Pod 所挂载的 PVC、PV上
-
-
+- **持久卷分配**：通过 volumeClaimTemplates 为每个 Pod 创建一个 **PersistentVolumeClaim (PVC)**，并绑定一个 **PersistentVolume (PV)**
+- **挂载机制**：Pod 调度到节点时挂载对应的 PV，Pod 删除或重启后，存储卷保持不变
+- **删除行为**：删除 Pod 或 StatefulSet 时，PVC 和 PV 不会自动删除，重建 Pod 时会重新挂载原存储卷
 
 **Pod Name 标签**：
 
-- 当 StatefulSet 控制器创建一个 Pod 时，会为 Pod 添加一个标签 statefulset.kubernetes.io/pod-name 
-- 该标签的值为 Pod 的名字，可以利用此名字，为 StatefulSet 中的某一个特定的 Pod 关联一个 Service
-- 实际操作中，无需为 StatefulSet 中的一个特定 Pod 关联 Service，因为可以直接通过该 Pod 的 DNSName 访问到 Pod
+- StatefulSet 控制器为每个 Pod 添加标签 statefulset.kubernetes.io/pod-name，值为 Pod 名称（如 web-0）
+- 可通过此标签为特定 Pod 关联 Service，但通常直接使用 DNS 名称访问即可
 
 
 
-**注意**
+**注意**：
 
-- 需要自行为 StatefulSet 创建 Headless Service
-
-
-
-**例子**：
-
-| 字段名                   | 组合一                              | 组合二                          | 组合三                       |
-| ------------------------ | ----------------------------------- | ------------------------------- | ---------------------------- |
-| **ClusterDomain**        | cluster.local                       | cluster.local                   | kube.local                   |
-| **Namespace**            | default                             | foo                             | foo                          |
-| **Servicename**          | nginx                               | nginx                           | nginx                        |
-| **StatefulSetname**      | web                                 | web                             | web                          |
-| **StatefulSetDomain**    | nginx.default.svc.cluster.local     | nginx.foo.svc.cluster.local     | nginx.foo.svc.kube.local     |
-| **PodName**\\**PodHost** | a-{0..N-1}                          | b-{0..N-1}                      | c-{0..N-1}                   |
-| **PodDNS**               | a-0.nginx.default.svc.cluster.local | b-0.nginx.foo.svc.cluster.local | c-0.nginx.foo.svc.kube.local |
+- 必须手动创建 **Headless Service** 以支持稳定的网络标识
 
 
 
-### 2、使用
+#### 3、资源定义
 
-#### 1、创建
+以下是一个 StatefulSet 的 YAML 示例，包含 Headless Service 和 StatefulSet 定义：
 
 ~~~yaml
+# Headless Service 定义
 apiVersion: v1
 kind: Service
 metadata:
@@ -3814,10 +4506,11 @@ spec:
   ports:
   - port: 80
     name: web
-  clusterIP: None
+  clusterIP: None  # 指定 Headless Service
   selector:
     app: nginx
 ---
+# StatefulSet 定义
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -3826,14 +4519,14 @@ spec:
   selector:
     matchLabels:
       app: nginx
-  serviceName: "nginx"
-  replicas: 3
+  serviceName: "nginx"  # 关联 Headless Service
+  replicas: 3  # 副本数
   template:
     metadata:
       labels:
         app: nginx
     spec:
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 10  # 优雅终止时间
       containers:
       - name: nginx
         image: nginx:1.7.9
@@ -3843,8 +4536,7 @@ spec:
         volumeMounts:
         - name: www
           mountPath: /usr/share/nginx/html
-  # 每一个 Pod ID 对应自己的存储卷，且 Pod 重建后，仍然能找到对应的存储卷
-  volumeClaimTemplates:
+  volumeClaimTemplates:  # 持久卷声明模板
   - metadata:
       name: www
     spec:
@@ -3855,113 +4547,166 @@ spec:
           storage: 1Gi
 ~~~
 
+**说明**：
+
+- Headless Service（clusterIP: None）用于管理网络标识
+- StatefulSet 创建 3 个副本，每个 Pod 使用相同模板，并通过 volumeClaimTemplates 分配独立存储
 
 
-#### 2、伸缩
 
-部署和伸缩 StatefulSet 时的执行顺序：
+#### 4、操作实践
 
-- 在创建一个副本数为 N 的 StatefulSet 时，其 Pod 将被按 {0 ... N-1} 的顺序逐个创建
-- 在删除一个副本数为 N 的 StatefulSet （或其中所有的 Pod）时，其 Pod 将按照相反的顺序（即 {N-1 ... 0}）终止和删除
-- 执行扩容（scale up）时，新增 Pod 的所有前序 Pod 必须处于 Running 和 Ready 的状态
-- 终止和删除 StatefulSet 中的某一个 Pod 时，该 Pod 所有的后序 Pod 必须全部已终止
+##### 1、创建操作
+
+~~~bash
+# 查看所有 StatefulSet
+kubectl get statefulsets -n <namespace>
+
+# 查看详细信息（含事件）
+kubectl describe statefulset <statefulset-name> -n <namespace>
+
+# 查看关联的 Pod（按序号排序）
+kubectl get pods -l app=<statefulset-label> --sort-by=.metadata.creationTimestamp
+
+# 手动扩缩副本数
+kubectl scale statefulset <statefulset-name> --replicas=5 -n <namespace>
+
+# 自动扩缩容（需提前部署 HPA）
+kubectl autoscale statefulset <statefulset-name> --min=2 --max=5 --cpu-percent=80
+~~~
 
 
+
+##### 2、伸缩操作
+
+StatefulSet 的伸缩操作具有顺序性：
+
+- **创建顺序**：副本数为 N 时，Pod 按 {0 ... N-1} 顺序逐个创建
+- **删除顺序**：Pod 按 {N-1 ... 0} 顺序逐个终止
+- **扩容条件**：新增 Pod 前，所有前序 Pod 必须处于 **Running 和 Ready** 状态
+- **缩容条件**：删除某 Pod 前，其后序 Pod 必须完全终止
 
 **Pod 管理策略**：
 
-可以为 StatefulSet 设定 .spec.**podManagementPolicy** 字段，以便继续使用 StatefulSet 唯一 ID 的特性，但禁用有序创建和销毁 Pod 的特性
-
-该字段的取值如下：
-
-- **OrderedReady**
-  - OrderedReady 是 .spec.podManagementPlicy 的默认值
-- **Parallel**
-  - .spec.podManagementPlicy 的取值为 Parallel，则 StatefulSet Controller 将同时并行地创建或终止其所有的 Pod，此时 StatefulSet Controller 将不会逐个创建 Pod，等待 Pod 进入 Running 和 Ready 状态之后再创建下一个 Pod，也不会逐个终止 Pod
+- **OrderedReady**（默认）：按顺序创建和删除 Pod，前一 Pod 就绪后处理下一 Pod
+- **Parallel**：并行创建和删除 Pod，不等待 Pod 就绪
 
 
 
 **注意**：
 
-- StatefulSet 中 pod.spec.**terminationGracePeriodSeconds** 不能为 0
-- podManagementPolicy 只影响到伸缩（scale up/scale down）操作，更新操作不受影响
+- terminationGracePeriodSeconds 不可设为 0
+- podManagementPolicy 仅影响伸缩，不影响更新
 
 
 
-#### 3、更新
+##### 3、更新操作
 
-设定 .spec.**updateStrategy** 字段，以便在改变 StatefulSet 中 Pod 的某些字段时（container/labels/resource request/resource limit/annotation等）禁用滚动更新
+StatefulSet 支持两种更新策略，通过 .spec.updateStrategy 字段进行配置：
 
-**On Delete**：
+1. **OnDelete**：
 
-- OnDelete 策略实现了 StatefulSet 的遗留版本（Kuberentes 1.6 及以前的版本）的行为
-- 当修改 .spec.template 的内容时，StatefulSet Controller 将不会自动更新其 Pod，必须手动删除 Pod，此时 StatefulSet Controller 在重新创建 Pod 时，使用修改过的 .spec.template 的内容创建新 Pod
+   - **行为**：当 StatefulSet 的 Pod 模板（如镜像或配置）更新后，**不会自动触发 Pod 的更新**，必须手动删除现有的 Pod，StatefulSet 控制器才会用新模板重新创建 Pod
 
+   - **适用场景**：需要精确控制更新节奏的场景（例如人工验证新版本后再逐步替换旧 Pod）
 
+   - **配置示例**：
 
-**Rolling Updates**：（默认值）
+     ```yaml
+     updateStrategy:
+       type: OnDelete
+     ```
 
-- 该策略为 StatefulSet 实现了 Pod 的自动滚动更新
+2. **RollingUpdate**：
 
-- 在用户更新 StatefulSet 的 .spec.tempalte 字段时，StatefulSet Controller 将自动地删除并重建 StatefulSet 中的每一个 Pod
+   - **行为**：自动以滚动更新的方式逐步替换 Pod，更新顺序为逆序（从序号最大的 Pod 开始，到最小的结束），且确保前一个 Pod 进入 Ready 状态后再更新下一个
 
-- 处理顺序如下：
+     - 扩展配置：通过 partition 参数支持分阶段更新（金丝雀发布）
+       - partition 值：表示序号大于等于该值的 Pod 会被更新，其余保留旧版本，默认 partition: 0（更新所有 Pod）
 
-  - 从序号最大的 Pod 开始，逐个删除和更新每一个 Pod，直到序号最小的 Pod 被更新
+   - **适用场景**：自动化滚动更新或分阶段发布（例如先更新部分节点验证稳定性）
 
-  - 当正在更新的 Pod 达到了 Running 和 Ready 的状态之后，才继续更新其前序 Pod
+   - **配置示例**：
 
-- **Partitions** 字段：
+     ```yaml
+     updateStrategy:
+       type: RollingUpdate
+       rollingUpdate:
+         partition: 3  # 仅更新序号 ≥3 的 Pod（如 my-app-3、my-app-4 等）
+     ```
 
-  - 通过指定 .spec.updateStrategy.rollingUpdate.partition 字段，可以分片（partitioned）执行RollingUpdate 更新策略
+**默认策略**：
 
-  - 当更新 StatefulSet 的 .spec.template 时：
+- Kubernetes 1.7+ 默认：RollingUpdate（早期版本可能默认为 OnDelete）
 
-    - 序号大于或等于 .spec.updateStrategy.rollingUpdate.partition 的 Pod 将被删除重建
+**关键区别**：
 
-    - 序号小于 .spec.updateStrategy.rollingUpdate.partition 的 Pod 将不会更新，及时手工删除该 Pod，kubernetes 也会使用前一个版本的 .spec.template 重建该 Pod
-
-    - 如果 .spec.updateStrategy.rollingUpdate.partition 大于 .spec.replicas，更新 .spec.tempalte 将不会影响到任何 Pod
-
-
-
-**Forced Rollback**：强制回滚
-
-- 当使用默认的 Pod 管理策略时（OrderedReady），很有可能会进入到一种卡住的状态，需要人工干预才能修复
-- 如果更新 Pod template 后，该 Pod 始终不能进入 Running 和 Ready 的状态（例如：镜像错误或应用程序配置错误），StatefulSet 将停止滚动更新并一直等待，此时，如果仅仅将 Pod template 回退到一个正确的配置仍然是不够的，由于一个已知的问题，StatefulSet 将继续等待出错的 Pod 进入就绪状态（该状态将永远无法出现），才尝试将该 Pod 回退到正确的配置
-- 在修复 Pod template 以后，还必须删除掉所有已经尝试使用有问题的 Pod template 的 Pod，StatefulSet此时才会开始使用修复了的 Pod template 重建 Pod
+| 策略          | 自动更新 | 手动干预   | 更新顺序 | 分阶段支持           |
+| ------------- | -------- | ---------- | -------- | -------------------- |
+| OnDelete      | 否       | 需删除 Pod | 无       | 否                   |
+| RollingUpdate | 是       | 否         | 逆序滚动 | 是（通过 partition） |
 
 
 
 **注意**：
 
-- 大部分情况下，不需要使用 .spec.updateStrategy.rollingUpdate.partition，除非碰到如下场景：
-  - 执行预发布
-  - 执行金丝雀更新
-  - 执行按阶段的更新
+- partition 适用于**预发布**或**金丝雀更新**，一般无需使用
 
 
 
-## 5、DaemonSet
+##### 4、回滚操作
 
-### 1、概述
+当新版本的 Pod 因镜像错误、配置问题等无法通过就绪探针（readinessProbe）时，StatefulSet 的滚动更新过程会**自动暂停** ，控制器会等待当前 Pod 进入 Ready 状态后再继续更新下一个 Pod，如果问题持续，整个更新过程会卡住
 
-DaemonSet 确保所有（或一部分）的 Node 都运行了一个指定的 Pod 副本
+如果仅修改 StatefulSet 的 Pod 模板（回退到旧版本），但**未触发 Pod 重建** ，已存在的故障 Pod 仍会继续运行旧配置（错误版本，因为 StatefulSet 的更新逻辑依赖于 Pod 的替换（如删除 Pod 触发控制器用新模板重建）
 
-每当集群中添加一个 Node 时，指定的 Pod 副本也将添加到该节点上，当节点从集群中移除时，Pod 也就被垃圾回收了，删除一个 DaemonSet 可以清理所有由其创建的 Pod 副本
+**正确操作步骤**：
 
-典型使用场景有：
+回退 Pod 模板 ：
 
-- 在每个节点上运行集群的存储守护进程，例如：glusterd、ceph
-- 在每个节点上运行日志收集守护进程，例如：fluentd、logstash
-- 在每个节点上运行监控守护进程，例如：Prometheus Node Exporter、Sysdig Agent、collectd、Dynatrace OneAgent、APPDynamics Agent、Datadog agent、New Relic agent、Ganglia gmond、Instana Agent 等
-- 会为某一类守护进程设置多个 DaemonSets，每一个 DaemonSet 针对不同类硬件类型设定不同的内存、CPU 请求
+~~~bash
+kubectl edit statefulset <statefulset-name>  # 将镜像/配置回退到旧版本
+~~~
+
+手动删除问题 Pod ：
+
+~~~bash
+kubectl delete pod <problem-pod-name>  # 强制删除无法就绪的 Pod
+~~~
+
+验证回滚结果 ：
+
+~~~bash
+kubectl get pods -w  # 观察新建的 Pod 是否正常运行并进入 `Ready` 状态
+~~~
 
 
 
-### 2、使用
 
-#### 1、创建
+
+### 2、DaemonSet
+
+#### 1、概述
+
+DaemonSet 确保所有（或部分）节点运行指定 Pod 副本，具有以下特性：
+
+- **节点动态感知**：新增节点时自动部署 Pod，节点移除时 Pod 被垃圾回收
+- **生命周期绑定**：删除 DaemonSet 会清理其创建的所有 Pod
+- **节点不可用处理**：当节点异常关闭时，需配合 node.kubernetes.io/out-of-service 污点实现 Pod 迁移
+
+**典型使用场景**：
+
+* 节点级基础设施：
+  - 存储守护进程：glusterd、ceph
+  - 日志收集：fluentd、logstash
+  - 监控代理：Prometheus Node Exporter、Datadog agent
+* 硬件差异化部署：
+  - 为不同硬件类型创建多个 DaemonSet
+  - 分别配置资源请求（CPU/内存）
+
+
+
+#### 2、资源定义
 
 ~~~yaml
 apiVersion: apps/v1
@@ -3972,6 +4717,10 @@ metadata:
   labels:
     k8s-app: fluentd-logging
 spec:
+  updateStrategy:  # 策略声明
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   selector:
     matchLabels:
       name: fluentd-elasticsearch
@@ -3981,8 +4730,11 @@ spec:
         name: fluentd-elasticsearch
     spec:
       tolerations:
-      - key: node-role.kubernetes.io/master
+      - key: node-role.kubernetes.io/control-plane  # 控制节点不调度
         effect: NoSchedule
+      - key: node.kubernetes.io/out-of-service  # 不可用节点不调度
+        operator: Exists
+        effect: NoExecute
       containers:
       - name: fluentd-elasticsearch
         image: fluent/fluentd-kubernetes-daemonset:v1.7.1-debian-syslog-1.0
@@ -4008,195 +4760,116 @@ spec:
           path: /var/lib/docker/containers
 ~~~
 
-~~~bash
-# 创建
-kubectl apply -f daemonset.yaml
-~~~
-
-DaemonSet 需要如下字段：
-
-- **apiVersion**
-- **kind**
-- **metadata**
-- **spec **
-  - restartPolicy 字段必须为 Always，或者不填（默认值为 Always）
-  - selector 是必填字段，且指定该字段时，必须与 template.metata.labels 字段匹配，不匹配的情况下创建 DaemonSet 将失败
-    - DaemonSet 创建以后，selector 字段就不可再修改，如果修改，可能导致不可预见的结果
-  - 指定 nodeSelector ，DaemonSet 将只在指定的节点上创建 Pod
-  - 指定 .spec.template.spec.affinity，DaemonSet 将只在与 node affinity 匹配的节点上创建 Pod
-- **template**
-  - 定义了 Pod 的模板，与定义 Pod 的 yaml 格式完全相同
-  - 除了内嵌在 DaemonSet 中以外，没有 kind、apiversion 字段以外
-  - 必须指定 .spec.template.metadata.labels 字段和 .spec.tempalte.spec 字段
-
 
 
 **注意**：
 
-- 任何情况下，不能以任何方式创建符合 DaemonSet 的 .spec.selector 选择器的 Pod，否则 DaemonSet 会接管这些 Pod，并导致不可预期的行为出现
+- spec.template.spec.restartPolicy，仅允许 Always，默认值即为 Always
 
 
 
-#### 2、更新
+#### 3、操作实践
 
-在改变节点的标签时：
-- 如果该节点匹配了 DaemonSet 的 .spec.template.spec.nodeSelector，DaemonSet 将会在该节点上创建一个 Pod
-- 如果该节点不匹配原来匹配 DaemonSet 的 .spec.template.spec.nodeSelector，则 DaemonSet 将会删除该节点上对应的 Pod
-
-可以手动修改 DaemonSet 创建的 Pod 的部分字段，但是当 DaemonSet 在创建新的 Pod 时，仍然会使用原有的 Template
-
-删除 DaemonSet，如果在 kubectl 命令中指定 --cascade=false 选项，DaemonSet 容器组将不会被删除，如果立马再创建一个新的 DaemonSet，与之前删除的 DaemonSet 有相同的 .spec.selector，新建 DaemonSet 将直接把这些未删除的 Pod 纳入管理，DaemonSet 根据其 updateStrategy 决定是否更新这些 Pod
-
-
-
-#### 3、滚动更新
-
-通过 .spec.updateStrategy.type 设置更新策略，目前支持两种策略
-
-- OnDelete：默认策略，更新模板后，只有手动删除了旧的 Pod 后才会创建新的 Pod
-
-- RollingUpdate：更新 DaemonSet 模版后，自动删除旧的 Pod 并创建新的 Pod
-
-在使用 RollingUpdate 策略时，还可以设置
-
-- .spec.updateStrategy.rollingUpdate.maxUnavailable，默认 1
-- .spec.minReadySeconds，默认 0
-
-
-
-#### 4、回滚
-
-~~~bash
-# 查询历史版本
-kubectl rollout history daemonset <daemonset-name>
-
-# 查询某个历史版本的详细信息
-kubectl rollout history daemonset <daemonset-name> --revision=1
-
-# 回滚
-kubectl rollout undo daemonset <daemonset-name> --to-revision=<revision>
-
-# 查询回滚状态
-kubectl rollout status ds/<daemonset-name>
-~~~
-
-
-
-### 3、调度原理
-
-**注意**：
-
-- **v1.12以后默认启用**
-
-DaemonSet 确保所有符合条件的节点运行了一个指定的 Pod
-
-通常 Kubernetes Scheduler 决定 Pod 在哪个节点上运行，然而如果 DaemonSet 的 Pod 由 DaemonSet Controller 创建和调度，会引发如下问题：
-
-- Pod 的行为不一致：普通的 Pod 在创建后处于 Pending 状态，并等待被调度，但是 DaemonSet Pod 创建后，初始状态不是 Pending
-- Pod 的优先权（preemption）由 Kubernetes 调度器处理，如果 Pod 优先权被启用，DaemonSet Controller 在创建和调度 Pod 时，不会考虑 Pod 的优先权
-
-Kubernetes v1.12 版本以后，默认通过 Kubernetes 调度器来调度 DaemonSet 的 Pod，DaemonSet Controller 将会向 DaemonSet 的 Pod 添加 .spec.**nodeAffinity** 字段，而不是 .spec.**nodeName** 字段，并进一步由 Kubernetes 调度器将 Pod 绑定到目标节点，如果 DaemonSet 的 Pod 已经存在了 nodeAffinity 字段，该字段的值将被替换
-
-此外， node.kubernetes.io/unschedulable:NoSchedule 容忍（toleration）将被自动添加到 DaemonSet 的 Pod 中，因此默认调度器在调度 DaemonSet 的 Pod 时可以忽略节点的 unschedulable 属性
+##### 1、更新操作
 
 ~~~yaml
-nodeAffinity:
-  requiredDuringSchedulingIgnoredDuringExecution:
-    nodeSelectorTerms:
-    - matchFields:
-      - key: metadata.name
-        operator: In
-        values:
-        - target-host-name
+spec:
+  updateStrategy:
+    type: RollingUpdate        # 可选 OnDelete（默认） / RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1        # 最大不可用 Pod 数（可设百分比）
+  minReadySeconds: 30          # Pod 就绪后等待时间（防抖动）
 ~~~
 
-在调度 DaemonSet 的 Pod 时，污点和容忍（taints and tolerations）会被考量到，同时以下容忍（toleration）将被自动添加到 DaemonSet 的 Pod 中：
+**更新策略对比**：
 
-| Toleration Key                         | Effect     | Version | 描述                                                         |
-| -------------------------------------- | ---------- | ------- | ------------------------------------------------------------ |
-| node.kubernetes.io/not-ready           | NoExecute  | 1.13+   | 节点出现问题时（例如：网络故障），DaemonSet 容器组将不会从节点上驱逐 |
-| node.kubernetes.io/unreachable         | NoExecute  | 1.13+   | 节点出现问题时（例如：网络故障），DaemonSet 容器组将不会从节点上驱逐 |
-| node.kubernetes.io/disk-pressure       | NoSchedule | 1.8+    |                                                              |
-| node.kubernetes.io/memory-pressure     | NoSchedule | 1.8+    |                                                              |
-| node.kubernetes.io/unschedulable       | NoSchedule | 1.12+   | 默认调度器针对 DaemonSet 容器组，容忍节点的 unschedulable 属性 |
-| node.kubernetes.io/network-unavailable | NoSchedule | 1.12+   | 默认调度器针对 DaemonSet 容器组，在其使用 host network 时，容忍节点的 network-unavailable 属性 |
+| 策略类型          | 触发条件                        | 适用场景                 |
+| ----------------- | ------------------------------- | ------------------------ |
+| **OnDelete**      | 手动删除旧 Pod 后创建新 Pod     | 需严格控制更新顺序的场景 |
+| **RollingUpdate** | 自动滚动替换（类似 Deployment） | 需要零宕机更新的守护进程 |
 
-
-
-### 4、通信模式
-
-与 DaemonSet 容器组通信的模式有：
-
-- **Push：** DaemonSet 容器组用来向另一个服务推送信息，例如：数据库的统计信息，这种情况下 DaemonSet 容器组没有客户端
-- **NodeIP + Port：** DaemonSet 容器组可以使用 hostPort，此时可通过节点的 IP 地址直接访问该容器组，客户端需要知道节点的 IP 地址，以及 DaemonSet Pod 的端口号
-- **DNS**： 创建一个 headless service，且该 Service 与 DaemonSet 有相同的 Pod Selector，此时客户端可通过该 Service 的 DNS 解析到 DaemonSet 的 IP 地址
-- **Service：** 创建一个 Service，且该 Service 与 DaemonSet 有相同的 Pod Selector，客户端通过该 Service，可随机访问到某一个节点上的 DaemonSet Pod
+```bash
+# 查看更新进度
+kubectl rollout status ds/<daemonset-name>
+```
 
 
 
-### 5、替代选项
+#### 4、高级配置
 
-**Init Scripts**：
+##### 1、调度机制
 
-可以通过脚本（例如：init、upstartd、systemd）直接在节点上启动一个守护进程
+**核心改进**：（v1.12+）
 
-相对而言，DaemonSet 在处理守护进程时，有如下优势：
+- **统一调度器**：由 kube-scheduler 代替 DaemonSet Controller 进行调度
 
-- 使用与实例相同的方式处理守护进程的日志和监控
-- 使用与实例相同的配置语言和工具（例如：Pod template、kubectl）处理守护进程
-- 在容器中运行守护进程，可为守护进程增加 resource limits 等限定
+- **亲和性注入**：自动添加 nodeAffinity 替代 nodeName
 
+  ```yaml
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchFields:
+        - key: metadata.name
+          operator: In
+          values: [target-node-name]
+  ```
 
+~~~mermaid
+graph LR
+    A[v1.12之前] -->|DaemonSet Controller| B[直接调度]
+    C[v1.12+] -->|kube-scheduler| D[标准调度流程]
+    D --> E[NodeAffinity注入]
+    D --> F[自动容忍配置]
+~~~
 
-**Pods**：
+**自动容忍配置**：
 
-可以直接创建 Pod，并指定其在某一个节点上运行
+DaemonSet Pod 自动获得以下容忍度以保障调度：
 
-相对而言，使用 DaemonSet 可获得如下优势：
-
-- Pod 终止后，DaemonSet 可以立刻新建 Pod 以顶替已终止的 Pod
-- Pod 终止的原因可能是：
-  - 节点故障
-  - 节点停机维护
-
-
-
-**Static Pod**：
-
-可以在 Kubelet 监听的目录下创建一个 Pod 的 yaml 文件，这种形式的 Pod 叫做 静态 Pod（static pod）
-
-与 DaemonSet 不同，静态 Pod 不能通过 kubectl 或者 Kuboard 进行管理
-
-静态 Pod 不依赖 Kubernetes APIServer 的特点，使得它在引导集群启动的过程中非常有用
-
-**注意**：
-
-- 静态 Pod 将来可能被不推荐使用
-
-
-
-**Deployment**：
-
-DaemonSet 和 Deployment 一样，都是用来创建长时间运行的 Pod（例如：web server、storage server 等）
-
-- Deployment 适用于无状态服务（例如：前端程序），对于这些程序而言，扩容（scale up）/ 缩容（scale down）、滚动更新等特性比精确控制 Pod 所运行的节点更重要
-- DaemonSet 更适合如下情况：
-  - Pod 的副本总是在所有（或者部分指定的）节点上运行
-  - 需要在其他 Pod 启动之前运行
+| 容忍键                           | 作用               | 版本   |
+| -------------------------------- | ------------------ | ------ |
+| node.kubernetes.io/not-ready     | 节点故障时保留 Pod | v1.13+ |
+| node.kubernetes.io/unreachable   | 网络隔离时保留 Pod | v1.13+ |
+| node.kubernetes.io/disk-pressure | 磁盘压力时仍调度   | v1.8+  |
+| node.kubernetes.io/unschedulable | 忽略不可调度标记   | v1.12+ |
 
 
 
-## 6、Job
+##### 2、通信模式
 
-### 1、概述
+| 模式                       | 实现方式                                             | 适用场景                       |
+| -------------------------- | ---------------------------------------------------- | ------------------------------ |
+| **HostNetwork + NodePort** | 使用 hostNetwork: true 共享节点网络栈                | 网络插件（Calico、Flannel）    |
+| **Headless Service**       | 创建无头服务配合 DNS 解析                            | 需要直接访问特定节点服务的场景 |
+| **Push 模式**              | Pod 主动推送数据到外部存储（如日志到 Elasticsearch） | 日志/监控采集场景              |
+| **Sidecar 代理**           | 通过 Service Mesh 边车代理通信                       | 需要服务治理的守护进程         |
 
-Kubernetes中的 Job 对象将创建一个或多个 Pod，并确保指定数量的 Pod 可以成功执行到进程正常结束：
 
-- 当 Job 创建的 Pod 执行成功并正常结束时，Job 将记录成功结束的 Pod 数量
-- 当成功结束的 Pod 达到指定的数量时，Job 将完成执行
-- 删除 Job 对象时，将清理掉由 Job 创建的 Pod
 
-例子：创建一个 Job 对象用来确保一个 Pod 的成功执行并结束，在第一个 Pod 执行失败或者被删除（例如：节点硬件故障或机器重启），该 Job 对象将创建一个新的 Pod 以重新执行
+##### 3、替代方案对比
+
+| 方案         | 优势              | 局限性               |
+| ------------ | ----------------- | -------------------- |
+| Init Scripts | 不依赖 K8s 组件   | 无自愈能力，监控困难 |
+| Static Pods  | 独立于 API Server | 无法用标准工具管理   |
+| Deployment   | 支持弹性伸缩      | 无法保证节点级部署   |
+
+
+
+### 3、Job
+
+#### 1、概述
+
+Kubernetes Job 对象用于创建管理一次性任务，主要特性包括：
+
+- 创建 1 个或多个 Pod 并确保指定数量的 Pod 成功完成
+- 成功 Pod 达到指定数量时 Job 自动完成
+- 删除 Job 时会级联删除关联 Pod
+
+
+
+#### 2、资源定义
 
 ~~~yaml
 apiVersion: batch/v1
@@ -4204,2113 +4877,529 @@ kind: Job
 metadata:
   name: pi
 spec:
-  template:
-    spec:
-      containers:
-      - name: pi
-        image: perl
-        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
-      restartPolicy: Never
   backoffLimit: 4
-~~~
-
-~~~bash
-# 创建
-kubectl apply -f job.yaml
-~~~
-
-Job 对象的 YAML 文件中，都需要包括如下三个字段：
-
-- .**apiVersion**
-- .**kind**
-- .**metadata**
-- .**spec**
-  - template 必填字段
-    - 与 Pod 有相同的字段内容，但由于是内嵌元素，pod template 不包括阿 apiVersion 字段和 kind 字段
-    - 除了 Pod 所需的必填字段之外，Job 中的 pod template 必须指定
-      - 合适的标签 .spec.template.spec.labels
-      - 指定合适的重启策略 .spec.template.spec.restartPolicy，此处只允许使用 Never 和 OnFailure 两个取值
-  - .spec.selector 字段是可选的，绝大部分情况下，不需要指定该字段，只有在少数情况下才需要这样做
-
-
-
-### 2、类型
-
-**Non-parallel Jobs**：非并行
-
-- 通常，只启动一个 Pod，除非该 Pod 执行失败
-- Pod 执行成功并结束以后，Job 也立刻进入完成 completed 状态
-
-**Parallel Jobs with a fixed completion count**：固定次数结束
-
-- .spec.completions 为一个非零正整数
-- Job 将创建至少 .spec.**completions** 个 Pod，编号为 1 - .spec.**completions**
-- Job 记录了任务的整体执行情况，当 1 - .spec.completions 中每一个编号都有一个对应的 Pod 执行成功时，Job 进入完成状态
-
-**Parallel Jobs with a work queue**：带工作队列
-
-- 不指定 .spec.completions，使用 .spec.**parallelism**
-- Pod 之间必须相互之间自行协调并发，或者使用一个外部服务决定每个 Pod 各自执行哪些任务
-  - 例如：某个 Pod 可能从工作队列（work queue）中取出最多 N 个条目的批次数据
-- 每个 Pod 都可以独立判断其他同僚（peers）是否完成，并确定整个 Job 是否完成
-- 当  Job 中任何一个 Pod 成功结束，将不再为其创建新的 Pod
-- 当所有的 Pod 都结束了，且至少有一个 Pod 执行成功，则 Job 判定为成功结束
-- 一旦任何一个 Pod 执行成功并退出，Job 中的任何其他 Pod 都应停止工作和输出信息，并开始终止该 Pod 的进程
-
-
-
-**Controlling Parallelism**：控制并行
-
-并发数 .spec.parallelism 可以被设置为 0 或者任何正整数，如果不设置则默认为1，如果设置为 0，则 Job 被暂停，直到该数字被调整为一个正整数
-
-实际的并发数（同一时刻正在运行的 Pod 数量）可能比设定的并发数 .spec.parallelism 要大一些或小一些，不一定严格相等，主要的原因有：
-
-- 对于 fixed completion count Job，实际并发运行的 Pod 数量不会超过剩余未完成的数量，如果 .spec.parallelism 比这个数字更大，将被忽略
-- 对于 work queue Job，任何一个 Pod 成功执行后，将不再创建新的 Pod ，剩余的 Pod 将继续执行完成
-- Job 可能没有足够的时间处理并发控制
-- Job 创建 Pod 失败（例如：ResourceQuota 不够用，没有足够的权限等）
-- 同一个 Job 中，在已创建的 Pod 出现大量失败的情况下，Job 可能限制 Pod 的创建
-- 当 Pod 被优雅地关闭时（gracefully shut down），需要等候一段时间才能结束
-
-
-
-**completions 和 parallelism**
-
-- 对于 non-parallel Job，.spec.completions 和 .spec.parallelism 可以不填写，默认值都为 1
-- 对于 fixed completion count Job，需要设置 .spec.completions 的期望个数，同时不设置 .spec.parallelism 字段（默认值为 1）
-- 对于 work queue Job，不能设置 .spec.completions 字段，且必须设置 .spec.parallelism 为 0 或任何正整数
-
-
-
-### 3、使用
-
-#### 1、处理失败
-
-Pod 中的容器可能会因为多种原因执行失败，例如：
-
-- 容器中的进程退出了，且退出码（exit code）不为 0
-- 容器因为超出内存限制而被 Kill
-- 其他原因
-
-如果 Pod 中的容器执行失败，且 .spec.template.spec.restartPolicy=OnFailure，则 Pod 将停留在该节点上，但是容器将被重新执行，此时，实例需要处理在原节点（失败之前的节点）上重启的情况（具体来说，需要处理临时文件、锁、未完成的输出信息以及前一次执行可能遗留下来的其他东西），或者也可以设置为 .spec.template.spec.restartPolicy=Never
-
-整个 Pod 也可能因为多种原因执行失败，例如：
-
-- Pod 从节点上被驱逐（节点升级、重启、被删除等）
-- Pod 的容器执行失败，且 .spec.template.spec.restartPolicy=Never
-
-
-
-**注意**：
-
-- 即使指定 .spec.parallelism = 1、 .spec.completions = 1、 .spec.template.spec.restartPolicy=Never，同一个实例仍然可能被启动多次
-- 如果指定 .spec.parallelism、.spec.completions 的值都大于 1，则将可能有多个 Pod 同时执行，此时 Pod 还必须能够处理并发的情况
-
-
-
-#### 2、失败重试
-
-Pod backoff failure policy
-
-某些情况下（例如：配置错误），可能期望在 Job 多次重试仍然失败的情况下停止该 Job，此时可通过 .spec.backoffLimit 来设定 Job 最大的重试次数，该字段的默认值为 6
-
-Job 中的 Pod 执行失败之后，Job 控制器将按照一个指数增大的时间延迟（10s，20s，40s ... 最大为 6 分钟）来多次重新创建 Pod，如果没有新的 Pod 执行失败，则重试次数的计数将被重置
-
-如果 restartPolicy=OnFailure，执行该 Job 的容器在 Job 重试次数达到以后将被终止，这种情况使得 Job 程序的 debug 工作变得较为困难，建议在 debug 时，设置 restartPolicy=Never，或者使用日志系统确保失败的 Job 的日志不会丢失
-
-
-
-#### 3、终止和清理
-
-当 Job 完成后：
-
-- 将不会创建新的 Pod
-- 已经创建的 Pod 也不会被清理掉，此时仍然可以继续查看已结束 Pod 的日志，以检查 errors/warnings 或者其他诊断用的日志输出
-- Job 对象也仍然保留着，以便查看该 Job 的状态
-- 由用户决定是否删除已完成的 Job 及其 Pod
-  - 可通过 kubectl 命令删除 Job，例如： kubectl delete jobs/pi 或者 kubectl delete -f job.yaml
-  - 删除 Job 对象时，由该 Job 创建的 Pod 也将一并被删除
-
-Job 通常会顺利的执行下去，但是在如下情况可能会非正常终止：
-
-- 某一个 Pod 执行失败（且 restartPolicy=Never）
-- 或者某个容器执行出错（且 restartPolicy=OnFailure）
-  - 此时 Job 按照 .spec.bakcoffLimit 描述的方式进行处理
-  - 一旦重试次数达到了 .spec.backoffLimit 中的值，Job 将被标记为失败，且其创建的所有 Pod 将被终止
-- Job 中设置了 .spec.activeDeadlineSeconds，该字段限定了 Job 对象在集群中的存活时长，一旦达到 .spec.activeDeadlineSeconds 指定的时长，该 Job 创建的所有的 Pod 都将被终止，Job 的 Status 将变为 type:Failed 、 reason: DeadlineExceeded
-
-
-
-**注意**：
-
-- Job 中 .spec.activeDeadlineSeconds 字段的优先级高于 .spec.backoffLimit，因此正在重试失败 Pod 的 Job，在达到 .spec.activeDeadlineSecondes 时，将立刻停止重试，即使 .spec.backoffLimit 还未达到
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: pi-with-timeout
-spec:
-  backoffLimit: 5
-  activeDeadlineSeconds: 100
   template:
     spec:
       containers:
       - name: pi
-        image: perl
-        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+        image: perl:5.34.0
+        command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
       restartPolicy: Never
-```
+~~~
 
 
 
 **注意**：
 
-- Job 中有两个 activeDeadlineSeconds：.spec.activeDeadlineSeconds、.spec.template.spec.activeDeadlineSeconds，不要混肴
+- 重启策略只能为 Never 或 OnFailure
+- 必须包含完整的 Pod 定义（不含 apiVersion/kind）
 
 
 
-#### 4、自动清理
+#### 3、Job 类型
 
-系统中已经完成的 Job 通常是不在需要继续保留的，长期在系统中保留这些对象，将给 apiserver 带来很大的压力
+**Non-parallel Job**：
 
-如果通过更高级别的控制器（例如 CronJobs）来管理 Job，则 CronJob 可以根据其中定义的基于容量的清理策略（capacity-based cleanup policy）自动清理Job
+- 单Pod执行模式
+- Pod成功即完成Job
+- 默认配置（completions=1, parallelism=1）
+
+**Fixed Completion Count**：
+
+~~~yaml
+spec:
+  completions: 5    # 需要5个成功Pod
+  parallelism: 2    # 同时运行2个Pod
+~~~
+
+- Pod 按 1-5 编号执行
+- 所有 Pod 成功则 Job 完成
+
+**Work Queue**：
+
+~~~yaml
+spec:
+  parallelism: 3    # 最大并发数
+~~~
+
+- Pod 需自行协调任务分配
+- 任一 Pod 成功即停止创建新 Pod
+- 所有运行中 Pod 需自行终止
+
+~~~mermaid
+graph TD
+    A[Job类型] --> B{是否设置 completions?}
+    B -->|是| C[Fixed Completion]
+    B -->|否| D{是否设置 parallelism?}
+    D -->|是| E[Work Queue]
+    D -->|否| F[Non-parallel]
+~~~
 
 
 
-**TTL 机制**：
+#### 4、高级配置
 
-除了 CronJob 之外，TTL 机制是另外一种自动清理已结束Job（Completed 或 Finished）的方式：
+##### 1、并行控制
 
-- TTL 机制由 TTL 控制器 提供
-- 在 Job 对象中指定 .spec.ttlSecondsAfterFinished 字段可激活该特性
+**parallelism**：最大并行 Pod 数（默认 1），可以设置为任意非负整数，当设置为 0 时，Job 会进入暂停状态，所有正在运行的 Pod 会被终止，直到该值被调整为 正整数 后才会恢复执行
+**completions**：总需完成任务数
 
-当 TTL 控制器清理 Job 时，TTL 控制器将删除 Job 对象，以及由该 Job 创建的所有 Pod 对象，删除 Job 时，其生命周期函数将被触发，例如：finalizer
+| 场景         | parallelism | completions    |
+| ------------ | ----------- | -------------- |
+| 非并行单任务 | 1 (默认)    | 1 (默认)       |
+| 固定次数并行 | ≥1          | 指定数值 N ≥ 1 |
+| 工作队列     | ≥1          | 不设置         |
 
-```yaml
+**实际并发可能偏离设置值的场景** ：
+
+- 剩余任务数小于并行度
+- 工作队列模式下已有 Pod 成功
+- 资源配额限制
+- Pod 优雅终止阶段
+
+
+
+##### 2、失败处理
+
+~~~yaml
+spec:
+  backoffLimit: 6          # 最大重试次数（默认 6）
+  activeDeadlineSeconds: 300 # 最大运行时间
+~~~
+
+- 指数退避重试（10s, 20s, 40s...最大 6min）
+- activeDeadlineSeconds 优先级高于 backoffLimit
+
+
+
+**调试建议** ：
+
+- 使用 restartPolicy: Never 保留失败 Pod，便于查看详细信息
+- 集成日志系统持久化日志
+
+
+
+##### 3、自动清理
+
+~~~yaml
+spec:
+  ttlSecondsAfterFinished: 3600 # 完成后 1 小时自动删除
+~~~
+
+- 需 Kubernetes 1.12+ 支持，启用 TTLAfterFinished 特性门控
+- 支持 0 值（立即删除）
+
+
+
+##### 4、模式对比
+
+| 模式            | Pod数：任务数 | 修改代码 | K8S兼容性 |
+| --------------- | ------------- | -------- | --------- |
+| 任务模板扩展    | 1:1           | 不需要   | v1+       |
+| 队列+单任务 Pod | 1:1           | 需要     | v1+       |
+| 队列+动态 Pod   | 动态          | 需要     | v1.12+    |
+| 静态任务分配    | 1:1           | 不需要   | v1+       |
+
+
+
+##### 5、特殊操作
+
+手动 Selector 配置
+
+~~~yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: pi-with-ttl
+  name: manual-job
 spec:
-  ttlSecondsAfterFinished: 100
-  template:
-    spec:
-      containers:
-      - name: pi
-        image: perl
-        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
-      restartPolicy: Never
-```
-
-字段解释 ttlSecondsAfterFinished：
-
-- Job pi-with-ttl 的 ttlSecondsAfterFinished 值为 100，则在其结束 100 秒之后，将可以被自动删除
-- 如果 ttlSecondsAfterFinished 被设置为 0，则 TTL 控制器在 Job 执行结束后，立刻就可以清理该 Job 及其 Pod
-- 如果 ttlSecondsAfterFinished 值未设置，则 TTL 控制器不会清理该 Job
-
-
-
-### 4、模式
-
-Kubernetes Job 对象可以用来支持 Pod 的并发执行，但是：
-
-- Job 对象并非设计为支持需要紧密相互通信的 Pod 的并发执行，例如：科学计算
-- Job 对象支持并发处理相互独立且相互关联的任务，例如：发送邮件、渲染页面、转码文件、扫描 NoSQL 数据库中的主键
-
-对于批处理任务的并行计算，存在着几种模式，它们各自有自己的优缺点：
-
-- 每个工作任务一个 Job 对象 VS 一个 Job 对象负责所有的工作任务
-  - 当工作任务特别多时，第二种选择更合适一些
-  - 第一种选择将为管理员和系统带来很大的额外开销，因为要管理很多数量的 Job 对象
-- Pod 的数量与工作任务的数量相等 VS 每个Pod可以处理多个工作任务
-  - 第一种选择通常只需要对现有的代码或容器做少量的修改
-  - 第二种选择更适合工作任务的数量特别多的情况，相较于第一种选择可以降低系统开销
-- 使用工作队列：
-  - 需要运行一个队列服务
-  - 需要对已有的程序或者容器做修改，以便其可以配合队列工作
-  - 如果是一个已有的程序，改造时可能存在难度
-
-优缺点归纳如下表所示，其中第二列到第四列罗列了主要考虑的对比因素：
-
-| 模式                                   | 单个Job对象 | Pod的数量少于工作任务？ | 是否无需修改已有代码？ | 是否可兼容kube1.1 |
-| -------------------------------------- | ----------- | ----------------------- | ---------------------- | ----------------- |
-| Job Template Expansion                 |             |                         | ✓                      | ✓                 |
-| Queue with Pod Per Work Item           | ✓           |                         | 有时候                 | ✓                 |
-| Queue with Variable Pod Count          | ✓           | ✓                       |                        | ✓                 |
-| Single Job with Static Work Assignment | ✓           |                         | ✓                      |                   |
-
-当指定 .spec.completions 时，Job 控制器创建的每个 Pod 都有一个相同的 spec，这意味着，同一个 Job 创建的所有的 Pod 都使用：
-
-- 相同的执行命令
-- 相同的容器镜像
-- 相同的数据卷
-- 相同的环境变量（例如：不同时间点创建的 Pod，Service的环境变量可能会不同）
-
-Job 的不同模式从本质上讲，就是如何为一组工作任务分配 Pod，下表总结了不同的模式下 .spec.parallelism 和 .spec.completions 字段的设置（表中 W 代表工作任务的数量）
-
-| 模式                                   | .spec.completions | .spec.parallelism |
-| -------------------------------------- | ----------------- | ----------------- |
-| Job Template Expansion                 | 1                 | should be 1       |
-| Queue with Pod Per Work Item           | W                 | any               |
-| Queue with Variable Pod Count          | 1                 | Any               |
-| Single Job with Static Work Assignment | W                 | any               |
-
-
-
-### 5、特殊操作
-
-在创建 Job 时，系统默认将为其指定一个 .spec.selector 的取值，并确保其不会与任何其他 Job 重叠
-
-在少数情况下，仍然可能需要覆盖这个自动设置 .spec.selector 的取值，在做此项操作时，您必须十分小心：
-
-- 如果指定的 .spec.selector 不能确定性的标识出该 Job 的 Pod，可能会选中无关的 Pod 
-  - （例如：selector 可能选中其他控制器创建的 Pod）
-  - 则与该 Job 不相关的 Pod 可能被删除
-  - 该 Job 可能将不相关的 Pod 纳入到 .spec.completions 的计数
-  - 一个或多个 Job 可能不能够创建 Pod，或者不能够正常结束
-- 如果指定的 .spec.selector 不是唯一的，则其他控制器（例如：Deployment、StatefulSet 等）及其 Pod 的行为也将难以预测
-
-
-
-实际使用 .spec.selector 的例子：假设 Job old 已经运行，此时希望已经创建的 Pod 继续运行，但是又想要修改该 Job 的 名字，同时想要使该 Job 新建的 Pod 使用新的 template，此时绝对不能够修改已有的 Job 对象，因为这些字段都是不可修改的，但是可以执行命令 kubectl delete jobs/old --cascade=false，以删除 Job old 但是保留其创建的 Pod
-
-- 在删除之前，先记录 Job old 的 selector，执行命令：
-
-  ```sh
-  kubectl get job old -o yaml
-  ```
-
-  输出结果如下所示：
-
-  ```yaml
-  kind: Job
-  metadata:
-    name: old
-    ...
-  spec:
-    selector:
-      matchLabels:
-        controller-uid: a8f3d00d-c6d2-11e5-9f87-42010af00002
-    ...
-  ```
-
-- 创建新的 Job new，并使用已有的 selector，由于已创建的 Pod 带有标签 controller-uid=a8f3d00d-c6d2-11e5-9f87-42010af00002，这些 Pod 也将被新的 Job new 所管理，使用类似如下的 yaml 文件创建 Job new
-
-  ```yaml
-  kind: Job
-  metadata:
-    name: new
-    ...
-  spec:
-    manualSelector: true
-    selector:
-      matchLabels:
-        controller-uid: a8f3d00d-c6d2-11e5-9f87-42010af00002
-  ```
-
-  
-
-**注意**：
-
-- 如果不使用系统自动创建的 .spec.selector 时，需要在 Job new 中指定 .spec.manualSelector: true
-- 新建的 Job new 其 uid 将不同于 a8f3d00d-c6d2-11e5-9f87-42010af00002，但是设置 .spec.manualSelector: true 意味着，系统将使用用户指定的 .spec.selector，而不是使用 Job new 的 uid 作为 .spec.selector 的取值
-
-
-
-### 6、替代选项
-
-**直接创建的Pod（Bare Pod）**：
-
-- 当 Pod 所在的节点重启或者出现故障，Pod 将被终止，且不会被自动重启
-- 如果使用 Job，则 Job 控制器将会创建新的 Pod 以替代已经故障节点上的 Pod，基于此原因，即使实例只需要一个 Pod 执行某项任务，仍然推荐使用 Job，而不是直接创建 Pod
-
-
-
-**Replication Controller**：
-
-- Job 是对 Replication Controller、Deployment 的一种有效补充
-  - Replication Controller 和 Deployment 用来管理那些期望其一直运行的实例（例如：web server）
-  - Job 则用于管理那些期望其执行并结束的应用（例如：批处理任务）
-    - Job 的 Pod 中，RestartPolicy 必须为 OnFailure 或者 Never（如果不设定 RestartPolicy，其默认值为 Always）
-
-
-
-**通过 Job 启动控制器 Pod**：
-
-- 存在这样一种操作模式：使用一个 Job 创建一个 Pod，该 Pod 接着创建其他的 Pod，并作为一种自定义的控制器来管理这些 Pod
-  - 这种做法提供了最大程度的自由度和灵活性，但是某种程度上非常难以上手，且与 Kubernetes 的相关度不高
-
-- 这种模式的一个例子有：某个 Job 创建一个 Pod，该 Pod 执行一段脚本，在脚本中：
-
-  - 启动 Spark master controller
-
-  - 运行 spark driver
-
-  - 执行清理操作
-
-- 这种做法的优点在于，通过 Job 可以确保整个过程最终能够完成执行，但是需要自己编写脚本，以控制应该创建什么样的 Pod，如何在 Pod 上分配执行任务。
-
-
-
-**Cron Jobs**：
-
-- 可以使用 CronJob 来创建 Job，与 Unix/Linux 工具 cron 相似，CronJob 将在指定的日期和时间执行
-
-
-
-## 7、CronJob
-
-### 1、概述
-
-CronJob 按照预定的时间计划（schedule）创建 Job
-
-一个 CronJob 对象类似于 crontab (cron table) 文件中的一行记录，该对象根据 Cron 格式定义的时间计划，周期性地创建 Job 对象
-
-所有 CronJob 的 schedule 中所定义的时间，都是基于 Master 所在时区来进行计算的
-
-CronJob 只负责按照时间计划的规定创建 Job 对象，由 Job 来负责管理具体 Pod 的创建和执行
-
-与其他所有 Kubernetes 对象一样，CronJob 对象需要：
-
-- **apiVersion**
-
-- **kind**
-
-- **metadata**
-
-- **spec**
-
-  - .spec.schedule 是一个必填字段
-
-    - 类型为 Cron 格式的字符串，例如 0 * * * * 或者 @hourly，该字段定义了 CronJob 应该何时创建和执行 Job
-    - 该字段同样支持 vixie cron step 值（step values），参考 FreeBSD manual
-      - 例如：指定 CronJob 每隔两个小时执行一次，可以有如下三种写法：
-        - 0 0,2,4,5,6,8,12,14,16,17,20,22 * * *
-        - 使用 范围值 + Step 值的写法：0 0-23/2 * * *
-        - Step 也可以跟在一个星号后面，如 0 */2 * * *
-
-  - .spec.jobTemplate 字段是必填字段
-
-    - 该字段的结构与 Job 相同，只是不需要 apiVersion 和 kind
-
-  - .spec.startingDeadlineSeconds 为可选字段
-
-    - 代表着从计划的时间点开始，最迟多少秒之内必须启动 Job，如果超过了这个时间点，CronJob 就不会为其创建 Job，并将其记录为一次错过的执行次数，如果该字段未指定，则 Job 必须在指定的时间点执行
-
-    - 如果 .spec.startingDeadlineSeconds 未指定，CronJob 控制器计算从 .status.lastScheduleTime 开始到现在为止总共错过的执行次数
-
-      - 例如：某一个 CronJob 应该每分钟执行一次，.status.lastScheduleTime 的值是 上午5:00，假设现在已经是上午7:00，这意味着已经有 120 次执行时间点被错过，因此该 CronJob 将不再执行了
-
-        - 如果 .spec.startingDeadlineSeconds 字段被设置为一个非空的值，则 CronJob 控制器计算将从 .spec.startingDeadlineSeconds 秒以前到现在这个时间段内错过的执行次数
-
-        - 例如：假设该字段被设置为 200，控制器将只计算过去 200 秒内错过的执行次数
-
-  - .spec.concurrencyPolicy 是选填字段
-
-    - 指定了如何控制该 CronJob 创建的 Job 的并发性，可选的值有：
-      - Allow：默认值，允许并发运行 Job
-      - Forbid：不允许并发运行 Job，如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将跳过新的执行时间点，保留仍在运行的 Job，且不会在此刻创建新的 Job
-      - Replace：如果新的执行时间点到了，而上一个 Job 还未执行完，则 CronJob 将创建一个新的 Job 以替代正在执行的 Job
-
-  - .spec.suspend 是选填字段
-
-    - 如果该字段设置为 true，所有的后续执行都将挂起，该字段不会影响到已经创建的 Job，默认值为 false
-    - suspend 的时间段内，如果恰好存在执行计划时间点，则这些执行时间计划都被记录下来，如果不指定 .spec.startingDeadlineSeconds，并将 .spec.suspend 字段从 true 修改为 false，则挂起的这段时间内的执行计划都将被立刻执行
-
-  - .spec.successfulJobsHistoryLimit 和 .spec.failedJobsHistoryLimit 字段是可选的
-
-    - 这些字段指定了 CronJob 应该保留多少个 completed 和 failed 的 Job 记录
-      - .spec.successfulJobsHistoryLimit 的默认值为 3
-      - .spec.failedJobsHistoryLimit 的默认值为 1
-    - 如果将其设置为 0，则 CronJob 不会保留已经结束的 Job 的记录
-
-~~~yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: hello
-spec:
-  schedule: "*/1 * * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: hello
-            image: busybox
-            imagePullPolicy: IfNotPresent
-            command:
-            - /bin/sh
-            - -c
-            - date; echo Hello from the Kubernetes cluster
-          restartPolicy: OnFailure
-~~~
-
-
-
-**注意**：
-
-- 所有对 CronJob 对象作出的修改，尤其是 .spec 的修改，都只对修改之后新建的 Job 有效，已经创建的 Job 不会受到影响
-- Concurrency policy 只对由同一个 CronJob 创建的 Job 生效，如果有多个 CronJob，则他们各自创建的 Job 之间不会相互影响。
-
-
-
-### 2、限制
-
-一个 CronJob 在时间计划中的每次执行时刻，都创建大约一个 Job 对象
-
-这里用到了大约，是因为在少数情况下会创建两个 Job 对象，或者不创建 Job 对象，尽管 K8S 尽最大的可能性避免这种情况的出现，但是并不能完全杜绝此现象的发生，因此 Job 程序必须是幂等的
-
-当以下两个条件都满足时，Job 将至少运行一次：
-
-- startingDeadlineSeconds 被设置为一个较大的值，或者不设置该值（默认值将被采纳）
-- concurrencyPolicy 被设置为 Allow
-
-对于每一个 CronJob，CronJob Controller 将检查自上一次执行的时间点到现在为止有多少次执行被错过了，如果错过的执行次数超过了 100，则 CronJob 控制器将不再创建 Job 对象，并记录如下错误：
-
-```text
-Cannot determine if job needs to be started. Too many missed start time (> 100). Set or decrease .spec.startingDeadlineSeconds or check clock skew.
-```
-
-非常重要的一点是，如果设置了 **startingDeadlineSeconds** （非空 nil），控制器将计算从 startingDeadlineSeconds 秒之前到现在为止的时间段被错过的执行次数，而不是计算从上一次执行的时间点到现在为止的时间段被错过的执行次数
-
-- 例如：如果 startingDeadlineSeconds 被设置为 200，则控制器将计算过去 200 秒内，被错过的执行次数
-
-当 CronJob 在其计划的时间点应该创建 Job 时却创建失败，此时 CronJob 被认为错过了一次执行
-
-- 例如：如果 concurrencyPolicy 被设置为 Forbid 且 CronJob 上一次创建的 Job 仍然在运行，此时 CronJob 再次遇到一个新的计划执行时间点并尝试创建一个 Job，该此创建尝试将失败，并被认为错过了一次执行
-- 假设某个 CronJob 被设置为：自 08:30:00 开始，每分钟创建一个新的 Job，且 CronJob 的 startingDeadlineSeconds 字段未被设置，如果 CronJob 控制器恰好在 08:29:00 到 10:21:00 这个时间段出现故障（例如：Crash），则该 CronJob 将不会再次执行，因为其错过的执行次数已经超过了 100
-- 假设某个 CronJob 被设置为：自 08:30:00 开始，每分钟创建一个新的 Job，且 CronJob 的 startingDeadlineSeconds 字段被设置为 200 秒，同样如果 CronJob 控制器恰好在 08:29:00 到 10:21:00 这个时间段出现故障（时间段与上个例子相同），此时 CronJob 控制器将在 10:22:00 为该 CronJob 创建一个 Job，这是因为在这个例子中，控制器将只计算过去 200 秒中错过的执行次数（大约 3 次），而不是从上一次执行的时间点开始计算错过的执行次数
-
-
-
-### 2、使用
-
-#### 1、创建
-
-~~~yaml
-apiVersion: batch/v1beta1
-kind: CronJob
-metadata:
-  name: hello
-spec:
-  schedule: "*/1 * * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: hello
-            image: busybox
-            args:
-            - /bin/sh
-            - -c
-            - date; echo Hello from the Kubernetes cluster
-          restartPolicy: OnFailure
-~~~
-
-~~~bash
-kubectl apply -f cjob.yaml
-~~~
-
-直接使用命令行创建
-
-~~~bash
-kubectl run hello --schedule="*/1 * * * *" --restart=OnFailure --image=busybox -- /bin/sh -c "date; echo Hello from the Kubernetes cluster"
-~~~
-
-~~~bash
-# 查看
-kubectl get cronjob hello
-~~~
-
-
-
-#### 2、删除
-
-删除 CronJob 时，将移除该 CronJob 创建的所有 Job 和 Pod，并且 CronJob 控制器将不会为其在创建任何新的 Job
-
-~~~bash
-kubectl delete cronjob hello
-~~~
-
-
-
-## 8、Garbage Collection
-
-### 1、概述
-
-Kubernetes Garbage Collector（垃圾回收器）的作用是删除那些曾经有 owner，后来又不再有 owner 的对象
-
-垃圾收集允许系统清理如下资源：
-
-- 终止的 Pod
-- 已完成的 Job
-- 不再存在属主引用的对象
-- 未使用的容器和容器镜像
-- 动态制备的、StorageClass 回收策略为 Delete 的 PV 卷
-- 阻滞或者过期的 CertificateSigningRequest (CSR)
-- 在以下情形中删除了的节点对象：
-  - 当集群使用云控制器管理器运行于云端时
-  - 当集群使用类似于云控制器管理器的插件运行在本地环境中时
-  - 节点租约对象
-
-
-
-### 2、所有者和从属对象
-
-**Owner**：
-
-- 是其他 Kubernetes 对象的所有者
-
-**Dependent**：
-
-- 被拥有的对象为拥有者的从属对象
-
-例如：ReplicaSet 是一组 Pod 的所有者，在这里 Pod 是 ReplicaSet 的从属对象
-
-每一个**从属对象**都有一个 metadata.**ownerReferences** 字段，标识其拥有者是哪一个对象
-
-Kubernetes 会自动为一些对象的附属资源设置属主引用的值（自版本 1.8 开始），这些对象包含 ReplicaSet、DaemonSet、Deployment、Job、CronJob、ReplicationController
-
-可以手动改变这个字段的值，以此配置这些关系，然而通常不需要这么做，推荐让 Kubernetes 自动管理附属关系
-
-- 例如：创建一个 ReplicaSet 时，Kubernetes 自动设置该 ReplicaSet 创建的 Pod 中的 ownerReferences 字段
-
-~~~yaml
-apiVersion: apps/v1
-kind: ReplicaSet
-metadata:
-  name: my-repset
-spec:
-  replicas: 3
+  manualSelector: true
   selector:
     matchLabels:
-      pod-is-for: garbage-collection-example
-  template:
-    metadata:
-      labels:
-        pod-is-for: garbage-collection-example
-    spec:
-      containers:
-      - name: nginx
-        image: nginx
+      controller-uid: existing-uid
 ~~~
 
-~~~bash
-# 创建上方实例后，查看其内 ownerReferences 详细信息
-kubectl get pods --output=yaml
 
-apiVersion: v1
-kind: Pod
+
+**注意** ：
+
+- 需确保标签选择器唯一性
+- 可能误删无关 Pod
+- 仅限特殊迁移场景使用
+
+
+
+##### 6、替代方案对比
+
+| 方案     | Pod重启  | 适用场景   | 管理复杂度 |
+| -------- | -------- | ---------- | ---------- |
+| Bare Pod | 不支持   | 临时测试   | 低         |
+| Job      | 自动重启 | 批处理任务 | 中         |
+| Cron Job | 定时触发 | 定期任务   | 高         |
+
+
+
+### 4、CronJob
+
+#### 1、概念
+
+CronJob 根据预定义的时间计划（schedule）创建 Job 对象，其行为特性包括：
+
+- 调度基于控制平面节点时区
+- 使用标准的 cron 表达式格式（支持 Vixie cron 扩展语法）
+- 通过 Job 模板定义任务规格
+
+~~~mermaid
+graph LR
+    A[CronJob] -->|按计划触发| B[Job]
+    B --> C[Pod]
+~~~
+
+
+
+#### 2、资源定义
+
+~~~yaml
+apiVersion: batch/v1  # 已更新为稳定版 API
+kind: CronJob
 metadata:
-  ...
-  ownerReferences:
-  - apiVersion: apps/v1
-    controller: true
-    blockOwnerDeletion: true
-    kind: ReplicaSet
-    name: my-repset
-    uid: d9607e19-f88f-11e6-a518-42010a800195
-    ...
+  name: hello
+spec:
+  schedule: "*/1 * * * *"  # 使用 UNIX cron 格式
+  concurrencyPolicy: Allow  # 并发策略（Allow/Forbid/Replace）
+  successfulJobsHistoryLimit: 3 # 成功记录保留数
+  failedJobsHistoryLimit: 1 # 失败记录保留数
+  jobTemplate:  # 任务模板（需符合 Job 规范）
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            command: ["/bin/sh", "-c"]  # 明确区分 command 和 args
+            args: ["date; echo Hello Kubernetes"]
+          restartPolicy: OnFailure
 ~~~
 
+**schedule**（必需）：
 
+- 支持标准 cron 表达式和宏：
 
-**注意**：
+| 宏指令         | 等效表达式            | 说明               |
+| -------------- | --------------------- | ------------------ |
+| @yearly        | 0 0 1 1 *             | 每年 1 月 1 日执行 |
+| @monthly       | 0 0 1 * *             | 每月首日执行       |
+| @weekly        | 0 0 * * 0             | 每周日执行         |
+| @daily/@hourly | 0 0 * * * / 0 * * * * | 每天/每小时执行    |
 
-- 在 Kubernetes 的设计里，跨名称空间的所有者与从属对象的关系是不被允许的
-  - 这意味着：
-    - 名称空间级别上，所有者与从属对象处于同一级
-    - 集群级别上，所有者与从属对象处于同一级
-
-
-
-### 3、删除从属对象
-
-#### 1、概述
-
-当删除某个对象时，可以指定该对象的从属对象是否同时被自动删除，这种操作叫做级联删除（cascading deletion）
-
-级联删除有两种模式：后台（background）和前台（foreground）
-
-如果删除对象时不删除自动删除其从属对象，此时从属对象被认为是孤儿（或孤立的 orphaned）
-
-
-
-#### 2、Foreground
-
-在 Foreground 级联删除模式下，所有者对象先进入正在删除（deletion in progress）状态，此时：
-
-- 所有者对象仍然可以通过 REST API 查询到
-
-- 所有者对象的 deletionTimestamp 字段被设置
-
-- 所有者对象的 metadata.**finalizers** 包含值 foregroundDeletion
-
-一旦所有者对象被设置为  deletion in progress 状态，垃圾回收器将删除其从属对象，但是从属对象如果被设置为ownerReference.blockOwnerDeletion=true 则会阻止垃圾回收器，当所有从属对象都被删除后，将删除所有者对象
-
-
-
-**注意**：
-
-- foregroundDeletion 模式下，设置为 ownerReference.**blockOwnerDeletion**=true 的从属对象将阻止所有者对象的删除
-  - 在 Kubernetes 版本 1.7 开始，增加了 admission controller，可以基于所有者对象的删除权限配置限制用户是否可以设置 blockOwnerDeletion 字段为 true，因此未经授权的从属对象将不能阻止所有者对象的删除
-  - 但是在级联删除策略为 Orphan 时，控制器在删除所有者对象后，将忽略从属对象
-  
-- 如果对象的 ownerReferences 字段由控制器自动设置（例如：Deployment、ReplicaSet），blockOwnerDeletion 也将被自动设置，通常无需手工修改该字段的取值
-
-
-
-#### 3、Background
-
-在 background 级联删除模式下，Kubernetes 将立刻删除所有者对象，并由垃圾回收器在后台删除其从属对象
-
-默认情况下，Kubernetes 使用后台级联删除方案，除非手动设置使用前台删除， 或者选择遗弃依赖对象
-
-
-
-#### 4、设置级联删除策略
-
-在删除对象时，通过参数 **deleteOptions** 的 **propagationPolicy** 字段，可以设置级联删除的策略
-- 可选的值有： **Orphan**、**Foreground**、**Background**
-
-默认值：Orphan
-
-- 在 Kubernetes 1.9 之前，许多类型控制器的默认垃圾回收策略都是 orphan，例如：ReplicationController、ReplicaSet、StatefulSet、DaemonSet、Deployment
-- 对于 apiVersion 为 extensions/v1beta1、apps/v1beta1、apps/v1beta2 的对象，除非特殊指定，垃圾回收策略默认为 orphan
-- 在 Kubernetes 1.9 中，对于所有 apiVersion 为 apps/v1 的对象，从属对象默认都将被删除
-
-
-
-也可以通过参数 --cascade，kubectl delete 命令也可以选择不同的级联删除策略：
-
-- --cascade=true 级联删除
-- --cascade=false 不级联删除 orphan
+- 步长值示例：
 
 ~~~bash
-# 不删除从属对象
-kubectl delete replicaset my-repset --cascade=false
+0 */2 * * *    # 每 2 小时（等效 0 0-23/2）
+*/5 * * * *     # 每 5 分钟
 ~~~
 
+**startingDeadlineSeconds**（可选）：
 
+- 用于控制 Job 在错过调度时间后的最大容忍延迟时间
 
-### 4、容器与镜像的回收
+- 行为差异对比：
 
-#### 1、概述
+| 场景     | 未设置                             | 设置值（如200）   |
+| -------- | ---------------------------------- | ----------------- |
+| 计算范围 | 无限回溯，从 lastScheduleTime 开始 | 仅检查过去 200 秒 |
+| 最大容错 | 100 次错过                         | 窗口期内错过次数  |
 
-kubelet 会每五分钟对未使用的镜像执行一次垃圾收集， 每分钟对未使用的容器执行一次垃圾收集
+**concurrencyPolicy**（可选）：并发策略
 
-应该避免使用外部的垃圾收集工具，因为外部工具可能会破坏 kubelet 的行为，移除应该保留的容器
-
-要配置对未使用容器和镜像的垃圾收集选项，可以使用一个 配置文件，基于 KubeletConfiguration 资源类型来调整与垃圾收集相关的 kubelet 行为
-
-
-
-#### 2、容器垃圾收集
-
-kubelet 会基于如下变量对所有未使用的容器执行垃圾收集操作，这些变量均可自定义的：
-
-- **MinAge**：kubelet 可以回收某个容器时该容器的最小年龄，设置为 0 表示禁止使用此规则
-- **MaxPerPodContainer**：每个 Pod 可以包含的已死亡的容器个数上限，设置为小于 0 的值表示禁止使用此规则
-- **MaxContainers**：集群中可以存在的已死亡的容器个数上限，设置为小于 0 的值意味着禁止应用此规则
-
-除以上变量之外，kubelet 还会回收无标识、已删除的容器，通常从最近未使用的容器开始
-
-当保持每个 Pod 的最大数量的容器（MaxPerPodContainer）会使得全局的已死亡容器个数超出上限 （MaxContainers）时，MaxPerPodContainers 和 MaxContainers 之间可能会出现冲突。，在这种情况下，kubelet 会调整 MaxPerPodContainer 来解决这一冲突，最坏的情形是将 MaxPerPodContainer 降为 1，并驱逐最近未使用的容器，此外当隶属于某已被删除的 Pod 的容器的年龄超过 MinAge 时，它们也会被删除
-
-
-
-#### 3、镜像生命周期
-
-Kubernetes 通过**镜像管理器（Image Manager）** 来管理所有镜像的生命周期，其是 kubelet 的一部分，工作时与 [cadvisor](https://github.com/google/cadvisor/) 协同
-
-kubelet 在作出垃圾收集决定时会考虑如下磁盘用量约束：
-
-- HighThresholdPercent
-- LowThresholdPercent
-
-磁盘用量超出所配置的 HighThresholdPercent 值时会触发垃圾收集， 垃圾收集器会基于镜像上次被使用的时间来按顺序删除它们，首先删除的是最近未使用的镜像
-
-kubelet 会持续删除镜像，直到磁盘用量到达 LowThresholdPercent 值为止
-
-
-
-## 9、Horizontal Pod Autoscaler
-
-### 1、概述
-
-Horizontal Pod Autoscal（Pod 横向扩容简称 HPA）与 RC、Deployment 一样，也属于一种 Kubernetes 资源对象与控制器
-
-通过追踪分析被控制器（Deploy、RC、RS）控制的所有目标 Pod 的负载变化情况，来确定是否需要针对性地调整目标 Pod 的副本数，这是 HPA 的实现原理
-
-- 水平扩缩：对增加的负载响应部署更多的 Pod
-- 垂直扩缩：将更多资源（例如：内存或 CPU）分配给已经为工作负载运行的 Pod
-
-Kubernetes 对 Pod 扩容与缩容提供了手动和自动两种模式：
-
-- 手动模式：通过 kubectl scale 命令对一个 Deployment/RC/RS 进行 Pod 副本数量的设置
-- 自动模式：需要用户根据某个性能指标或者自定义业务指标，来指定 Pod 副本数量的范围，系统将自动在这个范围内根据性能指标的变化进行调整
+| 策略    | 行为                              |
+| ------- | --------------------------------- |
+| Allow   | （默认）允许并发执行 Job          |
+| Forbid  | 跳过新 Job 创建，保留运行中的 Job |
+| Replace | 终止当前 Job 并创建新 Job         |
 
 
 
 **注意**：
 
-- 水平 Pod 自动扩缩不适用于无法扩缩的对象（例如：DaemonSet）
+- 当 concurrencyPolicy: Forbid（禁止并发）时，若已有 Job 在运行，新调度会被视为“错过”，此时 startingDeadlineSeconds 的时间窗口决定了是否允许后续补偿执行
+- 即使 Job 执行时间超过窗口期，只要错过事件本身在窗口期内，仍可能被补偿，除非超出窗口期，被标记为永久错过
+
+
+
+#### 3、操作实践
+
+##### 1、创建操作
+
+~~~bash
+# 通过清单文件创建
+kubectl apply -f cronjob.yaml
+
+# 命令行直接创建（v1.21+）
+kubectl create cronjob hello --image=busybox:1.28 \
+  --schedule="*/1 * * * *" \
+  -- /bin/sh -c "date; echo Hello"
+  
+# 查看 CronJob 状态
+kubectl get cronjob hello -o wide
+NAME    SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE   AGE
+hello   */1 * * * *   False     0        25s             5m
+
+# 查看生成的 Job
+kubectl get jobs --selector=job-name=hello-<timestamp>
+~~~
+
+
+
+##### 2、删除操作
+
+~~~bash
+# 级联删除所有关联资源
+kubectl delete cronjob hello --cascade=foreground
+~~~
+
+
+
+##### 3、更新操作
+
+配置更新 ，修改 spec 仅影响后续创建的 Job
+
+
+
+#### 4、高级配置
+
+##### 1、执行保证
+
+每个调度周期**最多创建 1 个 Job** （可能因时钟偏差等原因出现异常）
+
+Job 必须实现**幂等性** 设计，确保 Job 能处理重复执行（因调度可能产生 1±1 次执行）
+
+同时满足以下条件时 Job 至少执行一次：
+
+1. startingDeadlineSeconds 未设置或值较大
+2. concurrencyPolicy: Allow
+
+
+
+##### 2、历史记录保留
+
+~~~yaml
+successfulJobsHistoryLimit: 3  # 生产环境建议保留更多记录
+failedJobsHistoryLimit: 5
+~~~
+
+
+
+##### 3、注意时区
+
+如需特定时区，可在Pod模板中设置
+
+~~~yaml
+env:
+- name: TZ
+  value: Asia/Shanghai
+~~~
+
+
+
+##### 4、 故障排查
+
+当出现 Too many missed start time (> 100) 错误时：
+
+1. 检查控制平面时钟同步
+2. 适当增加 startingDeadlineSeconds，若设置值 < 10 秒，可能导致调度失败（因控制器每 10 秒检查一次）
+3. 验证控制器日志
+
+~~~bash
+kubectl logs -n kube-system <controller-manager-pod>
+~~~
+
+
+
+## 5、自动化控制器
+
+### 1、Horizontal Pod Autoscaler
+
+#### 1、概述
+
+HorizontalPodAutoscaler（Pod横向自动扩缩容）是 Kubernetes API 资源对象，通过分析目标工作负载（Deployment/ReplicaSet/StatefulSet）的 **Pod 指标**，动态调整副本数量
+
+|              | 水平扩缩（Horizontal）                                       | 垂直扩缩（Vertical）                                    |      |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------- | ---- |
+| 核心特性对比 | 增减 Pod 副本数量（默认策略）                                | 调整 Pod 资源配额（需配合 VPA 使用）                    |      |
+| 操作模式     | 自动模式<br>基于CPU/Memory/Custom Metrics自动调整<br/>（需配置 metrics-server） | 手动模式<br>kubectl scale deployment/nginx --replicas=3 |      |
+|              |                                                              |                                                         |      |
+
+
+
+**注意**：
+
+- 不适用于 DaemonSet 等不可扩缩的工作负载
+- 需要预先部署 metrics-server 或自定义 metrics 适配器
 
 
 
 <img src="images/1702262877383.png" alt="1702262877383" style="zoom:50%;" />
 
+#### 2、资源定义
 
-
-### 2、原理
-
-Kubernetes 提供了一种标准 metrics 接口，HPA Controller 可以通过该接口查询到每个被 HPA 关联的对象的资源指标，标准的 metrics 接口有了，还需要实现 metrics server 以此提供数据，由于所有组件都是通过 API Server 通信的，所以 metrics server 也被聚合到 API Server 上，这样 HPA Controller 的查询请求会通过 API Server 自动转发到 metrics server 上
-
-Kubernetes 将水平 Pod 自动扩缩实现为一个间歇运行的控制回路（它不是一个连续的过程），间隔由 kube-controller-manager 的 --horizontal-pod-autoscaler-sync-period 参数设置（默认间隔为 15 秒），在这个时间段内，Controller Manager 会根据每个 HPA 定义的 metrics 指标查询资源利用率，Controller Manager 找到由 scaleTargetRef 定义的目标资源，然后根据目标资源的 .spec.selector 标签选择 Pod，并从资源指标 API（针对每个 Pod 的资源指标）或自定义指标 API （适用于所有其他指标）获取指标
-
-一般来说会根据预先设定的指标从以下三个 Aggregated APIs 中获取：
-
-- metrics.k8s.io：由 Kubernetes 自带的 metrics server 来提供，主要是 cpu，memory 使用率指标
-- custom.metrics.k8s.io：提供自定义指标数据，一般跟 Kubernetes 集群有关，比如跟特定的 Pod 相关
-- external.metrics.k8s.io：同样提供自定义指标数据，但一般跟 Kubernetes 集群无关
-
-对于按 Pod 统计的资源指标（如：CPU），Controller Manager 从资源指标 API 中获取每一个 HPA 指定的 Pod 的度量值，度量值的单位有平均值（AverageValue）、平均使用率（Utilization）、裸值（Value），如果设置了目标使用率，Controller Manager 计算每个 Pod 中容器资源使用率，如果设置了裸值，将直接使用原始数据（不计算百分比），然后 Controller Manager 根据平均的资源使用情况计算出扩缩的比例，进而计算出目标副本数
-
-- 如果 Pod 使用自定义指标，控制器机制与资源指标类似，区别在于自定义指标只使用原始值，而不是使用率
-- 如果 Pod 使用对象指标和外部指标（每个指标描述一个对象信息），这个指标将直接根据目标设定值相比较，并生成一个上面提到的扩缩比例，在 autoscaling/v2 版本 API 中，这个指标也可以根据 Pod 数量平分后再计算
-
-一个 HPA 支持多个指标的监控，HPA 会循环获取所有的指标，并计算期望的 Pod 数量，并从期望结果中获得最大的 Pod 数量作为最终的伸缩的 Pod 数量
-
-
-<img src="./images/image-20230224170946385.png" alt="image-20230224170946385" style="zoom:67%;" />
-
-目前支持三种 metrics 类型
-
-- 预定义 metrics（比如 Pod 的 CPU）以利用率的方式计算
-- 自定义的 Pod metrics，以原始值（raw value）的方式计算
-- 自定义的 object metrics
-
-目前支持两种 metrics 查询方式
-
-- Heapster
-- 自定义的 REST API
-
-
-
-**注意**：
-
-- 如果算法计算出来的伸缩系数有小数点，统一进一
-- 伸缩系数如果未达到某个容忍值，HPA 认为变化太小，会忽略这次变化，容忍值默认为 0.1
-- 如果 Pod 内某些容器不支持资源采集，那么 HPA Controller 将不会使用该 Pod 的资源使用率
-- 如果出现获取不到指标的情况，扩容时算最小值，缩容时算最大值
-- 如果需要计算平均值，出现 Pod 没准备好的情况，平均数的分母不计入该 Pod
-- 在 Kubernetes 内多个 HPA 对象彼此不可知，多个 HPA 监同个资源对象，会使资源对象无意义的伸缩，建议一个 HPA 监控一个资源对象
-
-
-
-### 3、自定义 metrics
-
-Controller Manager 开启 --horizontal-pod-autoscaler-use-rest-clients
-
-Controller Manager 配置的 --master 或者 --kubeconfig
-
-在 API Server Aggregator 中注册自定义的 metrics API
-
-~~~yaml
-apiVersion: autoscaling/v1
-kind: HorizontalPodAutoscaler
+~~~~yaml
+apiVersion: autoscaling/v2          # Kubernetes 自动扩缩 API 版本（v2 支持多指标）
+kind: HorizontalPodAutoscaler       # 资源类型：水平 Pod 自动扩缩器
 metadata:
-  name: php-apache
-  namespace: default
+  name: frontend-hpa                # HPA 资源名称（通常与被伸缩对象同名）
+  namespace: production             # 部署的目标命名空间
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1beta1
-    kind: Deployment
-    name: php-apache
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
+  behavior:                                        # （可选）扩缩容行为策略
+    scaleDown:                                     # 缩容策略
+      stabilizationWindowSeconds: 300             # 缩容稳定窗口（默认 300 秒/ 5 分钟）
+      policies:                                    # 策略列表
+      - type: Pods                                 # 按 Pod 数量缩容
+        value: 1                                   # 每次缩容最多减少 1 个 Pod
+        periodSeconds: 60                         # 每 60 秒执行一次缩容检查
+    scaleUp:                                       # 扩容策略
+      stabilizationWindowSeconds: 0               # 扩容稳定窗口（0 表示立即扩容）
+      policies:
+      - type: Pods                                 # 按Pod数量扩容
+        value: 2                                   # 每次扩容最多增加2个Pod
+        periodSeconds: 30                         # 每30秒执行一次扩容检查
+  scaleTargetRef:                   # 目标伸缩对象配置
+    apiVersion: apps/v1             # 目标资源的 API 版本（Deployment 标准版本）
+    kind: Deployment                # 目标资源类型（推荐管理 Deployment）
+    name: frontend                  # 目标 Deployment 名称（需真实存在）
+  minReplicas: 2                   # 最小副本数（必须 ≥ 1，保障服务可用性）
+  maxReplicas: 15                  # 最大副本数（防止资源耗尽的安全阈值）
+  metrics:                         # 扩缩容指标配置（可配置多个条件）
+  - type: Resource                 # 资源类型指标（监控 CPU/内存）
     resource:
-      name: cpu
-      targetAverageUtilization: 50
-  - type: Pods
-    pods:
-      metricName: packets-per-second
-      targetAverageValue: 1k
-  - type: Object
-    object:
-      metricName: requests-per-second
+      name: cpu                    # 监控 CPU 使用量（也支持 memory）
       target:
-        apiVersion: extensions/v1beta1
+        type: Utilization          # 使用率百分比模式（相对容器请求值计算）
+        averageUtilization: 60     # CPU 平均利用率阈值 60%（超过触发扩容）
+  - type: Resource                 # 第二个资源类型指标
+    resource:
+      name: memory                 # 监控内存使用量
+      target:
+        type: AverageValue         # 绝对值模式（单位：字节）
+        averageValue: 512Mi        # 内存平均使用量阈值 512MB（超过触发扩容）
+  - type: Pods                     # Pods 类型指标（自定义指标）
+    pods:
+      metric:
+        name: http_requests_per_second  # 自定义指标名称（需安装 Metrics Server）
+      target:
+        type: AverageValue         # 要求 Pod 指标的平均值
+        averageValue: 500          # 每秒 500 个请求（超过触发扩容）
+  - type: Object                   # 对象类型指标（如 Ingress 的 QPS）
+    object:
+      metric:
+        name: requests-per-second  # 对象指标名称
+      describedObject:
+        apiVersion: networking.k8s.io/v1
         kind: Ingress
         name: main-route
-      targetValue: 10k
-status:
-  observedGeneration: 1
-  lastScaleTime: <some-time>
-  currentReplicas: 1
-  desiredReplicas: 1
-  currentMetrics:
-  - type: Resource
-    resource:
-      name: cpu
-      currentAverageUtilization: 0
-      currentAverageValue: 0
-~~~
-
-
-
-### 示例
-
-**手动扩容和缩容**：
-
-~~~bash
-kubectl scale deployment frontend --replicas 1
-~~~
-
-
-
-**自动扩容和缩容**：
-
-~~~yaml
-apiVersion: autoscaling/v2beta2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: php-apache
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: php-apache
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
       target:
-        type: Utilization
-        averageUtilization: 50
-~~~
+        type: Value                # 直接使用指标原始值
+        value: 1000                # 当指标值 > 1000 时触发扩容
+~~~~
 
+关键参数说明：
 
-
-# 8、Kubernetes Volume
-
-## 1、基本概念
-
-Kubernetes 的 Volume 定义在 Pod 上，Pod 中的多个容器通过 Volume 可以挂载具体的文件目录或共享目录
-
-Volume 与 Pod 的生命周期相同， 但与容器的生命周期不相关，当容器终止或重启时，根据 Volume 的类型其中的数据不一定会丢失
-
-常用的 Volume 类型：emptyDir、hostPath、nfs、iscsi、rbd、cephfs、secret、PersistentVolumeClaim、downwardAPI、configMap
+1. scaleTargetRef：必须准确指向已存在的 Deployment/StatefulSet
+2. 指标触发逻辑：所有指标同时满足时才会缩容，任意指标触发即扩容
+3. 指标计算：
+   - Utilization = (当前使用量 / 容器requests值) × 100%
+   - AverageValue = 指标总和 / Pod数量
 
 
 
 **注意**：
 
-- 卷不能挂载到其他卷之上（不过存在一种使用 subPath 的相关机制），也不能与其他卷有硬链接
-- Kubernetes 对 EmptyDir 卷或者 HostPath 卷可以消耗的空间没有限制，容器之间或 Pod 之间也没有隔离
+1. API版本兼容性：
+   - autoscaling/v2beta2（K8s 1.19+）
+   - autoscaling/v2（K8s 1.23+正式GA）
+2. 指标适配要求：
+   - CPU/内存指标需安装 Metrics Server
+   - 自定义指标需安装 Prometheus Adapter 等组件
+3. 冷却时间控制：
+   - 扩容：--horizontal-pod-autoscaler-upscale-delay（默认 0s）
+   - 缩容：--horizontal-pod-autoscaler-downscale-delay（默认 5m0s）
+4. 指标选择策略：
+   - 生产环境建议组合使用 CPU+自定义业务指标
+   - 内存指标需谨慎使用（JVM 类应用可能不适用）
 
 
 
-## 2、使用
+#### 3、工作原理
 
-要使用 Volume，Pod 需要指定 Volume 的类型、内容（字段）、映射到容器的位置（字段），每个容器必须独立指定各个卷的挂载位置，通过 .spec.volumes 字段中设置为 Pod 提供的卷，并在 .spec.containers[*].volumeMounts 字段中声明卷在容器中的挂载位置
+##### 1、架构流程
 
-**subPath**：volumeMounts.subPath 属性可用于指定所引用的卷内的子路径，而不是其根路径
+HPA 通过周期性控制循环实现扩缩决策：
 
+1. **指标采集** ：每 15 秒（由 kube-controller-manager 的 --horizontal-pod-autoscaler-sync-period 配置）从 Metrics API 获取目标 Pod 的指标数据
+2. **副本计算** ：根据指标阈值计算期望副本数
+3. **副本调整** ：通过目标控制器（如 Deployment）调整 Pod 数量
 
-
-## 3、EmptyDir
-
-EmptyDir 卷创建于 Pod 被调度到某个 Node 上的时候，Pod 内的容器即使挂载 EmptyDir 卷路径不同，它们依然共享该卷，当 Pod 从 Node 上删除时，EmptyDir 卷中的数据就会被永久删除，所以目前 EmptyDir 卷主要用作临时空间
-
-~~~yaml
-apiVersion: v1
- kind: Pod
- metadata:
-   name: pod-emptydir
-   namespace: default
- spec:
-   containers:
-   - name: busybox-pod-01
-     image: busybox:v1
-     imagePullPolicy: IfNotPresent
-     volumeMounts:
-     - mountPath: /busybox-pod-01/cache # 容器内的挂载路径
-       name: cache-volume
-   - name: busybox-pod-02
-     image: busybox:1.24
-     imagePullPolicy: IfNotPresent
-     command: ["/bin/sh", "-c", "sleep 3600"]
-     volumeMounts:
-     - mountPath: /busybox-pod-02/cache # 容器内的挂载路径
-       name: cache-volume
-   volumes:
-   - name: cache-volume
-     emptyDir: {}
-# 此时在01容器内写入文件，可以在02容器内发现
+~~~mermaid
+graph LR
+    HPA控制器 -->|查询指标| API服务器
+    API服务器 -->|转发请求| Metrics适配器
+    Metrics适配器 -->|返回指标| HPA控制器
+    HPA控制器 -->|计算副本数| 目标工作负载
 ~~~
 
-emptyDir.medium 字段用来控制 emptyDir 卷的存储位置， 默认情况下，emptyDir 卷存储在该节点所使用的存储介质上，例如设置为 Memery，挂载 tmpfs
+
+
+##### 2、扩缩算法
+
+**公式**：期望副本数 = ceil[当前副本数 * (当前指标值 / 期望指标值)]
+
+**特殊处理规则**：
+
+1. 小数处理：计算结果向上取整（如 2.2→3）
+2. 容忍阈值：变化幅度 < 10% 时忽略（通过 --horizontal-pod-autoscaler-tolerance 配置）
+3. 异常处理：
+   - 指标不可用：扩容取最小值，缩容取最大值
+   - Pod 未就绪：计算时排除该 Pod
+
+
+
+##### 3、指标类型与数据源
+
+HPA 支持三类指标：
+
+| 指标类型            | 数据源                           | 示例场景             |
+| ------------------- | -------------------------------- | -------------------- |
+| **资源指标**        | Metrics Server（CPU/内存利用率） | 基于 CPU 使用率扩缩  |
+| **自定义 Pod 指标** | Prometheus + Adapter             | 根据 QPS 调整副本    |
+| **外部对象指标**    | 第三方监控系统                   | 基于消息队列长度扩缩 |
+
+指标来源接口：
+
+* metrics.k8s.io（核心指标：CPU/Memory）
+* custom.metrics.k8s.io（Pod/对象指标）
+* external.metrics.k8s.io（外部系统指标）
 
 
 
 **注意**：
 
-- 容器崩溃并不会导致 Pod 被从 Node 上移除，因此容器崩溃期间 emptyDir 卷中的数据是安全的
-- 当启用 SizeMemoryBackedVolumes 时，可以为基于内存的卷指定大小，如果未指定，卷的大小根据节点可分配内存进行调整
+- Kubernetes 原生仅提供 CPU/内存等基础资源指标，其他需要第三方提供
 
 
 
-## 4、HostPath
+#### 4、操作实践
 
-HostPath 卷使得 Pod 能够访问被部署到的 Node 上的指定目录或文件，一旦这个 Pod 离开了这个 Node，HostPath 卷中的数据虽然不会被永久删除，但数据也不会随 Pod 迁移到其他 Node 上
+##### 1、简单示例
 
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pd
-spec:
-  containers:
-  - image: registry.k8s.io/test-webserver
-    name: test-container
-    volumeMounts:
-    - mountPath: /test-pd
-      name: test-volume
-  volumes:
-  - name: test-volume
-    hostPath:
-      # 宿主机上目录位置
-      path: /data
-      # 此字段为可选
-      type: Directory
-~~~
-
-| 取值              | 行为                                                         |
-| :---------------- | :----------------------------------------------------------- |
-| 空                | 空字符串（默认）用于向后兼容，这意味着在安装 hostPath 卷之前不会执行任何检查 |
-| DirectoryOrCreate | 如果在给定路径上什么都不存在，那么将根据需要创建空目录，权限设置为 0755，具有与 kubelet 相同的组和属主信息 |
-| Directory         | 在给定路径上必须存在的目录                                   |
-| FileOrCreate      | 如果在给定路径上什么都不存在，那么将在那里根据需要创建空文件，权限设置为 0644，具有与 kubelet 相同的组和所有权，如果父目录不存在，则 Pod 启动失败，可以父目录使用 DirectoryOrCreate 保证创建 |
-| File              | 在给定路径上必须存在的文件                                   |
-| Socket            | 在给定路径上必须存在的 UNIX 套接字                           |
-| CharDevice        | 在给定路径上必须存在的字符设备                               |
-| BlockDevice       | 在给定路径上必须存在的块设备                                 |
-
-
-
-**注意**：
-
-- 当必须使用 HostPath 卷时，建议范围仅限于所需的文件或目录，并以只读方式挂载
-- 如果通过 AdmissionPolicy 限制 HostPath 对特定目录的访问，则必须要求 volumeMounts 使用 readOnly 挂载以使策略生效
-- HostPath 卷可能会暴露特权系统凭据，造成安全漏洞
-- 由于各个 Node 的文件系统结构不一定完全相同，所以相同 Pod 的 HostPath 卷可能会在不同的宿主机上表现出不同的行为
-
-
-
-## 5、ISCSI
-
-ISCSI 卷不像 EmptyDir 卷会在删除 Pod 的同时也会被删除，ISCSI 卷的内容在删除 Pod 时会被保留，卷只是被卸载
-
-ISCSI 卷可以同时被多个用户以只读方式挂载且能预先填充数据，并且这些数据可以在 Pod 之间共享
-
-
-
-
-
-**注意**：
-
-- 在使用 ISCSI 卷之前，必须先创建的 ISCSI 服务器，并在上面创建卷
-- ISCSI 卷不允许同时写入，只能有单个用户以读写模式挂载
-
-
-
-## 6、Local
-
-Local 卷所代表的是某个被挂载的本地存储设备，例如磁盘、分区或者目录，其和 HostPath 卷的区别在于，如果同一类 Pod 重复使用 HostPath 卷的数据，需要手动调度的特定的 Node
-
-Local 卷是静态创建的持久卷，不支持动态配置
-
-使用 Local 卷时，需要设置 PersistentVolume 对象的 nodeAffinity 字段，Kubernetes 调度器根据 nodeAffinity 来将使用 Local 卷的 Pod 调度到正确的节点
+部署 Nginx 副本
 
 ~~~yaml
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: local-storage
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
-~~~
-
-~~~yaml
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  name: example-pv
-spec:
-  capacity:
-    storage: 5Gi
-  volumeMode: Filesystem
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: local-storage
-  local:
-    path: /tmp/localdata # 需要在对应的 Node 创建目录
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - node1
-~~~
-
-~~~yaml
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: example-local-claim
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-  storageClassName: local-storage
-~~~
-
-~~~yaml
-kind: Pod
-apiVersion: v1
-metadata:
-  name: mypod
-spec:
-  containers:
-    - name: myfrontend
-      image: nginx:latest
-      volumeMounts:
-      - mountPath: /var/www/html
-        name: test-claim
-  volumes:
-    - name: test-claim
-      persistentVolumeClaim:
-        claimName: example-local-claim
-~~~
-
-
-
-**注意**：
-
-- 建议创建一个 StorageClass 用于 Local 卷，并且 volumeBindingMode 设置为 WaitForFirstConsumer，使得 PVC 和 PV 需要的时候才绑定，延迟卷绑定可以让 Kubernetes 评估节点的其他约束，因为 PV 是和 Node 绑定的，如果 PVC 直接和 PV 绑定了， Pod 则会直接调度过去，如果有其他节点可选，资源选择策略就无用了
-- 如果不使用 local-volume-provisioner，需要手动清理和删除 Local 类型的持久卷
-
-
-
-## 7、NFS
-
-NFS 卷允许一块现有的网络硬盘在同一个 Pod 内的容器间共享，效果和 ISCIS 类似
-
-需要先安装 nfs server
-
-~~~bash
-yum install -y nfs-kernel-server
-
-apt-get install nfs-kernel-server rpcbind -y
-~~~
-
-~~~bash
-# 所有节点都要创建该目录
-mkdir -p /home/data
-# 主节点开放
-echo "/home/data *(insecure,rw,sync,no_root_squash)" > /etc/exports
-# 主节点重启服务
-systemctl restart nfs-server
-~~~
-
-~~~bash
-# 从节点挂载
-mount 192.168.100.130:/data /data
-
-# 开机自动挂载
-vim /etc/rc.d/rc.local
-mount 192.168.100.130:/home/data /home/data
-~~~
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pd
-spec:
-  containers:
-  - image: webserver
-    name: test
-    volumeMounts:
-    - mountPath: /nfs-data
-      name: test-volume
-  volumes:
-  - name: test-volume
-    nfs:
-      server: nfs-server-example.com
-      path: /nfs-volume
-      readOnly: true
-~~~
-
-
-
-## 8、卷的传播
-
-挂载卷的传播能力允许将 Container 挂载的卷共享到同一 Pod 中的其他 Container，甚至共享到同一 Node 上的其他 Pod
-
-卷的挂载传播特性由 Container.volumeMounts 中的 mountPropagation 字段控制
-
-可选值如下：
-
-- **None**：此挂载卷将不会感知到主机后续在此卷或其任何子目录上执行的挂载变化，容器所创建的卷挂载在主机上是不可见的，这是默认模式
-- **HostToContainer**：挂载卷将会感知到主机后续针对此卷或其任何子目录的挂载操作，如果主机在此挂载卷中挂载任何内容，容器将能看到它被挂载在那里，同时配置了 Bidirectional 挂载传播选项的 Pod 如果在同一卷上挂载了内容，挂载传播设置为 HostToContainer 的容器都将能看变化
-- **Bidirectional**：这种挂载卷和 HostToContainer 挂载表现相同，容器创建的卷挂载将被传播回主机和使用同一卷的所有 Pod 的所有容器
-
-应用场景：日志收集
-
-
-
-**注意**：
-
-- Bidirectional 比较危险，可能破坏主机操作系统，因此它只被允许在特权容器中使用
-
-
-
-## 9、Persistent
-
-### 1、概述
-
-PersistentVolume 为用户和管理员提供了一个 API，用于抽象根据消费方式提供存储的详细信息，为此引入了两个新的 API 资源：PersistentVolume 和 PersistentVolumeClaim，集群管理员提供各种 PV，而 PVC 允许用户使用抽象的存储资源
-
-- PersistentVolume（PV）：集群中由管理员预先制备或者动态制备的存储，是集群中的资源，就像节点是集群资源一样，PV 和其他卷类型一样，但其生命周期独立于使用 PV 的任何 Pod，此 API 对象捕获存储实现的详细信息，包括 NFS，iSCSI 或特定于云提供程序的存储系统
-- PersistentVolumeClaim（PVC）：表示用户进行存储的请求，它类似于 Pod，Pod 消耗节点资源，PVC 消耗 PV 资源，Pod 可以请求特定级别的资源（CPU 和内存），PVC 可以请求特定的大小和访问模式（一次读写、多次只读）
-
-
-
-**注意**：
-
-- PVC 和 PV 是一一对应的双向绑定关系，使用 ClaimRef 来记述
-
-
-
-### 2、生命周期
-
-#### 1、概述
-
-PV 是群集中的资源，PVC 是对这些资源的请求，并且充当对资源的检查
-
-PV 和 PVC 之间的相互作用遵循以下生命周期：
-
-- **Provisioning** ——-> **Binding** ——–> **Using** ——> **Releasing** ——> **Recycling** 
-
-  1. Provisioning：供应准备，通过集群外的存储系统或者云平台来提供存储持久化支持
-
-       - Static：静态提供，集群管理员创建多个 PV，它们携带可供集群用户使用的真实存储的详细信息，它们存在于 Kubernetes API 中，可用于消费
-
-       - Dynamic：动态提供，当管理员创建的静态 PV 都不匹配用户的 PVC 时，集群可能会尝试为 PVC 动态配置卷，此配置基于  StorageClasses，PVC 必须请求一个类，并且管理员必须已创建并配置该类才能进行动态配置，要求该类的声明有效地为自己禁用动态配置
-
-  2. Binding：绑定，用户创建 PVC 并指定需要的资源和访问模式，在找到可用 PV 之前，PVC 会保持未绑定状态， 如果没有非常匹配的 PV，会向具备更大资源的 PV 匹配 
-
-  3. Using：使用，用户可在 Pod 中像 Volume 一样使用 PVC
-
-  4. Releasing：释放，用户删除 PVC 来回收存储资源，PV 将变成 released 状态，由于还保留着之前的数据，这些数据需要根据不同的策略来处理，否则这些存储资源无法被其他 PVC 使用
-
-  5. Recycling：回收，PV 可以设置三种回收策略：保留（Retain）、回收（Recycle）、删除 （Delete）
-
-     - 保留策略：允许人工处理保留的数据，但需要删除对应的 PV 后再绑定
-     - 回收策略：将执行清除操作，之后可以被新的 PVC 使用，需要插件支持，仅 NFS 和 HostPath 支持回收（Recycle），废弃
-
-     - 删除策略：将删除 PV 和外部关联的存储资源，需要插件支持，动态制备的 PV 会继承 StorageClass 的策略
-
-
-
-#### 2、PV 阶段状态
-
-**Available**：资源尚未被 PVC 使用 
-
-**Bound**：卷已经被绑定到 PVC 
-
-**Released**：PVC 被删除，卷处于释放状态，但未被集群回收
-
-**Failed**：卷自动回收失败
-
-PV 卷的 .status.lastPhaseTransitionTime 字段用于保存卷上次转换阶段的时间戳，对于新创建的卷，阶段被设置为 Pending，lastPhaseTransitionTime 被设置为当前时间
-
-
-
-### 4、制备 PV
-
-#### 1、概述
-
-PV 有两种制备方式：静态制备、动态制备
-
-**静态制备**：管理员手动创建若干 PV 卷，并且对集群用户可用，PV 卷对象存在于 Kubernetes API 中，可供用户使用
-
-**动态制备**：PVC 必须请求某个存储类， 同时集群管理员必须已经创建并配置了该类，这样动态制备 PV  卷的动作才会发生，如果 PVC 指定存储类为 ""，则相当于为自身禁止使用动态制备的 PV 卷
-
-
-
-#### 2、PV 属性
-
-每个 PV 对象都包含 spec 部分和 status 部分，PersistentVolume 对象的名称必须是合法的 DNS 子域名
-
-- **capacity**：卷容量，到 1.26.1 版本唯一可以限定的卷资源，未来可能支持 IOPS、吞吐量
-- **volumeModes**：卷模式，支持 FileSystem、Block，默认是 FS
-  - FileSystem：如果被 Pod 挂载到某个目录，如果卷的存储来自某块设备而该设备目前为空，Kuberneretes 会在第一次挂载卷之前在设备上创建文件系统
-  - Block：将卷作为原始块设备来交给 Pod 使用，此类卷上没有任何文件系统，此种模式可以加快 Pod 访问卷，因为 Pod 和卷之间不存在文件系统层，但是 Pod 中运行的实例必须知道如何处理原始块设备，向 Pod 中添加原始块设备时，要在容器内设置设备路径而不是挂载路径
-- **accessModes**：卷访问模式
-  - **ReadWriteOnce**：卷可以被一个节点以读写方式挂载，RWO 访问模式允许运行在同一节点上的多个 Pod 访问卷
-  - **ReadOnlyMany**：卷可以被多个节点以只读方式挂载
-  - **ReadWriteMany**：卷可以被多个节点以读写方式挂载
-  - **ReadWriteOncePod**：卷可以被单个 Pod 以读写方式挂载，如果想确保整个集群中只有一个 Pod 可以读取或写入该 PVC
-- **storageClassName**：通过该属性将 PV 设定为某个类，每个 PV 可以属于某个 StorageClass，可以不设置或设置为 “ “
-  - 特定类的 PV 卷只能绑定到请求该类的 PVC
-  - 未设置该属性的 PV 没有类设定，只能绑定到那些没有指定特定类的 PVC（设置为 “” 或者不设置，意味着不指定特定 SC）
-- **nodeAffinity**：节点亲和性，通过设置此属性，约束哪些节点可以访问此卷，使用此卷的 Pod 只会被调度到符合此卷节点亲和性规则的节点上
-
-
-
-#### 3、静态制备
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv0003
-spec:
-  capacity:
-    storage: 5Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Recycle
-  storageClassName: slow
-  mountOptions:
-    - hard
-    - nfsvers=4.1
-  nfs:
-    path: /tmp
-    server: 172.17.0.2
-~~~
-
-~~~bash
-# 创建
-kubectl apply -f pv-damo.yaml
-# 查询
-kubectl get pv
-~~~
-
-
-
-**注意**：
-
-- 使用 PV 通常需要一些辅助卷类型的程序，上述例子中使用的 NFS，因此需要在节点安装 NFS 来支持挂载
-
-
-
-#### 4、预留 PV
-
-用于将 PV 绑定到特定 PVC，通过在 PV 中指定 PVC 声明特定 PV 与 PVC 之间的绑定关系
-
-预留绑定不会考虑某些卷匹配条件是否满足，例如节点亲和性，但控制面仍然会检查存储类、 访问模式、存储尺寸
-
-将 PV 的 claimRef 字段设置为相关的 PVC 以确保其他 PVC 不会绑定到该 PV 卷
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: foo-pv
-spec:
-  storageClassName: "" # 此处须显式设置空字符串，否则会被设置为默认的 StorageClass
-  claimRef:
-    name: foo-pvc
-    namespace: foo
-```
-
-用途：
-
-- 使用 persistentVolumeReclaimPolicy 属性设置为 Retain 的 PV 卷
-- 复用现有的 PV 卷
-
-
-
-### 5、使用 PVC
-
-#### 1、PVC 属性
-
-每个 PVC 对象都有 .spec 和 .status 部分，分别对应规约和状态，PVC 对象的名称必须是合法的 DNS 子域名
-
-基本属性都和 PV 一致
-
-- **accessModes**：与需要申请的 PV 相同
-- **volumeMode**：与需要申请的 PV 相同
-- **resources**：与需要申请的 PV 相同
-- **matchLabels**：标签选择算符，进一步过滤卷集合
-- **matchExpressions**：与 matchLabels 作用相同，只不过支持数组与 In、NotIn、Exists、DoesNotExists
-- **storageClassName**：与需要申请的 PV 相同，如果设置为 ”“，则被视为申请设置 SC 为 "" 的 PV，如果没有设置，则需判断 DefaultStorageClass 准入控制器插件是否被启用
-  - 如果启用，管理员可以设置一个默认的 SC，所有未设置 SC 的 PVC 都只能绑定到隶属于默认 SC 的 PV，如果为设置默认 SC 则与准入控制器未启动相同处理方法
-  - 如果未启动，则不存在默认 SC，所有将 SC 设置为 “” 的 PVC 将绑定到将 SC 也设置为 “” 的 PV，如果稍后默认 SC 可用了，将会更新 PVC 到动态制备的 PV
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: myclaim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 8Gi
-  storageClassName: slow
-  selector:
-    matchLabels:
-      release: "stable"
-    matchExpressions:
-      - {key: environment, operator: In, values: [dev]}
-```
-
-**matchLabels**、**matchExpressions**：设置标签选择算符来过滤卷集合，只有标签与选择算符相匹配的卷能够绑定，来自 matchLabels 和 matchExpressions 的所有需求都按逻辑与的方式组合在一起
-
-**storageClassName**：设置 StorageClass 的名称来请求特定的存储类，需要与 PV 卷的 SC 匹配才能绑定，如果不指定特定 SC，则只能匹配到不指定特定 SC 的 PV 卷
-
-- 如果开启了 DefaultStorageClass，未设置 SC 的 PVC/PV 均会被绑定到默认 SC，如果默认 SC 不止一个，则使用最新的默认 SC
-- 如果没开启默认 SC，则按照原规则
-- 标签选择与 SC 按照条件与组合
-
-
-
-**注意**：
-
-- 设置了非空 selector 的 PVC 无法让集群为其动态制备 PV 卷
-- 当默认 SC 可用时，没有指定 SC 的 PVC 会被赋予 SC，对于 SC 设置为 "" 的 PVC 则不会更新
-
-
-
-#### 2、使用 PVC
-
-~~~yaml
-# Pod 绑定 PVC
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pod-with-block-volume
-spec:
-  containers:
-    - name: fc-container
-      image: fedora:26
-      command: ["/bin/sh", "-c"]
-      args: [ "tail -f /dev/null" ]
-      volumeDevices: # 对于块模式的 PV 需要设置挂载路径
-        - name: data
-          devicePath: /dev/xvda
-  volumes:
-    - name: data
-      persistentVolumeClaim:
-        claimName: block-pvc
-~~~
-
-
-
-**注意**：
-
-- 截止到 1.26.1 版本，如果设置了 selector，PVC 将使用 SC 动态制备
-- 使用 Many 模式（ROX、RWX）来挂载申领的操作只能在同一名字空间内进行
-
-
-
-#### 3、扩充 PVC
-
-扩充以下类型的卷：CSI、RDB
-
-只有当 PVC 的 StorageClass 将 allowVolumeExpansion 设置为 true 时，才可以扩充该 PVC 申领
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: example-vol-default
-provisioner: vendor-name.example/magicstorage
-parameters:
-  resturl: "http://192.168.10.100:8080"
-  restuser: ""
-  secretNamespace: ""
-  secretName: ""
-allowVolumeExpansion: true
-```
-
-如果要为某 PVC 请求较大的存储卷，可以直接编辑 PVC 对象设置更大值，这一操作会触发为 PV 提供存储的卷扩充，Kubernetes 不会创建新的 PV 卷来满足此申领的请求，但现有的卷会被调整大小，并且只能在未绑定的 Pod 的 PVC 上扩充，扩充后需要绑定到 Pod 上才会生效
-
-直接编辑 PV 的大小可以阻止该卷自动调整大小，如果先修改 PV，然后又修改对应的 PVC，使该 PVC 的大小匹配 PV 的话，则不会发生存储大小的调整
-
-
-
-### 6、保护措施
-
-#### 1、对象保护
-
-用户删除被某 Pod 使用的 PVC，该 PVC 的移除会被推迟，直至不再被任何 Pod 使用，如果管理员删除已绑定 PVC 的 PV，该 PV 也不会被立即移除，PV 的移除也要推迟到该 PV 不再绑定 PVC，以此确保仍被使用的 PersistentVolumeClaim 及其所绑定的 PersistentVolume 在系统中不会被删除，保证数据安全
-
-当 PV/PVC 的状态为 Terminating 且其 Finalizers 列表中包含 kubernetes.io/pvc-protection 时，PVC 是处于被保护状态的
-
-
-
-#### 2、删除保护
-
-在 PV 上添加终结器（Finalizer）， 确保只有在删除对应的存储后才删除具有 Delete 回收策略的 PV
-
-新引入的 kubernetes.io/pv-controller 和 external-provisioner.volume.kubernetes.io/finalizer 终结器仅会被添加到动态制备的卷上
-
-
-
-#### 3、卷快照
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: restore-pvc
-spec:
-  storageClassName: csi-hostpath-sc
-  dataSource:
-    name: new-snapshot-test
-    kind: VolumeSnapshot
-    apiGroup: snapshot.storage.k8s.io
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-```
-
-
-
-#### 4、卷克隆
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cloned-pvc
-spec:
-  storageClassName: my-csi-plugin
-  dataSource: # 仅允许本地对象，不允许跨命名空间
-    name: existing-src-pvc-name
-    kind: PersistentVolumeClaim
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-```
-
-
-
-### 7、卷填充器
-
-#### 1、概述
-
-卷填充器是能创建非空卷的控制器， 其可以给 PVC 卷预先填充上数据，卷的内容通过一个自定义资源决定
-
-卷填充器利用了 PVC 规约字段 dataSourceRef，该字段可以包含对同一命名空间中任何对象的引用（不包含除 PVC 以外的核心资源）
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: example-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Mi
-  dataSourceRef: # 需要先加载 hello 实例的卷填充器并创建
-    apiGroup: hello.example.com
-    kind: Hello
-    name: example-hello
-  volumeMode: Filesystem
-~~~
-
-
-
-**注意**：
-
-- 需要启用 AnyVolumeDataSource 特性
-
-
-
-#### 2、跨命名空间
-
-当跨命名空间时，Kubernetes 使用引用之前会通过 ReferenceGrant 检查被引用命名空间是否接受
-
-```yaml
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: ReferenceGrant
-metadata:
-  name: allow-ns1-pvc
-  namespace: default
-spec:
-  from:
-  - group: ""
-    kind: PersistentVolumeClaim
-    namespace: ns1
-  to:
-  - group: snapshot.storage.k8s.io
-    kind: VolumeSnapshot
-    name: new-snapshot-demo
-```
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: foo-pvc
-  namespace: ns1
-spec:
-  storageClassName: example
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  dataSourceRef:
-    apiGroup: snapshot.storage.k8s.io
-    kind: VolumeSnapshot
-    name: new-snapshot-demo
-    namespace: default # 指定命名空间
-  volumeMode: Filesystem
-~~~
-
-
-
-**注意**：
-
-- 需要启用 CrossNamespaceVolumeDataSource 特性
-
-
-
-#### 3、数据源引用
-
-dataSourceRef 字段与 dataSource 字段几乎相同，如果一个字段被指定而另一个字段没被指定，API 服务器将给两个字段相同的值，若指定了 namespace，则 dataSource 和 dataSourceRef 不会被同步，其他区别：
-
-- dataSource 字段：会忽略无效的值（如同是空值），只允许 PVC 和卷快照，仅允许本地对象
-- dataSourceRef 字段：不会忽略值，并且若填入一个无效的值，会导致错误，可以包含不同类型的对象，允许任何名字空间中的对象
-
-无效值指的是 PVC 之外的核心对象（没有 apiGroup 的对象）
-
-
-
-
-
-
-
-## 10、Projected
-
-### 1、概述
-
-Projected 卷可以将若干现有的卷/数据源挂载到同一个目录上
-
-以下类型的卷源可以被投射：secret、downwardAPI、configMap、serviceAccountToken
-
-
-
-**注意**：
-
-- 所有的卷/数据源都要求处于 Pod 所在的同一个命名空间内
-
-
-
-### 2、使用
-
-#### 1、基础使用
-
-每个被映射的卷源都列举在 spec.sources 下面，参数几乎相同，只有两个例外：
-
-- 对于 Secret：secretName 字段被改为 name 以便于 ConfigMap 的命名一致
-- defaultMode 只能在挂载层级设置，不能在卷/数据源层级设置，不过可以显式地为每个挂载单独设置 mode 属性
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: volume-test
-spec:
-  containers:
-  - name: container-test
-    image: busybox:1.28
-    volumeMounts:
-    - name: all-in-one
-      mountPath: "/projected-volume"
-      readOnly: true
-  volumes:
-  - name: all-in-one
-    projected:
-      sources:
-      - secret:
-          name: mysecret
-          items:
-            - key: username
-              path: my-group/my-username
-      - secret:
-          name: mysecret2
-          items:
-            - key: password
-              path: my-group/my-password
-              # 单独设置 mode
-              mode: 511
-      - downwardAPI:
-          items:
-            - path: "labels"
-              fieldRef:
-                fieldPath: metadata.labels
-            - path: "cpu_limit"
-              resourceFieldRef:
-                containerName: container-test
-                resource: limits.cpu
-      - configMap:
-          name: myconfigmap
-          items:
-            - key: config
-              path: my-group/my-config
-~~~
-
-
-
-#### 2、serviceAccountToken
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: sa-token-test
-spec:
-  containers:
-  - name: container-test
-    image: busybox:1.28
-    volumeMounts:
-    - name: token-vol
-      mountPath: "/service-account"
-      readOnly: true
-  serviceAccountName: default
-  volumes:
-  - name: token-vol
-    projected:
-      sources:
-      # 将当前服务账号的令牌注入到 Pod 中特定路径下
-      # 此 Pod 中的容器可以使用该令牌访问 Kubernetes API 服务器
-      - serviceAccountToken:
-          # 包含令牌所针对的受众
-          # 收到令牌的主体必须使用令牌受众中所指定的某个标识符来标识自身，否则应该拒绝该令牌
-          # 此字段是可选的，默认值为 API 服务器的标识
-          audience: api
-          # 服务账号令牌预期的生命期长度，默认值为 1 小时，必须至少为 10 分钟（600 秒）
-          # 也可以通过设置 API 服务器的命令行参数 --service-account-max-token-expiration 来为其设置最大值上限
-          expirationSeconds: 3600
-          # 给出与投射卷挂载点之间的相对路径
-          path: token
-~~~
-
-
-
-
-
-
-
-**注意**：
-
-- 在某 Pod 被创建后为其添加的临时容器不会更改创建该 Pod 时设置的卷权限
-- 如果 Pod 的 serviceAccountToken 卷权限被设为 0600，则临时容器必须使用相同的 runAsUser 才能读取令牌
-
-
-
-
-
-
-
-## 11、Ephemeral
-
-### 1、概述
-
-有些应用程序需要额外的存储，但并不关心数据在重启后是否仍然可用
-
-- 缓存服务经常受限于内存大小，而且可以将不常用的数据转移到比内存慢的存储中，对总体性能的影响并不大
-- 有些应用程序需要以文件形式注入的只读数据，比如：配置数据或密钥
-
-临时卷就是为此类用例设计的，因为卷会遵从 Pod 的生命周期，与 Pod 一起创建和删除， 所以停止和重新启动 Pod 时，不会受持久卷在何处可用的限制，临时卷在 Pod spec 中以内联方式定义，简化了应用程序的部署和管理
-
-Kubernetes 为了不同的用途，支持几种不同类型的临时卷：
-
-- emptyDir：Pod 启动时为空，存储空间来自本地的 kubelet 根目录（通常是根磁盘）或内存
-
-- configMap、downwardAPI、secret：将不同类型的 Kubernetes 数据注入到 Pod 中
-- CSI 临时卷：类似于前面的卷类型，但由专门支持此特性的指定 CSI 驱动程序提供
-- 通用临时卷：它可以由所有支持持久卷的存储驱动程序提供
-
-emptyDir、configMap、downwardAPI、secret 是作为本地临时存储提供的，它们由各个节点上的 kubelet 管理
-
-
-
-**注意**：
-
-- CSI 临时卷必须由第三方 CSI 存储驱动程序提供
-
-- 通用临时卷可以由第三方 CSI 存储驱动程序提供，也可以由支持动态制备的任何其他存储驱动程序提供
-  - 一些专门为 CSI 临时卷编写的 CSI 驱动程序，不支持动态制备：因此这些驱动程序不能用于通用临时卷
-- 使用第三方驱动程序的优势：可以提供 Kubernetes 本身不支持的功能， 例如：与 kubelet 管理的磁盘具有不同性能的存储，或者用来注入不同的数据
-
-
-
-### 2、使用
-
-**通用临时卷**：类似于 emptyDir 卷，因为它为每个 Pod 提供临时数据存放目录， 在最初制备完毕时一般为空
-
-不过通用临时卷也有一些额外的功能特性：
-
-- 存储可以是本地的，也可以是网络连接的
-- 卷可以有固定的大小，Pod 不能超量使用
-- 卷可能有一些初始数据，这取决于驱动程序和参数
-
-- 支持典型的卷操作，前提是相关的驱动程序也支持该操作，包括：快照、克隆、调整大小、存储容量跟踪
-
-~~~yaml
-kind: Pod
-apiVersion: v1
-metadata:
-  name: my-app
-spec:
-  containers:
-    - name: my-frontend
-      image: busybox:1.28
-      volumeMounts:
-      - mountPath: "/scratch"
-        name: scratch-volume
-      command: [ "sleep", "1000000" ]
-  volumes:
-    - name: scratch-volume # pvc 名称 my-app-scratch-volume
-      ephemeral:
-        volumeClaimTemplate:
-          metadata:
-            labels:
-              type: my-frontend-volume
-          spec:
-            accessModes: [ "ReadWriteOnce" ]
-            storageClassName: "scratch-storage-class"
-            resources:
-              requests:
-                storage: 1Gi
-~~~
-
-
-
-**注意**：
-
-- 自动创建的 PVC 采取确定性的命名机制：名称是 Pod 名称和卷名称的组合，中间由连字符(-)连接，此规则可能产生冲突
-  - 名为 pod-a 的 Pod 挂载名为 scratch 的卷和名为 pod 的 Pod 挂载名为 a-scratch 的卷，这两者均会生成名为 pod-a-scratch 的 PVC
-  - 如果 PVC 是为 Pod 创建的，那么它只用于临时卷，此检测基于所有权关系，现有的 PVC 不会被覆盖或修改，但这并不能解决冲突，因为如果没有正确的 PVC，Pod 就无法启动
-
-
-
-### 3、生命周期
-
-临时卷控制器在 Pod 所属的命名空间中创建一个实际的 PVC，卷绑定或制备的相应动作在 SC 使用即时绑定模式时立即执行， 或者当 Pod 被暂时性调度到某节点时执行 (WaitForFirstConsumer 卷绑定模式)
-
-临时卷控制器支持完整的 PVC Template 字段， 并确保删除 Pod 时，同步删除 PVC
-
-通用临时卷建议采用 WaitForFirstConsumer ，这样调度器就可以自由地为 Pod 选择合适的节点，对于即时绑定，调度器则必须选出一个节点，使得在卷可用时，能立即访问该卷
-
-就资源所有权而言，拥有通用临时存储的 Pod 是提供临时存储（ephemeral storage）的 PVC 的所有者， 当 Pod 被删除时，Kubernetes 垃圾收集器会删除 PVC，然后 PVC 通常会触发卷的删除，因为存储类的默认回收策略是删除卷，可以使用带有 retain 回收策略的 StorageClass 创建准临时（quasi-ephemeral）本地存储：该存储比 Pod 寿命长，在这种情况下，需要确保单独进行卷清理
-
-
-
-## 12、StorageClass
-
-### 1、概述
-
-Kubernetes 提供了一套可以自动创建 PV 的机制（Dynamic Provisioning），而机制的核心在于 StorageClass
-
-StorageClass 为管理员提供了描述存储类的方法，不同的类型可以映射到不同的服务质量等级或备份策略，或是由集群管理员制定的任意策略，Kubernetes 本身并不清楚各种类代表的什么，但是用户通过 SC 可以清楚的知道其对应的储存资源的具体特征，例如：不同的读写速度，并发性能
-
-当用户使用 PVC Template 向 K8s 提交 PVC 申请储存空间时，Kubernetes 会寻找一个对应的 StorageClass，并调用其中定义的存储制备器，创建所需的 PV，每个 StorageClass 都有一个存储制备器
-
-StorageClass 与 PVC Template 分别解决了 PV 与 PVC 难以管理的问题，SC 可以动态制备 PV，PVC Template 可以动态创建 PVC
-
-- 先创建 PV，在创建 PVC 并绑定，叫做静态供给
-- 使用 SC 就是动态供给
-
-<img src="./images/20201222102732501.png" alt="20201222102732501" style="zoom:70%;" />
-
-
-
-### 2、使用
-
-StorageClass 对象的 name 很重要，用户使用这个 name 来请求资源，当创建 StorageClass 对象时，管理员设置 StorageClass 对象的命名和其他参数，一旦创建了 SC 对象就不能再对其更新
-
-每个 StorageClass 都包含 provisioner、parameters、reclaimPolicy 字段， 这些字段在 StorageClass 动态制备 PV 时使用
-
-- **provisioner**：创建某种 PV 用到的存储件，即存储制备器
-- **reclaimPolicy**：回收策略，默认是 Delete
-  - Delete、Retain
-
-- **allowVolumeExpansion**：设置为 true 则允许用户通过 PVC 扩容卷，但是不允许缩小卷
-- **mountOptions**：指定挂载的选项，需要卷插件支持，如果不支持则制备失败
-  - 挂载选项在 SC 与 PV 上均不会验证，如果挂载无效，则 PV 挂载操作失败
-- **volumeBindingMode**：控制动态制备与卷绑定的发生时间，默认使用 Immediate
-  - Immediate：一旦创建了 PVC 则完成动态制备和卷绑定，先于 Pod 调度，因此与 Pod 的调度约束无关
-  - WaitForFirstConsumer：延迟 PV 的绑定和制备，直到使用该 PVC 的 Pod 被创建，PV 会根据 Pod 的多方面调度约束来选择制备
-- **allowedTopologies**：允许限制拓扑域，将动态制备限制在特定的拓扑域
-
-- **parameters**：描述了存储类的卷，但是具体you哪些，取决于制备器可以接受不同的参数
-
-
-~~~yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: standard
-provisioner: kubernetes.io/gce-pd
-parameters:
-  type: pd-standard
-volumeBindingMode: WaitForFirstConsumer
-allowedTopologies:
-- matchLabelExpressions:
-  - key: failure-domain.beta.kubernetes.io/zone
-    values:
-    - us-central-1a
-    - us-central-1b
-~~~
-
-~~~yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: example-nfs
-provisioner: example.com/external-nfs
-parameters:
-  server: nfs-server.example.com
-  path: /share
-  readOnly: "false"
-~~~
-
-上述 NFS 例子中可以被接受的参数：
-
-- **server**：NFS 服务器的主机名或 IP 地址
-- **path**：NFS 服务器导出的路径
-- **readOnly**：是否将存储挂载为只读的标志（默认为 false）
-
-上述 NFS 例子的效果：
-
-- 自动创建的 PV 以 ${namespace}-${pvcName}-${pvName} 这样的命名格式创建在 NFS 服务器上的共享数据目录中
-- 而当这个 PV 被回收后会以 archieved-${namespace}-${pvcName}-${pvName} 这样的命名格式存在 NFS 服务器上
-
-
-
-**注意**：
-
-- 选择 WaitForFirstConsumer 模式，切勿在 Pod 中使用 nodeName 来指定节点亲和性，如果在这种情况下使用 nodeName，Pod 将会绕过调度程序，PVC 将停留在 Pending 状态，但是可以在 NodeSelector 中使用节点主机标签 kubernetes.io/hostname: w01
-- 将 StorageClass 对象的注解 storageclass.kubernetes.io/is-default-class 赋值为 true，可以将其设置为默认 SC，如果默认 SC 大于一个，则 DefaultStorageClass 准入控制插件将会停止所有 PVC 创建
-
-
-
-### 3、Provisioner
-
-#### 1、NFS 制备器
-
-首先每台节点均安装 NFS
-
-##### 1、创建 ServiceAccount
-
-~~~yaml
-# 唯一需要修改的地方只有namespace, 根据实际情况定义
-apiVersion: v1
-# 创建一个用户，用来管理 NFS 制备器在集群中的运行权限
-kind: ServiceAccount
-metadata:
-  name: nfs-client-provisioner
-  namespace: default
----
-# 创建集群角色
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  # 角色名
-  name: nfs-client-provisioner-runner
-# 角色权限
-rules:
-  - apiGroups: [""]
-    # 允许操作的资源
-    resources: ["nodes"]
-    # 允许操作的权限
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create", "update", "patch"]
----
-# 将集群角色与用户绑定
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: run-nfs-client-provisioner
-subjects:
-  - kind: ServiceAccount
-    # 被绑定的用户名
-    name: nfs-client-provisioner
-    namespace: default
-roleRef:
-  kind: ClusterRole
-  # 绑定的角色名
-  name: nfs-client-provisioner-runner
-  apiGroup: rbac.authorization.k8s.io
----
-# 创建角色
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  # 角色名
-  name: leader-locking-nfs-client-provisioner
-  # 集群角色不需要名称空间，角色需要
-  namespace: default
-rules:
-  # 权限
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
----
-# 角色绑定
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: leader-locking-nfs-client-provisioner
-  namespace: default
-subjects:
-  - kind: ServiceAccount
-    # 被绑定的用户名
-    name: nfs-client-provisioner
-    namespace: default
-roleRef:
-  kind: Role
-  # 绑定的角色名
-  name: leader-locking-nfs-client-provisioner
-  apiGroup: rbac.authorization.k8s.io
-~~~
-
-
-
-##### 2、创建 SC
-
-~~~yaml
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "true"
-  name: nfs-storage
-# 制备器名称要与制备器的 yaml 文件中的环境变量 PROVISIONER_NAME 一致
-provisioner: nfs-provisioner
-volumeBindingMode: Immediate
-reclaimPolicy: Delete
-~~~
-
-
-
-##### 3、创建 Provisioner
-
-~~~yaml
-kind: Deployment
+# nginx-deployment-hpa-cpu.yaml
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: nfs-client-provisioner
+  name: nginx-deployment
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-      app: nfs-client-provisioner
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        app: nfs-client-provisioner
-    spec:
-      # 指定为上文创建的 SA
-      serviceAccountName: nfs-client-provisioner
-      containers:
-        - name: nfs-client-provisioner
-          # 指定镜像版本，在 1.26.1 的情况下 selflink 被关闭，需要新的 provisioner 解决
-          image: registry.cn-beijing.aliyuncs.com/mydlq/nfs-subdir-external-provisioner:v4.0.0
-          # 挂在数据卷到容器指定目录
-          volumeMounts:
-            - name: nfs-client-root
-              mountPath: /persistentvolumes
-          env:
-            - name: PROVISIONER_NAME
-              # 制备器名称，需要与 SC yaml 中的 provisioner 一致
-              value: nfs-provisioner
-            - name: NFS_SERVER
-              # NFS SERVER IP
-              value: 192.168.100.130
-            - name: NFS_PATH
-              # NFS SERVER 目录
-              value: /home/data
-      volumes:
-        - name: nfs-client-root
-          nfs:
-          	# NFS SERVER IP
-            server: 192.168.100.130
-            # NFS SERVER 目录
-            path: /home/data
-~~~
-
-
-
-##### 4、创建 Pod 验证
-
-~~~yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  ports:
-  - port: 80
-    name: web
-  clusterIP: None
-  selector:
-    app: nginx
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: web
-spec:
-  serviceName: "nginx"
-  replicas: 2
   selector:
     matchLabels:
       app: nginx
@@ -6321,464 +5410,2218 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx
+        image: nginx:1.23.4
         ports:
         - containerPort: 80
-          name: web
-        volumeMounts:
-        - name: www
-          mountPath: /usr/share/nginx/html
-  volumeClaimTemplates:
-  - metadata:
-      name: www
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "nfs-storage"  # 使用新建的sc
-      resources:
-        requests:
-          storage: 10Mi
+        resources:
+          requests:
+            cpu: 100m  # 必须设置 CPU 请求量才能计算利用率
+~~~
+
+部署 HAP
+
+~~~yaml
+# nginx-hpa-cpu.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+~~~
+
+查看 HPA 是否正确检测到 CPU 使用率
+
+~~~bash
+root@master:~# kubectl get hpa -A
+NAMESPACE   NAME        REFERENCE                     TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+default     nginx-hpa   Deployment/nginx-deployment   cpu: 0%/50%   1         5         1          19s
+~~~
+
+部署 service
+
+~~~yaml
+# nginx-service-hap-cpu.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx  # 必须与 Deployment 的 pod 标签匹配
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080 # 节点开放端口(可选)
+  type: NodePort  # 关键配置项
+~~~
+
+压力测试，可以看到测试时，HPA 数值明显变化，并且 Nginx 容器数量增加，在测掉压测之后，等待缩容冷却，观察到 Nginx 容器减少
+
+~~~bash
+kubectl run wrk --image=williamyeh/wrk -it --rm -- -t4 -c100 -d300s http://nginx-service/
+# 参数说明：
+# -t4: 使用4个线程
+# -c100: 保持100个连接
+# -d300s: 持续5分钟
+# nginx-service：service名称
 ~~~
 
 
 
-## 13、卷属性类
+#### 5、高级配置
+
+##### 1、最佳实践
+
+版本选择：
+
+- Kubernetes ≥1.23 使用 autoscaling/v2
+- 已废弃 autoscaling/v2beta1（v1.25+ 移除）
+
+监控建议：
+
+- 每个 HPA 监控单个工作负载
+- 多指标策略取最大值（CPU+QPS组合）
 
 
 
-# 11、Kubernetes Secret
+##### 2、自定义指标配置
 
-## 1、基本概念
+需要安装 Metrics Server + Prometheus + Adapter
 
-Secret 解决了密码、token、密钥等敏感数据的配置问题，不需要把这些敏感数据暴露到镜像或者 Pod Spec 中
+~~~bash
+# 使用 Helm 安装 Prometheus + Adapter
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install prometheus prometheus-community/kube-prometheus-stack
+~~~
 
-Secret 以 Volume 或者环境变量的方式使用
+~~~yaml
+# adapter-values.yaml
+prometheus:
+  url: http://prometheus-kube-prometheus-prometheus.monitoring.svc
+  port: 9090
 
-Secret 有三种类型：
+rules:
+  default: true
+  custom:
+  - seriesQuery: 'http_requests_total{namespace!="",pod!=""}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        pod: {resource: "pod"}
+    name:
+      matches: "^(.*)_total"
+      as: "${1}_per_second"
+    metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
+~~~
 
-- **Service Account**：
-  - 用来访问 Kubernetes API，由 Kubernetes 自动创建
-  - 自动挂载到 Pod 的 /run/secrets/kubernetes.io/serviceaccount 目录
-- **Opaque**：
-  - base64 编码格式的 Secret
-  - 用来存储密码、密钥等
-- **kubernetes.io/dockerconfigjson**：
-  - 用来存储私有 docker registry 的认证信息
+安装 Adapter
+
+~~~bash
+helm install prometheus-adapter prometheus-community/prometheus-adapter \
+  -n monitoring \
+  -f adapter-values.yaml
+~~~
+
+验证 Adapter
+
+~~~bash
+# 验证 Custom Metrics API
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1" | jq
+~~~
+
+
+
+### 2、Operator模式
+
+
+
+### 3、垃圾回收策略
+
+#### 1、概述
+
+**垃圾回收体系**包含两个独立机制：
+
+1. **kube-controller-manager** 通过 --terminated-pod-gc-threshold 参数定期清理超过阈值的 Succeeded/Failed Pod
+2. **Garbage Collector** 负责处理对象间的从属关系，删除无有效属主（Owner）的对象
+
+**主要清理目标**：
+
+- 无属主引用的孤立对象
+- 终止超过2小时的 Pod（默认阈值）
+- 已完成执行的 Job
+- 未绑定的 PersistentVolume（回收策略为Delete时）
+- 过期的 CertificateSigningRequest
+- 节点租约对象（云环境/特定插件场景）
 
 
 
 **注意**：
 
-- Secret 是命名空间级别的资源，不能跨命名空间共享
+- kube-controller-manager 通过 --terminated-pod-gc-threshold 参数控制终止 Pod 的清理阈值
 
 
 
-## 2、Service Account
+#### 2、属主关系模型
 
-~~~bash
-kubectl run nginx --image nginx
-# deployment "nginx" created
+##### 1、概述
 
-kubectl get pods
-# NAME READY STATUS RESTARTS AGE
-# nginx-3137573019-md1u2 1/1 Running 0 13s
+| 概念      | 说明                                                         | 标识字段                 |
+| --------- | ------------------------------------------------------------ | ------------------------ |
+| Owner     | 对其他对象具有管理责任的主体（如 Deployment 管理 ReplicaSet） | metadata.ownerReferences |
+| Dependent | 被拥有对象，生命周期与属主绑定（如 Pod 被 ReplicaSet 管理）  | 同左                     |
 
-kubectl exec nginx-3137573019-md1u2 ls
-# /run/secrets/kubernetes.io/serviceaccount
-# ca.crt
-# namespace
-# token
-~~~
+**实现规范**：
 
+- **自动关联**：ReplicaSet/DaemonSet/Job 等控制器自动为从属对象设置 ownerReferences（v1.8+）
+- **命名空间约束**：禁止跨命名空间的属主关系
+- **级联控制**：blockOwnerDeletion 字段控制从属对象是否阻止属主删除（v1.7+ 引入权限校验）
+- 集群级对象（如 PersistentVolume）的属主必须同为集群级对象
 
 
-## 3、Opaque Secret
 
-创建说明：Opaque 类型的数据是一个 map 类型，要求 value 是 base64 编码格式
-
-~~~bash
-# 转码到 base64
-echo -n "admin" | base64
-YWRtaW4=
-
-echo -n "1f2d1e2e67df" | base64
-MWYyZDFlMmU2N2Rm:
-~~~
+##### 2、关系特性
 
 ~~~yaml
-# 创建 secrets.yml
-apiVersion: v1
-kind: Secret
+# ReplicaSet 示例
+apiVersion: apps/v1
+kind: ReplicaSet
 metadata:
-	name: mysecret
-	type: Opaque
-	data:
-		password: MWYyZDFlMmU2N2Rm
-		username: YWRtaW4=
-~~~
-
-~~~yaml
-# 使用方法
-# 挂载到 volume
-apiVersion: v1
-kind: Pod
-metadata:
-	labels:
-		name: seret-test
-		name: seret-test
+  name: my-repset
 spec:
-	volumes:
-		- name: secrets
-	secret:
-		secretName: mysecret
-	containers:
-		-image: hub.atguigu.com/library/myapp:v1
-		name: db
-		volumeMounts:
-			- name: secrets
-			mountPath:"
-		readOnly: true
-
-# 导出到环境变量
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-	name: pod-deployment
-spec:
-	replicas: 2
-	template:
-		metadata:
-			labels:
-				app: pod-deployment
-		spec:
-			containers:
-				- name: pod-1
-				image: hub.atguigu.com/library/myapp:v1
-				ports:
-					- containerPort: 80
-				env:
-					- name: TEST_USER
-				valueFrom:
-					secretKeyRef:
-						name: mysecret
-						key: username
+  replicas: 3
+  selector:
+    matchLabels:
+      app: gc-demo
+  template:
+    metadata:
+      labels:
+        app: gc-demo
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
 ~~~
 
-
-
-## 4、dockerconfigjson
-
-使用 Kuberctl 创建 docker registry 认证的 secret
-
-~~~bash
-kubectl create secret \
-docker-registry myregistrykey \
---docker-server=DOCKER_REGISTRY_SERVER \
---docker-username=DOCKER_USER \
---docker-password=DOCKER_PASSWORD \
---docker-email=DOCKER_EMAIL \
-secret "myregistrykey" created .
-~~~
-
-在创建 Pod 的时候，通过 imagePullSecrets 来引用刚创建的 myregistrykey
+自动生成的 Pod ownerReferences：
 
 ~~~yaml
 apiVersion: v1
 kind: Pod
 metadata:
-	name: foo
-spec:
-    containers:
-        - name: foo
-        image: roc/awangyang:v1
-        imagePullSecrets:
-        	-name: myregistrykey
+  ownerReferences:
+  - apiVersion: apps/v1
+    controller: true
+    blockOwnerDeletion: true
+    kind: ReplicaSet
+    name: my-repset
+    uid: d9607e19-f88f-11e6-a518-42010a800195
 ~~~
+
+
+
+#### 3、级联删除策略
+
+##### 1、删除模式对比
+
+| 模式       | 特点                                               | API 可见性                        | 适用场景                             |
+| ---------- | -------------------------------------------------- | --------------------------------- | ------------------------------------ |
+| Foreground | 先删除从属对象，后删除属主对象；支持阻塞删除       | 属主保持可见直到从属对象全删除    | 需严格保证依赖清理                   |
+| Background | 立即删除属主对象，后台异步清理从属对象（默认策略） | 属主立即不可见                    | 默认模式，快速释放资源               |
+| Orphan     | 仅删除属主对象，保留从属对象，从属对象转为孤立状态 | 从属对象保留且移除ownerReferences | 需保留历史数据或手动管理从属对象场景 |
+
+
+
+##### 2、策略设置方法
+
+~~~bash
+# 前台删除
+kubectl delete rs/my-repset --cascade=foreground
+
+# 孤儿化删除
+kubectl delete rs/my-repset --cascade=orphan
+~~~
+
+
+
+**注意**：
+
+- Kubernetes 1.9+ 中 apps/v1 资源默认启用级联删除
+
+
+
+#### 4、容器与镜像回收
+
+##### 1、容器回收配置
+
+~~~yaml
+# /etc/kubernetes/kubelet-conf.yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+evictionHard:
+  memory.available: "500Mi"
+  nodefs.available: "10%"
+containerGarbageCollection:
+  minAge: 1h0m0s    # 容器最小存活时间
+  maxPerPodContainer: 3  # 每个 Pod 保留的最大死亡容器数
+  maxContainers: 100     # 节点最大保留容器数
+imageGarbageCollection:
+  highThresholdPercent: 85
+  lowThresholdPercent: 70
+~~~
+
+
+
+**回收策略参数**：
+
+| 参数               | 默认值 | 说明                          |
+| ------------------ | ------ | ----------------------------- |
+| MinAge             | 0s     | 容器最小存活时间              |
+| MaxPerPodContainer | 1      | 每个 Pod 保留的死亡容器数上限 |
+| MaxContainers      | -1     | 节点最大死亡容器数（无限制）  |
+
+
+
+##### 2、镜像回收机制
+
+触发条件：磁盘使用率超过 HighThresholdPercent（默认 85%）
+
+清理策略：LRU（最近最少使用）算法
+
+停止条件：磁盘使用率降至 LowThresholdPercent（默认 80%）
+
+
+
+# 8、Kubernetes Storage
+
+## 1、存储基础
+
+### 1、概述
+
+Kubernetes 通过**存储抽象模型**解决了容器化环境中数据持久化的需求，其核心机制包括：
+
+- **容器文件系统的临时性**：Pod 终止时，容器内的文件系统数据会丢失
+- **存储卷（Volume）**：作为 Pod 级别的持久化存储抽象，提供数据持久化支持
+- **存储供应模式**：通过静态或动态供应模式管理存储资源的生命周期
+
+这些机制共同确保了容器化应用在动态环境下的数据可用性
+
+
+
+### 2、核心矛盾与解决方案
+
+**容器存储局限性**：
+
+- **临时性存储**：容器文件系统的生命周期与 Pod 绑定，无法满足数据库、日志等持久化需求
+- **跨节点共享需求**：容器重启或迁移时，需确保数据在不同节点间保持可用
+
+**存储卷抽象模型**：
+
+~~~yaml
+# 典型 Volume 挂载示例
+# 存储卷通过与 Pod 绑定，提供持久化存储，并支持跨容器共享数据
+volumes:
+  - name: app-data
+    persistentVolumeClaim:
+      claimName: app-pvc
+~~~
+
+
+
+### 3、存储供应模式
+
+Kubernetes 支持两种存储供应模式：静态供应和动态供应
+
+| **对比维度**     | **静态供应**                                            | **动态供应**                                                 |
+| ---------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| **管理方式**     | 管理员手动创建 PersistentVolume (PV)                    | 通过 StorageClass 自动创建 PV，无需手动干预                  |
+| **适用场景**     | 存储资源固定且可预测的场景（如本地测试环境）            | 需要按需分配存储资源的场景（如云环境）                       |
+| **配置复杂度**   | 需手动定义 PV 和 PersistentVolumeClaim (PVC) 的匹配关系 | 通过 StorageClass 自动匹配，简化配置流程                     |
+| **灵活性**       | 灵活性较低，PV 需预先创建且容量固定                     | 灵活性高，PVC 可动态申请不同容量和类型的存储任务 _ Kubernetes.pdf |
+| **资源利用率**   | 可能因 PV 与 PVC 不匹配导致资源浪费                     | 按需分配，资源利用率更高                                     |
+| **维护成本**     | 需人工维护 PV 的生命周期（创建/删除）                   | 自动化管理 PV，维护成本低                                    |
+| **访问模式支持** | 需在 PV 中显式定义 accessModes（如 ReadWriteOnce）      | 通过 StorageClass 动态支持多种访问模式                       |
+| **存储类型支持** | 支持 hostPath、NFS 等                                   | 通常与云存储集成（如 GCE 持久盘、AWS EBS 等）                |
+| **典型配置示例** | 手动创建 PV 和 PVC，通过 selector 匹配                  | 定义 StorageClass，PVC 中指定 storageClassName 自动触发 PV 创建 |
+
+~~~mermaid
+graph LR
+A[存储供应模式] --> B[静态供应]
+A --> C[动态供应]
+B --> D[管理员手动创建PV]
+C --> E[StorageClass自动创建PV]
+~~~
+
+
+
+### 4、容器存储接口
+
+CSI（Container Storage Interface）是 Kubernetes 推荐的存储扩展机制，与传统的 In-Tree 插件相比，具有更高的灵活性
+
+| 特性     | In-Tree 插件                   | CSI 驱动                 |
+| -------- | ------------------------------ | ------------------------ |
+| 耦合度   | 与 Kubernetes 核心代码强耦合   | 独立进程，通过 gRPC 通信 |
+| 更新周期 | 依赖 Kubernetes 版本发布       | 独立升级                 |
+| 典型案例 | AWSElasticBlockStore（已弃用） | ebs.csi.aws.com          |
+
+
+
+### 5、存储拓扑
+
+存储拓扑（Storage Topology）通过延迟绑定机制优化存储与计算资源的匹配
+
+**延迟绑定机制**：
+
+~~~yaml
+# StorageClass 配置示例
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.kubernetes.io/zone
+    values: [us-central-1a, us-central-1b]
+~~~
+
+- **调度优化原理**：
+  1. 先调度 Pod 到合适节点
+  2. 根据节点拓扑信息创建存储卷
+  3. 避免存储与计算资源拓扑不匹配
+- **关键注意事项**：
+  - 禁止使用 `nodeName` 硬编码节点（会导致 PVC 永久 pending）
+  - 正确使用节点选择器：
+
+~~~yaml
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: kube-01
+~~~
+
+**拓扑感知场景**：
+
+| 场景类型     | 典型用例         | 优势体现             |
+| ------------ | ---------------- | -------------------- |
+| 本地 SSD     | 数据库热数据存储 | 避免跨节点网络延迟   |
+| 区域化云存储 | 跨可用区容灾部署 | 确保存储与计算同区域 |
+
+
+
+## 2、卷
+
+### 1、概述
+
+Kubernetes 卷（Volume）是 Pod 级别的存储抽象单元，用于解决容器文件系统的临时性问题，实现数据持久化和跨容器共享
+
+
+
+### 2、卷定义与特性
+
+~~~yaml
+# 卷定义基本结构（Pod 级别声明）
+volumes:
+- name: [卷名称]
+  [卷类型]: [类型参数]
+~~~
+
+**生命周期**：与 Pod 绑定（但部分类型如 PersistentVolume 可独立存在）
+
+**挂载粒度**：可被 Pod 内多个容器同时挂载（需注意文件锁机制）
+
+
+
+### 3、主要卷类型对比
+
+| 类型                  | 典型场景              | 生命周期     | 多节点支持 | 数据持久性 |
+| --------------------- | --------------------- | ------------ | ---------- | ---------- |
+| emptyDir              | 临时缓存/中间计算结果 | 随 Pod 删除  | 否         | 临时       |
+| hostPath              | 单节点开发调试        | 与节点共存亡 | 否         | 节点级持久 |
+| nfs                   | 跨节点共享存储        | 独立维护     | 是         | 持久       |
+| persistentVolumeClaim | 生产环境存储          | 独立维护     | 是         | 持久       |
+| configMap             | 配置注入              | 随对象更新   | 是         | 可更新     |
+
+
+
+### 4、卷与容器挂载
+
+#### 1、引用对应
+
+~~~yaml
+# volumeMounts 与 volumes 对应关系
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-demo
+spec:
+  containers:
+  - name: app
+    image: nginx
+    volumeMounts:
+    - name: html-data      # ← 对应 volumes 中的名称
+      mountPath: /usr/share/nginx/html
+  volumes:
+  - name: html-data        # ← 被 volumeMounts 引用的名称
+    hostPath:
+      path: /data/html
+      type: DirectoryOrCreate  # ← 自动创建目录
+~~~
+
+
+
+#### 2、路径对应
+
+**volumeMounts 核心字段**：
+
+~~~yaml
+volumeMounts:
+  - name: [卷名称]
+    mountPath: [容器内绝对路径]
+    readOnly: [bool]
+    subPath: [子路径]
+~~~
+
+**mountPath**：**必须使用绝对路径**（以 `/` 开头），否则会报错
+
+~~~yaml
+volumeMounts:
+  - name: log-volume
+    mountPath: /app/logs  # ✅ 正确
+    # mountPath: app/logs  # ❌ 错误（相对路径）
+~~~
+
+**subPath**：支持相对路径与绝对路径，但均相对于卷的根目录
+
+**使用场景**：
+
+- 挂载卷中的**单个文件**（避免覆盖整个目录）
+- 挂载卷中的**子目录**（实现多容器共享卷的不同部分）
+
+~~~yaml
+volumeMounts:
+  - name: config-volume
+    mountPath: /etc/nginx/nginx.conf
+    subPath: nginx.conf  # ✅ 相对路径（从卷根目录查找）
+    # subPath: /conf/nginx.conf  # ✅ 绝对路径（需卷中存在该路径）
+~~~
+
+**subPathExpr**：允许在 subPath 字段中使用环境变量展开，实现动态路径生成
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dynamic-path-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    env:
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    volumeMounts:
+    - name: data-volume
+      mountPath: /usr/share/nginx/html
+      subPathExpr: $(POD_NAME)/html # 使用 $(VAR_NAME) 语法，不是 ${VAR_NAME}
+  volumes:
+  - name: data-volume
+    hostPath:
+      path: /mnt/data
+      type: DirectoryOrCreate
+~~~
+
+变量支持以下来源：
+
+- Pod 级别的环境变量
+- Container 级别的环境变量
+- Downward API 注入的元数据
+
+使用场景：
+
+- **多租户隔离**：为每个 Pod 创建独立存储目录
+- **环境区分**：根据部署环境动态选择配置路径
+- **版本控制**：结合 CI/CD 流水线实现版本化配置：
+
+
+
+#### 3、挂载传播
+
+##### 1、概述
+
+挂载传播主要用于需要动态共享挂载点的场景（如日志收集、存储插件），其决定了：
+
+1. **主机上的挂载操作**是否能传播到容器内部
+2. **容器内的挂载操作**是否能反向传播到主机或其他容器
+
+~~~yaml
+volumeMounts:
+- name: shared-vol
+  mountPath: /data
+  mountPropagation: Bidirectional  # 控制传播模式的关键字段
+~~~
+
+挂载传播（Mount Propagation）控制容器卷挂载事件的可见性范围，包括：
+
+- 主机 ➔ 容器
+- 容器 ➔ 主机
+- 容器 ➔ 其他容器/Pod
+
+
+
+**注意**：
+
+- 不建议使用，建议 Volume 共享代替挂载传播
+
+
+
+##### 2、传播模式
+
+| 模式                | 方向                   | 可见范围             | 特权要求   |
+| ------------------- | ---------------------- | -------------------- | ---------- |
+| **None**(默认)      | 无传播                 | 仅初始挂载内容可见   | 无         |
+| **HostToContainer** | 主机 → 容器            | 主机新挂载对容器可见 | 无         |
+| **Bidirectional**   | 主机 ↔ 容器 ↔ 其他 Pod | 双向同步所有挂载事件 | 需特权容器 |
+
+**None 模式**：
+
+- 行为特征：
+  - 容器启动时的初始挂载状态被冻结
+  - 无法感知后续主机或其他容器的挂载变化
+  - 容器内创建的挂载不会传播到主机
+
+**HostToContainer 模式**：
+
+- 行为特征：
+  - 实时接收主机在该卷上的新挂载
+  - 容器自身挂载不会反向传播到主机
+  - 同一节点其他 Bidirectional Pod 的挂载也会同步
+
+**Bidirectional 模式**：
+
+- 行为特征：
+  - 具备 HostToContainer 的所有特性
+  - 容器内的挂载操作会实时同步到主机
+  - 所有使用同一卷的 Pod 都会收到传播事件
+- 安全限制：
+  - 必须设置 privileged: true
+  - 建议配合 PodSecurityPolicy 限制使用
+  - 禁止在不可信 Pod 中使用
+
+~~~yaml
+securityContext:
+  privileged: true  # Bidirectional 必须启用特权模式
+~~~
+
+~~~yaml
+# 在容器内执行（将影响整个节点）
+mount /dev/sdb1 /data/shared-vol
+~~~
+
+
+
+### 5、卷类型详解
+
+#### 1、emptyDir
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: empty-dir-demo
+spec:
+  containers:
+  - name: app-container
+    image: nginx:alpine
+    volumeMounts:
+    - name: cache-storage      # 卷名称，需与 volumes 部分对应
+      mountPath: /app/cache    # 容器内的挂载路径
+  volumes:
+  - name: cache-storage        # 卷名称标识符
+    emptyDir:                  # 声明 emptyDir 卷类型
+      medium: "Memory"         # 可选参数，使用内存(tmpfs)作为存储介质 [0]
+      sizeLimit: 500Mi         # 可选参数，限制卷容量（默认无限制）[0]
+~~~
+
+**使用场景**：
+
+- 容器间共享临时文件
+- 作为磁盘缓存加速应用
+
+**生命周期**：Pod 删除时自动清理
+
+**启用 SizeMemoryBackedVolumes 特性时**：
+
+- 允许为基于内存的卷（如 emptyDir.medium: Memory）显式指定 sizeLimit
+- 若未指定 sizeLimit，卷的默认大小**不是直接等于节点可分配内存**，而是取以下两者的**较小值**：
+  - 节点可分配内存的 50%
+  - 特定内存阈值（例如 1GiB，具体值取决于 Kubernetes 版本）
+
+
+
+#### 2、hostPath
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostpath-demo
+spec:
+  nodeSelector:  # 指定节点
+    kubernetes.io/hostname: worker-node-01
+  containers:
+  - name: app
+    image: alpine
+    command: ["sh", "-c", "tail -f /dev/null"]
+    volumeMounts:
+    - name: host-data
+      mountPath: /host-data
+      readOnly: true  # 建议设置为只读
+  volumes:
+  - name: host-data
+    hostPath:
+      path: /var/log/containers
+      type: Directory  # 严格要求目录存在
+~~~
+
+**限制条件**：
+
+- 仅适用于单节点开发测试环境
+- 不支持 SELinux 重新打标签
+- 路径需预先存在（或使用 DirectoryOrCreate 类型）
+
+**type 可选值**：
+
+| 类型值            | 行为描述                                                |
+| ----------------- | ------------------------------------------------------- |
+| "" (默认)         | 不执行任何检查，路径必须预先存在                        |
+| Directory         | 必须存在目录，否则 Pod 启动失败                         |
+| DirectoryOrCreate | 如果目录不存在则自动创建（权限 0755，属主为 kubelet）   |
+| File              | 必须存在常规文件，否则 Pod 启动失败                     |
+| FileOrCreate      | 如果文件不存在则创建空文件（权限 0644，属主为 kubelet） |
+| Socket            | 必须存在 UNIX 套接字文件                                |
+| CharDevice        | 必须存在字符设备文件                                    |
+| BlockDevice       | 必须存在块设备文件                                      |
+
+
+
+**注意**：
+
+- hostPath.path，宿主机路径必须为绝对路径，且需确保路径存在
+- 始终设置 type 字段（推荐 DirectoryOrCreate/FileOrCreate）
+- 结合 Pod 安全策略（PodSecurityPolicy）限制 hostPath 使用
+
+
+
+#### 3、NFS
+
+需要先安装 nfs server
+
+~~~bash
+apt-get install nfs-kernel-server rpcbind -y
+~~~
+
+~~~bash
+# 所有节点都要创建该目录
+mkdir -p /home/data
+
+# 主节点开放
+echo "/home/data *(insecure,rw,sync,no_root_squash)" > /etc/exports
+
+# 主节点重启服务
+systemctl restart nfs-server
+
+# 从节点挂载
+mount [nfs server ip]:/home/data /home/data
+
+# 开机自动挂载
+vim /etc/rc.d/rc.local
+mount [nfs server ip]:/home/data /home/data
+~~~
+
+~~~yaml
+volumes:
+- name: shared-data
+  nfs:
+    server: 10.0.0.5
+    path: /exports/data
+    readOnly: false
+~~~
+
+**特点**：支持跨节点共享，适用于分布式存储需求
+
+
+
+#### 4、iSCSI
+
+**特性**：
+
+- **持久性**：删除 Pod 时仅卸载卷，数据保留在 iSCSI 目标服务器
+- **共享访问**：
+  - 支持 ReadOnlyMany：多个 Pod 可同时以只读模式挂载
+  - 支持 ReadWriteOnce：单 Pod 独占读写模式（不可同时写入）
+- **预填充数据**：支持在挂载前预先写入数据，适用于共享配置场景
+
+**使用要求**：
+
+1. **必须预先配置**：
+   - iSCSI 目标服务器（如使用 LIO Target、StarWind 等）
+   - 在目标服务器创建 LUN（逻辑单元号）
+   - 确保 Kubernetes 节点已安装 open-iscsi 工具包
+2. **网络配置**：
+   - 节点与 iSCSI 目标服务器间需开放 3260/tcp 端口
+   - 建议使用专用存储网络（如 iSCSI VLAN）
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iscsi-pod
+spec:
+  containers:
+  - name: iscsi-app
+    image: nginx
+    volumeMounts:
+    - name: iscsi-vol
+      mountPath: /data
+  volumes:
+  - name: iscsi-vol
+    iscsi:
+      targetPortal: 192.168.0.100:3260
+      iqn: iqn.2023-08.com.example:storage.target
+      lun: 0
+      fsType: ext4
+      readOnly: true  # 设置为只读模式
+```
+
+
+
+**注意**：
+
+- **并发写入限制**：iSCSI 协议本身不支持多节点并发写入，需依赖上层应用或文件系统（如 GFS2）实现
+- **动态供应**：Kubernetes 原生不支持 iSCSI 动态卷供应，需配合外部 provisioner（如 Rook）
+- **CHAP 认证**：可通过 chapAuthDiscovery 和 chapAuthSession 字段配置认证
+
+
+
+#### 5、Local
+
+**核心特性**：
+
+- **节点绑定**：通过 nodeAffinity 实现 PV 与节点的强绑定
+- **静态配置**：需管理员手动创建 PV（不支持动态供应）
+- **延迟绑定**：通过 WaitForFirstConsumer 模式实现智能调度
+
+**回收策略**：
+
+- Delete：自动删除 PV 和节点数据（需 local-volume-provisioner）
+- Retain：手动清理（推荐生产环境使用）
+
+**与 hostPath 的关键区别**：
+
+| 特性     | Local 卷                      | HostPath 卷             |
+| -------- | ----------------------------- | ----------------------- |
+| 调度方式 | 通过 PV nodeAffinity 自动调度 | 需手动指定 nodeSelector |
+| 持久性   | 独立于 Pod 生命周期           | 依赖 Pod 调度节点       |
+| 安全控制 | 支持 PV 配额管理              | 无内置配额机制          |
+| 适用场景 | 生产环境本地存储              | 开发/调试用途           |
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-ssd
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+```
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: node1-ssd
+spec:
+  capacity:
+    storage: 500Gi  # 实际容量自动检测
+  storageClassName: local-ssd
+  local:
+    path: /mnt/ssd/vol1  # 需预先创建目录
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: [ "zone-a" ]  # 推荐使用拓扑域而非直接节点名
+        - key: kubernetes.io/hostname
+          operator: In
+          values: [ "node1" ]
+  persistentVolumeReclaimPolicy: Retain  # 生产环境建议 Retain
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-claim
+spec:
+  storageClassName: local-ssd
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 480Gi  # 需小于 PV 容量
+~~~
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: local-storage-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    volumeMounts:
+    - name: local-vol
+      mountPath: /data
+  volumes:
+  - name: local-vol
+    persistentVolumeClaim:
+      claimName: local-claim
+~~~
+
+
+
+**注意**：
+
+- **容量管理**：
+  - 实际可用空间 = min(PV capacity, PVC request)
+  - 建议 PV 容量设置比物理磁盘小 5-10%（预留缓冲）
+- **最佳实践**：
+  - 使用拓扑约束而非直接节点名（如 topology.kubernetes.io/zone）
+  - 配合 local-volume-provisioner 实现自动清理
+  - 定期监控节点本地存储使用情况
+
+
+
+### 6、生命周期管理
+
+#### 1、卷与 Pod 的关系
+
+~~~mermaid
+graph LR
+  Pod创建 --> Pod运行
+  卷创建  --> Pod创建
+  卷挂载 --> Pod运行
+  Pod运行 --> Pod删除
+  Pod删除 --> 卷清理
+~~~
+
+
+
+#### 2、回收策略对照
+
+| 卷类型   | 默认回收策略  | 可配置性                |
+| -------- | ------------- | ----------------------- |
+| emptyDir | 自动删除      | 不可更改                |
+| hostPath | 保留数据      | 不可更改                |
+| PV/PVC   | Retain/Delete | 通过 Storage Class 配置 |
+
+
+
+## 3、卷分类
+
+### 1、持久卷
+
+#### 1、概述
+
+持久卷（PersistentVolume, PV）是集群级别的存储资源，由管理员预先制备或通过存储类动态制备，独立于 Pod 生命周期存在
+
+**核心特性**：
+
+| 特性     | 普通卷（如 emptyDir） | 持久卷（PV）               |
+| -------- | --------------------- | -------------------------- |
+| 生命周期 | 与 Pod 绑定           | 独立于 Pod，可重复绑定     |
+| 管理方式 | 用户直接定义          | 集群管理员或存储类动态管理 |
+| 存储类型 | 临时存储（内存/磁盘） | 持久化存储（云盘/NFS等）   |
+
+
+
+#### 2、生命周期
+
+~~~mermaid
+graph LR
+    A[供应 Provisioning] --> B[绑定 Binding]
+    B --> C[使用 Using]
+    C --> D[释放 Releasing]
+    D --> E[回收 Reclaiming]
+~~~
+
+
+
+#### 3、状态转换
+
+**PersistentVolume 状态机**
+
+| 状态          | 描述                                   | 触发条件                                                    |
+| ------------- | -------------------------------------- | ----------------------------------------------------------- |
+| **Available** | PV 已创建且未绑定到任何 PVC            | PV 刚被创建或从 Released 状态清理后重新可用                 |
+| **Bound**     | PV 已与某个 PVC 绑定                   | PVC 通过匹配 storageClassName/容量/访问模式等条件成功绑定   |
+| **Released**  | 绑定的 PVC 被删除，PV 进入回收等待状态 | PVC 被删除且 PV 的回收策略为 Retain 或 Recycle              |
+| **Failed**    | 自动回收过程中出现错误                 | 回收策略为 Delete 时删除失败，或 Recycle 策略下数据清理失败 |
+
+**PersistentVolumeClaim 状态机**
+
+| 状态        | 描述                               | 触发条件                                               |
+| ----------- | ---------------------------------- | ------------------------------------------------------ |
+| **Pending** | PVC 等待匹配 PV 或等待动态制备完成 | 新建 PVC 时无可用 PV，或 StorageClass 动态制备尚未完成 |
+| **Bound**   | PVC 已成功绑定到 PV                | 找到匹配的 PV 或动态制备成功                           |
+| **Lost**    | 绑定的 PV 被意外删除且无法恢复     | 管理员手动删除 PV 或存储后端故障导致 PV 不可用         |
+
+
+
+~~~mermaid
+stateDiagram-v2
+    [*] --> Available
+    Available --> Bound: PVC 绑定
+    Bound --> Released: PVC 删除
+    Released --> Available: 管理员重置
+    Released --> Failed: 自动回收失败
+    Bound --> Failed: 存储系统异常
+    Failed --> Available: 手动修复后
+~~~
+
+
+
+#### 4、资源定义
+
+~~~yaml
+apiVersion: v1  
+kind: PersistentVolume  
+metadata:  
+  name: pv-example  
+spec:  
+  capacity:  
+    storage: 10Gi  
+  accessModes:  
+    - ReadWriteOnce  
+  persistentVolumeReclaimPolicy: Retain  
+  storageClassName: manual  
+  hostPath:  
+    path: /mnt/data  
+~~~
+
+| 访问模式                | 描述                                 | 支持的存储类型示例                                           | 适用场景                                       | 注意事项                                                     |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------- | ------------------------------------------------------------ |
+| **ReadWriteOnce (RWO)** | 卷可被**单个节点**以**读写**方式挂载 | - 本地存储（hostPath）<br>- AWS EBS<br>- GCP PD<br>- Azure Disk | 数据库（MySQL、PostgreSQL）<br>单 Pod 日志存储 | 同一节点多个 Pod 可同时挂载，需应用层处理并发写入，跨节点挂载会触发错误 |
+| **ReadOnlyMany (ROX)**  | 卷可被**多个节点**以**只读**方式挂载 | - NFS<br>- CephFS<br>- GlusterFS                             | 配置文件分发<br>只读数据集共享                 | 写入操作会导致挂载错误                                       |
+| **ReadWriteMany (RWX)** | 卷可被**多个节点**以**读写**方式挂载 | - NFS<br>- CephFS<br>- Azure File                            | 共享日志系统<br>多 Pod 协作处理                | 需文件系统支持并发写入（如 NFS v4+）                         |
+
+| 存储类型   | RWO  | ROX  | RWX  | 备注                       |
+| ---------- | ---- | ---- | ---- | -------------------------- |
+| AWS EBS    | ✅    | ❌    | ❌    | 单 AZ 绑定                 |
+| Azure Disk | ✅    | ❌    | ❌    | 需 Premium SSD 才支持 RWO  |
+| GCP PD     | ✅    | ❌    | ❌    | 区域持久磁盘支持多节点 RWO |
+| NFS        | ✅    | ✅    | ✅    | 需配置`no_root_squash`     |
+| CephFS     | ✅    | ✅    | ✅    | 需启用 MDS 集群            |
+| HostPath   | ✅    | ❌    | ❌    | 仅限单节点集群             |
+| Portworx   | ✅    | ✅    | ✅    | 支持跨云卷                 |
+
+
+
+#### 5、回收策略
+
+##### 1、Retain（保留）
+
+**行为**：PVC 删除后，PV 状态变为 Released，**保留 PV 对象和数据**，需手动清理
+
+- 管理员需执行两步操作：
+  1. 手动删除 PV 对象：kubectl delete pv \<pv-name>
+  2. 清理底层存储数据（如云磁盘、NFS 目录等）
+
+**适用场景**：
+
+- 生产环境关键数据
+- 需要审计或备份的场景
+
+
+
+##### 2、Delete（删除）
+
+**行为**：PVC 删除后，**自动删除 PV 对象和底层存储资源**
+
+- 云平台存储（如 AWS EBS、GCP PD）会被销毁
+- 本地存储（hostPath）仅删除 PV 对象，不清理数据
+
+**风险**：
+
+- 数据不可恢复
+- 依赖存储插件的正确实现
+
+**适用场景**：
+
+- 临时测试环境
+- 自动生成的临时数据
+
+
+
+##### 3、Recycle（已废弃）
+
+Kubernetes 1.15+ 已废弃
+
+**历史行为**：擦除卷数据（执行 rm -rf /volume/*），将 PV 状态重置为 Available
+
+**替代方案**：使用动态供应配合存储插件的清理逻辑
+
+
+
+**注意**：
+
+- **PV 回收策略不适用于动态供应的卷**，动态卷的生命周期由 StorageClass 的 reclaimPolicy 字段控制
+
+
+
+#### 6. 持久卷声明
+
+##### 1、概述
+
+PVC 是用户对存储资源的请求，通过声明存储需求（容量、访问模式等）与 PV 绑定
+
+
+
+##### 2、绑定流程
+
+~~~mermaid
+graph TD  
+    User[用户创建PVC] --> PVC[PVC待绑定]  
+    PVC -->|匹配条件| PV[可用PV]  
+    PV --> Bound[绑定成功]  
+    PV -.若无可用PV.-> StorageClass[触发动态制备]  
+~~~
+
+
+
+##### 3、资源定义
+
+~~~yaml
+apiVersion: v1  
+kind: PersistentVolumeClaim  
+metadata:  
+  name: pvc-example  
+spec:  
+  accessModes:  
+    - ReadWriteOnce  
+  resources:  
+    requests:  
+      storage: 5Gi  
+  storageClassName: manual  
+~~~
+
+
+
+#### 7、高级配置
+
+##### 1、预留 PV
+
+通过 PV 的 claimRef 字段实现静态绑定，建立 PV 与 PVC 的独占式关联，该机制会绕过常规的自动绑定流程，直接建立预定义的绑定关系
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: foo-pv
+spec:
+  capacity:
+    storage: 5Gi
+  storageClassName: ""  # 必须显式设置为空字符串
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    name: foo-pvc       # 目标 PVC 名称
+    namespace: foo      # 必须与 PVC 同命名空间
+    uid: 12345-xxxx    # 可选但推荐（防止 PVC 重建后误绑定）
+  hostPath:
+    path: /mnt/data
+~~~
+
+**绑定条件验证**，控制平面会检查以下**硬性条件**：
+
+1. **存储类匹配**：
+   - PV 的 storageClassName 必须与 PVC 的 storageClassName 完全一致
+   - 显式设置为空字符串时，表示禁用 StorageClass 匹配
+2. **访问模式兼容**：
+   - PVC 请求的访问模式必须是 PV 支持模式的子集，（例如 PV 支持 RWO，PVC 必须请求 RWO）
+3. **容量满足**：
+   - PVC 请求的容量 ≤ PV 的容量
+
+**忽略的条件**：
+
+- 节点亲和性（Node Affinity）
+- 区域/可用区标签（Topology Constraints）
+- 其他动态调度相关属性
+
+
+
+##### 2、扩容 PVC
+
+**前置条件验证**：
+
+~~~yaml
+# 检查 StorageClass 是否允许扩容
+kubectl get sc example-vol-default -o jsonpath='{.allowVolumeExpansion}'
+# 输出应为 true
+
+# 确认存储后端支持在线扩容（以 Ceph RBD 为例）
+kubectl describe sc example-vol-default | grep provisioner
+# 确认 CSI 驱动支持 CONTROLLER_EXPAND_VOLUME 能力
+~~~
+
+~~~yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: example-vol-default
+provisioner: vendor-name.example/magicstorage  # CSI 驱动名称
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: resize-secret  # CSI 扩展凭证
+  csi.storage.k8s.io/controller-expand-secret-namespace: default
+allowVolumeExpansion: true  # 必须设置为 true
+volumeBindingMode: WaitForFirstConsumer  # 推荐用于本地存储
+~~~
+
+**执行 PVC 扩容**：
+
+~~~bash
+# 编辑 PVC 定义
+kubectl edit pvc my-pvc
+~~~
+
+修改 spec.resources.requests.storage 字段：
+
+~~~yaml
+spec:
+  resources:
+    requests:
+      storage: 50Gi  # 从 30Gi 调整为 50Gi
+~~~
+
+**不同卷类型处理差异**：
+
+| 卷类型 | 扩容要求                          | 文件系统操作                                                 |
+| ------ | --------------------------------- | ------------------------------------------------------------ |
+| CSI    | 支持在线扩容（Pod 无需重启）      | 自动处理（需 CSI 驱动支持 NodeExpand）                       |
+| RBD    | 需卸载卷（停止使用该 PVC 的 Pod） | 手动执行：<br>1.kubectl exec -it \<pod> -- resize2fs /dev/\<device> |
+| 块设备 | 需在容器内手动扩展文件系统        | 依赖应用层处理                                               |
+
+**扩容状态验证**：
+
+~~~bash
+# 查看 PVC 状态
+kubectl get pvc my-pvc -w
+# 期望状态：
+# NAME    STATUS   VOLUME  CAPACITY   ACCESS MODES
+# my-pvc  Bound    pvc-xxx 50Gi       RWO
+
+# 查看存储系统事件
+kubectl describe pvc my-pvc | grep -A 10 Events
+# 正常事件流：
+# Normal Resizing        5s   external-resizer vendor-name.example/magicstorage  External resizer is resizing volume pvc-xxx
+# Normal FileSystemResizeRequired  3s   external-resizer vendor-name.example/magicstorage  Require file system resize of volume on node
+# Normal FileSystemResizeSuccessful 1s  kubelet  MountVolume.NodeExpandVolume  Filesystem resize successful
+~~~
+
+
+
+**注意**：
+
+- 切勿直接干预 PV，容易照成容量不一致
+- **RBD 卷扩容后需在容器内执行文件系统扩展操作**，而 CSI 卷的自动化程度取决于具体驱动实现
+
+
+
+### 2. 存储类
+
+#### 1、概述
+
+存储类（StorageClass）定义动态卷制备的模板，允许按需创建 PV，是动态存储管理的核心组件
+
+
+
+#### 2、资源定义
+
+~~~yaml
+apiVersion: storage.k8s.io/v1  
+kind: StorageClass  
+metadata:  
+  name: fast-ssd  
+provisioner: kubernetes.io/aws-ebs  # 存储驱动类型  
+parameters:  
+  type: gp3  
+  fsType: ext4  
+volumeBindingMode: WaitForFirstConsumer  # 延迟绑定策略
+reclaimPolicy: Delete  
+~~~
+
+**关键配置说明**：
+
+- **volumeBindingMode**：
+  - Immediate：立即绑定（可能导致调度冲突）
+  - WaitForFirstConsumer：延迟到 Pod 调度后绑定（推荐）
+
+
+
+#### 3. 动态卷制备
+
+##### 1、工作原理
+
+~~~mermaid
+sequenceDiagram  
+    User->>+API Server: 创建 PVC  
+    API Server->>+StorageClass: 检查 Provisioner  
+    StorageClass->>+Provisioner: 调用存储插件  
+    Provisioner->>+Cloud Provider: 创建存储资源  
+    Cloud Provider-->>-Provisioner: 返回存储信息  
+    Provisioner-->>-API Server: 自动创建 PV  
+    API Server->>+PVC: 绑定 PV  
+~~~
+
+
+
+##### 2、操作实践
+
+**定义 StorageClass**：
+
+~~~yaml
+apiVersion: storage.k8s.io/v1  
+kind: StorageClass  
+metadata:  
+  name: dynamic-sc  
+provisioner: ebs.csi.aws.com  
+volumeBindingMode: WaitForFirstConsumer  
+~~~
+
+**用户创建 PVC**：
+
+~~~yaml
+apiVersion: v1  
+kind: PersistentVolumeClaim  
+metadata:  
+  name: dynamic-pvc  
+spec:  
+  accessModes: [ReadWriteOnce]  
+  resources:  
+    requests:  
+      storage: 20Gi  
+  storageClassName: dynamic-sc  
+~~~
+
+
+
+### 4. 投射卷
+
+#### 1、概述
+
+投射卷允许将多个配置源（ConfigMap/Secret/downwardAPI）合并挂载到同一目录
+
+
+
+#### 2、操作实践
+
+##### 1、多源投射
+
+~~~yaml
+volumes:  
+- name: projected-vol  
+  projected:  
+    sources:  
+    - configMap:  
+        name: app-config  
+    - secret:  
+        name: db-secret  
+    - downwardAPI:  
+        items:  
+          - path: "labels"  
+            fieldRef:  
+              fieldPath: metadata.labels  
+~~~
+
+
+
+#### 3、downwardAPI 卷
+
+**功能**：将 Pod/容器的元数据（如标签、注解）以文件形式投射到容器内
+
+~~~yaml
+volumes:  
+- name: podinfo  
+  downwardAPI:  
+    items:  
+      - path: "annotations"  
+        fieldRef:  
+          fieldPath: metadata.annotations  
+~~~
+
+
+
+### 5. 临时卷
+
+#### 1、概述
+
+**分类与特性**：
+
+| 类型         | 通用临时卷（Generic） | CSI 临时卷              |
+| ------------ | --------------------- | ----------------------- |
+| **依赖组件** | Kubernetes 原生支持   | 需要 CSI 驱动           |
+| **存储后端** | 本地存储或网络存储    | 由 CSI 驱动决定         |
+| **典型用例** | 临时日志存储          | 加密临时卷/特殊硬件加速 |
+
+
+
+#### 2、生命周期
+
+~~~mermaid
+graph TD  
+    Pod创建 --> 卷创建  
+    Pod运行 --> 数据写入  
+    Pod删除 --> 卷销毁  
+~~~
+
+
+
+#### 3、资源定义
+
+~~~yaml
+apiVersion: v1  
+kind: Pod  
+metadata:  
+  name: ephemeral-demo  
+spec:  
+  containers:  
+  - name: app  
+    image: nginx  
+    volumeMounts:  
+    - name: temp-data  
+      mountPath: /scratch  
+  volumes:  
+  - name: temp-data  
+    ephemeral:  
+      volumeClaimTemplate:  
+        spec:  
+          accessModes: [ReadWriteOnce]  
+          resources:  
+            requests:  
+              storage: 1Gi  
+~~~
+
+
+
+## 4、数据备份
+
+### 1. 卷快照
+
+#### 1、概述
+
+卷快照（Volume Snapshot）是 Kubernetes 中用于捕获存储卷时间点状态的资源，提供数据备份与恢复能力
+
+**核心功能**：
+
+- **数据保护**：创建应用一致性快照
+- **快速恢复**：从快照回滚或创建新卷
+- **跨卷复制**：支持跨区域/集群数据迁移
+
+**操作流程**：
+
+~~~mermaid
+graph LR  
+    PVC[创建源PVC] -->|写入数据| App  
+    App -->|触发备份| Snapshot[创建VolumeSnapshot]  
+    Snapshot -->|存储元数据| SnapshotContent  
+    SnapshotContent -->|关联存储系统| CloudStorage  
+~~~
+
+
+
+#### 2、操作实践
+
+**创建快照**
+
+~~~yaml
+# db-snapshot.yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: db-daily-snapshot
+spec:
+  volumeSnapshotClassName: csi-ebs-snapclass  # 必须引用已存在的 Volume Snapshot Class
+  source:
+    persistentVolumeClaimName: db-pvc         # 源 PVC 必须处于 Bound 状态
+~~~
+
+**关键命令**：
+
+~~~bash
+# 检查快照内容  
+kubectl describe volumesnapshotcontent <snapshot-content-name>  
+~~~
+
+~~~bash
+# 查看快照状态
+kubectl get volumesnapshot db-daily-snapshot -o wide
+
+# 输出示例
+NAME                READYTOUSE   SOURCEPVC   SOURCESNAPSHOTCONTENT   RESTORESIZE   SNAPSHOTCLASS       AGE
+db-daily-snapshot   true         db-pvc                              10Gi         csi-ebs-snapclass   2m
+
+# 查看快照内容（自动生成的 Volume Snapshot Content）
+kubectl describe volumesnapshotcontent <auto-generated-name>
+~~~
+
+
+
+
+
+#### 3. 卷快照类
+
+##### 1、概述
+
+卷快照类（Volume Snapshot Class）定义快照创建参数模板，控制存储系统特定的快照行为
+
+
+
+##### 2、资源定义
+
+~~~yaml
+# csi-snapshot-class.yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-ebs-snapclass
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"  # 设为默认类（可选）
+driver: ebs.csi.aws.com       # 必须与 CSI 驱动名称匹配
+deletionPolicy: Delete        # 快照删除策略（Delete/Retain）
+parameters:
+  tagKey: backup              # 存储系统特定参数（例如 AWS 标签）
+  tagValue: daily
+~~~
+
+
+
+##### 3、策略对比
+
+| 策略         | Delete                     | Retain               |
+| ------------ | -------------------------- | -------------------- |
+| **快照删除** | 自动删除快照及存储系统数据 | 保留快照，需手动清理 |
+| **适用场景** | 自动化流水线               | 关键数据长期保留     |
+
+
+
+#### 4、概念对比
+
+| **组件**                  | **类比对象**            | **核心作用**                                             | **依赖关系**                                      |
+| ------------------------- | ----------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+| **Volume Snapshot Class** | Storage Class           | 定义快照的存储系统参数（如快照保留策略、增量快照配置等） | 必须与 CSI 驱动匹配，由管理员预先定义             |
+| **Volume Snapshot**       | Persistent Volume Claim | 用户对快照的请求，声明需要从哪个 PVC 创建快照            | 必须引用 Volume Snapshot Class 来指定存储后端参数 |
+
+**关系总结**：
+
+- **卷快照类**是模板，定义**如何创建快照**（例如使用 AWS EBS 的快照功能）
+- **卷快照**是用户请求，定义**从哪个 PVC 创建快照**，并关联到卷快照类
+
+
+
+### 2. CSI 卷克隆
+
+#### 1、概述
+
+CSI 卷克隆（CSI Volume Cloning）允许基于现有 PVC 快速创建新卷，实现数据零拷贝复制
+
+
+
+#### 2、克隆机制
+
+~~~mermaid
+sequenceDiagram  
+    User->>+API Server: 创建目标PVC  
+    API Server->>+CSI Driver: 检查克隆能力  
+    CSI Driver->>+Storage System: 创建卷克隆  
+    Storage System-->>-CSI Driver: 返回克隆卷ID  
+    CSI Driver-->>-API Server: 绑定新PVC  
+~~~
+
+
+
+#### 3、资源定义
+
+~~~yaml
+apiVersion: v1  
+kind: PersistentVolumeClaim  
+metadata:  
+  name: cloned-pvc  
+spec:  
+  storageClassName: cloned-sc  
+  dataSource:  
+    name: source-pvc  # 源 PVC 必须存在  
+    kind: PersistentVolumeClaim  
+  accessModes:  
+    - ReadWriteOnce  
+  resources:  
+    requests:  
+      storage: 10Gi  
+~~~
+
+**限制条件**：
+
+- 源 PVC 必须处于 Bound 状态
+- 目标 StorageClass 必须支持克隆
+- 存储后端需实现 CSI 克隆接口
+
+
+
+## 5、数据限制
+
+### 1. 存储容量
+
+#### 1、概述
+
+Kubernetes 通过资源配额（ResourceQuota）和存储容量规划机制，确保集群存储资源的合理分配与使用
+
+
+
+#### 2、资源定义
+
+~~~yaml
+apiVersion: v1  
+kind: ResourceQuota  
+metadata:  
+  name: storage-quota  
+spec:  
+  hard:  
+    persistentvolumeclaims: "10"          # 允许的 PVC 数量上限  
+    requests.storage: "5Ti"               # 累计存储请求总量  
+    <storage-class>.storageclass.storage.k8s.io/requests.storage: "2Ti"  # 按存储类限制  
+~~~
+
+**关键参数**：
+
+- persistentvolumeclaims：命名空间内 PVC 总数限制
+- requests.storage：所有 PVC 的存储需求总和
+- 存储类级配额：针对特定存储类（如 fast-ssd）的容量限制
+
+
+
+#### 3、容量监控
+
+~~~yaml
+# 查看命名空间存储使用情况  
+kubectl get resourcequota -n <namespace>  
+
+# 输出示例  
+NAME            AGE   REQUEST                                      LIMIT  
+storage-quota   2d    persistentvolumeclaims: 3/10, requests.storage: 1.2Ti/5Ti  
+~~~
+
+
+
+**Prometheus + Grafana**：
+
+监控指标示例：
+
+- kube_persistentvolumeclaim_resource_requests_storage_bytes
+- kube_resourcequota{resource="persistentvolumeclaims"}
+
+
+
+### 2. 特定于节点的卷数限制
+
+#### 1、概述
+
+Kubernetes （Node-Specific Volume Limits）根据存储类型和节点配置，限制单个节点可挂载的存储卷数量，防止资源过载
+
+
+
+#### 2、限制规则
+
+| 存储类型        | 默认限制（卷/节点） | 可调整性                            |
+| --------------- | ------------------- | ----------------------------------- |
+| AWS EBS         | 39                  | 通过 kubelet`--max-volumes`参数调整 |
+| GCE PD          | 16                  | 需修改云提供商配置                  |
+| 本地卷（Local） | 无固定限制          | 受限于节点硬件                      |
+
+
+
+#### 3、操作实践
+
+~~~bash
+# 检查节点已挂载卷数量  
+kubectl describe node <node-name> | grep -A 10 "AttachedVolumes"  
+
+# 输出示例  
+AttachedVolumes:  
+  aws://us-east-1a/vol-0abc123 (awsebs)  
+  aws://us-east-1a/vol-0def456 (awsebs)  
+~~~
+
+调整卷数限制（以 AWS EBS 为例）
+
+步骤 1：修改 kubelet 配置
+
+~~~bash
+# 编辑 kubelet 配置文件  
+sudo vi /etc/kubernetes/kubelet.conf  
+
+# 添加参数  
+--max-volumes=50  
+~~~
+
+步骤 2：重启 kubelet
+
+~~~bash
+sudo systemctl restart kubelet  
+~~~
+
+
+
+**注意**：
+
+- **调度失败**：若节点卷数已达上限，新 Pod 会因 TooManyVolumes 错误无法调度
+- **云平台限制**：AWS/GCP 等云服务商对单节点卷数有额外限制（需单独调整）
+- **动态供应优化**：使用 WaitForFirstConsumer 延迟绑定减少无效卷挂载
+
+
+
+## 6、高级配置
+
+### 1、卷健康监测
+
+#### 1、概述
+
+卷健康监测（Volume Health Monitoring）通过 CSI 驱动与存储系统集成，实时检测存储卷的异常状态（如离线、容量不足），并触发修复或告警
+
+
+
+#### 2、核心机制
+
+~~~mermaid
+sequenceDiagram  
+    CSI Driver->>Storage System: 定期轮询卷状态  
+    Storage System-->>CSI Driver: 返回健康状态  
+    CSI Driver->>Kubernetes: 更新 PVC 事件  
+    Kubernetes->>Scheduler: 驱逐异常 Pod（可选）  
+~~~
+
+
+
+#### 3、资源定义
+
+~~~yaml
+apiVersion: storage.k8s.io/v1  
+kind: StorageClass  
+metadata:  
+  name: health-monitored-sc  
+provisioner: ebs.csi.aws.com  
+parameters:  
+  healthCheckInterval: "1h"  # 健康检查间隔  
+  unhealthyConditions: "IO_ERROR,OFFLINE"  # 触发告警的状态  
+~~~
+
+监控事件查看：
+
+~~~bash
+kubectl describe pvc <pvc-name> | grep -A 10 Events  
+# 输出示例  
+Events:  
+  Warning VolumeUnhealthy  2m  csi-driver  Volume is offline (Storage System: EBS vol-0abc123)  
+~~~
+
+
+
+### 2、Windows 存储
+
+#### 1、特性与限制
+
+| **特性** | **Windows 支持情况**                             |
+| -------- | ------------------------------------------------ |
+| 文件系统 | NTFS/ReFS（必须格式化）                          |
+| 卷类型   | AzureDisk/AzureFile/NFS/SMB                      |
+| CSI 驱动 | 必需（如`smb.csi.k8s.io`）                       |
+| 权限控制 | 基于 Windows 安全描述符（不支持 Linux 权限模式） |
+
+
+
+#### 2、操作实践
+
+##### 1、SMB 卷
+
+~~~yaml
+apiVersion: v1  
+kind: PersistentVolumeClaim  
+metadata:  
+  name: smb-pvc  
+spec:  
+  accessModes:  
+    - ReadWriteMany  
+  storageClassName: smb-sc  
+  resources:  
+    requests:  
+      storage: 5Gi  
+---  
+apiVersion: storage.k8s.io/v1  
+kind: StorageClass  
+metadata:  
+  name: smb-sc  
+provisioner: smb.csi.k8s.io  
+parameters:  
+  source: "//smb-server/share"  
+  csi.storage.k8s.io/node-stage-secret-name: smb-creds  
+~~~
+
+**关键要求**：
+
+- Windows 节点必须加入 Active Directory 域（SMB 认证）
+- 使用 fsType: ntfs 显式声明文件系统
+
+
+
+### 3、卷填充器
+
+#### 1、概述
+
+卷填充器是控制器，通过自定义资源创建预填充数据的卷，使用 dataSourceRef 字段指定数据源
+
+**特性要求**：
+
+- --feature-gates=AnyVolumeDataSource=true 需启用特性门控
+- 跨命名空间引用：--feature-gates=CrossNamespaceVolumeDataSource=true 启用 Alpha 特性
+
+**工作流程**：
+
+1. 用户创建引用自定义资源的 PVC
+2. 卷填充器控制器监测到 PVC 的 dataSourceRef
+3. 控制器根据自定义资源内容创建卷
+4. 填充完成后 PVC 进入 Bound 状态
+
+
+
+#### 2、示例
+
+同命名空间内
+
+~~~yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: populated-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  dataSourceRef:  # 引用自定义资源
+    apiGroup: storage.example.com
+    kind: DataSource
+    name: my-data
+  volumeMode: Filesystem
+~~~
+
+跨命名空间
+
+~~~yaml
+# 在被引用命名空间创建 ReferenceGrant
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-cross-ns
+  namespace: target-ns  # 必须与被引用资源同命名空间
+spec:
+  from:
+  - group: ""  # 空组表示核心 API 组
+    kind: PersistentVolumeClaim
+    namespace: source-ns  # 发起请求的命名空间
+  to:
+  - group: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: target-snapshot  # 可指定具体资源或留空允许所有
+~~~
+
+~~~yaml
+# 创建跨命名空间 PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cross-pvc
+  namespace: source-ns
+spec:
+  dataSourceRef:
+    apiGroup: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: target-snapshot
+    namespace: target-ns  # 显式指定目标命名空间
+~~~
+
+
+
+#### 3、数据源字段对比
+
+| 特性           | dataSource         | dataSourceRef                                |
+| -------------- | ------------------ | -------------------------------------------- |
+| 有效性检查     | 静默忽略无效值     | 严格校验，无效则报错                         |
+| 允许的资源类型 | PVC/VolumeSnapshot | 任意自定义资源，除 PVC 外的核心 API 组不允许 |
+| 跨命名空间支持 | 不支持             | 需配合 ReferenceGrant                        |
+| 同步机制       | 单向同步           | 独立字段                                     |
+
+~~~yaml
+# 传统集群使用 dataSource
+dataSource:
+  name: existing-pvc
+  kind: PersistentVolumeClaim
+
+# 启用 AnyVolumeDataSource 后使用 dataSourceRef
+dataSourceRef:
+  name: custom-data
+  kind: CustomDataSource
+  apiGroup: storage.example.com
+  
+# 无效示例（将导致 dataSourceRef 创建失败）
+dataSourceRef:
+  kind: Pod  # 核心 API 组不允许
+  name: my-pod
+~~~
+
+
+
+### 4、卷属性类
+
+#### 1、概述
+
+**功能定位**：
+
+- 用于定义可变存储属性的抽象层
+- 将存储参数与服务质量（QoS）级别解耦
+- 支持动态修改已存在的持久卷（PV）属性
+
+**特性状态**：Kubernetes v1.31 [beta]
+
+- 默认禁用，需显式启用特性门控
+- 依赖 CSI 驱动实现 ModifyVolume API
+
+**前置条件**：
+
+~~~yaml
+# 启用特性门控（所有控制平面组件）
+--feature-gates=VolumeAttributesClass=true
+
+# 启用 storage.k8s.io/v1beta1 API
+apiServer:
+  runtimeConfig:
+    storage.k8s.io/v1beta1: "true"
+~~~
+
+**CSI 驱动要求**：
+
+- 必须实现 ModifyVolume 控制器能力
+- 支持动态参数更新验证
+
+
+
+#### 2、资源定义
+
+~~~yaml
+apiVersion: storage.k8s.io/v1beta1
+kind: VolumeAttributesClass
+metadata:
+  name: gold-tier
+driverName: csi-driver.example.com  # 必须字段
+parameters:
+  iops: "5000"
+  replication-factor: "3"
+  encryption: "aes-256"
+~~~
+
+| 字段       | 类型                | 约束                    |
+| ---------- | ------------------- | ----------------------- |
+| driverName | string              | 必需，匹配 CSI 驱动名称 |
+| parameters | map<string, string> | 键值对，总大小 ≤256KB   |
+
+**参数约束**：
+
+- 键名不能为空
+- 最多 512 个参数
+- 值必须为字符串类型
+- 修改参数需创建新 VolumeAttributesClass
+
+**兼容性限制**：
+
+| 场景           | 支持性         |
+| -------------- | -------------- |
+| 静态制备 PV    | 不支持属性修改 |
+| 非 CSI 驱动    | 完全不可用     |
+| 跨命名空间引用 | 不允许         |
+
+
+
+#### 3、操作实践
+
+##### 1、操作流程
+
+1. 管理员创建新的 VolumeAttributesClass
+2. 用户更新 PVC 的 .spec.volumeAttributesClassName
+3. kube-controller-manager 调用 CSI 驱动的 ModifyVolume
+4. CSI 驱动执行底层存储配置变更
+5. 更新状态反映在 PVC 的 status.modifyVolumeStatus 字段
+
+**状态监控**：
+
+~~~yaml
+kubectl get pvc my-pvc -o jsonpath='{.status.modifyVolumeStatus}'
+# 可能状态：InProgress, Completed, Infeasible
+~~~
+
+
+
+##### 2、示例
+
+1、动态制备配置
+
+~~~yaml
+# 在 StorageClass 中引用
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-storage
+provisioner: csi-driver.example.com
+parameters:
+  volumeAttributesClassName: gold-tier
+~~~
+
+2、现有卷修改
+
+~~~yaml
+# 更新 PVC 触发属性变更
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  volumeAttributesClassName: silver-tier # 指向新配置
+~~~
+
+
+
+
+
+### 5、存储最佳实践
+
+#### 1、核心原则
+
+**生产环境存储选择**：
+
+- **动态制备优先**：减少人工干预，通过 StorageClass 自动创建 PV
+- **回收策略**：生产环境推荐 Retain 防止误删数据
+
+- 避免直接使用 hostPath（存在安全与可移植性问题）
+
+**多容器共享注意事项**：
+
+- 使用文件锁机制避免写冲突
+- 对只读卷显式声明 readOnly: true
+
+
+
+#### 2、性能优化
+
+~~~yaml
+# 高性能 StorageClass 示例  
+apiVersion: storage.k8s.io/v1  
+kind: StorageClass  
+metadata:  
+  name: gp3-ssd  
+provisioner: ebs.csi.aws.com  
+parameters:  
+  type: gp3  
+  iops: "10000"  
+  throughput: "500"  
+volumeBindingMode: WaitForFirstConsumer  
+~~~
+
+
+
+#### 3、安全加固
+
+**Secret 加密**：使用 Kubernetes Secrets 或外部 Vault 管理存储凭证
+
+**RBAC 控制**：限制对 PVC/PV 的写权限
+
+~~~yaml
+# RBAC 规则示例  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: Role  
+metadata:  
+  namespace: app  
+  name: storage-editor  
+rules:  
+- apiGroups: [""]  
+  resources: ["persistentvolumeclaims"]  
+  verbs: ["create", "delete"]  
+~~~
+
+
+
+#### 4、监控与告警
+
+**指标采集**：
+
+- kubelet_volume_stats_*：卷容量/使用率
+- csi_sidecar_operations_seconds：CSI 驱动性能
+
+
+
+### 故障排除
+
+#### 1、挂载配置检查
+
+~~~bash
+# 验证卷挂载状态  
+kubectl describe pod [pod名称] | grep -A 5 Mounts  
+
+# 输出示例  
+Mounts:  
+  /data from app-data (rw)  
+  /etc/config from config (ro)  
+~~~
+
+
+
+#### 2、PVC 绑定失败（Pending 状态）
+
+~~~bash
+kubectl get pvc  
+NAME      STATUS    VOLUME   CAPACITY   STORAGECLASS   AGE  
+app-pvc   Pending                                     5m  
+~~~
+
+| 原因                  | 排查步骤                                            | 解决方案                                                     |
+| --------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| **无可用 PV**         | `kubectl get pv`查看可用 PV                         | 1. 创建匹配的 PV<br>2. 启用动态制备（检查 StorageClass）     |
+| **StorageClass 错误** | `kubectl describe pvc`查看事件日志                  | 修正 PVC 中`storageClassName`字段，确保与已定义的 StorageClass 匹配 |
+| **资源配额不足**      | `kubectl describe resourcequota`检查配额限制        | 调整配额或删除不再使用的 PVC                                 |
+| **容量不匹配**        | 检查 PVC 请求的容量是否大于 PV 的`capacity.storage` | 创建容量更大的 PV 或减小 PVC 请求                            |
+
+
+
+#### 3、卷挂载错误（Mount Failed）
+
+~~~bash
+Warning  FailedMount  3s  kubelet  MountVolume.SetUp failed for volume "app-data" :  
+failed to mount /var/lib/kubelet/pods/.../volumes/kubernetes.io~nfs/app-data:  
+mount failed: exit status 32  
+~~~
+
+检查存储后端状态
+
+~~~bash
+# NFS 示例：验证服务可达性  
+telnet nfs-server 2049  
+~~~
+
+验证挂载参数
+
+~~~yaml
+# 检查 PV 定义中的 nfs 参数  
+nfs:  
+  server: 10.0.0.5  
+  path: /exports/data  
+  readOnly: false  
+~~~
+
+节点文件系统权限
+
+~~~bash
+# 检查节点挂载目录权限  
+kubectl debug node/<node-name> -it -- chmod 777 /mnt/data  
+~~~
+
+
+
+#### 4、存储卷权限问题
+
+容器内应用报错 Permission denied 无法写入卷
+
+调整 SecurityContext
+
+~~~yaml
+securityContext:  
+  fsGroup: 1000  # 设置卷的 GID  
+  runAsUser: 1000 # 设置容器的 UID  
+~~~
+
+存储系统级权限
+
+- NFS：确保 no_root_squash 配置正确
+- HostPath：节点目录权限需匹配容器用户
+
+
+
+#### 5、CSI 驱动故障
+
+检查 CSI 驱动 Pod 状态：
+
+~~~bash
+kubectl get pods -n kube-system | grep csi  
+~~~
+
+查看驱动日志：
+
+~~~bash
+kubectl logs -n kube-system csi-ebs-controller-0 -c csi-driver  
+~~~
+
+验证 CSI 驱动能力：
+
+~~~bash
+kubectl get csidrivers.storage.k8s.io  
+~~~
+
+
+
+6、节点卷数超限
+
+Pod 调度失败，事件显示 TooManyVolumes
+
+查看节点已挂载卷数
+
+~~~bash
+kubectl describe node <node-name> | grep AttachedVolumes  
+~~~
+
+调整限制（以 AWS EBS 为例）
+
+~~~bash
+# 修改 kubelet 参数  
+--max-volumes=50  
+~~~
+
+优化卷使用
+
+- 使用 volumeClaimTemplates 共享卷（StatefulSet）
+- 启用 WaitForFirstConsumer 延迟绑定
 
 
 
 # 12、Kubernetes ConfigMap
-
-## 1、基本概念
-
-ConfigMap 功能在 v1.2 版本中引入
-
-许多应用程序会从配置文件、命令行参数、环境变量中读取配置信息，ConfigMap API 提供了向容器中注入配置信息的机制，实现配置与镜像的分离，避免修改配置而重新构建镜像
-
-ConfigMap 可以被用来保存单个属性，也可以用来保存整个配置文件或者 JSON 二进制大对象
-
-
-
-**注意**：
-
-- ConfigMap 是命名空间级别资源，不可跨命名空间共享
-
-
-
-## 2、创建方式
-
-### 1、使用目录创建
-
-**--from-file**：指定目录，目录下的所有文件都会被读取，然后在 ConfigMap 里面创建多个键值对
-
-- 键就是文件名，值就是该文件的内容
-
-~~~bash
-ls docs/user-guide/configmap/kubectl/
-# game.properties
-# ui.properties
-
-cat docs/user-guide/configmap/kubectl/game.properties
-# enemies=aliens
-# lives=3
-# enemies.cheat=true
-# enemies.cheat.level=noGoodRotten
-# secret.code.passphrase=UUDDLRLRBABAS
-# secret.code.allowed=true
-# secret.code.lives=30
-
-cat docs/user-guide/configmap/kubectl/ui.properties
-# color.good=purple
-# color.bad=yellow
-# allow.textmode=true
-# how.nice.to.look=fairlyNice
-
-kubectl create configmap game-config --from-file=docs/user-guide/configmap/kubectl
-~~~
-
-
-
-### 2、使用文件创建
-
-只要 --from-file 指定一个文件，就可以从单个文件中创建 ConfigMap，其内的键值对与从目录读取效果一样
-
---from-file 这个参数可以使用多次，使用多次与从目录读取效果一样
-
-~~~bash
-kubectl create configmap game-config-2 --from-file=docs/user- guide/configmap/kubectl/game.properties
-
-kubectl create configmap game-config-2 \
---from-file=docs/user- guide/configmap/kubectl/game.properties\
---from-file=docs/user- guide/configmap/kubectl/ui.properties
-
-kubectl get configmaps game-config-2 -o yaml
-~~~
-
-
-
-### 3、使用字面量创建
-
- **--from-literal**：使用字面量创建，传递配置信息，该参数可以使用多次，每个参数都会变成一个键值对
-
-~~~bash
-kubectl create configmap special-config \
---from-literal=special.how=very \
---from-literal=special.type=charm
-
-kubectl get configmaps special-config -o yaml
-~~~
-
-
-
-### 4、使用 yaml 文件创建
-
-~~~yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: special-config
-  namespace: default
-data:
-  special.how: very
-  special.type: charm
-~~~
-
-~~~~bash
-kubectl create  -f  config.yaml
-~~~~
-
-
-
-## 3、使用
-
-**注意**：
-
-- ConfigMap 必须在 Pod 引用它之前创建
-- 使用 envFrom 时，将会自动忽略无效的键
-- Pod 只能使用同一个命名空间内的 ConfigMap
-
-~~~yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: special-config
-  namespace: default
-data:
-  special.how: very
-  special.type: charm
-
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: env-config
-  namespace: default
-data:
-  log_level: INFO
-~~~
-
-
-
-### 1、替换环境变量
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh", "-c", "env"]
-      env:
-        - name: SPECIAL_LEVEL_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: special-config
-              key: special.how
-        - name: SPECIAL_TYPE_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: special-config
-              key: special.type
-      envFrom:
-        - configMapRef:
-            name: env-config
-  restartPolicy: Never
-~~~
-
-
-
-### 2、设置命令行参数
-
-将 ConfigMap 用作命令行参数时，需要先把 ConfigMap 的数据保存在环境变量中，然后通过 $(VAR_NAME) 的方式引用环境变量
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-	name: dapi-test-pod
-spec:
-	containers:
-		- name: test-container
-		image: hub.xxx.com/library/myapp:v1
-		command: ['bin/sh', '-c', 'echo ${SPECIAL_LEVEL_KEY} ${SPECIAL_TYPE_KEY}']
-		env:
-			- name: SPECIAL_LEVEL_KEY
-			valueFrom:
-				configMapKeyRef:
-					name: special-config
-					key: special.how
-            - name: SPECIAL_TYPE_KEY
-			valueFrom:
-				configMapKeyRef:
-					name: special-config
-					key: special.type
-restartPolicy: Never
-~~~
-
-
-
-### 3、作为文件或目录挂载
-
-**仅指定 mountPath**：
-
-将创建的 ConfigMap 直接挂载至 Pod 的 /etc/config 目录下，同时 /etc/config 目录下其他文件会被清空
-
-每个 key-value 键值对都会生成一个文件，key 为文件名，value 为内容
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: vol-test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh", "-c", "cat /etc/config/special.how"]
-      volumeMounts:
-      - name: config-volume
-        mountPath: /etc/config # 在 /etc/config 目录下挂载文件
-  volumes:
-    - name: config-volume
-      configMap:
-        name: special-config # configmap 的名字
-  restartPolicy: Never
-~~~
-
-**指定 path 和 mountPath**：
-
-在 volumeMounts.mountPath 指定了绝对路径后，可以在 volume.configMap.items.path 指定**相对路径**与**文件名**，其中 path 最后一级是文件名，如果只有一级则第一级为文件名，如果存在同名文件，直接覆盖
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: dapi-test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh","-c","cat /etc/config/keys/special.level"]
-      volumeMounts:
-      - name: config-volume
-        mountPath: /etc/config
-  volumes:
-    - name: config-volume
-      configMap:
-        name: special-config
-        items:
-        - key: special.how # 除了这个 key 外，其他不挂载
-          path: keys/special.level # 挂载在 /etc/config 目录下的 /keys/special.level，special.level 作为文件名
-  restartPolicy: Never
-~~~
-
-ConfigMap 支持同一个目录下挂载多个 key 和多个目录
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: dapi-test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh","-c","sleep 36000"]
-      volumeMounts: # 俩个挂载点
-      - name: config-volume
-        mountPath: /etc/config
-      - name: config-volume2
-        mountPath: /etc/config2
-  volumes:
-    - name: config-volume
-      configMap:
-        name: special-config
-        items:
-        - key: special.how
-          path: keys/special.level # path 最后一级是文件名
-        - key: special.type
-          path: keys/special.type
-    - name: config-volume2
-      configMap:
-        name: special-config
-        items:
-        - key: special.how
-          path: keys/special.level
-  restartPolicy: Never
-~~~
-
-
 
 ### 4、不覆盖文件挂载
 
@@ -6847,91 +7690,6 @@ spec:
              path: app.properties
 # 此容器只挂载了 app.properties，并且 /etc/config 目录下只有 app.properties 文件
 ~~~
-
-![image-20240304164610214](images/image-20240304164610214.png)
-
-
-
-## 4、不可变
-
-给不需要经常修改的 ConfigMap 和 Secret 设置 immutable: true 就可以避免错误配置快速传播与 watch 压力加大
-
-~~~yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  ...
-data:
-  ...
-immutable: true
-~~~
-
-
-
-## 5、热更新
-
-~~~bash
-# 使用自带的默认编辑器直接修改即可
-kubectl edit configmap log-config
-~~~
-
-更新 ConfigMap 目前并不会触发相关 Pod 的滚动更新，可以通过修改 pod annotations 的方式触发滚动更新，例如：给 spec.template.metadata.annotations 中添加 version/config 触发滚动更新
-
-
-
-## 6、可选的
-
-可以在 Pod spc 中将对 ConfigMap 的引用标记为可选（optional），如果 ConfigMap 不存在或者键值不存在，那么数据是空的
-
-如果是挂载卷，此时 Kubernetes 将总是为卷创建挂载路径
-
-**注意**：
-
-- 如果挂载卷所引用的 ConfigMap 不存在，并且没有将应用标记为 optional 则 Pod 将无法启动
-- 如果环境变量中引用的 ConfigMap 不存在，Pod 会跳过无效键值，但在事件中会显示无效数据
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: dapi-test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh", "-c", "env"]
-      env:
-        - name: SPECIAL_LEVEL_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: a-config
-              key: akey
-              optional: true # 将环境变量标记为可选
-  restartPolicy: Never
-~~~
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: dapi-test-pod
-spec:
-  containers:
-    - name: test-container
-      image: gcr.io/google_containers/busybox
-      command: ["/bin/sh", "-c", "ls /etc/config"]
-      volumeMounts:
-      - name: config-volume
-        mountPath: /etc/config
-  volumes:
-    - name: config-volume
-      configMap:
-        name: no-config
-        optional: true # 将引用的 ConfigMap 的卷标记为可选
-  restartPolicy: Never
-~~~
-
-
 
 
 
@@ -8125,111 +8883,6 @@ Kubernetes 会限制单个 Endpoints 对象中可以容纳的端点数量
 **注意**：
 
 - 相同的 API 限制意味着不能手动将 Endpoints 更新为拥有超过 1000 个端点
-
-
-
-# 15、Kubernetes Probe
-
-## 1、基本概念
-
-probe 是由 kubelet 对容器执行的定期诊断，要执行诊断，kubelet 既可以在容器内执行代码，也可以发出一个网络请求
-
-Kubernetes 存在三种类型的探针：liveness probe、readiness probe、startup Probe
-
-- Liveness：适用场景是支持那些可以重新拉起的实例，默认成功
-- Readiness：主要应对的是启动之后无法立即对外提供服务的实例，默认失败
-- startup：主要应对启动时间较常的实例
-
-每类探针都支持四种探测方法：
-
-- **exec**：通过执行命令来检查服务是否正常，针对复杂检测或无 HTTP 接口的服务，命令返回值为 0 则表示容器健康
-- **httpGet**：通过发送 http 请求检查服务是否正常，返回 200-399 状态码则表明容器健康
-- **tcpSocket**：通过容器的 IP 和 Port 执行 TCP 检查，如果能够建立 TCP 连接，则表明容器健康
-- **gRPC**：执行一个远程过程调用，如果响应的状态是 SERVING，则认为诊断成功
-
-探针探测结果:
-
-- **Success**：Container 通过了检查
-- **Failure**：Container 未通过检查
-- **Unknown**：未能执行检查，不采取任何措施
-
-
-
-![35933da46310f1becb0fe2c6335968a8aecce931.a73f1073](images/35933da46310f1becb0fe2c6335968a8aecce931.a73f1073.png)
-
-
-
-## 2、Liveness Probe
-
-存活探针用于判断容器是否运行
-
-Liveness 探测的结果会存储在 LivenessManager中，kubelet 在 syncPod 时，发现该容器的 Liveness 探针检测失败时，会将其加入待启动的容器列表中，在之后的操作中会重新创建该容器
-
-有时应用程序可能因为某些原因（后端服务故障等）导致暂时无法对外提供服务，但应用软件没有终止，导致 Kubernetes 无法隔离有故障的 Pod，调用者可能会访问到有故障的 Pod，导致业务不稳定，Kubernetes 提供存活探针来检测应用程序是否正常运行，并且对相应状况进行相应的补救措施
-
-- 如果存活探针探测到容器不健康，则 Kubelet 将 kill 掉容器，并执行容器的重启策略
-- 如果一个容器不包含存活探针，则 Kubelet 认为容器的存活探针的返回值为健康，默认返回 Success
-
-如果容器能够在遇到问题或不健康的情况下自行崩溃，则不一定需要存活态探针，kubelet 将根据 Pod 的 restartPolicy 自动修复
-
-> 一般情况下存活探针与就绪探针会搭配使用，因为单单使用存活探针无法阻止流量导向问题容器
-
-
-
-## 3、Readiness Probe
-
-就绪探针用于判断容器是否启动完成，Pod 的 Condition 里的 Ready 为 True 时，kubelet 才会认定该 Pod 处于就绪状态，如果就绪探针探测失败，则 Pod 的 Condition 里的 Ready 状态将为 False，端点控制器将此 Pod 的 Endpoint 从对应的 Service 的 Endpoint 列表中移除，且不将任何请求调度到此 Pod，直到下次探测成功
-
-通过使用就绪探针，Kubernetes 能够等待应用程序完全启动，才允许服务将流量发送到新副本
-
-Readiness 检查结果会通过 SetContainerReadiness 函数，设置到 Pod 的 Status 中，从而更新 Pod 的 Ready Condition
-
-比如：使用 Tomcat 的应用程序来说，并不是简单地说 Tomcat 启动成功就可以对外提供服务的，还需要等待 Spring 容器初始化，数据库连接等等。对于 Spring Boot 应用，默认的 actuator 带有 /health 接口，可以用来进行启动成功的判断
-
-
-
-## 4、Startup Probe
-
-指示 Pod 中的容器是否都已经启动完毕，如果提供了启动探针，则所有其他探针都会被禁用，直到此探针成功为止，如果启动探测失败，kubelet 将杀死容器， 而容器依照重启策略进行重启，如果容器没有提供启动探测，则默认状态为 Success
-
-使用启动探针，将不再需要配置一个较长的存活探针初次探测时间以及探测间隔，从而允许使用远远超出存活态时间间隔所允许的时长
-
-比如：如果容器启动时间通常超出 initialDelaySeconds + failureThreshold × periodSeconds 总值，应该设置一个启动探针，对存活探针所使用的同一端点执行检查，periodSeconds 的默认值是 10 秒，应该将其 failureThreshold 设置得足够高，以便容器有充足的时间完成启动，并且避免更改存活态探针所使用的默认值，这一设置有助于减少死锁状况的发生
-
-
-
-## 5、示例
-
-~~~yaml
-apiVersion: v1
-kind: Pod
-metadata:
-	name: goproxy
-	labels:
-		app: goproxy
-spec:
-	containers:
-		- name: goproxy
-		image: k8s.gcr.io/goproxy:0.1
-	ports:
-		- containerPort: 8080
-	readinessProbe:
-		tcpSocket:
-			port: 8080
-		initialDelaySeconds: 5	# 容器启动后第一次执行探测是需要等待多少秒
-		periodSeconds: 10	# 执行探测的频率。默认是 10 秒，最小 1 秒
-	livenessProbe:
-		tcpSocket:
-			port: 8080
-		initialDelaySeconds: 15
-		periodSeconds: 20
-~~~
-
-其余参数：
-
-- timeoutSeconds：探测超时时间，默认 1 秒，最小 1 秒
-- successThreshold：探测失败后，最少连续探测成功多少次才被认定为成功，默认是 1，对于 liveness 必须是 1，最小值是 1 
-- failureThreshold：探测成功后，最少连续探测失败多少次才被认定为失败，默认是 3，最小值是 1
 
 
 
@@ -9888,47 +10541,90 @@ kubectl delete service svc-mysql -n dev
 
 
 
-## 1、搭建日志采集、监控告警平台
+## 2、日志采集平台
 
-### 1、日志采集
+### 1、日志采集方案
 
-#### 1、主要功能
+#### 1. DaemonSet 模式
 
-主要功能：采集、过滤、转发、储存、可视化
+**原理**：每个节点部署一个日志采集代理（如 Fluentd、Fluent Bit、Filebeat），采集节点上所有容器的日志（默认路径 /var/log/containers/*.log）
 
-采集、过滤、转发组件：Logstash、Filebeat、Fluentbit、Fluentd、Promtail
+**优点**：
 
-储存：Elasticsearch、Kafak、Loki
+- **资源占用低**：每个节点仅运行一个日志代理，适合大规模集群
+- **无侵入性**：无需修改应用代码或 Pod 配置
+- **支持标准输出和文件日志**：通过配置可采集容器标准输出和挂载到节点上的日志文件
 
-可视化：Kibana、Grafana
+**缺点**：
+
+- **多行日志处理困难**：需手动配置正则表达式匹配多行日志（如 Java 堆栈）
+- **无法隔离日志流**：同一节点上的所有 Pod 日志共用同一个采集配置，灵活性不足
 
 
 
-#### 2、最终选型
+#### 2. Sidecar 模式
 
-日志采集平台选择使用 Elasticsearch、Filebeat、Kibana，原因如下：
+**原理**：在每个 Pod 中运行一个专用的 Sidecar 容器（如 Fluentd、Logstash），与主容器共享日志 Volume，直接采集日志
 
-- 优点：
-  - Filebeat 相比于 Logstash 较为轻量，对于节点负担较小
+**优点**：
 
-  - 通过 ECK 搭建 Elasticsearch、Filebeat、Kibana 在维护与升级方面简单方便，组件之间有较好的兼容性
+- **高灵活性**：可为每个 Pod 定制日志处理规则（如多行日志、过滤敏感信息）
+- **隔离性**：不同 Pod 的日志采集互不影响
 
-  - ECK 内置大量的监控规则，安装 Promethus 后，开箱即用
+**缺点**：
 
-  - 对于高可用，由于 ECK 组件之间互相解耦，并且 ECK 部署的同类组件自带 Pod 反亲和性，会自然的部署在不同的节点上，只要设置多个组件副本，在单节点上出现各种组件故障不会影响到整体，减小故障域
+- **资源开销大**：每个 Pod 增加一个容器，导致 CPU/Memory 消耗显著上升
+- **复杂性高**：需为每个需要特殊处理的 Pod 配置 Sidecar，维护成本高
 
-- 缺点：
 
-  - 自定义参数较为困难
-  - 官方文档不够详细
 
-不选用 Fluentbit、Fluentd 原因如下：
+#### 3. 直出模式
 
-- 搭建过程繁琐易出错，需要大量的配置
-- 由于转发过程依赖多种插件，与下游日志接受组件兼容性不好
-- 官方文档异常简陋，学习曲线过高
-- 由于增加许多的配置，后期维护难度大幅增加
-- 虽然使用 Fluentd 作为转发组件，但由于其性能原因，并不适合
+**原理**：应用程序直接通过 SDK 或 HTTP API 将日志发送到后端系统（如 Elasticsearch、Loki）
+
+**优点**：
+
+- **减少中间环节**：避免日志落盘，降低延迟
+- **结构化日志友好**：适合直接输出 JSON 格式日志的场景
+
+**缺点**：
+
+- **侵入性强**：需修改应用代码，老旧系统改造困难
+- **可靠性风险**：网络波动可能导致日志丢失，需客户端实现重试机制
+
+
+
+**日志工作流**
+
+~~~bash
+[Pod] --> [stdout/stderr] --> [节点日志文件] --> [Fluentd] --> [Elasticsearch]  
+                                      │  
+                                      └-> [cAdvisor] --> [Prometheus] --> [Grafana]  
+~~~
+
+##### **分层监控模型**
+
+~~~bash
+[数据源] --> [采集层] --> [存储层] --> [可视化/告警层]  
+  │           │              │             │  
+  ├─ 容器指标 (cAdvisor)      Prometheus    Grafana  
+  ├─ 节点资源 (kubelet)       Elasticsearch Kibana  
+  └─ 应用性能 (Exporter)      InfluxDB      Alertmanager  
+~~~
+
+
+
+### 2、指标
+
+**黄金指标 (RED)**
+
+- **Rate** ：请求速率（如 QPS）
+- **Errors** ：错误率（HTTP 5xx 比例）
+- **Duration** ：响应延迟（P90/P99 分位数）
+
+
+
+## 2、搭建日志采集、监控告警平台
 
 
 
@@ -10386,6 +11082,231 @@ action(type="omfwd" target="192.168.100.139" port="31544" protocol="tcp" templat
 #### RULES ####
 *.*     /var/log/messages
 ~~~
+
+
+
+## 3、Calico
+
+### 1、Route Reflector 模式
+
+#### 1、概述
+
+切换模式之前，需要先搭建默认模式
+
+1. **传统 Full Mesh 模式**：每个节点都与其他所有节点建立 BGP 对等连接，适用于小规模集群
+2. **Route Reflector 模式**
+   - 选择一个或多个节点作为 **Route Reflector（路由反射器）**
+   - 其他节点（称为 **Client**）只需与 Route Reflector 建立 BGP 对等连接
+   - Route Reflector 负责将路由信息反射给所有 Client 节点
+
+
+
+#### 2、配置模板
+
+~~~yaml
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: peer-name  # BGP 对等体的名称
+spec:
+  nodeSelector: <selector>   # 用于选择应用此配置的节点，
+  peerSelector: <selector>   # 用于选择与哪些节点建立对等关系，被选中的节点变为 Route Reflector
+  peerIP: <peer-ip>          # 指定对等体的 IP 地址
+  asNumber: <asn>            # 对等体的自治系统号 (ASN)
+  authPassword: <password>   # 可选的 BGP 身份验证密码，增强安全性
+  port: <port>               # 可选，指定对等体使用的端口，默认为 179
+  limitPeers: <number>       # 可选，限制每个对等体的最大连接数
+  nodeAddressAutodetectionV4: # 可选，用于自动发现节点的 IPv4 地址
+    interface: <interface>    # 指定自动发现节点 IP 地址的接口
+  nodeAddressAutodetectionV6: # 可选，用于自动发现节点的 IPv6 地址
+    interface: <interface>    # 指定自动发现节点 IPv6 地址的接口
+
+~~~
+
+nodeSelector：被选中的节点变为 client，值为 all() 会选择所有节点
+
+~~~yaml
+nodeSelector: role == 'worker'  # 仅选择标签为 role=worker 的节点
+~~~
+
+peerIP：用来指定 BGP 对等体的 IP 地址，在某些情况下，可能需要手动指定对等体的 IP 地址，而不是依赖自动发现
+
+~~~yaml
+peerIP: 192.168.1.10  # 指定对等体的 IP 地址
+~~~
+
+asNumber：对等体的自治系统号 (ASN)，标识一个网络或组织的唯一编号，通常用于跨域路由交换，如果想与其他组织或网络建立 BGP 连接，通常需要指定不同的 ASN
+
+
+
+#### 2、具体配置
+
+**安装 calicoctl**
+
+~~~bash
+curl -L https://github.com/projectcalico/calico/releases/download/v3.29.2/calicoctl-linux-amd64 -o calicoctl
+mv ./calicoctl /usr/bin
+chmod +x /usr/bin/calicoctl
+~~~
+
+
+
+**选择 Route Reflector 节点**，选择集群中的一个或多个节点作为 Route Reflector，通常选择控制平面节点或专用节点
+
+~~~bash
+# 为 Route Reflector 节点添加标签
+kubectl label node <route-reflector-node-name> route-reflector=true
+~~~
+
+创建一个 BGP 配置文件（如 route-reflector.yaml），关闭 Full Mesh
+
+~~~yaml
+apiVersion: projectcalico.org/v3
+kind: BGPConfiguration
+metadata:
+  name: default
+spec:
+  nodeToNodeMeshEnabled: false
+  asNumber: 64512
+~~~
+
+使用 calicoctl 应用配置
+
+~~~bash
+calicoctl apply -f route-reflector.yaml
+~~~
+
+
+
+**修改节点配置**
+
+~~~bash
+calicoctl get node node1 -o yaml > node1.yaml
+~~~
+
+~~~yaml
+apiVersion: projectcalico.org/v3
+kind: Node
+metadata:
+  # .....不重要
+spec:
+  addresses:
+  - address: 192.168.154.134/24
+    type: CalicoNodeIP
+  - address: 192.168.154.134
+    type: InternalIP
+  bgp:
+    ipv4Address: 192.168.154.134/24
+    asNumber: 64512                           # asNumber 根据需要进行修改
+    routeReflectorClusterID: 192.168.154.134      # routeReflectorClusterID 改成节点的 IP 地址
+  ipv4VXLANTunnelAddr: 10.244.166.131
+  orchRefs:
+  - nodeName: node1
+    orchestrator: k8s
+status:
+  podCIDRs:
+  - 10.244.1.0/24
+~~~
+
+
+
+**配置 Route Reflector 与 Client**
+
+~~~yaml
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: route-reflector
+spec:
+  nodeSelector: all()
+  peerSelector: route-reflector == 'true'
+~~~
+
+应用配置
+
+~~~bash
+calicoctl apply -f bgp-peer.yaml
+~~~
+
+
+
+验证查看结果，在节点 1 输入 calicoctl node status，发现已经和 master 节点建立了 BGP 连接
+
+~~~bash
+# 在配置之前，该命令应该输出空值
+root@node1:~# calicoctl node status
+Calico process is running.
+
+IPv4 BGP status
++-----------------+---------------+-------+----------+-------------+
+|  PEER ADDRESS   |   PEER TYPE   | STATE |  SINCE   |    INFO     |
++-----------------+---------------+-------+----------+-------------+
+| 192.168.154.132 | node specific | up    | 13:05:29 | Established |
++-----------------+---------------+-------+----------+-------------+
+
+IPv6 BGP status
+No IPv6 peers found.
+~~~
+
+
+
+## 4、安装 Metrics Server
+
+首先安装 Metrics Server
+
+~~~bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+~~~
+
+修正 kubelet 配置（所有节点执行）
+
+~~~bash
+vim /var/lib/kubelet/config.yaml
+
+# 添加以下配置项：
+serverTLSBootstrap: true
+~~~
+
+重启 kubelet 服务
+
+~~~bash
+systemctl daemon-reload && systemctl restart kubelet
+~~~
+
+批准CSR请求（控制平面节点执行）
+
+在 /var/lib/kubelet/config.yaml 中设置 serverTLSBootstrap: true 会触发 kubelet 自动生成 TLS 证书签名请求（CSR），这是 Kubernetes 中 kubelet 服务端证书的引导机制，用于确保 kubelet 的 HTTPS 端点（默认端口 10250）使用有效证书
+
+~~~bash
+# 查看待批准的 CSR
+kubectl get csr | grep Pending
+
+# 批准所有节点证书（生产环境应逐个验证后批准）
+kubectl certificate approve <csr-name>
+~~~
+
+验证证书生成
+
+~~~bash
+# 检查证书 SAN 信息（所有节点执行）
+openssl x509 -in /var/lib/kubelet/pki/kubelet.crt -text | grep -A1 'X509v3 Subject Alternative Name'
+
+# 正确输出应包含：
+# X509v3 Subject Alternative Name:
+#   DNS:<node-hostname>, IP:<node-ip>
+~~~
+
+验证 Metrics Server 服务
+
+~~~bash
+# 未配置前，会报错
+controlplane:~$ kubectl top node
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+controlplane   115m         11%      1206Mi          64%         
+node01         31m          3%       939Mi           50%
+~~~
+
+
 
 
 
@@ -11664,6 +12585,92 @@ Hello plugins!
 
 
 
+#### 2、命令指南
+
+**基础命令**：
+
+| 命令    | 说明                                             |
+| ------- | ------------------------------------------------ |
+| creat   | 通过文件或标准输入创建资源                       |
+| expose  | 将一个资源公开为一个新的 Service                 |
+| run     | 在集群中运行一个特定的镜像                       |
+| set     | 在对象上设定特定的功能                           |
+| get     | 显示一个或多个的资源                             |
+| explain | 显示文档参考资料                                 |
+| edit    | 使用默认编辑器直接编辑一个资源，保存后会立即生效 |
+| delete  | 通过文件、标准输入、资源名称、标签选择器删除资源 |
+
+
+
+**管理命令**：
+
+| 命令           | 说明                                                      |
+| -------------- | --------------------------------------------------------- |
+| rollout        | 管理资源的发布                                            |
+| rollout-update | 对给定的复制控制器滚动更新                                |
+| scale          | 扩容或缩容 Pod、Deployment、ReplicaSet、RC、Job           |
+| certificate    | 修改证书资源                                              |
+| cluster-info   | 显示集群信息                                              |
+| top            | 显示资源（CPU、MEM、Storage）使用，需要使用 Headster 运行 |
+| cordon         | 标记节点不可调度                                          |
+| uncordon       | 标记节点可调度                                            |
+| drain          | 驱逐节点上的资源，一般准备下线                            |
+| taint          | 修改节点 taint 标记                                       |
+
+
+
+**调试命令**：
+
+| 命令         | 说明                                                         |
+| ------------ | ------------------------------------------------------------ |
+| describe     | 显示资源或资源组的详细信息                                   |
+| logs         | 在一个 Pod 中打印一个容器的日志，如果 Pod 只有一个容器，容器名称是可选的 |
+| attach       | 附加到一个运行的容器里                                       |
+| exec         | 执行命令到容器                                               |
+| port-forward | 转发一个或多个本地端口到一个 Pod                             |
+| proxy        | 运行一个 proxy 到 Kubernetes API Server                      |
+| cp           | 拷贝文件或目录到容器中                                       |
+| auth         | 检查授权                                                     |
+
+
+
+**其他命令**：
+
+| 命令         | 说明                                                 |
+| ------------ | ---------------------------------------------------- |
+| apply        | 通过文件或标准输入对资源进行更改                     |
+| patch        | 使用补丁修改、更新资源的字段                         |
+| repalce      | 通过文件或标准输入替换一个资源                       |
+| conver       | 不同的 API 版本之间转换配置文件                      |
+| label        | 更新资源上的标签                                     |
+| annotate     | 更新资源上的注释                                     |
+| completion   | 用于实现 kubectl 工具的自动补全                      |
+| api-versions | 打印支持的 API 版本                                  |
+| config       | 修改 kubeconfig 文件，用于访问 API，比如配置认证信息 |
+| help         | 显示帮助信息                                         |
+| plugin       | 运行一个命令行插件                                   |
+| version      | 打印客户端和服务版本的信息                           |
+
+
+
+#### 3、使用技巧
+
+##### 1、使用 -o 参数截取属性
+
+使用 -o 与 go-template 参数可以将资源的参数部分截取
+
+~~~bash
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ .data }}'
+~~~
+
+如果属性存在字符 **-** 则会报错，需要使用 index 并将属性用空格分隔而不是字符 **.**
+
+~~~bash
+kubectl get secret kube-prometheus-stack-grafana -n prometheus -o go-template='{{ index .data "admin-user" }}
+~~~
+
+
+
 ## 15、切换国内镜像源
 
 国内镜像源：registry.aliyuncs.com/google_containers
@@ -11698,6 +12705,411 @@ Mount propagation 定义了挂载对象（mount object）之间的关系，系�
 - 共享/从属挂载（shared and slave）
 - 私有挂载（private）
 - 不可绑定挂载（unbindable）
+
+
+
+## 17、BGP 与 AS
+
+### 1、术语
+
+AS：
+
+- 网络自治系统，一个完全自治的网络，通过 BGP 协议与其它 AS 交换路由信息，其中 64512 到 65535 共 1023 个 AS 号码被预留用于本地或者私用
+- AS 内部有多个 BGP speaker，分为 ibgp、ebgp，ebgp 还与其它的 AS 中的 ebgp 建立 BGP 连接，内部的 BGP speaker 通过 BGP 协议交换路由信息，最终每一个 BGP speaker 拥有整个 AS 的路由信息
+
+BGP speaker：
+
+- 一般是网络中的物理路由器，calico 将 node 改造成一个路由器（软件bird)，node 上的容器等就是接入这个路由器的设备
+
+ebgp：
+
+- AS 边界的 BGP Speaker，与同一个 AS 内部的 ibgp、其它 AS 的 ebgp 交换路由信息
+
+BGP：
+
+- 路由器之间的通信协议，主要用于 AS（Autonomous System,自治系统）之间的互联
+
+
+
+### 2、互联方式
+
+AS 内部的 BGP Speaker 之间有两种互联方式:
+
+- 全互联模式模式
+- Router reflection(RR) 模式
+
+全互联模式，就是一个 BGP Speaker 需要与其它所有的 BGP Speaker 建立 bgp 连接（形成一个bgp mesh）
+
+RR 模式，就是在网络中指定一个或多个 BGP Speaker 作为 反射路由（Router Reflector），RR 与所有的 BGP Speaker 建立 bgp 连接
+
+
+
+## 18、RunTime Class
+
+使用 RuntimeClass 这一特性可以为容器选择运行时的容器引擎，以在性能和安全之间取得平衡
+
+如果要使用，请确保 RuntimeClass 的 feature gate 在 apiserver 和 kubelet 上都是是激活状态，其依赖于 Container Runtime Interface（CRI）的具体实现
+
+RuntimeClass 默认要求集群中所有节点上的容器引擎的配置都是相同的，Kubernetes v1.16 中才开始引入对节点上容器引起不同的情况下的支持
+
+
+
+**containerd**：
+
+修改配置文件 /etc/containerd/config.toml 配置其 Runtime handler，请注意该文档的如下内容
+
+```toml
+# 旧版为 cri
+# 新版查看安装过程中配置
+[plugins.cri.containerd.runtimes.${HANDLER_NAME}]
+```
+
+此配置会有一个 handler 名称，用来唯一地标识该 CRI 的配置，此时需要为每一个 handler 创建一个对应的 RuntimeClass api 对象
+
+RuntimeClass 目前只有两个主要的字段：
+
+- RuntimeClass name（metadata.name）
+- handler (handler)
+
+~~~yaml
+apiVersion: node.k8s.io/v1beta1
+kind: RuntimeClass
+metadata:
+  name: myclass # RuntimeClass 没有名称空间
+handler: myHandler  # 对应 CRI 配置的 handler 名称
+~~~
+
+为集群完成 RuntimeClass 的配置后，在 Pod 的定义中指定 runtimeClassName 即可
+
+~~~yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  runtimeClassName: myclass
+~~~
+
+kubelet 将依据这个字段使用指定的 RuntimeClass 来运行该 Pod，如果指定的 RuntimeClass 不存在，或者 CRI 不能运行对应的 handler 配置，则 Pod 将进入 Failed 这个终止阶段，需要查看 Pod 的日志排查，如果 Pod 中未指定 runtimeClassName，kubelet 将使用默认的 RuntimeHandler 运行 Pod
+
+
+
+## 19、容器钩子
+
+Kubernetes中为容器提供了两个 hook（钩子函数）：
+
+- **PostStart**：
+  - 此钩子函数在容器创建后将立刻执行，并不能保证该钩子函数在容器的 ENTRYPOINT 之前执行
+  - 该钩子函数没有输入参数
+- **PreStop**：
+  - 此钩子函数在容器被 terminate（终止）之前执行，例如：
+    - 通过接口调用删除容器所在 Pod
+    - 某些管理事件的发生：健康检查失败、资源紧缺等
+  - 如果容器已经被关闭或者进入了 completed 状态，preStop 钩子函数的调用将失败
+  - 该函数的执行是同步的，即 Kubernetes 将在该函数完成执行之后才删除容器
+  - 该钩子函数没有输入参数
+
+容器只要实现并注册 hook handler 便可以使用钩子函数，容器可以实现两种类型的 hook handler：
+
+- **Exec**：在容器的名称空进和 cgroups 中执行一个指定的命令，例如：pre-stop.sh
+  - 该命令所消耗的 CPU、内存等资源，将计入容器可以使用的资源限制
+- **HTTP**：向容器的指定端口发送一个 HTTP 请求
+
+当容器的生命周期事件发生时，Kubernetes 在容器中执行该钩子函数注册的 handler，对于 Pod 而言，hook handler 的调用是同步的，即如果是 PostStart hook，容器的 ENTRYPOINT 和 hook 是同时出发的，然而如果 hook 执行的时间过长或者挂起了，容器将不能进入到 Running 状态，PreStop hook 的行为与此相似，如果 hook 在执行过程中挂起了，Pod phase 将停留在 Terminating 的状态，并且在 terminationGracePeriodSeconds 超时之后，Pod被删除，如果 PostStart 或者 PreStop hook 执行失败，则 Kubernetes 将 kill 该容器
+
+用户应该使其 hook handler 越轻量级越好，例如：对于长时间运行的任务，在停止容器前，调用 PreStop 钩子函数，以保存当时的计算状态和数据
+
+Hook 将至少被触发一次，即，当指定事件 PostStart 或 PreStop 发生时，hook 有可能被多次触发，因此 hook handler 的实现需要保证即使多次触发，执行也不会出错
+
+Hook handler 的日志并没有在 Pod 的 events 中发布，如果 handler 因为某些原因失败了，kubernetes 将广播一个事件 PostStart hook 发送 FailedPreStopHook 事件，可以执行命令 kubectl describe pod $(pod_name) 以查看这些事件
+
+~~~bash
+# 创建一个 Pod 并在其内定义 hook
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-demo
+spec:
+  containers:
+  - name: lifecycle-demo-container
+    image: nginx
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+      preStop:
+        exec:
+          command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+~~~
+
+
+
+**注意**：
+
+- Kubernetes 只在 Pod Teminated 状态时才发送 preStop 事件，处于其他状态不会发送
+
+
+
+## 20、节点控制器
+
+### 1、概述
+
+在 Kubernetes 中，创建节点时，仅会生成一个描述该节点的 API 对象，节点对象创建完成后，Kubernetes 会对其有效性进行检查，例如，假设创建一个如下所示的节点对象：
+
+~~~yaml
+apiVersion: v1
+kind: Node
+metadata:
+  name: "10.240.79.157"
+  labels:
+    name: "my-first-k8s-node"
+~~~
+
+Kubernetes 的 API Server 会根据 metadata.name 字段生成该节点对象，并对其进行健康检查，如果节点有效（即节点相关组件正常运行），则调度器可以将 Pod 分配到该节点，否则，该节点对象将被忽略，节点控制器（Node Controller）会持续监控节点状态，直到其变为有效或被管理员手动删除
+
+
+
+### 2、主要功能
+
+节点控制器是 Kubernetes Master 的核心组件，负责管理节点的生命周期，其主要功能包括：
+
+1. **CIDR 地址分配**：在节点注册时，节点控制器为其分配 CIDR 地址块，用于 Pod 的网络通信
+2. **节点可用性检查**：在云环境中，节点控制器通过云供应商接口检查每个节点对应的虚拟机状态，若发现节点异常（如虚拟机已被删除），节点控制器会自动从 API Server 中移除该节点对象
+3. **健康状态监控**；节点控制器通过心跳信号监控节点健康状况，当节点不可达（例如因停机导致心跳信号中断），其状态会发生以下变化：
+   - **状态更新**：节点对象的 NodeReady 条件从 True（健康）变为 Unknown（未知）
+   - **默认时间参数**：
+     - 若 40 秒（--node-monitor-grace-period）未收到心跳，标记为 Unknown
+     - 若 5 分钟（pod-eviction-timeout）仍无响应，驱逐节点上的所有 Pod
+   - **检查频率**：
+     - Kubelet 每 10 秒（--node-status-update-frequency）更新节点状态
+     - 节点控制器每 5 秒（--node-monitor-period）检查一次状态
+4. **Pod 驱逐流程**：当节点状态持续异常超过 5 分钟，kube-controller-manager 会触发 Pod 驱逐，确保集群资源重新分配
+5. **Lease 对象管理**：每个节点在 kube-node-lease 命名空间下有一个对应的 Lease 对象，节点控制器周期性地更新该对象以记录心跳信号
+   - 与 NodeStatus 的区别：
+     - NodeStatus 每次心跳都会更新，频率较高
+     - node-lease 仅在状态变化或长时间未更新（默认 1 分钟）时更新，比 40 秒的失联超时更长
+   - **优势**：Lease 对象更轻量，优化了心跳机制，提升了 Kubernetes 的性能和可伸缩性
+
+
+
+### 2、高可用性与故障处理优化
+
+在 Kubernetes v1.4 中，节点控制器优化了处理大规模节点失联（如 Master 网络故障）的逻辑，调整后的策略包括：
+
+- **Pod 驱逐速率限制**：默认情况下，驱逐速率受 --node-eviction-rate 控制（默认 0.1 个/秒，即每 10 秒驱逐 1 个 Pod）。
+
+- **基于可用区的动态调整**：
+
+  节点控制器根据故障节点的比例（NodeReady 为 Unknown 或 False）调整驱逐策略：
+
+  - **Normal**：正常状态，保持默认速率
+  - **PartialDisruption**：若故障节点比例超过 --unhealthy-zone-threshold（默认 0.55）：
+    - 小型集群（节点数 ≤ --large-cluster-size-threshold，默认 50）：暂停驱逐
+    - 大型集群：降至 --secondary-node-eviction-rate（默认 0.01 个/秒）
+  - **FullDisruption**：若某可用区全部节点故障，恢复默认速率；若所有可用区故障，则暂停驱逐
+
+这种策略的意义在于，当某可用区与 Master 失联时，其他健康可用区的工作负载仍可继续运行，多可用区部署的核心优势在于故障隔离，允许工作负载迁移到健康区域，即使所有可用区不可用（如集群无健康节点），节点控制器也会暂停驱逐，直到网络恢复
+
+
+
+后续更新：
+
+- **v1.6**：节点控制器开始为带有 NoExecute 污点的节点驱逐 Pod，并根据节点状态（如不可用或未就绪）自动添加污点
+- **v1.8**：支持根据节点 Condition（如 OutOfDisk）动态添加污点，进一步增强了自动化管理能力
+
+
+
+## 21、控制器冲突处理
+
+### 1、概述
+
+Kubernetes 控制器冲突处理是保证集群状态一致性的核心机制，其设计融合了分布式系统协调、版本控制、重试策略等关键技术
+
+
+
+### 2、冲突场景
+
+~~~mermaid
+graph TD
+    A[并发写操作] --> B{冲突类型}
+    B --> C[控制器 vs 控制器]
+    B --> D[控制器 vs 用户操作]
+    B --> E[控制器 vs 系统组件]
+~~~
+
+**典型冲突场景**：
+
+- 多个控制器同时修改同一对象（如 Deployment 和 HPA 同时修改副本数）
+- 用户手动修改控制器管理的资源
+- 网络分区导致的状态不一致
+- 控制器重启时的状态恢复
+
+
+
+### 3、核心冲突处理机制
+
+#### 1、ResourceVersion 乐观锁
+
+~~~go
+// k8s.io/apimachinery/pkg/apis/meta/v1/types.go
+type ObjectMeta struct {
+    ResourceVersion string `json:"resourceVersion,omitempty"`
+}
+~~~
+
+- 每个 API 对象都有唯一递增的版本号
+- 更新操作必须携带当前版本号
+- 版本不匹配返回 HTTP 409 Conflict 错误
+
+
+
+#### 2、指数退避重试算法
+
+~~~go
+// k8s.io/client-go/util/retry/util.go
+func RetryOnConflict(backoff Backoff, fn func() error) error {
+    // 重试逻辑实现
+    // 基础延迟: 5ms, 最大延迟: 1000ms
+}
+~~~
+
+- 默认重试 5 次
+- 退避公式：delay = min(baseDelay * 2^(attempt-1), maxDelay)
+
+
+
+#### 3、控制器分片协调
+
+~~~bash
+# 控制器启动参数
+- --leader-elect=true
+- --concurrent-statefulset-syncs=5
+~~~
+
+- 通过 Lease API 实现领导者选举
+- 水平分片处理不同资源
+
+
+
+### 4、高级处理策略
+
+#### 1、状态调和策略
+
+~~~mermaid
+sequenceDiagram
+    participant C as Controller
+    participant A as API Server
+    C->>A: Watch Resources
+    A->>C: Notify Change
+    loop Reconciliation
+        C->>C: Compute Desired State
+        C->>A: Update Object (with RV)
+        alt Conflict
+            A->>C: 409 Conflict
+            C->>C: Refresh State
+        else Success
+            A->>C: 200 OK
+        end
+    end
+~~~
+
+
+
+#### 2、版本冲突处理流程
+
+~~~python
+def handle_update():
+    current = get_object()
+    while True:
+        desired = calculate_desired(current)
+        try:
+            update_object(desired, current.resource_version)
+            break
+        except ConflictError:
+            current = get_object()  # 重新获取最新状态
+~~~
+
+
+
+### 5、典型控制器实现差异
+
+| 控制器类型  | 冲突处理特点                                       |
+| ----------- | -------------------------------------------------- |
+| Deployment  | 使用 Rollback 历史记录进行版本回退                 |
+| StatefulSet | 通过序号标识保证 Pod 唯一性                        |
+| DaemonSet   | 节点亲和性检查 + 节点状态缓存                      |
+| Job/CronJob | 并行度控制 + 完成数统计                            |
+| HPA         | 采用 staggered 更新策略，避免与垂直扩缩容(VPA)冲突 |
+
+
+
+### 6、调试与监控
+
+**冲突指标监控**：
+
+~~~bash
+# 控制器冲突次数
+apiserver_request_total{resource=~"deployments|statefulsets", verb="update", code="409"}
+
+# 重试次数分布
+controller_retries_bucket{controller="deployment-controller"}
+~~~
+
+**日志分析模式**：
+
+~~~bash
+kubectl logs -n kube-system <controller-pod> | grep -E "Conflict|retrying"
+# 典型日志输出：
+# "Operation cannot be fulfilled on deployments.apps \"my-app\": the object has been modified"
+~~~
+
+
+
+### 7、最佳实践配置
+
+**控制器参数调优**：
+
+~~~yaml
+# kube-controller-manager 配置片段
+concurrent_deployment_syncs: 5
+deployment_controller_sync_period: "15s"
+retry_interval: 500ms
+~~~
+
+**资源更新策略**：
+
+~~~bash
+# Deployment 更新策略示例
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+~~~
+
+
+
+### 8、底层原理验证
+
+~~~bash
+# 第一次获取 Deployment
+DEPLOY=$(kubectl get deploy/my-app -o json)
+RV1=$(echo "$DEPLOY" | jq -r .metadata.resourceVersion)
+
+# 修改并提交
+MODIFIED=$(echo "$DEPLOY" | jq '.spec.replicas=3')
+kubectl apply -f - <<< "$MODIFIED"  # 成功
+
+# 使用旧版本号再次提交
+kubectl apply -f - <<< "$MODIFIED" --resource-version=$RV1
+# 返回错误：
+# "Operation cannot be fulfilled on deployments.apps \"my-app\": the object has been modified"
+~~~
+
+该机制确保在分布式环境下，只有最新状态的操作能够成功提交，有效防止数据覆盖
+
+
 
 
 
@@ -11945,5 +13357,23 @@ Events:
 
 ~~~bash
 yum reinstall -y kubernetes-cni
+~~~
+
+
+
+# 过时
+
+## 1、镜像加速
+
+国内镜像源加速全部关闭，全部无法使用
+
+以下为过时内容：
+
+~~~bash
+# 对于已经下载好的，可以修改镜像名字
+# 国内 Aliyun 下载的 sandbox_image 为 3.9
+# 在修改 containerd 的 sandbox_image 失效的情况下，直接修改 tag 即可
+# 具体修改为多少的 tag，可查看任意容器日志得到
+ctr -n k8s.io i tag registry.aliyuncs.com/google_containers/pause:3.9 registry.k8s.io/pause:3.6
 ~~~
 

@@ -166,7 +166,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo docker run hello-world
 ~~~
 
-
+docker run -d --network h --name tunnel cloudflare/cloudflared:latest tunnel  --no-autoupdate --protocol http2  run --token eyJhIjoiMTVkOTk5MmU5YjNlYzQ5MTZkZmIyZDE5MTgxNTZlNWEiLCJ0IjoiYmM2Mjc3OGEtNmMyNy00NjExLWI0NGQtOTY5N2Y4NjdkNzY1IiwicyI6Ik16RmlObVF4T1RZdFl6STNPQzAwTnpkbUxUbGxaV1V0WkRoaE0yTTFaVEpqTm1JMiJ9
 
 ## 3、配置镜像加速与开机自启
 
@@ -204,7 +204,55 @@ systemctl enable docker
 
  
 
-## 2、分层镜像
+## 2、镜像命名规则
+
+~~~bash
+[REGISTRY/] [NAMESPACE/] REPOSITORY [:TAG] [@DIGEST]
+~~~
+
+- REGISTRY（可选）：Docker 镜像仓库地址，例如 docker.io、harbor.mycompany.com
+
+  - 如果不指定 REGISTRY，默认使用 docker.io
+
+  - ~~~bash
+    docker pull docker.io/library/nginx:latest  # 等同于 docker pull nginx
+    docker pull registry.gitlab.com/mygroup/myproject:latest
+    docker pull harbor.mycompany.com/devops/nginx:1.20
+
+- NAMESPACE（可选）：用户或组织命名空间，例如 library（官方镜像默认的命名空间）
+
+  - library 是 Docker Hub 官方镜像的默认命名空间
+
+  - ~~~bash
+    docker pull nginx  # 实际上是 docker.io/library/nginx
+    ~~~
+
+- REPOSITORY（必需）：镜像的名称，例如 nginx、mysql
+
+  - 只能包含：
+    - 小写字母 a-z
+    - 数字 0-9
+    - 可选：分隔符 .、_、-（但不能以这些字符开头）
+
+- TAG（可选）：镜像的标签，例如 latest、v1.0、alpine，用于标识不同版本
+
+  - 如果不指定 TAG，默认使用 latest
+
+- DIGEST（可选）：镜像的唯一哈希值（SHA256），保证镜像唯一性
+
+  - TAG 可能会变（nginx:latest 可能从 1.21 更新到 1.22）
+
+  - DIGEST 不会变，适用于严格控制版本
+
+  - ~~~bash
+    docker pull nginx@sha256:4a731fb...
+    ~~~
+
+
+
+## 3、分层镜像
+
+### 1、概述
 
 以下载 Tomcat 镜像为例，下载过程像是一层一层下载
 
@@ -214,7 +262,7 @@ Docker 镜像层是**只读**的，容器层是**可写**的，当容器启动�
 
 
 
-## 3、Union FS 原理
+### 2、Union FS 原理
 
 UnionFS（联合文件系统）是一种分层、轻量级且高性能的文件系统，广泛用于 Docker 镜像和容器的实现中
 
@@ -240,7 +288,7 @@ UnionFS（联合文件系统）是一种分层、轻量级且高性能的文件�
 
 
 
-## 4、镜像加载原理
+### 3、镜像加载原理
 
 首先 Docker 的镜像实际上由一层一层的文件系统组成（Union FS）
 
@@ -256,7 +304,7 @@ UnionFS（联合文件系统）是一种分层、轻量级且高性能的文件�
 
 
 
-## 5、镜像发布
+## 4、镜像发布
 
 ### 1、发布到私有仓库
 
@@ -312,7 +360,7 @@ docker push Host:Port/镜像:Tag
 
 
 
-## 6、虚悬镜像处理
+## 5、虚悬镜像处理
 
 仓库名、标签都是 <none\> 的镜像，俗称 dangling image
 
@@ -338,6 +386,56 @@ docker image ls -f dangling=true
 ```bash
 docker image prune
 ```
+
+
+
+## 6、build 命令
+
+docker build 是用于构建 Docker 镜像的命令
+
+~~~shell
+docker build [OPTIONS] PATH | URL | -
+~~~
+
+- PATH：指定 Dockerfile 所在的目录（通常是 .，即当前目录）。
+- URL：可以使用 GitHub、GitLab 等代码仓库的 URL。
+- -：表示从 stdin 读取 Dockerfile（适用于管道操作）
+
+|参数	|作用	|示例|
+| ---- | ---- | ---- |
+|-t, --tag| 指定镜像名称和标签 docker build -t <镜像名>:<标签> <Dockerfile目录> |	docker build -t myapp:v1 .|
+|-f, --file| 指定 Dockerfile 位置 |docker build -f /path/to/Dockerfile .|
+|--build-arg|	传递构建参数|	docker build --build-arg VERSION=1.0 .|
+|--no-cache|	不使用缓存构建|	docker build --no-cache -t myapp .|
+|--pull|	强制拉取最新基础镜像|	docker build --pull -t myapp .|
+|--progress|	控制构建过程的输出格式|	docker build --progress=plain .|
+|--target|	构建多阶段 Dockerfile 的特定阶段|	docker build --target builder .|
+|--network|	指定构建时的网络模式|	docker build --network=host .|
+|--rm|	构建后自动删除临时容器|	docker build --rm -t myapp .|
+|--platform|	指定目标架构（如 linux/amd64）|	docker build --platform=linux/arm64 .|
+|--secret|	传递构建时的敏感信息|	docker build --secret id=mysecret,src=secret.txt .|
+
+综合示例：
+
+~~~shell
+docker build \
+  -t myapp:1.0 \
+  -f Dockerfile.prod \
+  --build-arg VERSION=1.0 \
+  --no-cache \
+  --pull \
+  --progress=plain \
+  --platform=linux/amd64 \
+  .
+~~~
+
+1. -t myapp:1.0 → 指定镜像名 myapp，版本 1.0
+2. -f Dockerfile.prod → 使用 Dockerfile.prod 作为构建文件
+3. --build-arg VERSION=1.0 → 传递 VERSION=1.0 作为构建参数
+4. --no-cache → 禁用缓存，确保每次都重新拉取资源
+5. --pull → 强制拉取最新的基础镜像
+6. --progress=plain → 以纯文本格式显示构建日志
+7. --platform=linux/amd64 → 目标平台是 linux/amd64
 
 
 
@@ -2506,20 +2604,14 @@ systemctl restart sshd.service
 ## 7、安装Nginx
 
 ~~~bash
-docker run -itd  --name nginx \
--p 80:80 \
--v /data/docker/nginx/html:/usr/share/nginx/html \
--v /data/docker/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
--v /data/docker/nginx/conf/conf.d:/etc/nginx/conf.d  \
--v /data/docker/nginx/logs:/var/log/nginx \
--v /data/docker/nginx/etc/html:/etc/nginx/html \
---privileged=true \
-nginx
+docker run -d \
+  --name nginx \
+  -p 8080:80 \
+  -v /data/docker/nginx/html:/usr/share/nginx/html \
+  -v /data/docker/nginx/conf:/etc/nginx \
+  -v /data/docker/nginx/logs:/var/log/nginx \
+  nginx:alpine
 ~~~
-
-**问题**：
-
-- 似乎静态文件应该放在 /etc/nginx/html 而非 /usr/share/nginx/html，从error.log文件中看出
 
 
 
